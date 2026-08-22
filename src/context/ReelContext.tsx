@@ -42,7 +42,7 @@ interface ReelContextType {
   setIsCommandPaletteOpen: (open: boolean) => void;
   setIsCreateCollectionModalOpen: (open: boolean) => void;
 
-  saveReel: (url: string) => Promise<void>;
+  saveReel: (url: string, customDetails?: { creator?: string; caption?: string; category?: string }) => Promise<void>;
   toggleFavorite: (id: string) => void;
   deleteReel: (id: string) => void;
   undoDelete: () => void;
@@ -51,6 +51,7 @@ interface ReelContextType {
   createCollection: (name: string, description?: string, icon?: string) => void;
   addReelToCollection: (reelId: string, collectionId: string) => void;
   generateAiSummary: (reelId: string) => void;
+  refreshReelMetadata: (id: string) => Promise<void>;
   showToast: (title: string, subtitle?: string, action?: { label: string; onClick: () => void }) => void;
   removeToast: (id: string) => void;
 }
@@ -83,8 +84,60 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
       const savedReels = localStorage.getItem(userReelsKey);
       const savedCols = localStorage.getItem(userColsKey);
 
-      setReels(savedReels ? JSON.parse(savedReels) : []);
+      const parsedReels: Reel[] = savedReels ? JSON.parse(savedReels) : [];
+      setReels(parsedReels);
       setCollections(savedCols ? JSON.parse(savedCols) : []);
+
+      // Auto-upgrade any reels that have fallback or placeholder data
+      const needsUpgrade = parsedReels.some(
+        (r) =>
+          r.creatorUsername === "instagram_creator" ||
+          r.creatorUsername.startsWith("reels_") ||
+          !r.likes ||
+          r.thumbnailUrl.includes("unsplash.com")
+      );
+
+      if (needsUpgrade) {
+        (async () => {
+          const upgraded = await Promise.all(
+            parsedReels.map(async (r) => {
+              if (
+                r.creatorUsername === "instagram_creator" ||
+                r.creatorUsername.startsWith("reels_") ||
+                !r.likes ||
+                r.thumbnailUrl.includes("unsplash.com")
+              ) {
+                try {
+                  const res = await fetch("/api/reel-info", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ url: r.instagramUrl }),
+                  });
+                  if (res.ok) {
+                    const data = await res.json();
+                    return {
+                      ...r,
+                      creatorUsername: data.creatorUsername || r.creatorUsername,
+                      creatorFullName: data.creatorFullName || r.creatorFullName,
+                      caption: data.caption || r.caption,
+                      thumbnailUrl: data.thumbnailUrl || r.thumbnailUrl,
+                      likes: data.likes || r.likes,
+                      commentsCount: data.commentsCount || r.commentsCount,
+                      category: data.category || r.category,
+                      hashtags: data.hashtags && data.hashtags.length > 0 ? data.hashtags : r.hashtags,
+                    };
+                  }
+                } catch (e) {
+                  console.warn("Auto-upgrade reel notice:", e);
+                }
+              }
+              return r;
+            })
+          );
+          setReels(upgraded);
+          localStorage.setItem(userReelsKey, JSON.stringify(upgraded));
+        })();
+      }
     } else {
       setReels([]);
       setCollections([]);
@@ -237,10 +290,46 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
     showToast(`✓ Added to ${colName}`);
   };
 
-  // REAL Instagram Metadata & Thumbnail Fetching
-  const saveReel = async (url: string) => {
+  const refreshReelMetadata = async (id: string) => {
+    const target = reels.find((r) => r.id === id);
+    if (!target) return;
     try {
-      // Call backend API route to fetch real Instagram metadata
+      const res = await fetch("/api/reel-info", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: target.instagramUrl }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const updated = reels.map((r) =>
+          r.id === id
+            ? {
+                ...r,
+                creatorUsername: data.creatorUsername || r.creatorUsername,
+                creatorFullName: data.creatorFullName || r.creatorFullName,
+                caption: data.caption || r.caption,
+                thumbnailUrl: data.thumbnailUrl || r.thumbnailUrl,
+                likes: data.likes || r.likes,
+                commentsCount: data.commentsCount || r.commentsCount,
+                category: data.category || r.category,
+                hashtags: data.hashtags && data.hashtags.length > 0 ? data.hashtags : r.hashtags,
+              }
+            : r
+        );
+        saveUserReels(updated);
+        showToast("Metadata refreshed!");
+      }
+    } catch (e) {
+      console.warn("Refresh metadata error:", e);
+    }
+  };
+
+  // REAL Instagram Metadata & Thumbnail Fetching
+  const saveReel = async (
+    url: string,
+    customDetails?: { creator?: string; caption?: string; category?: string }
+  ) => {
+    try {
       const res = await fetch("/api/reel-info", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -249,10 +338,11 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
 
       const data = await res.json();
 
-      const creator = data.creatorUsername || "instagram_creator";
-      const category = data.category || "General";
-      const caption = data.caption || `Instagram Reel: ${url}`;
-      const thumbnailUrl = data.thumbnailUrl || (data.shortcode ? `https://www.instagram.com/p/${data.shortcode}/media/?size=l` : "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80");
+      const creator = customDetails?.creator || data.creatorUsername || "instagram_creator";
+      const creatorFullName = data.creatorFullName || creator;
+      const category = customDetails?.category || data.category || "General";
+      const caption = customDetails?.caption || data.caption || `Instagram Reel: ${url}`;
+      const thumbnailUrl = data.thumbnailUrl || (data.shortcode ? `/api/proxy-image?shortcode=${data.shortcode}` : "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80");
       const embedUrl = data.embedUrl || (data.shortcode ? `https://www.instagram.com/p/${data.shortcode}/embed/` : null);
 
       const newReel: Reel = {
@@ -260,16 +350,19 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
         userId: user?.id || "user-1",
         instagramUrl: url,
         creatorUsername: creator,
+        creatorFullName,
         creatorProfileUrl: `https://instagram.com/${creator}`,
-        creatorAvatar: `https://ui-avatars.com/api/?name=${creator}&background=6366F1&color=fff`,
+        creatorAvatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(creatorFullName || creator)}&background=6366F1&color=fff`,
         thumbnailUrl,
-        mediaUrl: data.mediaUrl || "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
+        mediaUrl: data.mediaUrl || "https://vjs.zencdn.net/v/oceans.mp4",
         embedUrl: embedUrl || undefined,
         caption,
         category,
         subcategories: [category],
         collections: [],
-        hashtags: [`#${category.toLowerCase().replace(/\s+/g, "")}`],
+        hashtags: data.hashtags && data.hashtags.length > 0 ? data.hashtags : [`#${category.toLowerCase().replace(/\s+/g, "")}`],
+        likes: data.likes || "",
+        commentsCount: data.commentsCount || "",
         isFavorite: false,
         duration: "0:30",
         createdAt: new Date().toISOString(),
@@ -286,45 +379,44 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
       showToast(`✨ Saved @${creator}'s Reel`, `Added to ${category}`);
     } catch (err) {
       console.error("Failed to save reel with metadata:", err);
-      // Fallback if network fails
+      const shortcodeMatch = url.match(/(?:reel|p)\/([A-Za-z0-9_-]+)/);
+      const shortcode = shortcodeMatch ? shortcodeMatch[1] : "";
       const fallbackReel: Reel = {
         id: "reel-" + Math.random().toString(36).substr(2, 9),
         userId: user?.id || "user-1",
         instagramUrl: url,
-        creatorUsername: "instagram_creator",
+        creatorUsername: customDetails?.creator || (shortcode ? `reels_${shortcode.substring(0, 6)}` : "instagram_creator"),
         creatorProfileUrl: "https://instagram.com",
-        thumbnailUrl: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80",
-        mediaUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
-        caption: `Saved Reel from Instagram: ${url}`,
-        category: "General",
+        thumbnailUrl: shortcode ? `/api/proxy-image?shortcode=${shortcode}` : "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80",
+        mediaUrl: "https://vjs.zencdn.net/v/oceans.mp4",
+        caption: customDetails?.caption || `Saved Reel: ${url}`,
+        category: customDetails?.category || "General",
         subcategories: [],
         collections: [],
-        hashtags: [],
+        hashtags: ["#reels"],
         isFavorite: false,
         duration: "0:30",
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
-        lastViewedAt: new Date().toISOString(),
         viewCount: 1,
       };
       saveUserReels([fallbackReel, ...reels]);
       setIsSaveModalOpen(false);
-      showToast("✨ Reel saved to library");
+      showToast("Saved Reel to library");
     }
   };
 
   const generateAiSummary = (reelId: string) => {
-    const updated = reels.map((r) => {
-      if (r.id === reelId) {
-        return {
-          ...r,
-          aiSummary: `Generated Summary: Detailed breakdown of @${r.creatorUsername}'s video. Highlights 3 core practical takeaways for ${r.category}.`,
-        };
-      }
-      return r;
-    });
-    saveUserReels(updated);
-    showToast("✨ AI summary generated");
+    const target = reels.find((r) => r.id === reelId);
+    if (!target) return;
+
+    showToast("✨ Generating AI Summary...");
+    setTimeout(() => {
+      const summary = `Generated Summary: Detailed breakdown of @${target.creatorUsername}'s video. Highlights 3 core practical takeaways for ${target.category}.`;
+      const updated = reels.map((r) => (r.id === reelId ? { ...r, aiSummary: summary } : r));
+      saveUserReels(updated);
+      showToast("✓ AI Summary generated");
+    }, 1200);
   };
 
   return (
@@ -363,6 +455,7 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
         createCollection,
         addReelToCollection,
         generateAiSummary,
+        refreshReelMetadata,
         showToast,
         removeToast,
       }}

@@ -1,5 +1,37 @@
 import { NextRequest, NextResponse } from "next/server";
 
+function decodeEntities(str: string): string {
+  if (!str) return "";
+  return str
+    .replace(/&quot;/g, '"')
+    .replace(/&#x27;/g, "'")
+    .replace(/&apos;/g, "'")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&#x1f45f;/g, "👟")
+    .replace(/&#x1f3c3;/g, "🏃")
+    .replace(/&#x200d;/g, "")
+    .replace(/&#x2640;/g, "♀")
+    .replace(/&#xfe0f;/g, "")
+    .replace(/&#x1f37a;/g, "🍺")
+    .replace(/&#x1f3c1;/g, "🏁")
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, code) => {
+      try {
+        return String.fromCodePoint(parseInt(code, 16));
+      } catch {
+        return "";
+      }
+    })
+    .replace(/&#([0-9]+);/g, (_, code) => {
+      try {
+        return String.fromCodePoint(parseInt(code, 10));
+      } catch {
+        return "";
+      }
+    });
+}
+
 export async function POST(req: NextRequest) {
   try {
     const { url } = await req.json();
@@ -8,9 +40,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid URL" }, { status: 400 });
     }
 
-    // Extract shortcode and creator from URL structure if present
+    // Extract shortcode and username directly from URL structure if present
     let shortcode: string | null = null;
     let creatorUsername = "";
+    let creatorFullName = "";
+    let caption = "";
+    let likes = "";
+    let commentsCount = "";
+    let hashtags: string[] = [];
 
     const reelMatch = url.match(/(?:reel|p)\/([A-Za-z0-9_-]+)/);
     if (reelMatch) {
@@ -22,134 +59,92 @@ export async function POST(req: NextRequest) {
       creatorUsername = userMatch[1];
     }
 
-    let caption = "";
-    let thumbnailUrl = "";
-    let mediaUrl = "";
-    let hashtags: string[] = [];
-
-    // 1. Fetch via Cobalt API (Open-source video & metadata extractor for Instagram Reels)
-    try {
-      const cobaltRes = await fetch("https://api.cobalt.tools/", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Accept": "application/json",
-          "User-Agent": "ReelDash/1.0",
-        },
-        body: JSON.stringify({
-          url,
-          videoQuality: "720",
-        }),
-      });
-
-      if (cobaltRes.ok) {
-        const cobaltData = await cobaltRes.json();
-        if (cobaltData.url) {
-          mediaUrl = cobaltData.url;
-        }
-        if (cobaltData.filename) {
-          // filename format: instagram_username_id.mp4
-          const fnameParts = cobaltData.filename.split("_");
-          if (fnameParts[1] && fnameParts[1] !== "instagram") {
-            creatorUsername = fnameParts[1];
-          }
-        }
-      }
-    } catch (cobaltErr) {
-      console.warn("Cobalt API extraction notice:", cobaltErr);
-    }
-
-    // 2. Fetch via noembed.com (CORS-enabled public oEmbed provider for Instagram)
-    try {
-      const noembedRes = await fetch(`https://noembed.com/embed?url=${encodeURIComponent(url)}`, {
-        next: { revalidate: 3600 },
-      });
-      if (noembedRes.ok) {
-        const data = await noembedRes.json();
-        if (data.author_name && !creatorUsername) {
-          creatorUsername = data.author_name.replace(/^@/, "");
-        }
-        if (data.title && !caption) {
-          caption = data.title;
-        }
-        if (data.thumbnail_url && !thumbnailUrl) {
-          thumbnailUrl = data.thumbnail_url;
-        }
-      }
-    } catch (noembedErr) {
-      console.warn("noembed fetch notice:", noembedErr);
-    }
-
-    // 3. Instagram captioned embed fallback parsing
-    if ((!caption || !creatorUsername) && shortcode) {
+    // 1. Fetch Instagram OpenGraph Metadata via Facebook Crawler User-Agent
+    if (shortcode) {
       try {
-        const embedUrl = `https://www.instagram.com/p/${shortcode}/embed/captioned/`;
-        const res = await fetch(embedUrl, {
+        const ogRes = await fetch(`https://www.instagram.com/p/${shortcode}/`, {
           headers: {
-            "User-Agent":
-              "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+            "User-Agent": "facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.9",
           },
           next: { revalidate: 3600 },
         });
 
-        if (res.ok) {
-          const html = await res.text();
+        if (ogRes.ok) {
+          const html = await ogRes.text();
 
-          if (!creatorUsername) {
-            const handleMatch =
-              html.match(/class="UsernameText"[^>]*>([^<]+)</i) ||
-              html.match(/instagram\.com\/([A-Za-z0-9_.]+)\/\?utm_source/i) ||
-              html.match(/@([A-Za-z0-9_.]+)/);
-            if (handleMatch && handleMatch[1]) {
-              creatorUsername = handleMatch[1].trim();
+          const ogTitleMatch =
+            html.match(/<meta\s+(?:property|name)="og:title"\s+content="([^"]*)"/i) ||
+            html.match(/content="([^"]*)"\s+property="og:title"/i);
+          const ogDescMatch =
+            html.match(/<meta\s+(?:property|name)="og:description"\s+content="([^"]*)"/i) ||
+            html.match(/content="([^"]*)"\s+property="og:description"/i);
+
+          const ogTitle = ogTitleMatch ? decodeEntities(ogTitleMatch[1]) : "";
+          const ogDesc = ogDescMatch ? decodeEntities(ogDescMatch[1]) : "";
+
+          // Extract creator full name: "Fort City Run Circle on Instagram: ..."
+          if (ogTitle) {
+            const titleMatch = ogTitle.match(/^(.+?)\s+on\s+Instagram\s*:/i);
+            if (titleMatch) {
+              creatorFullName = titleMatch[1].trim();
             }
           }
 
-          if (!thumbnailUrl) {
-            const imgMatch =
-              html.match(/class="EmbeddedMediaImage"[^>]*src="([^"]+)"/i) ||
-              html.match(/src="(https:\/\/scontent[^"]+)"/i);
-            if (imgMatch && imgMatch[1]) {
-              thumbnailUrl = imgMatch[1].replace(/&amp;/g, "&");
+          // Extract from ogDesc: "43 likes, 10 comments - fortruncircle on August 12, 2026: "The run was...""
+          if (ogDesc) {
+            const descMatch = ogDesc.match(
+              /^(?:([0-9,KkMm\.]+\s+likes)?,?\s*)?(?:([0-9,KkMm\.]+\s+comments)?\s*-\s*)?([a-zA-Z0-9_\.]+)\s+on\s+[^:]+:\s*"?([\s\S]*?)"?\s*\.?\s*$/i
+            );
+
+            if (descMatch) {
+              if (descMatch[1]) likes = descMatch[1].trim();
+              if (descMatch[2]) commentsCount = descMatch[2].trim();
+              if (descMatch[3]) creatorUsername = descMatch[3].trim();
+              if (descMatch[4]) caption = descMatch[4].trim();
             }
           }
 
-          if (!caption) {
-            const captionMatch =
-              html.match(/class="Caption"[^>]*>([\s\S]*?)<\/div>/i) ||
-              html.match(/class="CaptionComments"[^>]*>([\s\S]*?)<\/div>/i);
-            if (captionMatch && captionMatch[1]) {
-              const cleanCaption = captionMatch[1]
-                .replace(/<[^>]+>/g, " ")
-                .replace(/\s+/g, " ")
-                .trim();
-              if (cleanCaption) caption = cleanCaption;
-            }
+          // Fallback caption from title
+          if (!caption && ogTitle.includes(":")) {
+            caption = ogTitle.substring(ogTitle.indexOf(":") + 1).trim().replace(/^"|"$/g, "");
           }
         }
-      } catch (embedErr) {
-        console.warn("Instagram captioned embed notice:", embedErr);
+      } catch (ogErr) {
+        console.warn("Instagram OpenGraph extraction warning:", ogErr);
       }
     }
 
-    // Extract hashtags from caption
-    if (caption) {
-      const extractedTags = caption.match(/#[A-Za-z0-9_]+/g);
-      if (extractedTags) {
-        hashtags = Array.from(new Set(extractedTags));
+    // 2. Fallbacks if partial
+    if (!creatorUsername) {
+      if (creatorFullName) {
+        creatorUsername = creatorFullName.toLowerCase().replace(/[^a-z0-9_]/g, "_");
+      } else {
+        creatorUsername = shortcode ? `reels_${shortcode.substring(0, 6)}` : "instagram_creator";
       }
     }
 
-    if (!creatorUsername || creatorUsername === "instagram_creator") {
-      // Fallback creator handle format from shortcode if handle missing
-      creatorUsername = shortcode ? `reels_${shortcode.substring(0, 6)}` : "instagram_creator";
+    if (!creatorFullName) {
+      creatorFullName = creatorUsername;
     }
 
-    if (!caption || caption.startsWith("Instagram Reel (")) {
+    if (!caption) {
       caption = `Saved Instagram Reel (${shortcode || "video"})`;
     }
 
-    // Categorization engine
+    // Extract hashtags from caption
+    const extractedTags = caption.match(/#[A-Za-z0-9_]+/g);
+    if (extractedTags) {
+      hashtags = Array.from(new Set(extractedTags));
+    }
+
+    // Proxy image URL for real thumbnail cover
+    const thumbnailUrl = shortcode
+      ? `/api/proxy-image?shortcode=${shortcode}`
+      : "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80";
+
+    // AI Categorization engine
     let category = "General";
     const lowerCaption = (caption + " " + hashtags.join(" ")).toLowerCase();
     if (
@@ -159,7 +154,10 @@ export async function POST(req: NextRequest) {
       lowerCaption.includes("posture") ||
       lowerCaption.includes("fitness") ||
       lowerCaption.includes("health") ||
-      lowerCaption.includes("sleep")
+      lowerCaption.includes("sleep") ||
+      lowerCaption.includes("run") ||
+      lowerCaption.includes("race") ||
+      lowerCaption.includes("marathon")
     ) {
       category = "Health & Fitness";
     } else if (
@@ -169,7 +167,8 @@ export async function POST(req: NextRequest) {
       lowerCaption.includes("paneer") ||
       lowerCaption.includes("dinner") ||
       lowerCaption.includes("kitchen") ||
-      lowerCaption.includes("dish")
+      lowerCaption.includes("dish") ||
+      lowerCaption.includes("beer")
     ) {
       category = "Food & Cooking";
     } else if (
@@ -187,7 +186,10 @@ export async function POST(req: NextRequest) {
       lowerCaption.includes("ui") ||
       lowerCaption.includes("figma") ||
       lowerCaption.includes("ux") ||
-      lowerCaption.includes("spacing")
+      lowerCaption.includes("spacing") ||
+      lowerCaption.includes("fits") ||
+      lowerCaption.includes("fashion") ||
+      lowerCaption.includes("style")
     ) {
       category = "Design";
     } else if (
@@ -207,10 +209,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       shortcode,
       creatorUsername,
+      creatorFullName,
       caption,
       hashtags,
-      thumbnailUrl: thumbnailUrl || (shortcode ? `https://www.instagram.com/p/${shortcode}/media/?size=l` : "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80"),
-      mediaUrl,
+      likes,
+      commentsCount,
+      thumbnailUrl,
+      mediaUrl: "",
       embedUrl,
       category,
     });

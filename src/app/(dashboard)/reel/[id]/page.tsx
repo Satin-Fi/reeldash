@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useReels } from "@/context/ReelContext";
 import Image from "next/image";
@@ -18,9 +18,10 @@ import {
   Clock,
   Instagram,
   MessageCircle,
-  Hash,
+  ThumbsUp,
   RefreshCw,
-  User,
+  Play,
+  Film,
 } from "lucide-react";
 
 export default function ReelDetailPage() {
@@ -35,6 +36,7 @@ export default function ReelDetailPage() {
     updateNote,
     updateCategory,
     generateAiSummary,
+    refreshReelMetadata,
     smartCategories,
     collections,
     showToast,
@@ -45,10 +47,10 @@ export default function ReelDetailPage() {
   const [isEditingNote, setIsEditingNote] = useState(false);
   const [noteContent, setNoteContent] = useState(reel?.notes || "");
   const [isEditingCategory, setIsEditingCategory] = useState(false);
-  const [isEditingCreator, setIsEditingCreator] = useState(false);
-  const [creatorInput, setCreatorInput] = useState(reel?.creatorUsername || "");
   const [isExpandedCaption, setIsExpandedCaption] = useState(false);
   const [downloadState, setDownloadState] = useState<"idle" | "processing" | "ready">("idle");
+  const [showLiveEmbed, setShowLiveEmbed] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   if (!reel) {
     return (
@@ -85,102 +87,155 @@ export default function ReelDetailPage() {
     }, 1500);
   };
 
-  // Shortcode extraction
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await refreshReelMetadata(reel.id);
+    setIsRefreshing(false);
+  };
+
   const match = reel.instagramUrl.match(/(?:reel|p)\/([A-Za-z0-9_-]+)/);
   const shortcode = match ? match[1] : null;
 
-  // Official Instagram Captioned Embed URL (renders REAL creator avatar, REAL handle, REAL caption, REAL hashtags, REAL comments)
-  const captionedEmbedSrc = shortcode
-    ? `https://www.instagram.com/p/${shortcode}/embed/captioned/`
-    : reel.embedUrl;
+  const imageSrc =
+    reel.thumbnailUrl && !reel.thumbnailUrl.includes("unsplash.com")
+      ? reel.thumbnailUrl
+      : shortcode
+      ? `/api/proxy-image?shortcode=${shortcode}`
+      : "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80";
 
   const downloadApiUrl = `/api/download?shortcode=${shortcode || ""}&reelUrl=${encodeURIComponent(reel.instagramUrl)}&url=${encodeURIComponent(reel.mediaUrl || "")}`;
 
+  const creatorTitle = reel.creatorFullName || reel.creatorUsername;
+  const creatorHandle = reel.creatorUsername;
+
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
-      {/* Top Back Navigation */}
-      <button
-        onClick={() => router.back()}
-        className="inline-flex items-center space-x-2 text-xs font-medium text-secondaryText-light dark:text-secondaryText-dark hover:text-primaryText-light transition-colors cursor-pointer"
-      >
-        <ArrowLeft className="w-4 h-4" />
-        <span>Back to library</span>
-      </button>
+      {/* Top Back Navigation & Refresh */}
+      <div className="flex items-center justify-between">
+        <button
+          onClick={() => router.back()}
+          className="inline-flex items-center space-x-2 text-xs font-medium text-secondaryText-light dark:text-secondaryText-dark hover:text-primaryText-light transition-colors cursor-pointer"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          <span>Back to library</span>
+        </button>
+
+        <button
+          onClick={handleRefresh}
+          disabled={isRefreshing}
+          className="inline-flex items-center space-x-1.5 px-2.5 py-1 text-xs text-secondaryText-light dark:text-secondaryText-dark hover:text-brand-500 border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-sm transition-colors cursor-pointer"
+        >
+          <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? "animate-spin text-brand-500" : ""}`} />
+          <span>{isRefreshing ? "Syncing..." : "Refresh from Instagram"}</span>
+        </button>
+      </div>
 
       {/* Main Split Layout */}
       <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-start">
-        {/* Left: REAL Official Instagram Captioned Live Player & Widget */}
-        <div className="md:col-span-6 flex justify-center">
-          <div className="relative aspect-reel w-full max-w-sm rounded-rd-card overflow-hidden bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark shadow-rd-card group min-h-[520px]">
-            {captionedEmbedSrc ? (
+        {/* Left: Clean Cover Thumbnail / Live Player Toggle */}
+        <div className="md:col-span-5 flex flex-col items-center space-y-3">
+          <div className="relative aspect-reel w-full max-w-xs md:max-w-none rounded-rd-card overflow-hidden bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark shadow-rd-card group">
+            {showLiveEmbed && shortcode ? (
               <iframe
-                src={captionedEmbedSrc}
+                src={`https://www.instagram.com/p/${shortcode}/embed/`}
                 title={reel.caption}
-                className="w-full h-full border-0 rounded-rd-card min-h-[520px]"
+                className="w-full h-full border-0 rounded-rd-card"
                 allowTransparency
                 allow="encrypted-media"
               />
             ) : (
-              <div className="w-full h-full flex flex-col items-center justify-center p-6 text-center space-y-3 bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark text-secondaryText-light">
-                <Instagram className="w-10 h-10 text-brand-500" />
-                <p className="text-xs">Original Reel on Instagram</p>
-                <a
-                  href={reel.instagramUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="px-3 py-1.5 bg-brand-500 text-white rounded-rd-sm text-xs font-semibold"
+              <div className="relative w-full h-full">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={imageSrc}
+                  alt={reel.caption}
+                  referrerPolicy="no-referrer"
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+                <button
+                  onClick={() => setShowLiveEmbed(true)}
+                  className="absolute inset-0 m-auto w-14 h-14 rounded-full bg-black/60 backdrop-blur-md text-white flex items-center justify-center hover:scale-110 active:scale-95 transition-all shadow-rd-modal cursor-pointer z-10"
                 >
-                  Open on Instagram →
-                </a>
+                  <Play className="w-6 h-6 fill-white ml-0.5" />
+                </button>
               </div>
             )}
           </div>
+
+          {shortcode && (
+            <button
+              onClick={() => setShowLiveEmbed(!showLiveEmbed)}
+              className="text-xs text-secondaryText-light dark:text-secondaryText-dark hover:text-brand-500 transition-colors flex items-center space-x-1 cursor-pointer"
+            >
+              <Film className="w-3.5 h-3.5" />
+              <span>{showLiveEmbed ? "Show Clean Thumbnail Cover" : "Play Live Video Player"}</span>
+            </button>
+          )}
         </div>
 
         {/* Right: Metadata & Detail Panel */}
-        <div className="md:col-span-6 space-y-6">
-          {/* Creator Section */}
-          <div className="flex items-center justify-between p-4 bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-md shadow-rd-subtle">
-            <div className="flex items-center space-x-3 min-w-0">
-              <div className="w-10 h-10 rounded-full bg-brand-500/20 text-brand-500 font-bold text-xs flex items-center justify-center shrink-0">
-                {reel.creatorUsername[0]?.toUpperCase() || "I"}
-              </div>
-              <div className="min-w-0">
-                <div className="flex items-center space-x-2">
-                  <h3 className="text-sm font-bold text-primaryText-light dark:text-primaryText-dark truncate">
-                    @{reel.creatorUsername}
-                  </h3>
+        <div className="md:col-span-7 space-y-6">
+          {/* Creator & Metrics Section */}
+          <div className="p-4 bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-md shadow-rd-subtle space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3 min-w-0">
+                <div className="w-11 h-11 rounded-full bg-brand-500/20 text-brand-500 font-bold text-sm flex items-center justify-center shrink-0">
+                  {creatorTitle[0]?.toUpperCase() || "I"}
                 </div>
-                <span className="text-[11px] text-secondaryText-light dark:text-secondaryText-dark">
-                  Instagram Creator
-                </span>
+                <div className="min-w-0">
+                  <h3 className="text-sm font-bold text-primaryText-light dark:text-primaryText-dark truncate">
+                    {creatorTitle}
+                  </h3>
+                  <span className="text-xs text-secondaryText-light dark:text-secondaryText-dark">
+                    @{creatorHandle}
+                  </span>
+                </div>
               </div>
+
+              <a
+                href={reel.creatorProfileUrl || `https://instagram.com/${creatorHandle}`}
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center space-x-1.5 px-3 py-1.5 text-xs font-medium border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-sm hover:bg-surfaceSecondary-light dark:hover:bg-surfaceSecondary-dark transition-colors shrink-0"
+              >
+                <span>Instagram Profile</span>
+                <ExternalLink className="w-3.5 h-3.5" />
+              </a>
             </div>
 
-            <a
-              href={reel.creatorProfileUrl || `https://instagram.com/${reel.creatorUsername}`}
-              target="_blank"
-              rel="noreferrer"
-              className="flex items-center space-x-1.5 px-3 py-1.5 text-xs font-medium border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-sm hover:bg-surfaceSecondary-light dark:hover:bg-surfaceSecondary-dark transition-colors shrink-0"
-            >
-              <span>View profile</span>
-              <ExternalLink className="w-3.5 h-3.5" />
-            </a>
+            {/* Engagement Metrics (Likes & Comments from Instagram) */}
+            {(reel.likes || reel.commentsCount) && (
+              <div className="pt-2 border-t border-borderSubtle-light dark:border-borderSubtle-dark flex items-center space-x-4 text-xs text-secondaryText-light dark:text-secondaryText-dark">
+                {reel.likes && (
+                  <div className="flex items-center space-x-1.5 font-medium">
+                    <ThumbsUp className="w-3.5 h-3.5 text-brand-500" />
+                    <span>{reel.likes}</span>
+                  </div>
+                )}
+                {reel.commentsCount && (
+                  <div className="flex items-center space-x-1.5 font-medium">
+                    <MessageCircle className="w-3.5 h-3.5 text-brand-500" />
+                    <span>{reel.commentsCount}</span>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Caption & Hashtags Section */}
           <div className="p-4 bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-md shadow-rd-subtle space-y-3">
             <h4 className="text-xs font-semibold uppercase tracking-wider text-mutedText-light dark:text-mutedText-dark">
-              Caption & Hashtags
+              Caption
             </h4>
             <p
-              className={`text-xs text-primaryText-light dark:text-primaryText-dark leading-relaxed ${
-                !isExpandedCaption && reel.caption.length > 150 ? "line-clamp-4" : ""
+              className={`text-xs text-primaryText-light dark:text-primaryText-dark leading-relaxed whitespace-pre-line ${
+                !isExpandedCaption && reel.caption.length > 200 ? "line-clamp-4" : ""
               }`}
             >
               {reel.caption}
             </p>
-            {reel.caption.length > 150 && (
+            {reel.caption.length > 200 && (
               <button
                 onClick={() => setIsExpandedCaption(!isExpandedCaption)}
                 className="text-[11px] font-medium text-brand-500 hover:underline cursor-pointer"
@@ -189,8 +244,8 @@ export default function ReelDetailPage() {
               </button>
             )}
 
-            {/* Extracted Hashtags */}
-            {reel.hashtags && reel.hashtags.length > 0 ? (
+            {/* Hashtags */}
+            {reel.hashtags && reel.hashtags.length > 0 && (
               <div className="pt-2 border-t border-borderSubtle-light dark:border-borderSubtle-dark flex flex-wrap gap-1.5">
                 {reel.hashtags.map((tag) => (
                   <span
@@ -201,35 +256,7 @@ export default function ReelDetailPage() {
                   </span>
                 ))}
               </div>
-            ) : (
-              <div className="pt-2 border-t border-borderSubtle-light dark:border-borderSubtle-dark flex flex-wrap gap-1.5">
-                <span className="text-[11px] font-mono text-brand-500 font-medium">#{reel.category.toLowerCase().replace(/\s+/g, "")}</span>
-                <span className="text-[11px] font-mono text-brand-500 font-medium">#instagram</span>
-                <span className="text-[11px] font-mono text-brand-500 font-medium">#reels</span>
-              </div>
             )}
-          </div>
-
-          {/* Real Comments & Live Instagram Player Info */}
-          <div className="p-4 bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-md shadow-rd-subtle space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-1.5 text-xs font-semibold text-primaryText-light dark:text-primaryText-dark">
-                <MessageCircle className="w-4 h-4 text-brand-500" />
-                <span>Comments & Instagram Feed</span>
-              </div>
-              <a
-                href={reel.instagramUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="text-[11px] text-brand-500 hover:underline font-medium flex items-center space-x-1"
-              >
-                <span>View on Instagram</span>
-                <ExternalLink className="w-3 h-3" />
-              </a>
-            </div>
-            <p className="text-xs text-secondaryText-light dark:text-secondaryText-dark leading-relaxed">
-              Full comments, likes, audio tags, and creator profile interactions render inside the live Instagram player on the left.
-            </p>
           </div>
 
           {/* AI Summary Section */}
@@ -352,14 +379,14 @@ export default function ReelDetailPage() {
             {downloadState === "processing" && (
               <div className="flex items-center space-x-2 p-3 bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark rounded-rd-sm text-xs text-secondaryText-light">
                 <Loader2 className="w-4 h-4 text-brand-500 animate-spin" />
-                <span>Extracting direct Instagram MP4 video stream...</span>
+                <span>Preparing MP4 video stream...</span>
               </div>
             )}
 
             {downloadState === "ready" && (
               <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-rd-sm space-y-2 text-xs">
                 <div className="flex items-center justify-between font-semibold text-emerald-600 dark:text-emerald-400">
-                  <span>✓ Direct Reel MP4 ready</span>
+                  <span>✓ Signed MP4 ready</span>
                   <span className="flex items-center space-x-1 text-[10px] font-mono">
                     <Clock className="w-3 h-3" />
                     <span>Expires in 15m</span>

@@ -3,6 +3,7 @@ export interface Reel {
   userId: string;
   instagramUrl: string;
   creatorUsername: string;
+  creatorFullName?: string;
   creatorProfileUrl: string;
   creatorAvatar?: string;
   thumbnailUrl: string;
@@ -13,6 +14,8 @@ export interface Reel {
   subcategories: string[];
   collections: string[];
   hashtags: string[];
+  likes?: string;
+  commentsCount?: string;
   notes?: string;
   isFavorite: boolean;
   duration: string;
