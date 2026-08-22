@@ -10,20 +10,13 @@ import {
   Heart,
   ExternalLink,
   Sparkles,
-  Tag,
-  FolderPlus,
   Trash2,
   Copy,
   Edit2,
-  Play,
-  Pause,
-  Volume2,
-  VolumeX,
   Download,
   Loader2,
   Clock,
   Instagram,
-  Hash,
 } from "lucide-react";
 
 export default function ReelDetailPage() {
@@ -45,7 +38,6 @@ export default function ReelDetailPage() {
 
   const reel = reels.find((r) => r.id === reelId);
 
-  const [isPlaying, setIsPlaying] = useState(true);
   const [isMuted, setIsMuted] = useState(false);
   const [isEditingNote, setIsEditingNote] = useState(false);
   const [noteContent, setNoteContent] = useState(reel?.notes || "");
@@ -84,13 +76,14 @@ export default function ReelDetailPage() {
     setDownloadState("processing");
     setTimeout(() => {
       setDownloadState("ready");
-      showToast("Download ready — Link expires in 15 mins");
-    }, 1800);
+      showToast("Download ready — Click button to download MP4");
+    }, 1500);
   };
 
   const match = reel.instagramUrl.match(/(?:reel|p)\/([A-Za-z0-9_-]+)/);
   const shortcode = match ? match[1] : null;
   const embedSrc = reel.embedUrl || (shortcode ? `https://www.instagram.com/p/${shortcode}/embed/` : null);
+  const downloadApiUrl = `/api/download?shortcode=${shortcode || ""}&url=${encodeURIComponent(reel.mediaUrl || "")}`;
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
@@ -105,7 +98,7 @@ export default function ReelDetailPage() {
 
       {/* Main Split Layout */}
       <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-start">
-        {/* Left: REAL Instagram Live Iframe Player */}
+        {/* Left: REAL Instagram Live Player */}
         <div className="md:col-span-5 flex justify-center">
           <div className="relative aspect-reel w-full max-w-xs md:max-w-none rounded-rd-card overflow-hidden bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark shadow-rd-card group">
             {embedSrc ? (
@@ -183,7 +176,6 @@ export default function ReelDetailPage() {
               </button>
             )}
 
-            {/* Extracted Hashtags */}
             {reel.hashtags && reel.hashtags.length > 0 && (
               <div className="pt-2 border-t border-borderSubtle-light dark:border-borderSubtle-dark flex flex-wrap gap-1.5">
                 {reel.hashtags.map((tag) => (
@@ -292,7 +284,7 @@ export default function ReelDetailPage() {
             </div>
           </div>
 
-          {/* Temporary Download Processing */}
+          {/* TEMPORARY DOWNLOAD PROCESSING (Direct MP4 Attachment via /api/download) */}
           <div className="p-4 bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-md shadow-rd-subtle space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-1.5 text-xs font-semibold text-primaryText-light dark:text-primaryText-dark">
@@ -304,13 +296,13 @@ export default function ReelDetailPage() {
             {downloadState === "idle" && (
               <div className="flex items-center justify-between text-xs">
                 <span className="text-secondaryText-light dark:text-secondaryText-dark text-[11px]">
-                  Request a temporary signed download URL (expires after 15 mins).
+                  Request a temporary signed MP4 download link (expires in 15 mins).
                 </span>
                 <button
                   onClick={handleRequestDownload}
                   className="px-3 py-1.5 bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark border border-borderSubtle-light dark:border-borderSubtle-dark hover:border-brand-500 text-xs font-medium rounded-rd-sm transition-colors cursor-pointer shrink-0"
                 >
-                  Download Reel
+                  Prepare Download
                 </button>
               </div>
             )}
@@ -318,24 +310,23 @@ export default function ReelDetailPage() {
             {downloadState === "processing" && (
               <div className="flex items-center space-x-2 p-3 bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark rounded-rd-sm text-xs text-secondaryText-light">
                 <Loader2 className="w-4 h-4 text-brand-500 animate-spin" />
-                <span>Preparing your download...</span>
+                <span>Preparing MP4 file download stream...</span>
               </div>
             )}
 
             {downloadState === "ready" && (
               <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-rd-sm space-y-2 text-xs">
                 <div className="flex items-center justify-between font-semibold text-emerald-600 dark:text-emerald-400">
-                  <span>✓ Download ready</span>
+                  <span>✓ Signed MP4 file ready</span>
                   <span className="flex items-center space-x-1 text-[10px] font-mono">
                     <Clock className="w-3 h-3" />
                     <span>Expires in 15m</span>
                   </span>
                 </div>
                 <a
-                  href={reel.instagramUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center space-x-2 px-3 py-1.5 bg-emerald-500 text-white rounded-rd-sm text-xs font-semibold hover:bg-emerald-600 transition-colors"
+                  href={downloadApiUrl}
+                  download={`reel_${shortcode || "video"}.mp4`}
+                  className="inline-flex items-center space-x-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-rd-sm text-xs font-semibold shadow-rd-subtle transition-colors"
                 >
                   <Download className="w-3.5 h-3.5" />
                   <span>Download MP4 File</span>
