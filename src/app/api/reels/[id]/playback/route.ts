@@ -10,20 +10,27 @@ const mediaCache = new Map<string, { cdnUrl: string; proxyUrl: string; expiresAt
  * Pure JS extraction strategies (works without Python on Vercel Serverless)
  */
 async function resolveViaPureJs(shortcode: string): Promise<string | null> {
-  // Strategy A: Instagram GraphQL doc_id query
+  const sessionId = process.env.INSTAGRAM_SESSION_ID;
+  const rapidApiKey = process.env.RAPIDAPI_KEY;
+
+  // Strategy A: Instagram GraphQL with configured Session/Cookie
   try {
+    const headers: HeadersInit = {
+      "User-Agent":
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
+      "X-IG-App-ID": "936619743392459",
+      "X-Requested-With": "XMLHttpRequest",
+      "Referer": `https://www.instagram.com/reel/${shortcode}/`,
+      "Accept": "*/*",
+    };
+
+    if (sessionId) {
+      headers["Cookie"] = `sessionid=${sessionId};`;
+    }
+
     const gqlRes = await fetch(
       `https://www.instagram.com/graphql/query/?doc_id=8845758582119845&variables=%7B%22shortcode%22%3A%22${shortcode}%22%7D`,
-      {
-        headers: {
-          "User-Agent":
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
-          "X-IG-App-ID": "936619743392459",
-          "X-Requested-With": "XMLHttpRequest",
-          "Referer": `https://www.instagram.com/reel/${shortcode}/`,
-          "Accept": "*/*",
-        },
-      }
+      { headers }
     );
 
     if (gqlRes.ok) {
@@ -37,33 +44,31 @@ async function resolveViaPureJs(shortcode: string): Promise<string | null> {
     // Continue to next strategy
   }
 
-  // Strategy B: Public Instagram API Resolver Worker
-  try {
-    const workerRes = await fetch(
-      `https://api.vkrdownloader.com/server?vkr=https://www.instagram.com/reel/${shortcode}/`,
-      {
-        headers: {
-          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
-          "Accept": "application/json",
-        },
+  // Strategy B: RapidAPI Instagram Downloader if configured
+  if (rapidApiKey) {
+    try {
+      const rapidRes = await fetch(
+        `https://instagram-downloader-download-instagram-videos-stories1.p.rapidapi.com/get-info-shortcode?shortcode=${shortcode}`,
+        {
+          headers: {
+            "x-rapidapi-key": rapidApiKey,
+            "x-rapidapi-host": "instagram-downloader-download-instagram-videos-stories1.p.rapidapi.com",
+          },
+        }
+      );
+      if (rapidRes.ok) {
+        const rapidData = await rapidRes.json();
+        const videoUrl = rapidData?.video_url || rapidData?.url || rapidData?.download_url;
+        if (videoUrl && videoUrl.startsWith("http")) {
+          return videoUrl;
+        }
       }
-    );
-
-    if (workerRes.ok) {
-      const workerData = await workerRes.json();
-      if (workerData?.data?.url && workerData.data.url.startsWith("http")) {
-        return workerData.data.url;
-      }
-      if (Array.isArray(workerData?.data?.downloads) && workerData.data.downloads.length > 0) {
-        const vid = workerData.data.downloads.find((d: any) => d.url && d.url.includes(".mp4"));
-        if (vid?.url) return vid.url;
-      }
+    } catch (err) {
+      // Continue
     }
-  } catch (err) {
-    // Continue to next strategy
   }
 
-  // Strategy C: FastDL parser API
+  // Strategy C: Public Worker / FastDL
   try {
     const fastdlRes = await fetch("https://fastdl.app/c/", {
       method: "POST",
@@ -89,7 +94,7 @@ async function resolveViaPureJs(shortcode: string): Promise<string | null> {
       }
     }
   } catch (err) {
-    // Continue to yt-dlp
+    // Continue
   }
 
   return null;
