@@ -62,8 +62,15 @@ export async function GET(req: NextRequest) {
       headers.set("Content-Range", contentRange);
     }
 
-    const buffer = await videoRes.arrayBuffer();
+    // Stream the response body directly as a ReadableStream
+    if (videoRes.body) {
+      return new NextResponse(videoRes.body, {
+        status: videoRes.status,
+        headers,
+      });
+    }
 
+    const buffer = await videoRes.arrayBuffer();
     return new NextResponse(buffer, {
       status: videoRes.status,
       headers,
