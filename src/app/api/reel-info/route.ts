@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import youtubedl from "youtube-dl-exec";
 
 function decodeEntities(str: string): string {
   if (!str) return "";
@@ -40,7 +41,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid URL" }, { status: 400 });
     }
 
-    // Extract shortcode and username directly from URL structure if present
     let shortcode: string | null = null;
     let creatorUsername = "";
     let creatorFullName = "";
@@ -48,6 +48,8 @@ export async function POST(req: NextRequest) {
     let likes = "";
     let commentsCount = "";
     let hashtags: string[] = [];
+    let mediaUrl = "";
+    let thumbnailUrl = "";
 
     const reelMatch = url.match(/(?:reel|p)\/([A-Za-z0-9_-]+)/);
     if (reelMatch) {
@@ -59,8 +61,52 @@ export async function POST(req: NextRequest) {
       creatorUsername = userMatch[1];
     }
 
-    // 1. Fetch Instagram OpenGraph Metadata via Facebook Crawler User-Agent
-    if (shortcode) {
+    // 1. Extract exact video stream & metadata using yt-dlp
+    try {
+      const ytdlOutput: any = await youtubedl(url, {
+        dumpSingleJson: true,
+        noCheckCertificates: true,
+        noWarnings: true,
+        preferFreeFormats: true,
+        addHeader: [
+          "referer:instagram.com",
+          "user-agent:Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+        ],
+      });
+
+      if (ytdlOutput) {
+        if (ytdlOutput.url) {
+          mediaUrl = ytdlOutput.url;
+        } else if (ytdlOutput.formats && ytdlOutput.formats.length > 0) {
+          const videoFormat = ytdlOutput.formats.find((f: any) => f.vcodec !== "none") || ytdlOutput.formats[0];
+          mediaUrl = videoFormat?.url || "";
+        }
+
+        if (ytdlOutput.channel) {
+          creatorUsername = ytdlOutput.channel;
+        }
+        if (ytdlOutput.uploader) {
+          creatorFullName = ytdlOutput.uploader;
+        }
+        if (ytdlOutput.description) {
+          caption = ytdlOutput.description;
+        }
+        if (ytdlOutput.like_count) {
+          likes = `${ytdlOutput.like_count.toLocaleString()} likes`;
+        }
+        if (ytdlOutput.comment_count) {
+          commentsCount = `${ytdlOutput.comment_count.toLocaleString()} comments`;
+        }
+        if (ytdlOutput.thumbnail) {
+          thumbnailUrl = ytdlOutput.thumbnail;
+        }
+      }
+    } catch (ytdlErr) {
+      console.warn("yt-dlp extraction warning (fallback to OpenGraph):", ytdlErr);
+    }
+
+    // 2. OpenGraph Fallback if needed
+    if ((!caption || !creatorUsername || !likes) && shortcode) {
       try {
         const ogRes = await fetch(`https://www.instagram.com/p/${shortcode}/`, {
           headers: {
@@ -84,39 +130,35 @@ export async function POST(req: NextRequest) {
           const ogTitle = ogTitleMatch ? decodeEntities(ogTitleMatch[1]) : "";
           const ogDesc = ogDescMatch ? decodeEntities(ogDescMatch[1]) : "";
 
-          // Extract creator full name: "Fort City Run Circle on Instagram: ..."
-          if (ogTitle) {
+          if (ogTitle && !creatorFullName) {
             const titleMatch = ogTitle.match(/^(.+?)\s+on\s+Instagram\s*:/i);
             if (titleMatch) {
               creatorFullName = titleMatch[1].trim();
             }
           }
 
-          // Extract from ogDesc: "43 likes, 10 comments - fortruncircle on August 12, 2026: "The run was...""
           if (ogDesc) {
             const descMatch = ogDesc.match(
               /^(?:([0-9,KkMm\.]+\s+likes)?,?\s*)?(?:([0-9,KkMm\.]+\s+comments)?\s*-\s*)?([a-zA-Z0-9_\.]+)\s+on\s+[^:]+:\s*"?([\s\S]*?)"?\s*\.?\s*$/i
             );
 
             if (descMatch) {
-              if (descMatch[1]) likes = descMatch[1].trim();
-              if (descMatch[2]) commentsCount = descMatch[2].trim();
-              if (descMatch[3]) creatorUsername = descMatch[3].trim();
-              if (descMatch[4]) caption = descMatch[4].trim();
+              if (descMatch[1] && !likes) likes = descMatch[1].trim();
+              if (descMatch[2] && !commentsCount) commentsCount = descMatch[2].trim();
+              if (descMatch[3] && !creatorUsername) creatorUsername = descMatch[3].trim();
+              if (descMatch[4] && !caption) caption = descMatch[4].trim();
             }
           }
 
-          // Fallback caption from title
           if (!caption && ogTitle.includes(":")) {
             caption = ogTitle.substring(ogTitle.indexOf(":") + 1).trim().replace(/^"|"$/g, "");
           }
         }
       } catch (ogErr) {
-        console.warn("Instagram OpenGraph extraction warning:", ogErr);
+        console.warn("OpenGraph fallback notice:", ogErr);
       }
     }
 
-    // 2. Fallbacks if partial
     if (!creatorUsername) {
       if (creatorFullName) {
         creatorUsername = creatorFullName.toLowerCase().replace(/[^a-z0-9_]/g, "_");
@@ -133,16 +175,14 @@ export async function POST(req: NextRequest) {
       caption = `Saved Instagram Reel (${shortcode || "video"})`;
     }
 
-    // Extract hashtags from caption
     const extractedTags = caption.match(/#[A-Za-z0-9_]+/g);
     if (extractedTags) {
       hashtags = Array.from(new Set(extractedTags));
     }
 
-    // Proxy image URL for real thumbnail cover
-    const thumbnailUrl = shortcode
-      ? `/api/proxy-image?shortcode=${shortcode}`
-      : "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80";
+    if (!thumbnailUrl && shortcode) {
+      thumbnailUrl = `/api/proxy-image?shortcode=${shortcode}`;
+    }
 
     // AI Categorization engine
     let category = "General";
@@ -214,8 +254,8 @@ export async function POST(req: NextRequest) {
       hashtags,
       likes,
       commentsCount,
-      thumbnailUrl,
-      mediaUrl: "",
+      thumbnailUrl: thumbnailUrl || `/api/proxy-image?shortcode=${shortcode}`,
+      mediaUrl,
       embedUrl,
       category,
     });
