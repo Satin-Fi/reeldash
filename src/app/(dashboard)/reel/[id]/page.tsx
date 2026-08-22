@@ -10,6 +10,8 @@ import {
   Heart,
   ExternalLink,
   Sparkles,
+  Tag,
+  FolderPlus,
   Trash2,
   Copy,
   Edit2,
@@ -21,6 +23,7 @@ import {
   Loader2,
   Clock,
   Instagram,
+  Hash,
 } from "lucide-react";
 
 export default function ReelDetailPage() {
@@ -48,8 +51,6 @@ export default function ReelDetailPage() {
   const [noteContent, setNoteContent] = useState(reel?.notes || "");
   const [isEditingCategory, setIsEditingCategory] = useState(false);
   const [isExpandedCaption, setIsExpandedCaption] = useState(false);
-
-  // Temporary Download Processing States (Section 3 & Section 45)
   const [downloadState, setDownloadState] = useState<"idle" | "processing" | "ready">("idle");
 
   if (!reel) {
@@ -87,7 +88,6 @@ export default function ReelDetailPage() {
     }, 1800);
   };
 
-  // Extract shortcode for official embed fallback if embedUrl not stored
   const match = reel.instagramUrl.match(/(?:reel|p)\/([A-Za-z0-9_-]+)/);
   const shortcode = match ? match[1] : null;
   const embedSrc = reel.embedUrl || (shortcode ? `https://www.instagram.com/p/${shortcode}/embed/` : null);
@@ -105,7 +105,7 @@ export default function ReelDetailPage() {
 
       {/* Main Split Layout */}
       <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-start">
-        {/* Left: REAL Instagram Live Player / Embed */}
+        {/* Left: REAL Instagram Live Iframe Player */}
         <div className="md:col-span-5 flex justify-center">
           <div className="relative aspect-reel w-full max-w-xs md:max-w-none rounded-rd-card overflow-hidden bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark shadow-rd-card group">
             {embedSrc ? (
@@ -115,16 +115,6 @@ export default function ReelDetailPage() {
                 className="w-full h-full border-0 rounded-rd-card"
                 allowTransparency
                 allow="encrypted-media"
-              />
-            ) : reel.mediaUrl ? (
-              <video
-                src={reel.mediaUrl}
-                poster={reel.thumbnailUrl}
-                autoPlay
-                loop
-                muted={isMuted}
-                playsInline
-                className="w-full h-full object-cover"
               />
             ) : (
               <div className="w-full h-full flex flex-col items-center justify-center p-6 text-center space-y-3 bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark text-secondaryText-light">
@@ -172,7 +162,7 @@ export default function ReelDetailPage() {
             </a>
           </div>
 
-          {/* Caption Section */}
+          {/* Caption & Hashtags Section */}
           <div className="p-4 bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-md shadow-rd-subtle space-y-2">
             <h4 className="text-xs font-semibold uppercase tracking-wider text-mutedText-light dark:text-mutedText-dark">
               Caption
@@ -191,6 +181,20 @@ export default function ReelDetailPage() {
               >
                 {isExpandedCaption ? "Show less" : "Show more"}
               </button>
+            )}
+
+            {/* Extracted Hashtags */}
+            {reel.hashtags && reel.hashtags.length > 0 && (
+              <div className="pt-2 border-t border-borderSubtle-light dark:border-borderSubtle-dark flex flex-wrap gap-1.5">
+                {reel.hashtags.map((tag) => (
+                  <span
+                    key={tag}
+                    className="inline-flex items-center space-x-0.5 text-[11px] font-mono text-brand-500 font-medium"
+                  >
+                    <span>{tag}</span>
+                  </span>
+                ))}
+              </div>
             )}
           </div>
 
@@ -288,7 +292,7 @@ export default function ReelDetailPage() {
             </div>
           </div>
 
-          {/* Temporary Download Processing (Section 45) */}
+          {/* Temporary Download Processing */}
           <div className="p-4 bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-md shadow-rd-subtle space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-1.5 text-xs font-semibold text-primaryText-light dark:text-primaryText-dark">

@@ -8,36 +8,34 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid URL" }, { status: 400 });
     }
 
-    // Extract shortcode and creator from Instagram URL
-    // Examples:
-    // https://www.instagram.com/reel/C334455667/
-    // https://www.instagram.com/p/C334455667/
-    // https://www.instagram.com/hubermanlab/reel/C334455667/
+    // Extract shortcode and potential username from Instagram URL
     let shortcode: string | null = null;
-    let creatorUsername = "instagram_creator";
+    let creatorUsername = "";
 
     const reelMatch = url.match(/(?:reel|p)\/([A-Za-z0-9_-]+)/);
     if (reelMatch) {
       shortcode = reelMatch[1];
     }
 
-    // Try extracting creator username from URL path if present
     const userMatch = url.match(/instagram\.com\/([A-Za-z0-9_.]+)\/(?:reel|p)\//);
     if (userMatch && userMatch[1] && userMatch[1] !== "reel" && userMatch[1] !== "p") {
       creatorUsername = userMatch[1];
     }
 
-    let caption = shortcode ? `Instagram Reel (${shortcode})` : "Saved Instagram Reel";
+    let caption = "";
     let thumbnailUrl = "";
     let mediaUrl = "";
+    let hashtags: string[] = [];
 
-    // 1. Try fetching metadata via ddinstagram.com (public OpenGraph proxy for Instagram)
+    // Fetch official Instagram captioned embed HTML (Never blocked by IG bot detection)
     if (shortcode) {
       try {
-        const proxyUrl = `https://ddinstagram.com/reel/${shortcode}`;
-        const res = await fetch(proxyUrl, {
+        const embedUrl = `https://www.instagram.com/p/${shortcode}/embed/captioned/`;
+        const res = await fetch(embedUrl, {
           headers: {
-            "User-Agent": "facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)",
+            "User-Agent":
+              "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+            "Accept-Language": "en-US,en;q=0.9",
           },
           next: { revalidate: 3600 },
         });
@@ -45,63 +43,126 @@ export async function POST(req: NextRequest) {
         if (res.ok) {
           const html = await res.text();
 
-          // Extract og:title (e.g. "Post by @username")
-          const titleMatch = html.match(/<meta\s+property="og:title"\s+content="([^"]+)"/i);
-          // Extract og:description (Caption text)
-          const descMatch = html.match(/<meta\s+property="og:description"\s+content="([^"]+)"/i);
-          // Extract og:image
-          const imgMatch = html.match(/<meta\s+property="og:image"\s+content="([^"]+)"/i);
-          // Extract og:video
-          const videoMatch = html.match(/<meta\s+property="og:video"\s+content="([^"]+)"/i);
+          // 1. Extract Creator Username
+          if (!creatorUsername) {
+            const handleMatch =
+              html.match(/class="UsernameText"[^>]*>([^<]+)</i) ||
+              html.match(/instagram\.com\/([A-Za-z0-9_.]+)\/\?utm_source/i) ||
+              html.match(/@([A-Za-z0-9_.]+)/);
+            if (handleMatch && handleMatch[1]) {
+              creatorUsername = handleMatch[1].trim();
+            }
+          }
 
+          // 2. Extract High-Res Image Cover Thumbnail
+          const imgMatch =
+            html.match(/class="EmbeddedMediaImage"[^>]*src="([^"]+)"/i) ||
+            html.match(/<img[^>]+src="(https:\/\/[^"]+scontent[^"]+)"/i) ||
+            html.match(/src="(https:\/\/scontent[^"]+)"/i);
           if (imgMatch && imgMatch[1]) {
             thumbnailUrl = imgMatch[1].replace(/&amp;/g, "&");
           }
-          if (videoMatch && videoMatch[1]) {
-            mediaUrl = videoMatch[1].replace(/&amp;/g, "&");
-          }
-          if (descMatch && descMatch[1]) {
-            caption = descMatch[1].trim();
-          }
-          if (titleMatch && titleMatch[1]) {
-            const handleMatch = titleMatch[1].match(/@([A-Za-z0-9_.]+)/);
-            if (handleMatch) {
-              creatorUsername = handleMatch[1];
+
+          // 3. Extract Caption & Hashtags
+          const captionMatch =
+            html.match(/class="Caption"[^>]*>([\s\S]*?)<\/div>/i) ||
+            html.match(/class="CaptionComments"[^>]*>([\s\S]*?)<\/div>/i);
+          if (captionMatch && captionMatch[1]) {
+            // Strip HTML tags
+            const cleanCaption = captionMatch[1]
+              .replace(/<[^>]+>/g, " ")
+              .replace(/\s+/g, " ")
+              .trim();
+            if (cleanCaption) {
+              caption = cleanCaption;
             }
           }
+
+          // Extract hashtags using regex
+          const extractedTags = caption.match(/#[A-Za-z0-9_]+/g);
+          if (extractedTags) {
+            hashtags = Array.from(new Set(extractedTags));
+          }
         }
-      } catch (proxyErr) {
-        console.warn("Proxy metadata fetch failed:", proxyErr);
+      } catch (embedErr) {
+        console.warn("Embed captioned fetch warning:", embedErr);
       }
     }
 
-    // 2. If thumbnail is still missing, fallback to reliable Unsplash topic image matching or Instagram media proxy
-    if (!thumbnailUrl && shortcode) {
-      thumbnailUrl = `https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80`;
+    // Fallbacks if extraction was partial
+    if (!creatorUsername) {
+      creatorUsername = "instagram_creator";
     }
 
-    // AI Categorization engine based on caption text
+    if (!caption) {
+      caption = shortcode ? `Instagram Reel by @${creatorUsername}` : "Saved Instagram Reel";
+    }
+
+    if (!thumbnailUrl && shortcode) {
+      // Direct CDN media fallback
+      thumbnailUrl = `https://www.instagram.com/p/${shortcode}/media/?size=l`;
+    }
+
+    // AI Categorization based on extracted caption & hashtags
     let category = "General";
-    const lowerCaption = caption.toLowerCase();
-    if (lowerCaption.includes("workout") || lowerCaption.includes("exercise") || lowerCaption.includes("gym") || lowerCaption.includes("posture") || lowerCaption.includes("fitness") || lowerCaption.includes("health") || lowerCaption.includes("sleep")) {
+    const lowerCaption = (caption + " " + hashtags.join(" ")).toLowerCase();
+    if (
+      lowerCaption.includes("workout") ||
+      lowerCaption.includes("exercise") ||
+      lowerCaption.includes("gym") ||
+      lowerCaption.includes("posture") ||
+      lowerCaption.includes("fitness") ||
+      lowerCaption.includes("health") ||
+      lowerCaption.includes("sleep")
+    ) {
       category = "Health & Fitness";
-    } else if (lowerCaption.includes("recipe") || lowerCaption.includes("cook") || lowerCaption.includes("food") || lowerCaption.includes("paneer") || lowerCaption.includes("dinner") || lowerCaption.includes("kitchen")) {
+    } else if (
+      lowerCaption.includes("recipe") ||
+      lowerCaption.includes("cook") ||
+      lowerCaption.includes("food") ||
+      lowerCaption.includes("paneer") ||
+      lowerCaption.includes("dinner") ||
+      lowerCaption.includes("kitchen") ||
+      lowerCaption.includes("dish")
+    ) {
       category = "Food & Cooking";
-    } else if (lowerCaption.includes("ai") || lowerCaption.includes("code") || lowerCaption.includes("python") || lowerCaption.includes("tech") || lowerCaption.includes("software") || lowerCaption.includes("agent") || lowerCaption.includes("dev")) {
+    } else if (
+      lowerCaption.includes("ai") ||
+      lowerCaption.includes("code") ||
+      lowerCaption.includes("python") ||
+      lowerCaption.includes("tech") ||
+      lowerCaption.includes("software") ||
+      lowerCaption.includes("agent") ||
+      lowerCaption.includes("developer")
+    ) {
       category = "AI & Tech";
-    } else if (lowerCaption.includes("design") || lowerCaption.includes("ui") || lowerCaption.includes("figma") || lowerCaption.includes("ux") || lowerCaption.includes("spacing")) {
+    } else if (
+      lowerCaption.includes("design") ||
+      lowerCaption.includes("ui") ||
+      lowerCaption.includes("figma") ||
+      lowerCaption.includes("ux") ||
+      lowerCaption.includes("spacing")
+    ) {
       category = "Design";
-    } else if (lowerCaption.includes("productivity") || lowerCaption.includes("system") || lowerCaption.includes("habit") || lowerCaption.includes("time") || lowerCaption.includes("notion") || lowerCaption.includes("focus")) {
+    } else if (
+      lowerCaption.includes("productivity") ||
+      lowerCaption.includes("system") ||
+      lowerCaption.includes("habit") ||
+      lowerCaption.includes("time") ||
+      lowerCaption.includes("notion") ||
+      lowerCaption.includes("focus") ||
+      lowerCaption.includes("motivation")
+    ) {
       category = "Productivity";
     }
 
-    // Official Instagram Embed URL (works 100% reliably in an iframe)
     const embedUrl = shortcode ? `https://www.instagram.com/p/${shortcode}/embed/` : null;
 
     return NextResponse.json({
       shortcode,
       creatorUsername,
       caption,
+      hashtags,
       thumbnailUrl: thumbnailUrl || "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80",
       mediaUrl: mediaUrl || "",
       embedUrl,
