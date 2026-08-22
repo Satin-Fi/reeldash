@@ -46,7 +46,7 @@ export function ReelPlayer({
       ? `/api/proxy-image?shortcode=${shortcode}`
       : "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80";
 
-  // Request playable media from backend resolution layer
+  // Request temporary playable CDN MP4 media URL from backend resolution layer
   const resolveAndPlay = async () => {
     setStatus("loading");
 
@@ -74,19 +74,18 @@ export function ReelPlayer({
     }
   };
 
-  // Handle expired media URL or video loading failure
+  // Handle expired CDN media URL or video loading error
   const handleVideoError = async () => {
-    console.warn(`[ReelPlayer] Video playback failed or stream expired. Attempting refresh...`);
+    console.warn(`[ReelPlayer] CDN media URL expired or error encountered. Re-resolving...`);
     if (retryCount < 2) {
       setRetryCount((prev) => prev + 1);
-      // Attempt to resolve fresh media URL
       try {
         const res = await fetch(
-          `/api/reels/${reel.id}/playback?url=${encodeURIComponent(reel.instagramUrl)}`
+          `/api/reels/${reel.id}/playback?url=${encodeURIComponent(reel.instagramUrl)}&refresh=true`
         );
         const data = await res.json();
         if (data.status === "available" && data.playbackUrl) {
-          setPlaybackUrl(`${data.playbackUrl}?t=${Date.now()}`);
+          setPlaybackUrl(data.playbackUrl);
           setStatus("available");
           return;
         }
@@ -115,7 +114,7 @@ export function ReelPlayer({
     <div
       className={`relative aspect-reel w-full rounded-rd-card overflow-hidden bg-black border border-borderSubtle-light dark:border-borderSubtle-dark shadow-rd-card group ${className}`}
     >
-      {/* STATE 1: AVAILABLE (Exact Reel HTML5 Video Player) */}
+      {/* STATE 1: AVAILABLE (Exact Reel CDN .mp4 in HTML5 Video Player) */}
       {status === "available" && playbackUrl && (
         <div className="relative w-full h-full bg-black">
           <video
@@ -162,7 +161,7 @@ export function ReelPlayer({
         </div>
       )}
 
-      {/* STATE 3: UNAVAILABLE ("Preview unavailable" + "Open Original Reel") */}
+      {/* STATE 3: UNAVAILABLE ("Preview unavailable" + "Open on Instagram") */}
       {status === "unavailable" && (
         <div className="relative w-full h-full">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -190,7 +189,7 @@ export function ReelPlayer({
                 onClick={handleOpenOriginal}
                 className="w-full inline-flex items-center justify-center space-x-2 px-3 py-2 bg-brand-500 hover:bg-brand-600 text-white rounded-rd-sm text-xs font-semibold shadow-rd-subtle transition-colors cursor-pointer"
               >
-                <span>Open Original Reel</span>
+                <span>Open on Instagram</span>
                 <ExternalLink className="w-3.5 h-3.5" />
               </button>
 
