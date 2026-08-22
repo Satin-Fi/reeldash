@@ -10,12 +10,9 @@ import {
   Heart,
   ExternalLink,
   Sparkles,
-  Tag,
-  FolderPlus,
   Trash2,
   Copy,
   Edit2,
-  Check,
   Play,
   Pause,
   Volume2,
@@ -23,6 +20,7 @@ import {
   Download,
   Loader2,
   Clock,
+  Instagram,
 } from "lucide-react";
 
 export default function ReelDetailPage() {
@@ -53,7 +51,6 @@ export default function ReelDetailPage() {
 
   // Temporary Download Processing States (Section 3 & Section 45)
   const [downloadState, setDownloadState] = useState<"idle" | "processing" | "ready">("idle");
-  const [signedDownloadUrl, setSignedDownloadUrl] = useState("");
 
   if (!reel) {
     return (
@@ -82,17 +79,18 @@ export default function ReelDetailPage() {
     showToast("Link copied to clipboard");
   };
 
-  // Section 45: Temporary Download Processing Handler
   const handleRequestDownload = () => {
     setDownloadState("processing");
     setTimeout(() => {
-      // Generate temporary signed expiring token URL
-      const signedToken = Math.random().toString(36).substring(2, 12);
-      setSignedDownloadUrl(`https://reeldash.app/d/${signedToken}?expires=15m`);
       setDownloadState("ready");
       showToast("Download ready — Link expires in 15 mins");
     }, 1800);
   };
+
+  // Extract shortcode for official embed fallback if embedUrl not stored
+  const match = reel.instagramUrl.match(/(?:reel|p)\/([A-Za-z0-9_-]+)/);
+  const shortcode = match ? match[1] : null;
+  const embedSrc = reel.embedUrl || (shortcode ? `https://www.instagram.com/p/${shortcode}/embed/` : null);
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
@@ -107,10 +105,18 @@ export default function ReelDetailPage() {
 
       {/* Main Split Layout */}
       <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-start">
-        {/* Left: Reel Video Player */}
+        {/* Left: REAL Instagram Live Player / Embed */}
         <div className="md:col-span-5 flex justify-center">
-          <div className="relative aspect-reel w-full max-w-xs md:max-w-none rounded-rd-card overflow-hidden bg-black shadow-rd-card group">
-            {reel.mediaUrl ? (
+          <div className="relative aspect-reel w-full max-w-xs md:max-w-none rounded-rd-card overflow-hidden bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark shadow-rd-card group">
+            {embedSrc ? (
+              <iframe
+                src={embedSrc}
+                title={reel.caption}
+                className="w-full h-full border-0 rounded-rd-card"
+                allowTransparency
+                allow="encrypted-media"
+              />
+            ) : reel.mediaUrl ? (
               <video
                 src={reel.mediaUrl}
                 poster={reel.thumbnailUrl}
@@ -121,30 +127,19 @@ export default function ReelDetailPage() {
                 className="w-full h-full object-cover"
               />
             ) : (
-              <Image
-                src={reel.thumbnailUrl}
-                alt={reel.caption}
-                fill
-                className="object-cover"
-              />
+              <div className="w-full h-full flex flex-col items-center justify-center p-6 text-center space-y-3 bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark text-secondaryText-light">
+                <Instagram className="w-10 h-10 text-brand-500" />
+                <p className="text-xs">Original Reel on Instagram</p>
+                <a
+                  href={reel.instagramUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="px-3 py-1.5 bg-brand-500 text-white rounded-rd-sm text-xs font-semibold"
+                >
+                  Open on Instagram →
+                </a>
+              </div>
             )}
-
-            {/* Video Controls Overlay */}
-            <div className="absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-black/80 via-black/30 to-transparent flex items-center justify-between text-white text-xs z-10">
-              <button
-                onClick={() => setIsPlaying(!isPlaying)}
-                className="p-2 rounded-full bg-white/20 hover:bg-white/30 backdrop-blur-md cursor-pointer"
-              >
-                {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 fill-white" />}
-              </button>
-              <span className="font-mono text-[11px]">{reel.duration}</span>
-              <button
-                onClick={() => setIsMuted(!isMuted)}
-                className="p-2 rounded-full bg-white/20 hover:bg-white/30 backdrop-blur-md cursor-pointer"
-              >
-                {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
-              </button>
-            </div>
           </div>
         </div>
 
@@ -153,14 +148,8 @@ export default function ReelDetailPage() {
           {/* Creator Section */}
           <div className="flex items-center justify-between p-4 bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-md shadow-rd-subtle">
             <div className="flex items-center space-x-3">
-              <div className="relative w-10 h-10 rounded-full overflow-hidden bg-brand-500/10">
-                {reel.creatorAvatar ? (
-                  <Image src={reel.creatorAvatar} alt={reel.creatorUsername} fill className="object-cover" />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center font-bold text-xs">
-                    {reel.creatorUsername[0].toUpperCase()}
-                  </div>
-                )}
+              <div className="relative w-10 h-10 rounded-full overflow-hidden bg-brand-500/10 flex items-center justify-center font-bold text-xs text-brand-500">
+                {reel.creatorUsername[0]?.toUpperCase() || "I"}
               </div>
               <div>
                 <h3 className="text-sm font-bold text-primaryText-light dark:text-primaryText-dark leading-tight">
@@ -230,16 +219,82 @@ export default function ReelDetailPage() {
             )}
           </div>
 
-          {/* SECTION 45: TEMPORARY DOWNLOAD PROCESSING (Secondary Feature) */}
+          {/* Categories & Collections */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="p-4 bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-md shadow-rd-subtle space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-mutedText-light dark:text-mutedText-dark uppercase tracking-wider">
+                  Category
+                </span>
+                <button
+                  onClick={() => setIsEditingCategory(!isEditingCategory)}
+                  className="text-[11px] text-brand-500 hover:underline cursor-pointer"
+                >
+                  {isEditingCategory ? "Done" : "Edit"}
+                </button>
+              </div>
+
+              {isEditingCategory ? (
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  {smartCategories.map((cat) => (
+                    <button
+                      key={cat.name}
+                      onClick={() => {
+                        updateCategory(reel.id, cat.name);
+                        setIsEditingCategory(false);
+                      }}
+                      className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
+                        reel.category === cat.name
+                          ? "bg-brand-500 text-white"
+                          : "bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark text-secondaryText-light"
+                      }`}
+                    >
+                      {cat.name}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex flex-wrap gap-1.5">
+                  <span className="px-2.5 py-1 rounded-full bg-brand-500/10 text-brand-500 text-xs font-medium">
+                    {reel.category}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            <div className="p-4 bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-md shadow-rd-subtle space-y-2">
+              <span className="text-xs font-semibold text-mutedText-light dark:text-mutedText-dark uppercase tracking-wider">
+                Collections
+              </span>
+              <div className="flex flex-wrap gap-1.5">
+                {reel.collections.length > 0 ? (
+                  reel.collections.map((colId) => {
+                    const col = collections.find((c) => c.id === colId);
+                    return (
+                      <span
+                        key={colId}
+                        className="px-2.5 py-1 rounded-full bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark text-secondaryText-light text-xs font-medium"
+                      >
+                        {col?.icon || "📁"} {col?.name || "Collection"}
+                      </span>
+                    );
+                  })
+                ) : (
+                  <span className="text-xs text-mutedText-light dark:text-mutedText-dark italic">
+                    Not in any collection
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Temporary Download Processing (Section 45) */}
           <div className="p-4 bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-md shadow-rd-subtle space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-1.5 text-xs font-semibold text-primaryText-light dark:text-primaryText-dark">
                 <Download className="w-4 h-4 text-brand-500" />
                 <span>Temporary Download</span>
               </div>
-              <span className="text-[10px] text-mutedText-light dark:text-mutedText-dark">
-                Secondary feature
-              </span>
             </div>
 
             {downloadState === "idle" && (
@@ -273,7 +328,7 @@ export default function ReelDetailPage() {
                   </span>
                 </div>
                 <a
-                  href={reel.mediaUrl || reel.instagramUrl}
+                  href={reel.instagramUrl}
                   target="_blank"
                   rel="noreferrer"
                   className="inline-flex items-center space-x-2 px-3 py-1.5 bg-emerald-500 text-white rounded-rd-sm text-xs font-semibold hover:bg-emerald-600 transition-colors"
@@ -285,7 +340,7 @@ export default function ReelDetailPage() {
             )}
           </div>
 
-          {/* Notes Section */}
+          {/* Personal Notes */}
           <div className="p-4 bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-md shadow-rd-subtle space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold text-mutedText-light dark:text-mutedText-dark uppercase tracking-wider">
