@@ -22,6 +22,7 @@ import {
   RefreshCw,
   Play,
   Image as ImageIcon,
+  AlertCircle,
 } from "lucide-react";
 
 export default function ReelDetailPage() {
@@ -49,7 +50,9 @@ export default function ReelDetailPage() {
   const [isEditingCategory, setIsEditingCategory] = useState(false);
   const [isExpandedCaption, setIsExpandedCaption] = useState(false);
   const [downloadState, setDownloadState] = useState<"idle" | "processing" | "ready">("idle");
-  const [isPlayingVideo, setIsPlayingVideo] = useState(false);
+  const [isResolvingMedia, setIsResolvingMedia] = useState(false);
+  const [resolvedMediaUrl, setResolvedMediaUrl] = useState<string | null>(null);
+  const [resolutionFailed, setResolutionFailed] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   if (!reel) {
@@ -103,14 +106,40 @@ export default function ReelDetailPage() {
       ? `/api/proxy-image?shortcode=${shortcode}`
       : "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80";
 
-  const validDirectMediaUrl =
-    reel.mediaUrl &&
-    !reel.mediaUrl.includes("zencdn.net") &&
-    !reel.mediaUrl.includes("googleapis.com")
-      ? reel.mediaUrl
-      : null;
+  // Backend Media Resolution Handler
+  const handlePlayMedia = async () => {
+    // If already resolved, play directly
+    if (resolvedMediaUrl) return;
 
-  const downloadApiUrl = `/api/download?shortcode=${shortcode || ""}&reelUrl=${encodeURIComponent(reel.instagramUrl)}&url=${encodeURIComponent(validDirectMediaUrl || "")}`;
+    setIsResolvingMedia(true);
+    setResolutionFailed(false);
+
+    try {
+      const res = await fetch("/api/media-resolve", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          url: reel.instagramUrl,
+          shortcode,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (data.resolved && data.mediaUrl) {
+        setResolvedMediaUrl(data.mediaUrl);
+      } else {
+        setResolutionFailed(true);
+      }
+    } catch (err) {
+      console.warn("Media resolution error:", err);
+      setResolutionFailed(true);
+    } finally {
+      setIsResolvingMedia(false);
+    }
+  };
+
+  const downloadApiUrl = `/api/download?shortcode=${shortcode || ""}&reelUrl=${encodeURIComponent(reel.instagramUrl)}`;
 
   const creatorTitle = reel.creatorFullName || reel.creatorUsername;
   const creatorHandle = reel.creatorUsername;
@@ -139,53 +168,78 @@ export default function ReelDetailPage() {
 
       {/* Main Split Layout */}
       <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-start">
-        {/* Left: Clean Video Player / Real Cover Photo */}
+        {/* Left: Backend-Resolved Native Media Player / Real Cover Card */}
         <div className="md:col-span-5 flex flex-col items-center space-y-3">
           <div className="relative aspect-reel w-full max-w-xs md:max-w-none rounded-rd-card overflow-hidden bg-black border border-borderSubtle-light dark:border-borderSubtle-dark shadow-rd-card group">
-            {isPlayingVideo ? (
-              validDirectMediaUrl ? (
-                /* Native HTML5 Video Player */
-                <div className="relative w-full h-full bg-black">
-                  <video
-                    src={validDirectMediaUrl}
-                    poster={imageSrc}
-                    controls
-                    autoPlay
-                    loop
-                    playsInline
-                    className="w-full h-full object-cover rounded-rd-card"
-                  />
-                  <button
-                    onClick={() => setIsPlayingVideo(false)}
-                    className="absolute top-3 right-3 px-2.5 py-1 bg-black/75 hover:bg-black/90 text-white rounded-rd-sm text-[11px] font-medium backdrop-blur-md flex items-center space-x-1.5 transition-colors z-20 cursor-pointer shadow-rd-subtle"
-                  >
-                    <ImageIcon className="w-3.5 h-3.5" />
-                    <span>Cover Photo</span>
-                  </button>
+            {isResolvingMedia ? (
+              /* Backend Resolution in Progress */
+              <div className="flex flex-col items-center justify-center w-full h-full space-y-3 bg-zinc-900 text-white p-6 text-center">
+                <Loader2 className="w-8 h-8 animate-spin text-brand-500" />
+                <p className="text-xs font-medium">Resolving playable media resource...</p>
+                <p className="text-[11px] text-zinc-400">Verifying direct stream authorization</p>
+              </div>
+            ) : resolvedMediaUrl ? (
+              /* Valid Playable HTML5 Media Stream */
+              <div className="relative w-full h-full bg-black">
+                <video
+                  src={resolvedMediaUrl}
+                  poster={imageSrc}
+                  controls
+                  autoPlay
+                  loop
+                  playsInline
+                  className="w-full h-full object-cover rounded-rd-card"
+                />
+                <button
+                  onClick={() => setResolvedMediaUrl(null)}
+                  className="absolute top-3 right-3 px-2.5 py-1 bg-black/75 hover:bg-black/90 text-white rounded-rd-sm text-[11px] font-medium backdrop-blur-md flex items-center space-x-1.5 transition-colors z-20 cursor-pointer shadow-rd-subtle"
+                >
+                  <ImageIcon className="w-3.5 h-3.5" />
+                  <span>Cover Photo</span>
+                </button>
+              </div>
+            ) : resolutionFailed ? (
+              /* Resolution Failed: Show Real Cover with "Open Original on Instagram" fallback */
+              <div className="relative w-full h-full">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={imageSrc}
+                  alt={reel.caption}
+                  referrerPolicy="no-referrer"
+                  className="w-full h-full object-cover filter blur-[2px] brightness-50"
+                />
+                <div className="absolute inset-0 bg-black/60 p-6 flex flex-col items-center justify-center text-center text-white space-y-3 z-10">
+                  <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-amber-400">
+                    <AlertCircle className="w-6 h-6" />
+                  </div>
+                  <h4 className="text-xs font-semibold">Direct Media Stream Restricted</h4>
+                  <p className="text-[11px] text-zinc-300 max-w-[220px] leading-relaxed">
+                    Source provider restrictions prevent external inline playback. You can view the original Reel directly on Instagram.
+                  </p>
+                  <div className="pt-2 flex flex-col space-y-2 w-full max-w-[200px]">
+                    <a
+                      href={reel.instagramUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center justify-center space-x-2 px-3 py-2 bg-brand-500 hover:bg-brand-600 text-white rounded-rd-sm text-xs font-semibold transition-colors"
+                    >
+                      <span>Open on Instagram</span>
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </a>
+                    <button
+                      onClick={() => setResolutionFailed(false)}
+                      className="px-3 py-1.5 bg-white/10 hover:bg-white/20 text-zinc-300 hover:text-white rounded-rd-sm text-[11px] font-medium transition-colors cursor-pointer"
+                    >
+                      Back to Cover
+                    </button>
+                  </div>
                 </div>
-              ) : shortcode ? (
-                /* Seamless Cropped Reel Frame (Crops out Instagram header and footer overlay completely) */
-                <div className="relative w-full h-full overflow-hidden bg-black rounded-rd-card">
-                  <iframe
-                    src={`https://www.instagram.com/p/${shortcode}/embed/`}
-                    title={reel.caption}
-                    className="absolute -top-[56px] left-0 w-full h-[122%] border-0"
-                    allow="autoplay; encrypted-media; fullscreen"
-                  />
-                  <button
-                    onClick={() => setIsPlayingVideo(false)}
-                    className="absolute top-3 right-3 px-2.5 py-1 bg-black/80 hover:bg-black text-white rounded-rd-sm text-[11px] font-medium backdrop-blur-md flex items-center space-x-1.5 transition-colors z-30 cursor-pointer shadow-rd-subtle"
-                  >
-                    <ImageIcon className="w-3.5 h-3.5" />
-                    <span>Cover Photo</span>
-                  </button>
-                </div>
-              ) : null
+              </div>
             ) : (
               /* Clean Real Thumbnail Cover with Click to Play */
               <div
                 className="relative w-full h-full cursor-pointer group"
-                onClick={() => setIsPlayingVideo(true)}
+                onClick={handlePlayMedia}
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
