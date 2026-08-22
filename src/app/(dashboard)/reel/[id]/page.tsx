@@ -50,6 +50,7 @@ export default function ReelDetailPage() {
   const [isExpandedCaption, setIsExpandedCaption] = useState(false);
   const [downloadState, setDownloadState] = useState<"idle" | "processing" | "ready">("idle");
   const [isPlayingVideo, setIsPlayingVideo] = useState(false);
+  const [isLoadingVideo, setIsLoadingVideo] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   if (!reel) {
@@ -103,8 +104,26 @@ export default function ReelDetailPage() {
       ? `/api/proxy-image?shortcode=${shortcode}`
       : "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80";
 
-  const videoStreamUrl = `/api/video-stream?shortcode=${shortcode || ""}&url=${encodeURIComponent(reel.mediaUrl || "")}`;
-  const downloadApiUrl = `/api/download?shortcode=${shortcode || ""}&reelUrl=${encodeURIComponent(reel.instagramUrl)}&url=${encodeURIComponent(reel.mediaUrl || "")}`;
+  // Check if mediaUrl is a real video link
+  const validMediaUrl =
+    reel.mediaUrl &&
+    !reel.mediaUrl.includes("zencdn.net") &&
+    !reel.mediaUrl.includes("googleapis.com")
+      ? reel.mediaUrl
+      : "";
+
+  const handlePlayClick = async () => {
+    if (validMediaUrl) {
+      setIsPlayingVideo(true);
+    } else {
+      setIsLoadingVideo(true);
+      const updated = await refreshReelMetadata(reel.id);
+      setIsLoadingVideo(false);
+      setIsPlayingVideo(true);
+    }
+  };
+
+  const downloadApiUrl = `/api/download?shortcode=${shortcode || ""}&reelUrl=${encodeURIComponent(reel.instagramUrl)}&url=${encodeURIComponent(validMediaUrl || "")}`;
 
   const creatorTitle = reel.creatorFullName || reel.creatorUsername;
   const creatorHandle = reel.creatorUsername;
@@ -136,11 +155,16 @@ export default function ReelDetailPage() {
         {/* Left: 100% Native HTML5 Video Player / Cover Photo (ZERO IFRAMES) */}
         <div className="md:col-span-5 flex flex-col items-center space-y-3">
           <div className="relative aspect-reel w-full max-w-xs md:max-w-none rounded-rd-card overflow-hidden bg-black border border-borderSubtle-light dark:border-borderSubtle-dark shadow-rd-card group">
-            {isPlayingVideo ? (
+            {isLoadingVideo ? (
+              <div className="flex flex-col items-center justify-center w-full h-full space-y-3 bg-zinc-900 text-white p-4">
+                <Loader2 className="w-8 h-8 animate-spin text-brand-500" />
+                <p className="text-xs font-medium">Extracting Reel video stream...</p>
+              </div>
+            ) : isPlayingVideo && validMediaUrl ? (
               /* Native HTML5 Video Player with standard Play, Pause, Seekbar, Volume & Fullscreen controls */
               <div className="relative w-full h-full bg-black">
                 <video
-                  src={videoStreamUrl}
+                  src={validMediaUrl}
                   poster={imageSrc}
                   controls
                   autoPlay
@@ -160,7 +184,7 @@ export default function ReelDetailPage() {
               /* Clean Real Thumbnail Cover with Click to Play */
               <div
                 className="relative w-full h-full cursor-pointer group"
-                onClick={() => setIsPlayingVideo(true)}
+                onClick={handlePlayClick}
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img

@@ -51,7 +51,7 @@ interface ReelContextType {
   createCollection: (name: string, description?: string, icon?: string) => void;
   addReelToCollection: (reelId: string, collectionId: string) => void;
   generateAiSummary: (reelId: string) => void;
-  refreshReelMetadata: (id: string) => Promise<void>;
+  refreshReelMetadata: (id: string) => Promise<Reel | null>;
   showToast: (title: string, subtitle?: string, action?: { label: string; onClick: () => void }) => void;
   removeToast: (id: string) => void;
 }
@@ -84,15 +84,25 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
       const savedReels = localStorage.getItem(userReelsKey);
       const savedCols = localStorage.getItem(userColsKey);
 
-      const parsedReels: Reel[] = savedReels ? JSON.parse(savedReels) : [];
+      let parsedReels: Reel[] = savedReels ? JSON.parse(savedReels) : [];
+
+      // Clean out any sample oceans video or invalid mediaUrl from existing saved reels
+      parsedReels = parsedReels.map((r) => {
+        if (r.mediaUrl && (r.mediaUrl.includes("zencdn.net") || r.mediaUrl.includes("googleapis.com"))) {
+          return { ...r, mediaUrl: "" };
+        }
+        return r;
+      });
+
       setReels(parsedReels);
       setCollections(savedCols ? JSON.parse(savedCols) : []);
 
-      // Auto-upgrade any reels that have fallback or placeholder data
+      // Auto-upgrade any reels that need fresh metadata or direct video URL
       const needsUpgrade = parsedReels.some(
         (r) =>
           r.creatorUsername === "instagram_creator" ||
           r.creatorUsername.startsWith("reels_") ||
+          !r.mediaUrl ||
           !r.likes ||
           r.thumbnailUrl.includes("unsplash.com")
       );
@@ -104,6 +114,7 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
               if (
                 r.creatorUsername === "instagram_creator" ||
                 r.creatorUsername.startsWith("reels_") ||
+                !r.mediaUrl ||
                 !r.likes ||
                 r.thumbnailUrl.includes("unsplash.com")
               ) {
@@ -121,6 +132,7 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
                       creatorFullName: data.creatorFullName || r.creatorFullName,
                       caption: data.caption || r.caption,
                       thumbnailUrl: data.thumbnailUrl || r.thumbnailUrl,
+                      mediaUrl: data.mediaUrl || r.mediaUrl || "",
                       likes: data.likes || r.likes,
                       commentsCount: data.commentsCount || r.commentsCount,
                       category: data.category || r.category,
@@ -290,9 +302,9 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
     showToast(`✓ Added to ${colName}`);
   };
 
-  const refreshReelMetadata = async (id: string) => {
+  const refreshReelMetadata = async (id: string): Promise<Reel | null> => {
     const target = reels.find((r) => r.id === id);
-    if (!target) return;
+    if (!target) return null;
     try {
       const res = await fetch("/api/reel-info", {
         method: "POST",
@@ -301,27 +313,33 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
       });
       if (res.ok) {
         const data = await res.json();
-        const updated = reels.map((r) =>
-          r.id === id
-            ? {
-                ...r,
-                creatorUsername: data.creatorUsername || r.creatorUsername,
-                creatorFullName: data.creatorFullName || r.creatorFullName,
-                caption: data.caption || r.caption,
-                thumbnailUrl: data.thumbnailUrl || r.thumbnailUrl,
-                likes: data.likes || r.likes,
-                commentsCount: data.commentsCount || r.commentsCount,
-                category: data.category || r.category,
-                hashtags: data.hashtags && data.hashtags.length > 0 ? data.hashtags : r.hashtags,
-              }
-            : r
-        );
+        let updatedItem: Reel | null = null;
+        const updated = reels.map((r) => {
+          if (r.id === id) {
+            updatedItem = {
+              ...r,
+              creatorUsername: data.creatorUsername || r.creatorUsername,
+              creatorFullName: data.creatorFullName || r.creatorFullName,
+              caption: data.caption || r.caption,
+              thumbnailUrl: data.thumbnailUrl || r.thumbnailUrl,
+              mediaUrl: data.mediaUrl || r.mediaUrl || "",
+              likes: data.likes || r.likes,
+              commentsCount: data.commentsCount || r.commentsCount,
+              category: data.category || r.category,
+              hashtags: data.hashtags && data.hashtags.length > 0 ? data.hashtags : r.hashtags,
+            };
+            return updatedItem;
+          }
+          return r;
+        });
         saveUserReels(updated);
         showToast("Metadata refreshed!");
+        return updatedItem;
       }
     } catch (e) {
       console.warn("Refresh metadata error:", e);
     }
+    return null;
   };
 
   // REAL Instagram Metadata & Thumbnail Fetching
@@ -354,7 +372,7 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
         creatorProfileUrl: `https://instagram.com/${creator}`,
         creatorAvatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(creatorFullName || creator)}&background=6366F1&color=fff`,
         thumbnailUrl,
-        mediaUrl: data.mediaUrl || "https://vjs.zencdn.net/v/oceans.mp4",
+        mediaUrl: data.mediaUrl || "",
         embedUrl: embedUrl || undefined,
         caption,
         category,
@@ -388,7 +406,7 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
         creatorUsername: customDetails?.creator || (shortcode ? `reels_${shortcode.substring(0, 6)}` : "instagram_creator"),
         creatorProfileUrl: "https://instagram.com",
         thumbnailUrl: shortcode ? `/api/proxy-image?shortcode=${shortcode}` : "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80",
-        mediaUrl: "https://vjs.zencdn.net/v/oceans.mp4",
+        mediaUrl: "",
         caption: customDetails?.caption || `Saved Reel: ${url}`,
         category: customDetails?.category || "General",
         subcategories: [],
