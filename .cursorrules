@@ -1,0 +1,6 @@
+# Strict Project Rules
+- NEVER use Instagram embed iframes (<iframe src=".../embed">). It is strictly forbidden.
+- ONLY use native HTML5 <video> elements in 9:16 aspect ratio with custom controls.
+- When stream is unavailable, show the Reel cover thumbnail + "Preview unavailable" state + "Open on Instagram" button.
+- ZERO placeholder or random fallback videos.
+- Treat Instagram CDN .mp4 URLs as temporary session data.
