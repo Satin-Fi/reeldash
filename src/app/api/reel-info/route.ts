@@ -8,7 +8,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid URL" }, { status: 400 });
     }
 
-    // Extract shortcode and potential username from Instagram URL
+    // Parse shortcode and username directly from URL structure
     let shortcode: string | null = null;
     let creatorUsername = "";
 
@@ -24,18 +24,38 @@ export async function POST(req: NextRequest) {
 
     let caption = "";
     let thumbnailUrl = "";
-    let mediaUrl = "";
+    let mediaUrl = "https://vjs.zencdn.net/v/oceans.mp4"; // Reliable open test video stream
     let hashtags: string[] = [];
 
-    // Fetch official Instagram captioned embed HTML (Never blocked by IG bot detection)
-    if (shortcode) {
+    // 1. Try noembed.com (CORS-enabled public oEmbed provider for Instagram)
+    try {
+      const noembedRes = await fetch(`https://noembed.com/embed?url=${encodeURIComponent(url)}`, {
+        next: { revalidate: 3600 },
+      });
+      if (noembedRes.ok) {
+        const data = await noembedRes.json();
+        if (data.author_name) {
+          creatorUsername = data.author_name.replace(/^@/, "");
+        }
+        if (data.title) {
+          caption = data.title;
+        }
+        if (data.thumbnail_url) {
+          thumbnailUrl = data.thumbnail_url;
+        }
+      }
+    } catch (noembedErr) {
+      console.warn("noembed fetch warning:", noembedErr);
+    }
+
+    // 2. Try Instagram captioned embed fallback
+    if ((!caption || !creatorUsername) && shortcode) {
       try {
         const embedUrl = `https://www.instagram.com/p/${shortcode}/embed/captioned/`;
         const res = await fetch(embedUrl, {
           headers: {
             "User-Agent":
               "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
-            "Accept-Language": "en-US,en;q=0.9",
           },
           next: { revalidate: 3600 },
         });
@@ -43,7 +63,6 @@ export async function POST(req: NextRequest) {
         if (res.ok) {
           const html = await res.text();
 
-          // 1. Extract Creator Username
           if (!creatorUsername) {
             const handleMatch =
               html.match(/class="UsernameText"[^>]*>([^<]+)</i) ||
@@ -54,56 +73,50 @@ export async function POST(req: NextRequest) {
             }
           }
 
-          // 2. Extract High-Res Image Cover Thumbnail
-          const imgMatch =
-            html.match(/class="EmbeddedMediaImage"[^>]*src="([^"]+)"/i) ||
-            html.match(/<img[^>]+src="(https:\/\/[^"]+scontent[^"]+)"/i) ||
-            html.match(/src="(https:\/\/scontent[^"]+)"/i);
-          if (imgMatch && imgMatch[1]) {
-            thumbnailUrl = imgMatch[1].replace(/&amp;/g, "&");
-          }
-
-          // 3. Extract Caption & Hashtags
-          const captionMatch =
-            html.match(/class="Caption"[^>]*>([\s\S]*?)<\/div>/i) ||
-            html.match(/class="CaptionComments"[^>]*>([\s\S]*?)<\/div>/i);
-          if (captionMatch && captionMatch[1]) {
-            // Strip HTML tags
-            const cleanCaption = captionMatch[1]
-              .replace(/<[^>]+>/g, " ")
-              .replace(/\s+/g, " ")
-              .trim();
-            if (cleanCaption) {
-              caption = cleanCaption;
+          if (!thumbnailUrl) {
+            const imgMatch =
+              html.match(/class="EmbeddedMediaImage"[^>]*src="([^"]+)"/i) ||
+              html.match(/src="(https:\/\/scontent[^"]+)"/i);
+            if (imgMatch && imgMatch[1]) {
+              thumbnailUrl = imgMatch[1].replace(/&amp;/g, "&");
             }
           }
 
-          // Extract hashtags using regex
-          const extractedTags = caption.match(/#[A-Za-z0-9_]+/g);
-          if (extractedTags) {
-            hashtags = Array.from(new Set(extractedTags));
+          if (!caption) {
+            const captionMatch =
+              html.match(/class="Caption"[^>]*>([\s\S]*?)<\/div>/i) ||
+              html.match(/class="CaptionComments"[^>]*>([\s\S]*?)<\/div>/i);
+            if (captionMatch && captionMatch[1]) {
+              const cleanCaption = captionMatch[1]
+                .replace(/<[^>]+>/g, " ")
+                .replace(/\s+/g, " ")
+                .trim();
+              if (cleanCaption) caption = cleanCaption;
+            }
           }
         }
       } catch (embedErr) {
-        console.warn("Embed captioned fetch warning:", embedErr);
+        console.warn("Instagram captioned embed fetch warning:", embedErr);
       }
     }
 
-    // Fallbacks if extraction was partial
+    // Extract hashtags
+    if (caption) {
+      const extractedTags = caption.match(/#[A-Za-z0-9_]+/g);
+      if (extractedTags) {
+        hashtags = Array.from(new Set(extractedTags));
+      }
+    }
+
     if (!creatorUsername) {
       creatorUsername = "instagram_creator";
     }
 
     if (!caption) {
-      caption = shortcode ? `Instagram Reel by @${creatorUsername}` : "Saved Instagram Reel";
+      caption = shortcode ? `Instagram Reel (${shortcode})` : "Saved Instagram Reel";
     }
 
-    if (!thumbnailUrl && shortcode) {
-      // Direct CDN media fallback
-      thumbnailUrl = `https://www.instagram.com/p/${shortcode}/media/?size=l`;
-    }
-
-    // AI Categorization based on extracted caption & hashtags
+    // AI Categorization engine
     let category = "General";
     const lowerCaption = (caption + " " + hashtags.join(" ")).toLowerCase();
     if (
@@ -163,8 +176,8 @@ export async function POST(req: NextRequest) {
       creatorUsername,
       caption,
       hashtags,
-      thumbnailUrl: thumbnailUrl || "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80",
-      mediaUrl: mediaUrl || "",
+      thumbnailUrl: thumbnailUrl || (shortcode ? `https://www.instagram.com/p/${shortcode}/media/?size=l` : "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80"),
+      mediaUrl,
       embedUrl,
       category,
     });
