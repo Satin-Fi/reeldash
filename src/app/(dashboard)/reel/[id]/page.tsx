@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useReels } from "@/context/ReelContext";
-import Image from "next/image";
+import { ReelPlayer } from "@/components/reels/ReelPlayer";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -20,9 +20,6 @@ import {
   MessageCircle,
   ThumbsUp,
   RefreshCw,
-  Play,
-  Image as ImageIcon,
-  AlertCircle,
 } from "lucide-react";
 
 export default function ReelDetailPage() {
@@ -50,9 +47,6 @@ export default function ReelDetailPage() {
   const [isEditingCategory, setIsEditingCategory] = useState(false);
   const [isExpandedCaption, setIsExpandedCaption] = useState(false);
   const [downloadState, setDownloadState] = useState<"idle" | "processing" | "ready">("idle");
-  const [isResolvingMedia, setIsResolvingMedia] = useState(false);
-  const [resolvedMediaUrl, setResolvedMediaUrl] = useState<string | null>(null);
-  const [resolutionFailed, setResolutionFailed] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   if (!reel) {
@@ -99,46 +93,6 @@ export default function ReelDetailPage() {
   const match = reel.instagramUrl.match(/(?:reel|p)\/([A-Za-z0-9_-]+)/);
   const shortcode = match ? match[1] : null;
 
-  const imageSrc =
-    reel.thumbnailUrl && !reel.thumbnailUrl.includes("unsplash.com")
-      ? reel.thumbnailUrl
-      : shortcode
-      ? `/api/proxy-image?shortcode=${shortcode}`
-      : "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80";
-
-  // Backend Media Resolution Handler
-  const handlePlayMedia = async () => {
-    // If already resolved, play directly
-    if (resolvedMediaUrl) return;
-
-    setIsResolvingMedia(true);
-    setResolutionFailed(false);
-
-    try {
-      const res = await fetch("/api/media-resolve", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          url: reel.instagramUrl,
-          shortcode,
-        }),
-      });
-
-      const data = await res.json();
-
-      if (data.resolved && data.mediaUrl) {
-        setResolvedMediaUrl(data.mediaUrl);
-      } else {
-        setResolutionFailed(true);
-      }
-    } catch (err) {
-      console.warn("Media resolution error:", err);
-      setResolutionFailed(true);
-    } finally {
-      setIsResolvingMedia(false);
-    }
-  };
-
   const downloadApiUrl = `/api/download?shortcode=${shortcode || ""}&reelUrl=${encodeURIComponent(reel.instagramUrl)}`;
 
   const creatorTitle = reel.creatorFullName || reel.creatorUsername;
@@ -168,104 +122,12 @@ export default function ReelDetailPage() {
 
       {/* Main Split Layout */}
       <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-start">
-        {/* Left: Backend-Resolved Native Media Player / Real Cover Card */}
+        {/* Left: Reusable ReelPlayer Component */}
         <div className="md:col-span-5 flex flex-col items-center space-y-3">
-          <div className="relative aspect-reel w-full max-w-xs md:max-w-none rounded-rd-card overflow-hidden bg-black border border-borderSubtle-light dark:border-borderSubtle-dark shadow-rd-card group">
-            {isResolvingMedia ? (
-              /* Backend Resolution in Progress */
-              <div className="flex flex-col items-center justify-center w-full h-full space-y-3 bg-zinc-900 text-white p-6 text-center">
-                <Loader2 className="w-8 h-8 animate-spin text-brand-500" />
-                <p className="text-xs font-medium">Resolving playable media resource...</p>
-                <p className="text-[11px] text-zinc-400">Verifying direct stream authorization</p>
-              </div>
-            ) : resolvedMediaUrl ? (
-              /* Valid Playable HTML5 Media Stream */
-              <div className="relative w-full h-full bg-black">
-                <video
-                  src={resolvedMediaUrl}
-                  poster={imageSrc}
-                  controls
-                  autoPlay
-                  loop
-                  playsInline
-                  className="w-full h-full object-cover rounded-rd-card"
-                />
-                <button
-                  onClick={() => setResolvedMediaUrl(null)}
-                  className="absolute top-3 right-3 px-2.5 py-1 bg-black/75 hover:bg-black/90 text-white rounded-rd-sm text-[11px] font-medium backdrop-blur-md flex items-center space-x-1.5 transition-colors z-20 cursor-pointer shadow-rd-subtle"
-                >
-                  <ImageIcon className="w-3.5 h-3.5" />
-                  <span>Cover Photo</span>
-                </button>
-              </div>
-            ) : resolutionFailed ? (
-              /* Resolution Failed: Show Real Cover with "Open Original on Instagram" fallback */
-              <div className="relative w-full h-full">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={imageSrc}
-                  alt={reel.caption}
-                  referrerPolicy="no-referrer"
-                  className="w-full h-full object-cover filter blur-[2px] brightness-50"
-                />
-                <div className="absolute inset-0 bg-black/60 p-6 flex flex-col items-center justify-center text-center text-white space-y-3 z-10">
-                  <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-amber-400">
-                    <AlertCircle className="w-6 h-6" />
-                  </div>
-                  <h4 className="text-xs font-semibold">Direct Media Stream Restricted</h4>
-                  <p className="text-[11px] text-zinc-300 max-w-[220px] leading-relaxed">
-                    Source provider restrictions prevent external inline playback. You can view the original Reel directly on Instagram.
-                  </p>
-                  <div className="pt-2 flex flex-col space-y-2 w-full max-w-[200px]">
-                    <a
-                      href={reel.instagramUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex items-center justify-center space-x-2 px-3 py-2 bg-brand-500 hover:bg-brand-600 text-white rounded-rd-sm text-xs font-semibold transition-colors"
-                    >
-                      <span>Open on Instagram</span>
-                      <ExternalLink className="w-3.5 h-3.5" />
-                    </a>
-                    <button
-                      onClick={() => setResolutionFailed(false)}
-                      className="px-3 py-1.5 bg-white/10 hover:bg-white/20 text-zinc-300 hover:text-white rounded-rd-sm text-[11px] font-medium transition-colors cursor-pointer"
-                    >
-                      Back to Cover
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              /* Clean Real Thumbnail Cover with Click to Play */
-              <div
-                className="relative w-full h-full cursor-pointer group"
-                onClick={handlePlayMedia}
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={imageSrc}
-                  alt={reel.caption}
-                  referrerPolicy="no-referrer"
-                  className="w-full h-full object-cover group-hover:scale-102 transition-transform duration-300"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/20" />
-
-                {/* Big Center Play Button */}
-                <button
-                  type="button"
-                  aria-label="Play video"
-                  className="absolute inset-0 m-auto w-16 h-16 rounded-full bg-brand-500 text-white flex items-center justify-center shadow-rd-modal hover:scale-110 active:scale-95 transition-all cursor-pointer z-10"
-                >
-                  <Play className="w-7 h-7 fill-white ml-1" />
-                </button>
-
-                {/* Duration Badge */}
-                <div className="absolute bottom-3 left-3 px-2 py-1 rounded bg-black/60 backdrop-blur-md text-white text-xs font-medium">
-                  {reel.duration}
-                </div>
-              </div>
-            )}
-          </div>
+          <ReelPlayer
+            reel={reel}
+            onOpenOriginal={() => window.open(reel.instagramUrl, "_blank", "noopener,noreferrer")}
+          />
         </div>
 
         {/* Right: Metadata & Detail Panel */}
