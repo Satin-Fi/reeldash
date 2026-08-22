@@ -8,7 +8,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid URL" }, { status: 400 });
     }
 
-    // Parse shortcode and username directly from URL structure
+    // Extract shortcode and creator from URL structure if present
     let shortcode: string | null = null;
     let creatorUsername = "";
 
@@ -24,31 +24,63 @@ export async function POST(req: NextRequest) {
 
     let caption = "";
     let thumbnailUrl = "";
-    let mediaUrl = "https://vjs.zencdn.net/v/oceans.mp4"; // Reliable open test video stream
+    let mediaUrl = "";
     let hashtags: string[] = [];
 
-    // 1. Try noembed.com (CORS-enabled public oEmbed provider for Instagram)
+    // 1. Fetch via Cobalt API (Open-source video & metadata extractor for Instagram Reels)
+    try {
+      const cobaltRes = await fetch("https://api.cobalt.tools/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+          "User-Agent": "ReelDash/1.0",
+        },
+        body: JSON.stringify({
+          url,
+          videoQuality: "720",
+        }),
+      });
+
+      if (cobaltRes.ok) {
+        const cobaltData = await cobaltRes.json();
+        if (cobaltData.url) {
+          mediaUrl = cobaltData.url;
+        }
+        if (cobaltData.filename) {
+          // filename format: instagram_username_id.mp4
+          const fnameParts = cobaltData.filename.split("_");
+          if (fnameParts[1] && fnameParts[1] !== "instagram") {
+            creatorUsername = fnameParts[1];
+          }
+        }
+      }
+    } catch (cobaltErr) {
+      console.warn("Cobalt API extraction notice:", cobaltErr);
+    }
+
+    // 2. Fetch via noembed.com (CORS-enabled public oEmbed provider for Instagram)
     try {
       const noembedRes = await fetch(`https://noembed.com/embed?url=${encodeURIComponent(url)}`, {
         next: { revalidate: 3600 },
       });
       if (noembedRes.ok) {
         const data = await noembedRes.json();
-        if (data.author_name) {
+        if (data.author_name && !creatorUsername) {
           creatorUsername = data.author_name.replace(/^@/, "");
         }
-        if (data.title) {
+        if (data.title && !caption) {
           caption = data.title;
         }
-        if (data.thumbnail_url) {
+        if (data.thumbnail_url && !thumbnailUrl) {
           thumbnailUrl = data.thumbnail_url;
         }
       }
     } catch (noembedErr) {
-      console.warn("noembed fetch warning:", noembedErr);
+      console.warn("noembed fetch notice:", noembedErr);
     }
 
-    // 2. Try Instagram captioned embed fallback
+    // 3. Instagram captioned embed fallback parsing
     if ((!caption || !creatorUsername) && shortcode) {
       try {
         const embedUrl = `https://www.instagram.com/p/${shortcode}/embed/captioned/`;
@@ -96,11 +128,11 @@ export async function POST(req: NextRequest) {
           }
         }
       } catch (embedErr) {
-        console.warn("Instagram captioned embed fetch warning:", embedErr);
+        console.warn("Instagram captioned embed notice:", embedErr);
       }
     }
 
-    // Extract hashtags
+    // Extract hashtags from caption
     if (caption) {
       const extractedTags = caption.match(/#[A-Za-z0-9_]+/g);
       if (extractedTags) {
@@ -108,15 +140,16 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    if (!creatorUsername) {
-      creatorUsername = "instagram_creator";
+    if (!creatorUsername || creatorUsername === "instagram_creator") {
+      // Fallback creator handle format from shortcode if handle missing
+      creatorUsername = shortcode ? `reels_${shortcode.substring(0, 6)}` : "instagram_creator";
     }
 
-    if (!caption) {
-      caption = shortcode ? `Instagram Reel (${shortcode})` : "Saved Instagram Reel";
+    if (!caption || caption.startsWith("Instagram Reel (")) {
+      caption = `Saved Instagram Reel (${shortcode || "video"})`;
     }
 
-    // AI Categorization engine
+    // Categorization engine
     let category = "General";
     const lowerCaption = (caption + " " + hashtags.join(" ")).toLowerCase();
     if (

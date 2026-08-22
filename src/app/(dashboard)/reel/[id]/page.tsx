@@ -38,7 +38,6 @@ export default function ReelDetailPage() {
 
   const reel = reels.find((r) => r.id === reelId);
 
-  const [isMuted, setIsMuted] = useState(false);
   const [isEditingNote, setIsEditingNote] = useState(false);
   const [noteContent, setNoteContent] = useState(reel?.notes || "");
   const [isEditingCategory, setIsEditingCategory] = useState(false);
@@ -83,7 +82,7 @@ export default function ReelDetailPage() {
   const match = reel.instagramUrl.match(/(?:reel|p)\/([A-Za-z0-9_-]+)/);
   const shortcode = match ? match[1] : null;
   const embedSrc = reel.embedUrl || (shortcode ? `https://www.instagram.com/p/${shortcode}/embed/` : null);
-  const downloadApiUrl = `/api/download?shortcode=${shortcode || ""}&url=${encodeURIComponent(reel.mediaUrl || "")}`;
+  const downloadApiUrl = `/api/download?shortcode=${shortcode || ""}&reelUrl=${encodeURIComponent(reel.instagramUrl)}&url=${encodeURIComponent(reel.mediaUrl || "")}`;
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
@@ -284,7 +283,7 @@ export default function ReelDetailPage() {
             </div>
           </div>
 
-          {/* TEMPORARY DOWNLOAD PROCESSING (Direct MP4 Attachment via /api/download) */}
+          {/* TEMPORARY DOWNLOAD PROCESSING (Cobalt MP4 Attachment Stream) */}
           <div className="p-4 bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-md shadow-rd-subtle space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-1.5 text-xs font-semibold text-primaryText-light dark:text-primaryText-dark">
@@ -310,14 +309,14 @@ export default function ReelDetailPage() {
             {downloadState === "processing" && (
               <div className="flex items-center space-x-2 p-3 bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark rounded-rd-sm text-xs text-secondaryText-light">
                 <Loader2 className="w-4 h-4 text-brand-500 animate-spin" />
-                <span>Preparing MP4 file download stream...</span>
+                <span>Extracting direct Instagram MP4 video stream...</span>
               </div>
             )}
 
             {downloadState === "ready" && (
               <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-rd-sm space-y-2 text-xs">
                 <div className="flex items-center justify-between font-semibold text-emerald-600 dark:text-emerald-400">
-                  <span>✓ Signed MP4 file ready</span>
+                  <span>✓ Direct Reel MP4 ready</span>
                   <span className="flex items-center space-x-1 text-[10px] font-mono">
                     <Clock className="w-3 h-3" />
                     <span>Expires in 15m</span>
@@ -329,7 +328,7 @@ export default function ReelDetailPage() {
                   className="inline-flex items-center space-x-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-rd-sm text-xs font-semibold shadow-rd-subtle transition-colors"
                 >
                   <Download className="w-3.5 h-3.5" />
-                  <span>Download MP4 File</span>
+                  <span>Download MP4 Video</span>
                 </a>
               </div>
             )}

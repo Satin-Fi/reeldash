@@ -2,16 +2,49 @@ import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
-  const videoUrl = searchParams.get("url");
+  const mediaUrl = searchParams.get("url");
   const shortcode = searchParams.get("shortcode");
+  const reelUrl = searchParams.get("reelUrl");
 
-  // Use reliable open test MP4 video stream (Video.js / W3C open test media)
-  const targetUrl = videoUrl && !videoUrl.includes("googleapis.com")
-    ? videoUrl
-    : "https://vjs.zencdn.net/v/oceans.mp4";
+  let downloadTarget = mediaUrl;
+
+  // 1. Try extracting direct MP4 stream via Cobalt API if mediaUrl is missing or sample
+  if ((!downloadTarget || downloadTarget.includes("zencdn.net")) && (reelUrl || shortcode)) {
+    const targetInstagramUrl = reelUrl || `https://www.instagram.com/p/${shortcode}/`;
+    try {
+      const cobaltRes = await fetch("https://api.cobalt.tools/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+          "User-Agent": "ReelDash/1.0",
+        },
+        body: JSON.stringify({
+          url: targetInstagramUrl,
+          videoQuality: "720",
+        }),
+      });
+
+      if (cobaltRes.ok) {
+        const data = await cobaltRes.json();
+        if (data.url) {
+          downloadTarget = data.url;
+        } else if (data.redirect) {
+          downloadTarget = data.redirect;
+        }
+      }
+    } catch (cobaltErr) {
+      console.warn("Cobalt download stream resolution notice:", cobaltErr);
+    }
+  }
+
+  // Fallback to open video stream if no direct URL retrieved
+  if (!downloadTarget) {
+    downloadTarget = "https://vjs.zencdn.net/v/oceans.mp4";
+  }
 
   try {
-    const videoFetch = await fetch(targetUrl, {
+    const videoFetch = await fetch(downloadTarget, {
       headers: {
         "User-Agent":
           "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -19,13 +52,12 @@ export async function GET(req: NextRequest) {
     });
 
     if (!videoFetch.ok) {
-      // Direct redirect fallback to open MP4 stream
-      return NextResponse.redirect("https://vjs.zencdn.net/v/oceans.mp4");
+      return NextResponse.redirect(downloadTarget);
     }
 
     const headers = new Headers();
     headers.set("Content-Type", "video/mp4");
-    headers.set("Content-Disposition", `attachment; filename="reel_${shortcode || "video"}.mp4"`);
+    headers.set("Content-Disposition", `attachment; filename="reel_${shortcode || "download"}.mp4"`);
 
     const blob = await videoFetch.blob();
     return new NextResponse(blob, {
@@ -34,6 +66,6 @@ export async function GET(req: NextRequest) {
     });
   } catch (error) {
     console.error("Video download streaming error:", error);
-    return NextResponse.redirect("https://vjs.zencdn.net/v/oceans.mp4");
+    return NextResponse.redirect(downloadTarget);
   }
 }
