@@ -19,9 +19,12 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
   const [isCollectionPickerOpen, setIsCollectionPickerOpen] = useState(false);
   const [imageError, setImageError] = useState(false);
 
-  // Extract shortcode and username fallback directly from instagramUrl
+  // Shortcode extraction
   const shortcodeMatch = reel.instagramUrl.match(/(?:reel|p)\/([A-Za-z0-9_-]+)/);
   const shortcode = shortcodeMatch ? shortcodeMatch[1] : null;
+
+  // Instagram Official Embed Source for REAL Reel Thumbnail & Video
+  const embedSrc = reel.embedUrl || (shortcode ? `https://www.instagram.com/p/${shortcode}/embed/` : null);
 
   let displayCreator = reel.creatorUsername;
   if (!displayCreator || displayCreator === "instagram_creator") {
@@ -54,28 +57,21 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
     toggleFavorite(reel.id);
   };
 
-  const isDefaultImage = !reel.thumbnailUrl || reel.thumbnailUrl.includes("unsplash.com") || imageError;
-
   if (viewMode === "compact") {
     return (
       <div className="group relative flex items-center justify-between p-3.5 bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-md hover:border-brand-500/30 transition-all duration-200 shadow-rd-subtle">
         <div className="flex items-center space-x-3 min-w-0">
-          <Link href={`/reel/${reel.id}`} className="relative w-12 h-16 rounded-rd-sm overflow-hidden shrink-0 bg-gradient-to-br from-brand-500/20 via-purple-600/20 to-rose-500/20 flex items-center justify-center">
-            {!isDefaultImage ? (
-              <Image
-                src={reel.thumbnailUrl}
-                alt={displayCaption}
-                fill
-                unoptimized
-                onError={() => setImageError(true)}
-                className="object-cover group-hover:scale-105 transition-transform duration-300"
+          <Link href={`/reel/${reel.id}`} className="relative w-12 h-16 rounded-rd-sm overflow-hidden shrink-0 bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark flex items-center justify-center">
+            {embedSrc ? (
+              <iframe
+                src={embedSrc}
+                title={displayCaption}
+                className="w-full h-full border-0 pointer-events-none scale-125"
+                allowTransparency
               />
             ) : (
               <Instagram className="w-5 h-5 text-brand-500" />
             )}
-            <div className="absolute inset-0 bg-black/20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-              <Play className="w-4 h-4 text-white fill-white" />
-            </div>
           </Link>
           <div className="min-w-0">
             <Link href={`/reel/${reel.id}`} className="hover:underline">
@@ -119,50 +115,41 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
 
   return (
     <div className="group relative flex flex-col bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-card overflow-hidden shadow-rd-subtle hover:-translate-y-0.5 transition-all duration-200">
-      {/* 9:16 Thumbnail Container */}
+      {/* 9:16 REAL Instagram Reel Video & Thumbnail Container */}
       <div className="relative aspect-reel w-full overflow-hidden bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark">
-        <Link href={`/reel/${reel.id}`} className="block w-full h-full">
-          {!isDefaultImage ? (
-            <Image
-              src={reel.thumbnailUrl}
-              alt={displayCaption}
-              fill
-              unoptimized
-              onError={() => setImageError(true)}
-              className="object-cover group-hover:scale-102 transition-transform duration-300 ease-out"
-            />
-          ) : (
-            /* Clean modern SaaS gradient cover card when IG CDN blocks direct thumbnail hotlinking */
-            <div className="w-full h-full bg-gradient-to-br from-indigo-900 via-purple-900 to-slate-900 p-4 flex flex-col justify-between text-white relative">
-              <div className="flex items-center space-x-2">
-                <div className="w-7 h-7 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center">
-                  <Instagram className="w-4 h-4 text-white" />
-                </div>
-                <span className="text-xs font-bold truncate">@{displayCreator}</span>
-              </div>
+        {embedSrc ? (
+          /* REAL Instagram Live Embed displaying the exact cover image & video */
+          <iframe
+            src={embedSrc}
+            title={displayCaption}
+            className="w-full h-full border-0 pointer-events-none"
+            allowTransparency
+            allow="encrypted-media"
+          />
+        ) : reel.thumbnailUrl && !reel.thumbnailUrl.includes("unsplash.com") && !imageError ? (
+          <Image
+            src={reel.thumbnailUrl}
+            alt={displayCaption}
+            fill
+            unoptimized
+            onError={() => setImageError(true)}
+            className="object-cover group-hover:scale-102 transition-transform duration-300 ease-out"
+          />
+        ) : (
+          <div className="w-full h-full bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark flex flex-col items-center justify-center p-4 text-center space-y-2">
+            <Instagram className="w-8 h-8 text-brand-500" />
+            <span className="text-xs font-semibold text-primaryText-light dark:text-primaryText-dark">@{displayCreator}</span>
+          </div>
+        )}
 
-              <div className="space-y-1 my-auto">
-                <span className="px-2 py-0.5 rounded bg-brand-500/30 text-brand-300 text-[10px] font-mono font-semibold">
-                  {shortcode || "REEL"}
-                </span>
-                <p className="text-xs font-medium text-white/90 line-clamp-3 leading-relaxed">
-                  {displayCaption}
-                </p>
-              </div>
-
-              <div className="text-[10px] text-white/60 font-mono">
-                Click to play Reel
-              </div>
-            </div>
-          )}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-80 group-hover:opacity-90 transition-opacity" />
-        </Link>
+        {/* Clickable Overlay Link to Detail Page */}
+        <Link href={`/reel/${reel.id}`} className="absolute inset-0 z-10" />
 
         {/* Favorite Toggle Button */}
         <motion.button
           whileTap={{ scale: 1.25 }}
           onClick={handleFavoriteClick}
-          className="absolute top-2.5 right-2.5 p-2 rounded-full bg-black/40 backdrop-blur-md text-white/90 hover:text-rose-400 transition-colors cursor-pointer z-10"
+          className="absolute top-2.5 right-2.5 p-2 rounded-full bg-black/50 backdrop-blur-md text-white/90 hover:text-rose-400 transition-colors cursor-pointer z-20"
         >
           <Heart
             className={`w-4 h-4 transition-transform duration-200 ${
@@ -171,8 +158,8 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
           />
         </motion.button>
 
-        {/* Play Icon & Duration Badge */}
-        <div className="absolute bottom-2.5 left-2.5 flex items-center space-x-1.5 px-2.5 py-1 rounded-rd-sm bg-black/50 backdrop-blur-md text-white text-[11px] font-medium z-10">
+        {/* Duration Badge */}
+        <div className="absolute bottom-2.5 left-2.5 flex items-center space-x-1.5 px-2.5 py-1 rounded-rd-sm bg-black/60 backdrop-blur-md text-white text-[11px] font-medium z-20">
           <Play className="w-3 h-3 fill-white" />
           <span>{reel.duration}</span>
         </div>
@@ -184,13 +171,13 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
             e.stopPropagation();
             setIsMenuOpen(!isMenuOpen);
           }}
-          className="absolute top-2.5 left-2.5 p-1.5 rounded-full bg-black/40 backdrop-blur-md text-white/90 hover:text-white transition-colors cursor-pointer z-10 opacity-0 group-hover:opacity-100"
+          className="absolute top-2.5 left-2.5 p-1.5 rounded-full bg-black/50 backdrop-blur-md text-white/90 hover:text-white transition-colors cursor-pointer z-20 opacity-0 group-hover:opacity-100"
         >
           <MoreVertical className="w-4 h-4" />
         </button>
 
-        {/* Desktop Hover Quick Action Bar */}
-        <div className="absolute bottom-10 inset-x-2 flex items-center justify-center space-x-2 p-1.5 rounded-rd-md bg-black/70 backdrop-blur-md text-white text-xs opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10">
+        {/* Hover Quick Action Bar */}
+        <div className="absolute bottom-10 inset-x-2 flex items-center justify-center space-x-2 p-1.5 rounded-rd-md bg-black/75 backdrop-blur-md text-white text-xs opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-20">
           <Link
             href={`/reel/${reel.id}`}
             className="px-2.5 py-1 rounded bg-white/20 hover:bg-white/30 font-medium transition-colors"
