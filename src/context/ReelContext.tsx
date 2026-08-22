@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { Reel, Collection, SmartCategory, SortOption, ViewMode } from "@/types/reel";
-import { INITIAL_REELS, INITIAL_COLLECTIONS } from "@/lib/mockData";
+import { useAuth } from "@/context/AuthContext";
 
 export interface ToastMessage {
   id: string;
@@ -58,8 +58,10 @@ interface ReelContextType {
 const ReelContext = createContext<ReelContextType | undefined>(undefined);
 
 export function ReelProvider({ children }: { children: React.ReactNode }) {
-  const [reels, setReels] = useState<Reel[]>(INITIAL_REELS);
-  const [collections, setCollections] = useState<Collection[]>(INITIAL_COLLECTIONS);
+  const { user } = useAuth();
+
+  const [reels, setReels] = useState<Reel[]>([]);
+  const [collections, setCollections] = useState<Collection[]>([]);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [activeCollection, setActiveCollection] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>("");
@@ -71,6 +73,39 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [isCreateCollectionModalOpen, setIsCreateCollectionModalOpen] = useState(false);
   const [lastDeletedReel, setLastDeletedReel] = useState<Reel | null>(null);
+
+  // Load user-specific data from localStorage whenever user changes
+  useEffect(() => {
+    if (user?.id) {
+      const userReelsKey = `reeldash_reels_${user.id}`;
+      const userColsKey = `reeldash_cols_${user.id}`;
+
+      const savedReels = localStorage.getItem(userReelsKey);
+      const savedCols = localStorage.getItem(userColsKey);
+
+      setReels(savedReels ? JSON.parse(savedReels) : []);
+      setCollections(savedCols ? JSON.parse(savedCols) : []);
+    } else {
+      setReels([]);
+      setCollections([]);
+    }
+  }, [user?.id]);
+
+  // Sync user reels to localStorage
+  const saveUserReels = (updatedReels: Reel[]) => {
+    setReels(updatedReels);
+    if (user?.id) {
+      localStorage.setItem(`reeldash_reels_${user.id}`, JSON.stringify(updatedReels));
+    }
+  };
+
+  // Sync user collections to localStorage
+  const saveUserCollections = (updatedCols: Collection[]) => {
+    setCollections(updatedCols);
+    if (user?.id) {
+      localStorage.setItem(`reeldash_cols_${user.id}`, JSON.stringify(updatedCols));
+    }
+  };
 
   // Sync theme with DOM class
   useEffect(() => {
@@ -114,29 +149,29 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
 
   // Actions
   const toggleFavorite = (id: string) => {
-    setReels((prev) =>
-      prev.map((r) => {
-        if (r.id === id) {
-          const nextFav = !r.isFavorite;
-          if (nextFav) {
-            showToast("♥ Added to Favorites");
-          }
-          return { ...r, isFavorite: nextFav };
+    const updated = reels.map((r) => {
+      if (r.id === id) {
+        const nextFav = !r.isFavorite;
+        if (nextFav) {
+          showToast("♥ Added to Favorites");
         }
-        return r;
-      })
-    );
+        return { ...r, isFavorite: nextFav };
+      }
+      return r;
+    });
+    saveUserReels(updated);
   };
 
   const deleteReel = (id: string) => {
     const target = reels.find((r) => r.id === id);
     if (target) {
       setLastDeletedReel(target);
-      setReels((prev) => prev.filter((r) => r.id !== id));
+      const updated = reels.filter((r) => r.id !== id);
+      saveUserReels(updated);
       showToast("Reel removed", undefined, {
         label: "Undo",
         onClick: () => {
-          setReels((prev) => [target, ...prev]);
+          saveUserReels([target, ...reels]);
           showToast("Reel restored");
         },
       });
@@ -145,23 +180,25 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
 
   const undoDelete = () => {
     if (lastDeletedReel) {
-      setReels((prev) => [lastDeletedReel, ...prev]);
+      saveUserReels([lastDeletedReel, ...reels]);
       setLastDeletedReel(null);
       showToast("Reel restored");
     }
   };
 
   const updateNote = (id: string, note: string) => {
-    setReels((prev) =>
-      prev.map((r) => (r.id === id ? { ...r, notes: note, updatedAt: new Date().toISOString() } : r))
+    const updated = reels.map((r) =>
+      r.id === id ? { ...r, notes: note, updatedAt: new Date().toISOString() } : r
     );
+    saveUserReels(updated);
     showToast("Note updated");
   };
 
   const updateCategory = (id: string, category: string) => {
-    setReels((prev) =>
-      prev.map((r) => (r.id === id ? { ...r, category, updatedAt: new Date().toISOString() } : r))
+    const updated = reels.map((r) =>
+      r.id === id ? { ...r, category, updatedAt: new Date().toISOString() } : r
     );
+    saveUserReels(updated);
     showToast(`Updated to ${category}`);
   };
 
@@ -175,39 +212,38 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
       updatedAt: "Just now",
       reelCount: 0,
     };
-    setCollections((prev) => [newCol, ...prev]);
+    saveUserCollections([newCol, ...collections]);
     showToast(`✓ Added to ${name}`);
   };
 
   const addReelToCollection = (reelId: string, collectionId: string) => {
-    setCollections((prev) =>
-      prev.map((col) => {
-        if (col.id === collectionId && !col.reelIds.includes(reelId)) {
-          return {
-            ...col,
-            reelIds: [...col.reelIds, reelId],
-            reelCount: col.reelCount + 1,
-            updatedAt: "Just now",
-          };
-        }
-        return col;
-      })
-    );
-    setReels((prev) =>
-      prev.map((r) => {
-        if (r.id === reelId && !r.collections.includes(collectionId)) {
-          return { ...r, collections: [...r.collections, collectionId] };
-        }
-        return r;
-      })
-    );
+    const updatedCols = collections.map((col) => {
+      if (col.id === collectionId && !col.reelIds.includes(reelId)) {
+        return {
+          ...col,
+          reelIds: [...col.reelIds, reelId],
+          reelCount: col.reelCount + 1,
+          updatedAt: "Just now",
+        };
+      }
+      return col;
+    });
+    const updatedReels = reels.map((r) => {
+      if (r.id === reelId && !r.collections.includes(collectionId)) {
+        return { ...r, collections: [...r.collections, collectionId] };
+      }
+      return r;
+    });
+
+    saveUserCollections(updatedCols);
+    saveUserReels(updatedReels);
+
     const colName = collections.find((c) => c.id === collectionId)?.name || "Collection";
     showToast(`✓ Added to ${colName}`);
   };
 
   const saveReel = (url: string) => {
-    // Extract handle if possible or fallback
-    let creator = "instagram_user";
+    let creator = "instagram_creator";
     if (url.includes("instagram.com/")) {
       const parts = url.split("instagram.com/")[1]?.split("/");
       if (parts && parts[0] && parts[0] !== "reel") {
@@ -215,14 +251,13 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
-    // Simulated AI categorization logic as specified in Master Spec Section 10 & Phase 10
     const sampleCategories = ["Productivity", "Health & Fitness", "AI & Tech", "Food & Cooking", "Design", "Motivation"];
     const predictedCategory = sampleCategories[Math.floor(Math.random() * sampleCategories.length)];
     const secondaryCategory = ["Mobility", "Python", "Workflow", "Posture", "Recipes"][Math.floor(Math.random() * 5)];
 
     const newReel: Reel = {
       id: "reel-" + Math.random().toString(36).substr(2, 9),
-      userId: "user-1",
+      userId: user?.id || "user-1",
       instagramUrl: url,
       creatorUsername: creator,
       creatorProfileUrl: `https://instagram.com/${creator}`,
@@ -244,25 +279,23 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
       viewCount: 1,
     };
 
-    setReels((prev) => [newReel, ...prev]);
+    saveUserReels([newReel, ...reels]);
     setIsSaveModalOpen(false);
 
-    // Non-blocking toast feedback as required in UI spec section 10.1 & Phase 19
     showToast(`✨ Added to ${predictedCategory}`, `Also detected: ${secondaryCategory}`);
   };
 
   const generateAiSummary = (reelId: string) => {
-    setReels((prev) =>
-      prev.map((r) => {
-        if (r.id === reelId) {
-          return {
-            ...r,
-            aiSummary: `Generated Summary: Detailed breakdown of ${r.creatorUsername}'s video. Highlights 3 core practical tips and actionable steps.`,
-          };
-        }
-        return r;
-      })
-    );
+    const updated = reels.map((r) => {
+      if (r.id === reelId) {
+        return {
+          ...r,
+          aiSummary: `Generated Summary: Detailed breakdown of ${r.creatorUsername}'s video. Highlights 3 core practical tips and actionable steps.`,
+        };
+      }
+      return r;
+    });
+    saveUserReels(updated);
     showToast("✨ AI summary generated");
   };
 

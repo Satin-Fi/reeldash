@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
+import { AuthProvider } from "@/context/AuthContext";
 import { ReelProvider } from "@/context/ReelContext";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -18,7 +19,9 @@ export default function RootLayout({
   return (
     <html lang="en" className="h-full">
       <body className={`${inter.className} min-h-full flex flex-col`}>
-        <ReelProvider>{children}</ReelProvider>
+        <AuthProvider>
+          <ReelProvider>{children}</ReelProvider>
+        </AuthProvider>
       </body>
     </html>
   );
