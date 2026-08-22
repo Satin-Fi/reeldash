@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef } from "react";
 import { Reel } from "@/types/reel";
 import {
   Play,
@@ -48,15 +48,14 @@ export function ReelPlayer({
 
   // Request temporary playable CDN MP4 media URL from backend resolution layer
   const resolveAndPlay = async () => {
-    // 1. If reel already has a direct valid CDN mediaUrl, use proxied stream immediately
+    // 1. If reel already has a direct valid CDN mediaUrl, use direct stream immediately
     if (
       reel.mediaUrl &&
       !reel.mediaUrl.includes("zencdn.net") &&
       !reel.mediaUrl.includes("googleapis.com") &&
       reel.mediaUrl.startsWith("http")
     ) {
-      const streamUrl = `/api/proxy-video?url=${encodeURIComponent(reel.mediaUrl)}`;
-      setPlaybackUrl(streamUrl);
+      setPlaybackUrl(reel.mediaUrl);
       setStatus("available");
       return;
     }
@@ -76,8 +75,8 @@ export function ReelPlayer({
 
       const data = await res.json();
 
-      if (data.status === "available" && data.playbackUrl) {
-        setPlaybackUrl(data.playbackUrl);
+      if (data.status === "available" && (data.directCdnUrl || data.playbackUrl)) {
+        setPlaybackUrl(data.directCdnUrl || data.playbackUrl);
         setStatus("available");
       } else {
         setStatus("unavailable");
@@ -98,8 +97,8 @@ export function ReelPlayer({
           `/api/reels/${reel.id}/playback?url=${encodeURIComponent(reel.instagramUrl)}&refresh=true`
         );
         const data = await res.json();
-        if (data.status === "available" && data.playbackUrl) {
-          setPlaybackUrl(data.playbackUrl);
+        if (data.status === "available" && (data.directCdnUrl || data.playbackUrl)) {
+          setPlaybackUrl(data.directCdnUrl || data.playbackUrl);
           setStatus("available");
           return;
         }
