@@ -3,8 +3,8 @@ import youtubedl from "youtube-dl-exec";
 
 export const dynamic = "force-dynamic";
 
-// In-memory short-lived resolution cache (10 minutes per shortcode)
-const mediaCache = new Map<string, { cdnUrl: string; expiresAt: number }>();
+// In-memory short-lived resolution cache (15 minutes per shortcode)
+const mediaCache = new Map<string, { cdnUrl: string; proxyUrl: string; expiresAt: number }>();
 
 export async function GET(
   req: NextRequest,
@@ -13,6 +13,7 @@ export async function GET(
   const reelId = params.id;
   const { searchParams } = new URL(req.url);
   const instagramUrl = searchParams.get("url");
+  const forceRefresh = searchParams.get("refresh") === "true";
 
   let shortcode = reelId.replace(/^reel-/, "");
   if (instagramUrl) {
@@ -27,15 +28,18 @@ export async function GET(
     );
   }
 
-  // 1. Check in-memory resolution cache
-  const cached = mediaCache.get(shortcode);
-  if (cached && Date.now() < cached.expiresAt) {
-    return NextResponse.json({
-      status: "available",
-      playbackUrl: cached.cdnUrl,
-      expiresAt: cached.expiresAt,
-      isTemporary: true,
-    });
+  // 1. Check in-memory resolution cache if not force refreshing
+  if (!forceRefresh) {
+    const cached = mediaCache.get(shortcode);
+    if (cached && Date.now() < cached.expiresAt) {
+      return NextResponse.json({
+        status: "available",
+        playbackUrl: cached.proxyUrl,
+        directCdnUrl: cached.cdnUrl,
+        expiresAt: cached.expiresAt,
+        isTemporary: true,
+      });
+    }
   }
 
   const targetUrl = instagramUrl || `https://www.instagram.com/reel/${shortcode}/`;
@@ -71,13 +75,15 @@ export async function GET(
     }
 
     if (directCdnMp4Url && directCdnMp4Url.startsWith("http")) {
-      // CDN URLs are temporary (cache for 10 minutes)
-      const expiresAt = Date.now() + 600 * 1000;
-      mediaCache.set(shortcode, { cdnUrl: directCdnMp4Url, expiresAt });
+      const expiresAt = Date.now() + 900 * 1000; // 15 minutes cache
+      const proxyUrl = `/api/proxy-video?url=${encodeURIComponent(directCdnMp4Url)}`;
+
+      mediaCache.set(shortcode, { cdnUrl: directCdnMp4Url, proxyUrl, expiresAt });
 
       return NextResponse.json({
         status: "available",
-        playbackUrl: directCdnMp4Url,
+        playbackUrl: proxyUrl,
+        directCdnUrl: directCdnMp4Url,
         expiresAt,
         isTemporary: true,
       });
