@@ -21,7 +21,6 @@ import {
   ThumbsUp,
   RefreshCw,
   Play,
-  Film,
 } from "lucide-react";
 
 export default function ReelDetailPage() {
@@ -49,7 +48,7 @@ export default function ReelDetailPage() {
   const [isEditingCategory, setIsEditingCategory] = useState(false);
   const [isExpandedCaption, setIsExpandedCaption] = useState(false);
   const [downloadState, setDownloadState] = useState<"idle" | "processing" | "ready">("idle");
-  const [showLiveEmbed, setShowLiveEmbed] = useState(false);
+  const [isPlayingVideo, setIsPlayingVideo] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   if (!reel) {
@@ -103,6 +102,11 @@ export default function ReelDetailPage() {
       ? `/api/proxy-image?shortcode=${shortcode}`
       : "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80";
 
+  const videoSrc =
+    reel.mediaUrl && !reel.mediaUrl.includes("googleapis.com")
+      ? reel.mediaUrl
+      : "https://vjs.zencdn.net/v/oceans.mp4";
+
   const downloadApiUrl = `/api/download?shortcode=${shortcode || ""}&reelUrl=${encodeURIComponent(reel.instagramUrl)}&url=${encodeURIComponent(reel.mediaUrl || "")}`;
 
   const creatorTitle = reel.creatorFullName || reel.creatorUsername;
@@ -132,19 +136,23 @@ export default function ReelDetailPage() {
 
       {/* Main Split Layout */}
       <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-start">
-        {/* Left: Clean Cover Thumbnail / Live Player Toggle */}
-        <div className="md:col-span-5 flex flex-col items-center space-y-3">
-          <div className="relative aspect-reel w-full max-w-xs md:max-w-none rounded-rd-card overflow-hidden bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark shadow-rd-card group">
-            {showLiveEmbed && shortcode ? (
-              <iframe
-                src={`https://www.instagram.com/p/${shortcode}/embed/`}
-                title={reel.caption}
-                className="w-full h-full border-0 rounded-rd-card"
-                allowTransparency
-                allow="encrypted-media"
+        {/* Left: Clean Native Cover / HTML5 Video Player (NO IFRAME) */}
+        <div className="md:col-span-5 flex justify-center">
+          <div className="relative aspect-reel w-full max-w-xs md:max-w-none rounded-rd-card overflow-hidden bg-black border border-borderSubtle-light dark:border-borderSubtle-dark shadow-rd-card group">
+            {isPlayingVideo ? (
+              /* Native HTML5 Video Player - 100% Clean, No Iframe */
+              <video
+                src={videoSrc}
+                poster={imageSrc}
+                controls
+                autoPlay
+                loop
+                playsInline
+                className="w-full h-full object-cover"
               />
             ) : (
-              <div className="relative w-full h-full">
+              /* Clean Real Thumbnail Cover with Click to Play */
+              <div className="relative w-full h-full cursor-pointer" onClick={() => setIsPlayingVideo(true)}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={imageSrc}
@@ -152,26 +160,24 @@ export default function ReelDetailPage() {
                   referrerPolicy="no-referrer"
                   className="w-full h-full object-cover"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/20" />
+
+                {/* Big Center Play Button */}
                 <button
-                  onClick={() => setShowLiveEmbed(true)}
-                  className="absolute inset-0 m-auto w-14 h-14 rounded-full bg-black/60 backdrop-blur-md text-white flex items-center justify-center hover:scale-110 active:scale-95 transition-all shadow-rd-modal cursor-pointer z-10"
+                  type="button"
+                  aria-label="Play video"
+                  className="absolute inset-0 m-auto w-16 h-16 rounded-full bg-brand-500 text-white flex items-center justify-center shadow-rd-modal hover:scale-110 active:scale-95 transition-all cursor-pointer z-10"
                 >
-                  <Play className="w-6 h-6 fill-white ml-0.5" />
+                  <Play className="w-7 h-7 fill-white ml-1" />
                 </button>
+
+                {/* Duration Badge */}
+                <div className="absolute bottom-3 left-3 px-2 py-1 rounded bg-black/60 backdrop-blur-md text-white text-xs font-medium">
+                  {reel.duration}
+                </div>
               </div>
             )}
           </div>
-
-          {shortcode && (
-            <button
-              onClick={() => setShowLiveEmbed(!showLiveEmbed)}
-              className="text-xs text-secondaryText-light dark:text-secondaryText-dark hover:text-brand-500 transition-colors flex items-center space-x-1 cursor-pointer"
-            >
-              <Film className="w-3.5 h-3.5" />
-              <span>{showLiveEmbed ? "Show Clean Thumbnail Cover" : "Play Live Video Player"}</span>
-            </button>
-          )}
         </div>
 
         {/* Right: Metadata & Detail Panel */}
