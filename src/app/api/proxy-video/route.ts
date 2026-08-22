@@ -13,8 +13,12 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  // Ensure target is a valid Instagram CDN or media URL
-  if (!targetUrl.includes("cdninstagram.com") && !targetUrl.includes("fbcdn.net")) {
+  // Ensure target is an authorized media CDN endpoint
+  if (
+    !targetUrl.includes("cdninstagram.com") &&
+    !targetUrl.includes("fbcdn.net") &&
+    !targetUrl.includes("instagram.com")
+  ) {
     return NextResponse.json(
       { error: "Only authorized CDN media endpoints can be proxied" },
       { status: 403 }
@@ -24,11 +28,10 @@ export async function GET(req: NextRequest) {
   try {
     const range = req.headers.get("range");
 
-    const fetchHeaders: HeadersInit = {
+    const fetchHeaders: Record<string, string> = {
       "User-Agent":
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
       "Accept": "*/*",
-      "Accept-Encoding": "identity",
     };
 
     if (range) {
@@ -37,7 +40,7 @@ export async function GET(req: NextRequest) {
 
     const videoRes = await fetch(targetUrl, {
       headers: fetchHeaders,
-      referrerPolicy: "no-referrer",
+      redirect: "follow",
     });
 
     if (!videoRes.ok) {
@@ -62,23 +65,15 @@ export async function GET(req: NextRequest) {
       headers.set("Content-Range", contentRange);
     }
 
-    // Stream the response body directly as a ReadableStream
-    if (videoRes.body) {
-      return new NextResponse(videoRes.body, {
-        status: videoRes.status,
-        headers,
-      });
-    }
-
-    const buffer = await videoRes.arrayBuffer();
-    return new NextResponse(buffer, {
+    // Return the stream directly
+    return new NextResponse(videoRes.body, {
       status: videoRes.status,
       headers,
     });
-  } catch (err) {
-    console.error("[Proxy Video Stream Error]:", err);
+  } catch (err: any) {
+    console.error("[Proxy Video Stream Error]:", err?.message || err);
     return NextResponse.json(
-      { error: "Failed to stream CDN media resource" },
+      { error: "Failed to stream CDN media resource", detail: err?.message || String(err) },
       { status: 500 }
     );
   }
