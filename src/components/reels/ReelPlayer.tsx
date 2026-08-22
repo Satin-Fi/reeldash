@@ -138,6 +138,7 @@ export function ReelPlayer({
             controls
             autoPlay
             playsInline
+            crossOrigin="anonymous"
             onError={handleVideoError}
             className="w-full h-full object-cover rounded-rd-card"
           />
