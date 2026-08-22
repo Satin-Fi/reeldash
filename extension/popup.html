@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ReelDash Companion</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      width: 320px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background-color: #0f172a;
+      color: #f8fafc;
+      padding: 16px;
+    }
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid #334155;
+      padding-bottom: 12px;
+      margin-bottom: 14px;
+    }
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 700;
+      font-size: 15px;
+      color: #818cf8;
+    }
+    .status {
+      font-size: 11px;
+      background: #1e293b;
+      padding: 3px 8px;
+      border-radius: 9999px;
+      color: #94a3b8;
+    }
+    .btn {
+      display: block;
+      width: 100%;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      color: white;
+      text-align: center;
+      padding: 10px;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 13px;
+      text-decoration: none;
+      margin-top: 12px;
+      cursor: pointer;
+      border: none;
+      transition: opacity 0.2s;
+    }
+    .btn:hover {
+      opacity: 0.9;
+    }
+    .reels-list {
+      margin-top: 12px;
+      max-height: 220px;
+      overflow-y: auto;
+    }
+    .reel-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px;
+      background: #1e293b;
+      border-radius: 6px;
+      margin-bottom: 8px;
+    }
+    .reel-thumb {
+      width: 36px;
+      height: 48px;
+      object-fit: cover;
+      border-radius: 4px;
+      background: #334155;
+    }
+    .reel-info {
+      flex: 1;
+      min-width: 0;
+    }
+    .reel-creator {
+      font-size: 12px;
+      font-weight: 600;
+      color: #f1f5f9;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .reel-caption {
+      font-size: 11px;
+      color: #94a3b8;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .empty-state {
+      text-align: center;
+      padding: 24px 0;
+      color: #64748b;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="logo">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
+      </svg>
+      <span>ReelDash</span>
+    </div>
+    <span class="status">Connected</span>
+  </div>
+
+  <div style="font-size: 12px; color: #cbd5e1; line-height: 1.4;">
+    Browse any Reel on Instagram and click the <b>Save to ReelDash</b> button.
+  </div>
+
+  <div id="reels-container" class="reels-list">
+    <div class="empty-state">No reels saved yet today.</div>
+  </div>
+
+  <button id="open-reeldash-btn" class="btn">Open ReelDash Dashboard ↗</button>
+
+  <script src="popup.js"></script>
+</body>
+</html>
