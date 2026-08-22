@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import youtubedl from "youtube-dl-exec";
 
+export const dynamic = "force-dynamic";
+
 function decodeEntities(str: string): string {
   if (!str) return "";
   return str
@@ -33,6 +35,117 @@ function decodeEntities(str: string): string {
     });
 }
 
+async function resolveDirectVideoUrl(shortcode: string): Promise<string | null> {
+  const sessionId = process.env.INSTAGRAM_SESSION_ID;
+  const rapidApiKey = process.env.RAPIDAPI_KEY;
+
+  // 1. GraphQL with Session if available
+  try {
+    const headers: HeadersInit = {
+      "User-Agent":
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
+      "X-IG-App-ID": "936619743392459",
+      "X-Requested-With": "XMLHttpRequest",
+      "Referer": `https://www.instagram.com/reel/${shortcode}/`,
+    };
+    if (sessionId) {
+      headers["Cookie"] = `sessionid=${sessionId};`;
+    }
+    const gqlRes = await fetch(
+      `https://www.instagram.com/graphql/query/?doc_id=8845758582119845&variables=%7B%22shortcode%22%3A%22${shortcode}%22%7D`,
+      { headers }
+    );
+    if (gqlRes.ok) {
+      const gqlData = await gqlRes.json();
+      const item = gqlData?.data?.xdt_shortcode_media;
+      if (item?.is_video && item?.video_url) {
+        return item.video_url;
+      }
+    }
+  } catch (e) {
+    // Continue
+  }
+
+  // 2. RapidAPI Scraper if available
+  if (rapidApiKey) {
+    try {
+      const res = await fetch(
+        `https://instagram-downloader-download-instagram-videos-stories1.p.rapidapi.com/get-info-shortcode?shortcode=${shortcode}`,
+        {
+          headers: {
+            "x-rapidapi-key": rapidApiKey,
+            "x-rapidapi-host": "instagram-downloader-download-instagram-videos-stories1.p.rapidapi.com",
+          },
+        }
+      );
+      if (res.ok) {
+        const data = await res.json();
+        const vid = data?.video_url || data?.url || data?.download_url;
+        if (vid && vid.startsWith("http")) return vid;
+      }
+    } catch (e) {
+      // Continue
+    }
+  }
+
+  // 3. FastDL parser API
+  try {
+    const fastdlRes = await fetch("https://fastdl.app/c/", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        "Referer": "https://fastdl.app/en",
+      },
+      body: new URLSearchParams({
+        url: `https://www.instagram.com/reel/${shortcode}/`,
+        lang_code: "en",
+      }),
+    });
+    if (fastdlRes.ok) {
+      const text = await fastdlRes.text();
+      const match =
+        text.match(/https:\/\/[^"'\s\\]+cdninstagram\.com[^"'\s\\]+\.mp4[^"'\s\\]*/i) ||
+        text.match(/https:\/\/media\.fastdl\.app\/get\?[^"'\s\\]+/i);
+      if (match) return match[0].replace(/&amp;/g, "&");
+    }
+  } catch (e) {
+    // Continue
+  }
+
+  // 4. yt-dlp execution
+  try {
+    const ytdlPromise = youtubedl(`https://www.instagram.com/reel/${shortcode}/`, {
+      dumpSingleJson: true,
+      noCheckCertificates: true,
+      noWarnings: true,
+      preferFreeFormats: true,
+      addHeader: [
+        "referer:instagram.com",
+        "user-agent:Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+      ],
+    });
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error("yt-dlp timeout")), 3000)
+    );
+    const output: any = await Promise.race([ytdlPromise, timeoutPromise]);
+    if (output?.url && output.url.startsWith("http")) {
+      return output.url;
+    } else if (output?.formats && output.formats.length > 0) {
+      const videoFormat =
+        output.formats.find(
+          (f: any) => f.vcodec !== "none" && f.url && f.url.startsWith("http")
+        ) || output.formats[0];
+      return videoFormat?.url || null;
+    }
+  } catch (e) {
+    // End
+  }
+
+  return null;
+}
+
 export async function POST(req: NextRequest) {
   try {
     const { url } = await req.json();
@@ -61,7 +174,7 @@ export async function POST(req: NextRequest) {
       creatorUsername = userMatch[1];
     }
 
-    // 1. Fast OpenGraph Extraction (Instant & highly reliable)
+    // 1. OpenGraph Extraction (Instant & highly reliable)
     if (shortcode) {
       try {
         const ogRes = await fetch(`https://www.instagram.com/p/${shortcode}/`, {
@@ -115,54 +228,16 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 2. yt-dlp Video Stream with 3s Timeout (Non-blocking)
-    try {
-      const ytdlPromise = youtubedl(url, {
-        dumpSingleJson: true,
-        noCheckCertificates: true,
-        noWarnings: true,
-        preferFreeFormats: true,
-        addHeader: [
-          "referer:instagram.com",
-          "user-agent:Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
-        ],
-      });
-
-      const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error("yt-dlp timeout")), 3000)
-      );
-
-      const ytdlOutput: any = await Promise.race([ytdlPromise, timeoutPromise]);
-
-      if (ytdlOutput) {
-        if (ytdlOutput.url) {
-          mediaUrl = ytdlOutput.url;
-        } else if (ytdlOutput.formats && ytdlOutput.formats.length > 0) {
-          const videoFormat = ytdlOutput.formats.find((f: any) => f.vcodec !== "none") || ytdlOutput.formats[0];
-          mediaUrl = videoFormat?.url || "";
+    // 2. Direct Video Resolution
+    if (shortcode) {
+      try {
+        const resolvedVideo = await resolveDirectVideoUrl(shortcode);
+        if (resolvedVideo && resolvedVideo.startsWith("http")) {
+          mediaUrl = resolvedVideo;
         }
-
-        if (ytdlOutput.channel && !creatorUsername) {
-          creatorUsername = ytdlOutput.channel;
-        }
-        if (ytdlOutput.uploader && !creatorFullName) {
-          creatorFullName = ytdlOutput.uploader;
-        }
-        if (ytdlOutput.description && !caption) {
-          caption = ytdlOutput.description;
-        }
-        if (ytdlOutput.like_count && !likes) {
-          likes = `${ytdlOutput.like_count.toLocaleString()} likes`;
-        }
-        if (ytdlOutput.comment_count && !commentsCount) {
-          commentsCount = `${ytdlOutput.comment_count.toLocaleString()} comments`;
-        }
-        if (ytdlOutput.thumbnail && !thumbnailUrl) {
-          thumbnailUrl = ytdlOutput.thumbnail;
-        }
+      } catch (vidErr) {
+        console.warn("Direct video resolution notice:", vidErr);
       }
-    } catch (ytdlErr) {
-      console.warn("yt-dlp non-blocking notice:", ytdlErr);
     }
 
     if (!creatorUsername) {
