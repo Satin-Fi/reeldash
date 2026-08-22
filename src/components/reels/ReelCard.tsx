@@ -5,7 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { Reel } from "@/types/reel";
 import { useReels } from "@/context/ReelContext";
-import { Heart, Play, MoreVertical, ExternalLink, Trash2, FolderPlus, Tag, FileText, Share2, Copy } from "lucide-react";
+import { Heart, Play, MoreVertical, ExternalLink, Trash2, FolderPlus, Copy, FileText } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface ReelCardProps {
@@ -17,6 +17,7 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
   const { toggleFavorite, deleteReel, collections, addReelToCollection, showToast } = useReels();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isCollectionPickerOpen, setIsCollectionPickerOpen] = useState(false);
+  const [imageError, setImageError] = useState(false);
 
   const handleCopyLink = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -32,15 +33,21 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
     toggleFavorite(reel.id);
   };
 
+  const displayThumbnail = imageError
+    ? "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80"
+    : reel.thumbnailUrl;
+
   if (viewMode === "compact") {
     return (
       <div className="group relative flex items-center justify-between p-3.5 bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-md hover:border-brand-500/30 transition-all duration-200 shadow-rd-subtle">
         <div className="flex items-center space-x-3 min-w-0">
           <Link href={`/reel/${reel.id}`} className="relative w-12 h-16 rounded-rd-sm overflow-hidden shrink-0 bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark">
             <Image
-              src={reel.thumbnailUrl}
+              src={displayThumbnail}
               alt={reel.caption}
               fill
+              unoptimized
+              onError={() => setImageError(true)}
               className="object-cover group-hover:scale-105 transition-transform duration-300"
             />
             <div className="absolute inset-0 bg-black/20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
@@ -93,17 +100,17 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
       <div className="relative aspect-reel w-full overflow-hidden bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark">
         <Link href={`/reel/${reel.id}`} className="block w-full h-full">
           <Image
-            src={reel.thumbnailUrl}
+            src={displayThumbnail}
             alt={reel.caption}
             fill
-            sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw"
+            unoptimized
+            onError={() => setImageError(true)}
             className="object-cover group-hover:scale-102 transition-transform duration-300 ease-out"
           />
-          {/* Subtle gradient overlay on bottom of thumbnail */}
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-80 group-hover:opacity-90 transition-opacity" />
         </Link>
 
-        {/* Top Favorite Toggle Button */}
+        {/* Favorite Toggle Button */}
         <motion.button
           whileTap={{ scale: 1.25 }}
           onClick={handleFavoriteClick}

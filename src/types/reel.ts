@@ -7,6 +7,7 @@ export interface Reel {
   creatorAvatar?: string;
   thumbnailUrl: string;
   mediaUrl?: string;
+  embedUrl?: string;
   caption: string;
   category: string;
   subcategories: string[];

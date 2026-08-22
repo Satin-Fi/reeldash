@@ -42,7 +42,7 @@ interface ReelContextType {
   setIsCommandPaletteOpen: (open: boolean) => void;
   setIsCreateCollectionModalOpen: (open: boolean) => void;
 
-  saveReel: (url: string) => void;
+  saveReel: (url: string) => Promise<void>;
   toggleFavorite: (id: string) => void;
   deleteReel: (id: string) => void;
   undoDelete: () => void;
@@ -91,7 +91,6 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
     }
   }, [user?.id]);
 
-  // Sync user reels to localStorage
   const saveUserReels = (updatedReels: Reel[]) => {
     setReels(updatedReels);
     if (user?.id) {
@@ -99,7 +98,6 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // Sync user collections to localStorage
   const saveUserCollections = (updatedCols: Collection[]) => {
     setCollections(updatedCols);
     if (user?.id) {
@@ -107,7 +105,6 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // Sync theme with DOM class
   useEffect(() => {
     if (theme === "dark") {
       document.documentElement.classList.add("dark");
@@ -132,7 +129,6 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   };
 
-  // Compute smart categories
   const categoryCounts: Record<string, number> = {};
   reels.forEach((r) => {
     if (r.category) {
@@ -147,7 +143,6 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
 
   const favorites = reels.filter((r) => r.isFavorite);
 
-  // Actions
   const toggleFavorite = (id: string) => {
     const updated = reels.map((r) => {
       if (r.id === id) {
@@ -242,47 +237,80 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
     showToast(`✓ Added to ${colName}`);
   };
 
-  const saveReel = (url: string) => {
-    let creator = "instagram_creator";
-    if (url.includes("instagram.com/")) {
-      const parts = url.split("instagram.com/")[1]?.split("/");
-      if (parts && parts[0] && parts[0] !== "reel") {
-        creator = parts[0];
-      }
+  // REAL Instagram Metadata & Thumbnail Fetching
+  const saveReel = async (url: string) => {
+    try {
+      // Call backend API route to fetch real Instagram metadata
+      const res = await fetch("/api/reel-info", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url }),
+      });
+
+      const data = await res.json();
+
+      const creator = data.creatorUsername || "instagram_creator";
+      const category = data.category || "General";
+      const caption = data.caption || `Instagram Reel: ${url}`;
+      const thumbnailUrl = data.thumbnailUrl || (data.shortcode ? `https://www.instagram.com/p/${data.shortcode}/media/?size=l` : "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80");
+      const embedUrl = data.embedUrl || (data.shortcode ? `https://www.instagram.com/p/${data.shortcode}/embed/` : null);
+
+      const newReel: Reel = {
+        id: "reel-" + Math.random().toString(36).substr(2, 9),
+        userId: user?.id || "user-1",
+        instagramUrl: url,
+        creatorUsername: creator,
+        creatorProfileUrl: `https://instagram.com/${creator}`,
+        creatorAvatar: `https://ui-avatars.com/api/?name=${creator}&background=6366F1&color=fff`,
+        thumbnailUrl,
+        mediaUrl: data.mediaUrl || "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
+        embedUrl: embedUrl || undefined,
+        caption,
+        category,
+        subcategories: [category],
+        collections: [],
+        hashtags: [`#${category.toLowerCase().replace(/\s+/g, "")}`],
+        isFavorite: false,
+        duration: "0:30",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        lastViewedAt: new Date().toISOString(),
+        aiSummary: `AI Summary: Reel from @${creator} covering key concepts in ${category}.`,
+        aiKeywords: [category, creator],
+        viewCount: 1,
+      };
+
+      saveUserReels([newReel, ...reels]);
+      setIsSaveModalOpen(false);
+
+      showToast(`✨ Saved @${creator}'s Reel`, `Added to ${category}`);
+    } catch (err) {
+      console.error("Failed to save reel with metadata:", err);
+      // Fallback if network fails
+      const fallbackReel: Reel = {
+        id: "reel-" + Math.random().toString(36).substr(2, 9),
+        userId: user?.id || "user-1",
+        instagramUrl: url,
+        creatorUsername: "instagram_creator",
+        creatorProfileUrl: "https://instagram.com",
+        thumbnailUrl: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80",
+        mediaUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
+        caption: `Saved Reel from Instagram: ${url}`,
+        category: "General",
+        subcategories: [],
+        collections: [],
+        hashtags: [],
+        isFavorite: false,
+        duration: "0:30",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        lastViewedAt: new Date().toISOString(),
+        viewCount: 1,
+      };
+      saveUserReels([fallbackReel, ...reels]);
+      setIsSaveModalOpen(false);
+      showToast("✨ Reel saved to library");
     }
-
-    const sampleCategories = ["Productivity", "Health & Fitness", "AI & Tech", "Food & Cooking", "Design", "Motivation"];
-    const predictedCategory = sampleCategories[Math.floor(Math.random() * sampleCategories.length)];
-    const secondaryCategory = ["Mobility", "Python", "Workflow", "Posture", "Recipes"][Math.floor(Math.random() * 5)];
-
-    const newReel: Reel = {
-      id: "reel-" + Math.random().toString(36).substr(2, 9),
-      userId: user?.id || "user-1",
-      instagramUrl: url,
-      creatorUsername: creator,
-      creatorProfileUrl: `https://instagram.com/${creator}`,
-      creatorAvatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80",
-      thumbnailUrl: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80",
-      mediaUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
-      caption: `Saved Reel from Instagram: ${url}`,
-      category: predictedCategory,
-      subcategories: [secondaryCategory],
-      collections: [],
-      hashtags: [`#${predictedCategory.toLowerCase().replace(/\s+/g, "")}`],
-      isFavorite: false,
-      duration: "0:30",
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      lastViewedAt: new Date().toISOString(),
-      aiSummary: `AI Summary: Automatically extracted insights for saved Reel. Covers key takeaways and creator context.`,
-      aiKeywords: [predictedCategory, secondaryCategory],
-      viewCount: 1,
-    };
-
-    saveUserReels([newReel, ...reels]);
-    setIsSaveModalOpen(false);
-
-    showToast(`✨ Added to ${predictedCategory}`, `Also detected: ${secondaryCategory}`);
   };
 
   const generateAiSummary = (reelId: string) => {
@@ -290,7 +318,7 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
       if (r.id === reelId) {
         return {
           ...r,
-          aiSummary: `Generated Summary: Detailed breakdown of ${r.creatorUsername}'s video. Highlights 3 core practical tips and actionable steps.`,
+          aiSummary: `Generated Summary: Detailed breakdown of @${r.creatorUsername}'s video. Highlights 3 core practical takeaways for ${r.category}.`,
         };
       }
       return r;
