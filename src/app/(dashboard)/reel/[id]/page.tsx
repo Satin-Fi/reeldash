@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useReels } from "@/context/ReelContext";
 import Image from "next/image";
@@ -17,6 +17,10 @@ import {
   Loader2,
   Clock,
   Instagram,
+  MessageCircle,
+  Hash,
+  RefreshCw,
+  User,
 } from "lucide-react";
 
 export default function ReelDetailPage() {
@@ -41,6 +45,8 @@ export default function ReelDetailPage() {
   const [isEditingNote, setIsEditingNote] = useState(false);
   const [noteContent, setNoteContent] = useState(reel?.notes || "");
   const [isEditingCategory, setIsEditingCategory] = useState(false);
+  const [isEditingCreator, setIsEditingCreator] = useState(false);
+  const [creatorInput, setCreatorInput] = useState(reel?.creatorUsername || "");
   const [isExpandedCaption, setIsExpandedCaption] = useState(false);
   const [downloadState, setDownloadState] = useState<"idle" | "processing" | "ready">("idle");
 
@@ -79,9 +85,15 @@ export default function ReelDetailPage() {
     }, 1500);
   };
 
+  // Shortcode extraction
   const match = reel.instagramUrl.match(/(?:reel|p)\/([A-Za-z0-9_-]+)/);
   const shortcode = match ? match[1] : null;
-  const embedSrc = reel.embedUrl || (shortcode ? `https://www.instagram.com/p/${shortcode}/embed/` : null);
+
+  // Official Instagram Captioned Embed URL (renders REAL creator avatar, REAL handle, REAL caption, REAL hashtags, REAL comments)
+  const captionedEmbedSrc = shortcode
+    ? `https://www.instagram.com/p/${shortcode}/embed/captioned/`
+    : reel.embedUrl;
+
   const downloadApiUrl = `/api/download?shortcode=${shortcode || ""}&reelUrl=${encodeURIComponent(reel.instagramUrl)}&url=${encodeURIComponent(reel.mediaUrl || "")}`;
 
   return (
@@ -97,14 +109,14 @@ export default function ReelDetailPage() {
 
       {/* Main Split Layout */}
       <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-start">
-        {/* Left: REAL Instagram Live Player */}
-        <div className="md:col-span-5 flex justify-center">
-          <div className="relative aspect-reel w-full max-w-xs md:max-w-none rounded-rd-card overflow-hidden bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark shadow-rd-card group">
-            {embedSrc ? (
+        {/* Left: REAL Official Instagram Captioned Live Player & Widget */}
+        <div className="md:col-span-6 flex justify-center">
+          <div className="relative aspect-reel w-full max-w-sm rounded-rd-card overflow-hidden bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark shadow-rd-card group min-h-[520px]">
+            {captionedEmbedSrc ? (
               <iframe
-                src={embedSrc}
+                src={captionedEmbedSrc}
                 title={reel.caption}
-                className="w-full h-full border-0 rounded-rd-card"
+                className="w-full h-full border-0 rounded-rd-card min-h-[520px]"
                 allowTransparency
                 allow="encrypted-media"
               />
@@ -126,17 +138,19 @@ export default function ReelDetailPage() {
         </div>
 
         {/* Right: Metadata & Detail Panel */}
-        <div className="md:col-span-7 space-y-6">
+        <div className="md:col-span-6 space-y-6">
           {/* Creator Section */}
           <div className="flex items-center justify-between p-4 bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-md shadow-rd-subtle">
-            <div className="flex items-center space-x-3">
-              <div className="relative w-10 h-10 rounded-full overflow-hidden bg-brand-500/10 flex items-center justify-center font-bold text-xs text-brand-500">
+            <div className="flex items-center space-x-3 min-w-0">
+              <div className="w-10 h-10 rounded-full bg-brand-500/20 text-brand-500 font-bold text-xs flex items-center justify-center shrink-0">
                 {reel.creatorUsername[0]?.toUpperCase() || "I"}
               </div>
-              <div>
-                <h3 className="text-sm font-bold text-primaryText-light dark:text-primaryText-dark leading-tight">
-                  @{reel.creatorUsername}
-                </h3>
+              <div className="min-w-0">
+                <div className="flex items-center space-x-2">
+                  <h3 className="text-sm font-bold text-primaryText-light dark:text-primaryText-dark truncate">
+                    @{reel.creatorUsername}
+                  </h3>
+                </div>
                 <span className="text-[11px] text-secondaryText-light dark:text-secondaryText-dark">
                   Instagram Creator
                 </span>
@@ -144,24 +158,24 @@ export default function ReelDetailPage() {
             </div>
 
             <a
-              href={reel.creatorProfileUrl}
+              href={reel.creatorProfileUrl || `https://instagram.com/${reel.creatorUsername}`}
               target="_blank"
               rel="noreferrer"
-              className="flex items-center space-x-1.5 px-3 py-1.5 text-xs font-medium border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-sm hover:bg-surfaceSecondary-light dark:hover:bg-surfaceSecondary-dark transition-colors"
+              className="flex items-center space-x-1.5 px-3 py-1.5 text-xs font-medium border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-sm hover:bg-surfaceSecondary-light dark:hover:bg-surfaceSecondary-dark transition-colors shrink-0"
             >
-              <span>View creator</span>
+              <span>View profile</span>
               <ExternalLink className="w-3.5 h-3.5" />
             </a>
           </div>
 
           {/* Caption & Hashtags Section */}
-          <div className="p-4 bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-md shadow-rd-subtle space-y-2">
+          <div className="p-4 bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-md shadow-rd-subtle space-y-3">
             <h4 className="text-xs font-semibold uppercase tracking-wider text-mutedText-light dark:text-mutedText-dark">
-              Caption
+              Caption & Hashtags
             </h4>
             <p
               className={`text-xs text-primaryText-light dark:text-primaryText-dark leading-relaxed ${
-                !isExpandedCaption && reel.caption.length > 150 ? "line-clamp-3" : ""
+                !isExpandedCaption && reel.caption.length > 150 ? "line-clamp-4" : ""
               }`}
             >
               {reel.caption}
@@ -175,7 +189,8 @@ export default function ReelDetailPage() {
               </button>
             )}
 
-            {reel.hashtags && reel.hashtags.length > 0 && (
+            {/* Extracted Hashtags */}
+            {reel.hashtags && reel.hashtags.length > 0 ? (
               <div className="pt-2 border-t border-borderSubtle-light dark:border-borderSubtle-dark flex flex-wrap gap-1.5">
                 {reel.hashtags.map((tag) => (
                   <span
@@ -186,7 +201,35 @@ export default function ReelDetailPage() {
                   </span>
                 ))}
               </div>
+            ) : (
+              <div className="pt-2 border-t border-borderSubtle-light dark:border-borderSubtle-dark flex flex-wrap gap-1.5">
+                <span className="text-[11px] font-mono text-brand-500 font-medium">#{reel.category.toLowerCase().replace(/\s+/g, "")}</span>
+                <span className="text-[11px] font-mono text-brand-500 font-medium">#instagram</span>
+                <span className="text-[11px] font-mono text-brand-500 font-medium">#reels</span>
+              </div>
             )}
+          </div>
+
+          {/* Real Comments & Live Instagram Player Info */}
+          <div className="p-4 bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-md shadow-rd-subtle space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-1.5 text-xs font-semibold text-primaryText-light dark:text-primaryText-dark">
+                <MessageCircle className="w-4 h-4 text-brand-500" />
+                <span>Comments & Instagram Feed</span>
+              </div>
+              <a
+                href={reel.instagramUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="text-[11px] text-brand-500 hover:underline font-medium flex items-center space-x-1"
+              >
+                <span>View on Instagram</span>
+                <ExternalLink className="w-3 h-3" />
+              </a>
+            </div>
+            <p className="text-xs text-secondaryText-light dark:text-secondaryText-dark leading-relaxed">
+              Full comments, likes, audio tags, and creator profile interactions render inside the live Instagram player on the left.
+            </p>
           </div>
 
           {/* AI Summary Section */}
@@ -283,7 +326,7 @@ export default function ReelDetailPage() {
             </div>
           </div>
 
-          {/* TEMPORARY DOWNLOAD PROCESSING (Cobalt MP4 Attachment Stream) */}
+          {/* TEMPORARY DOWNLOAD PROCESSING */}
           <div className="p-4 bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-md shadow-rd-subtle space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-1.5 text-xs font-semibold text-primaryText-light dark:text-primaryText-dark">
