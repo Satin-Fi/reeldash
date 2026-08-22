@@ -61,52 +61,8 @@ export async function POST(req: NextRequest) {
       creatorUsername = userMatch[1];
     }
 
-    // 1. Extract exact video stream & metadata using yt-dlp
-    try {
-      const ytdlOutput: any = await youtubedl(url, {
-        dumpSingleJson: true,
-        noCheckCertificates: true,
-        noWarnings: true,
-        preferFreeFormats: true,
-        addHeader: [
-          "referer:instagram.com",
-          "user-agent:Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
-        ],
-      });
-
-      if (ytdlOutput) {
-        if (ytdlOutput.url) {
-          mediaUrl = ytdlOutput.url;
-        } else if (ytdlOutput.formats && ytdlOutput.formats.length > 0) {
-          const videoFormat = ytdlOutput.formats.find((f: any) => f.vcodec !== "none") || ytdlOutput.formats[0];
-          mediaUrl = videoFormat?.url || "";
-        }
-
-        if (ytdlOutput.channel) {
-          creatorUsername = ytdlOutput.channel;
-        }
-        if (ytdlOutput.uploader) {
-          creatorFullName = ytdlOutput.uploader;
-        }
-        if (ytdlOutput.description) {
-          caption = ytdlOutput.description;
-        }
-        if (ytdlOutput.like_count) {
-          likes = `${ytdlOutput.like_count.toLocaleString()} likes`;
-        }
-        if (ytdlOutput.comment_count) {
-          commentsCount = `${ytdlOutput.comment_count.toLocaleString()} comments`;
-        }
-        if (ytdlOutput.thumbnail) {
-          thumbnailUrl = ytdlOutput.thumbnail;
-        }
-      }
-    } catch (ytdlErr) {
-      console.warn("yt-dlp extraction warning (fallback to OpenGraph):", ytdlErr);
-    }
-
-    // 2. OpenGraph Fallback if needed
-    if ((!caption || !creatorUsername || !likes) && shortcode) {
+    // 1. Fast OpenGraph Extraction (Instant & highly reliable)
+    if (shortcode) {
       try {
         const ogRes = await fetch(`https://www.instagram.com/p/${shortcode}/`, {
           headers: {
@@ -155,8 +111,58 @@ export async function POST(req: NextRequest) {
           }
         }
       } catch (ogErr) {
-        console.warn("OpenGraph fallback notice:", ogErr);
+        console.warn("OpenGraph notice:", ogErr);
       }
+    }
+
+    // 2. yt-dlp Video Stream with 3s Timeout (Non-blocking)
+    try {
+      const ytdlPromise = youtubedl(url, {
+        dumpSingleJson: true,
+        noCheckCertificates: true,
+        noWarnings: true,
+        preferFreeFormats: true,
+        addHeader: [
+          "referer:instagram.com",
+          "user-agent:Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+        ],
+      });
+
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("yt-dlp timeout")), 3000)
+      );
+
+      const ytdlOutput: any = await Promise.race([ytdlPromise, timeoutPromise]);
+
+      if (ytdlOutput) {
+        if (ytdlOutput.url) {
+          mediaUrl = ytdlOutput.url;
+        } else if (ytdlOutput.formats && ytdlOutput.formats.length > 0) {
+          const videoFormat = ytdlOutput.formats.find((f: any) => f.vcodec !== "none") || ytdlOutput.formats[0];
+          mediaUrl = videoFormat?.url || "";
+        }
+
+        if (ytdlOutput.channel && !creatorUsername) {
+          creatorUsername = ytdlOutput.channel;
+        }
+        if (ytdlOutput.uploader && !creatorFullName) {
+          creatorFullName = ytdlOutput.uploader;
+        }
+        if (ytdlOutput.description && !caption) {
+          caption = ytdlOutput.description;
+        }
+        if (ytdlOutput.like_count && !likes) {
+          likes = `${ytdlOutput.like_count.toLocaleString()} likes`;
+        }
+        if (ytdlOutput.comment_count && !commentsCount) {
+          commentsCount = `${ytdlOutput.comment_count.toLocaleString()} comments`;
+        }
+        if (ytdlOutput.thumbnail && !thumbnailUrl) {
+          thumbnailUrl = ytdlOutput.thumbnail;
+        }
+      }
+    } catch (ytdlErr) {
+      console.warn("yt-dlp non-blocking notice:", ytdlErr);
     }
 
     if (!creatorUsername) {
