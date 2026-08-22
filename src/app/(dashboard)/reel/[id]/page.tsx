@@ -21,6 +21,7 @@ import {
   ThumbsUp,
   RefreshCw,
   Play,
+  RotateCcw,
 } from "lucide-react";
 
 export default function ReelDetailPage() {
@@ -102,11 +103,6 @@ export default function ReelDetailPage() {
       ? `/api/proxy-image?shortcode=${shortcode}`
       : "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80";
 
-  const videoSrc =
-    reel.mediaUrl && !reel.mediaUrl.includes("googleapis.com")
-      ? reel.mediaUrl
-      : "https://vjs.zencdn.net/v/oceans.mp4";
-
   const downloadApiUrl = `/api/download?shortcode=${shortcode || ""}&reelUrl=${encodeURIComponent(reel.instagramUrl)}&url=${encodeURIComponent(reel.mediaUrl || "")}`;
 
   const creatorTitle = reel.creatorFullName || reel.creatorUsername;
@@ -136,29 +132,38 @@ export default function ReelDetailPage() {
 
       {/* Main Split Layout */}
       <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-start">
-        {/* Left: Clean Native Cover / HTML5 Video Player (NO IFRAME) */}
-        <div className="md:col-span-5 flex justify-center">
+        {/* Left: Clean Cover / Live Video Player */}
+        <div className="md:col-span-5 flex flex-col items-center space-y-2">
           <div className="relative aspect-reel w-full max-w-xs md:max-w-none rounded-rd-card overflow-hidden bg-black border border-borderSubtle-light dark:border-borderSubtle-dark shadow-rd-card group">
-            {isPlayingVideo ? (
-              /* Native HTML5 Video Player - 100% Clean, No Iframe */
-              <video
-                src={videoSrc}
-                poster={imageSrc}
-                controls
-                autoPlay
-                loop
-                playsInline
-                className="w-full h-full object-cover"
-              />
+            {isPlayingVideo && shortcode ? (
+              <div className="relative w-full h-full bg-black">
+                <iframe
+                  src={`https://www.instagram.com/p/${shortcode}/embed/`}
+                  title={reel.caption}
+                  className="w-full h-full border-0 rounded-rd-card"
+                  allow="autoplay; encrypted-media; fullscreen"
+                  allowTransparency
+                />
+                <button
+                  onClick={() => setIsPlayingVideo(false)}
+                  className="absolute top-2 right-2 px-2 py-1 bg-black/70 hover:bg-black/90 text-white rounded text-[11px] font-medium backdrop-blur-md flex items-center space-x-1 transition-colors z-30 cursor-pointer"
+                >
+                  <RotateCcw className="w-3 h-3" />
+                  <span>Cover Photo</span>
+                </button>
+              </div>
             ) : (
               /* Clean Real Thumbnail Cover with Click to Play */
-              <div className="relative w-full h-full cursor-pointer" onClick={() => setIsPlayingVideo(true)}>
+              <div
+                className="relative w-full h-full cursor-pointer group"
+                onClick={() => setIsPlayingVideo(true)}
+              >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={imageSrc}
                   alt={reel.caption}
                   referrerPolicy="no-referrer"
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-cover group-hover:scale-102 transition-transform duration-300"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/20" />
 
