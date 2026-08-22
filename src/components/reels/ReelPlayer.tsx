@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Reel } from "@/types/reel";
 import {
   Play,
@@ -48,8 +48,22 @@ export function ReelPlayer({
 
   // Request temporary playable CDN MP4 media URL from backend resolution layer
   const resolveAndPlay = async () => {
+    // 1. If reel already has a direct valid CDN mediaUrl, use proxied stream immediately
+    if (
+      reel.mediaUrl &&
+      !reel.mediaUrl.includes("zencdn.net") &&
+      !reel.mediaUrl.includes("googleapis.com") &&
+      reel.mediaUrl.startsWith("http")
+    ) {
+      const streamUrl = `/api/proxy-video?url=${encodeURIComponent(reel.mediaUrl)}`;
+      setPlaybackUrl(streamUrl);
+      setStatus("available");
+      return;
+    }
+
     setStatus("loading");
 
+    // 2. Otherwise, resolve from backend playback endpoint
     try {
       const res = await fetch(
         `/api/reels/${reel.id}/playback?url=${encodeURIComponent(reel.instagramUrl)}`
