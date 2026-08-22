@@ -5,7 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { Reel } from "@/types/reel";
 import { useReels } from "@/context/ReelContext";
-import { Heart, Play, MoreVertical, ExternalLink, Trash2, FolderPlus, Copy, FileText } from "lucide-react";
+import { Heart, Play, MoreVertical, ExternalLink, Trash2, FolderPlus, Copy, FileText, Instagram } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface ReelCardProps {
@@ -18,6 +18,27 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isCollectionPickerOpen, setIsCollectionPickerOpen] = useState(false);
   const [imageError, setImageError] = useState(false);
+
+  // Extract shortcode and username fallback directly from instagramUrl
+  const shortcodeMatch = reel.instagramUrl.match(/(?:reel|p)\/([A-Za-z0-9_-]+)/);
+  const shortcode = shortcodeMatch ? shortcodeMatch[1] : null;
+
+  let displayCreator = reel.creatorUsername;
+  if (!displayCreator || displayCreator === "instagram_creator") {
+    const userMatch = reel.instagramUrl.match(/instagram\.com\/([A-Za-z0-9_.]+)\/(?:reel|p)\//);
+    if (userMatch && userMatch[1] && userMatch[1] !== "reel" && userMatch[1] !== "p") {
+      displayCreator = userMatch[1];
+    } else if (shortcode) {
+      displayCreator = `reels_${shortcode.substring(0, 6)}`;
+    } else {
+      displayCreator = "instagram_reel";
+    }
+  }
+
+  let displayCaption = reel.caption;
+  if (!displayCaption || displayCaption.startsWith("Instagram Reel (")) {
+    displayCaption = shortcode ? `Instagram Reel (${shortcode})` : "Saved Instagram Reel";
+  }
 
   const handleCopyLink = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -33,23 +54,25 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
     toggleFavorite(reel.id);
   };
 
-  const displayThumbnail = imageError
-    ? "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80"
-    : reel.thumbnailUrl;
+  const isDefaultImage = !reel.thumbnailUrl || reel.thumbnailUrl.includes("unsplash.com") || imageError;
 
   if (viewMode === "compact") {
     return (
       <div className="group relative flex items-center justify-between p-3.5 bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-md hover:border-brand-500/30 transition-all duration-200 shadow-rd-subtle">
         <div className="flex items-center space-x-3 min-w-0">
-          <Link href={`/reel/${reel.id}`} className="relative w-12 h-16 rounded-rd-sm overflow-hidden shrink-0 bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark">
-            <Image
-              src={displayThumbnail}
-              alt={reel.caption}
-              fill
-              unoptimized
-              onError={() => setImageError(true)}
-              className="object-cover group-hover:scale-105 transition-transform duration-300"
-            />
+          <Link href={`/reel/${reel.id}`} className="relative w-12 h-16 rounded-rd-sm overflow-hidden shrink-0 bg-gradient-to-br from-brand-500/20 via-purple-600/20 to-rose-500/20 flex items-center justify-center">
+            {!isDefaultImage ? (
+              <Image
+                src={reel.thumbnailUrl}
+                alt={displayCaption}
+                fill
+                unoptimized
+                onError={() => setImageError(true)}
+                className="object-cover group-hover:scale-105 transition-transform duration-300"
+              />
+            ) : (
+              <Instagram className="w-5 h-5 text-brand-500" />
+            )}
             <div className="absolute inset-0 bg-black/20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
               <Play className="w-4 h-4 text-white fill-white" />
             </div>
@@ -57,10 +80,10 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
           <div className="min-w-0">
             <Link href={`/reel/${reel.id}`} className="hover:underline">
               <p className="text-xs font-semibold text-primaryText-light dark:text-primaryText-dark truncate">
-                @{reel.creatorUsername}
+                @{displayCreator}
               </p>
               <p className="text-xs text-secondaryText-light dark:text-secondaryText-dark truncate max-w-md mt-0.5">
-                {reel.caption}
+                {displayCaption}
               </p>
             </Link>
             <div className="flex items-center space-x-2 mt-1.5 text-[11px]">
@@ -99,14 +122,39 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
       {/* 9:16 Thumbnail Container */}
       <div className="relative aspect-reel w-full overflow-hidden bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark">
         <Link href={`/reel/${reel.id}`} className="block w-full h-full">
-          <Image
-            src={displayThumbnail}
-            alt={reel.caption}
-            fill
-            unoptimized
-            onError={() => setImageError(true)}
-            className="object-cover group-hover:scale-102 transition-transform duration-300 ease-out"
-          />
+          {!isDefaultImage ? (
+            <Image
+              src={reel.thumbnailUrl}
+              alt={displayCaption}
+              fill
+              unoptimized
+              onError={() => setImageError(true)}
+              className="object-cover group-hover:scale-102 transition-transform duration-300 ease-out"
+            />
+          ) : (
+            /* Clean modern SaaS gradient cover card when IG CDN blocks direct thumbnail hotlinking */
+            <div className="w-full h-full bg-gradient-to-br from-indigo-900 via-purple-900 to-slate-900 p-4 flex flex-col justify-between text-white relative">
+              <div className="flex items-center space-x-2">
+                <div className="w-7 h-7 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center">
+                  <Instagram className="w-4 h-4 text-white" />
+                </div>
+                <span className="text-xs font-bold truncate">@{displayCreator}</span>
+              </div>
+
+              <div className="space-y-1 my-auto">
+                <span className="px-2 py-0.5 rounded bg-brand-500/30 text-brand-300 text-[10px] font-mono font-semibold">
+                  {shortcode || "REEL"}
+                </span>
+                <p className="text-xs font-medium text-white/90 line-clamp-3 leading-relaxed">
+                  {displayCaption}
+                </p>
+              </div>
+
+              <div className="text-[10px] text-white/60 font-mono">
+                Click to play Reel
+              </div>
+            </div>
+          )}
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-80 group-hover:opacity-90 transition-opacity" />
         </Link>
 
@@ -244,10 +292,10 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
         <div>
           <Link href={`/reel/${reel.id}`} className="group-hover:text-brand-500 transition-colors">
             <p className="text-xs font-semibold text-primaryText-light dark:text-primaryText-dark truncate">
-              @{reel.creatorUsername}
+              @{displayCreator}
             </p>
             <p className="text-xs text-secondaryText-light dark:text-secondaryText-dark line-clamp-2 mt-0.5 leading-normal">
-              {reel.caption}
+              {displayCaption}
             </p>
           </Link>
         </div>
