@@ -3,7 +3,6 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useReels } from "@/context/ReelContext";
-import { ReelGrid } from "@/components/reels/ReelGrid";
 import { ReelPlayerModal } from "@/components/reels/ReelPlayerModal";
 import { Reel } from "@/types/reel";
 import {
@@ -19,7 +18,19 @@ import {
   Sparkles,
   Loader2,
   Heart,
+  Play,
+  Eye,
+  Check,
 } from "lucide-react";
+
+interface DiscoveredReel {
+  shortcode: string;
+  caption: string;
+  thumbnailUrl: string;
+  category: string;
+  likes: string;
+  views: string;
+}
 
 interface AccountData {
   username: string;
@@ -30,6 +41,7 @@ interface AccountData {
   postsCount?: string | null;
   bio?: string;
   isVerified?: boolean;
+  discoveredReels?: DiscoveredReel[];
 }
 
 export default function CreatorProfilePage() {
@@ -45,8 +57,9 @@ export default function CreatorProfilePage() {
   const [reelUrlInput, setReelUrlInput] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [activeModalReel, setActiveModalReel] = useState<Reel | null>(null);
+  const [savedShortcodes, setSavedShortcodes] = useState<Set<string>>(new Set());
 
-  // 1. Fetch Creator Info from unauthenticated search endpoint
+  // 1. Fetch Creator Info & Public Reels from API
   useEffect(() => {
     async function loadProfile() {
       setIsLoading(true);
@@ -69,10 +82,17 @@ export default function CreatorProfilePage() {
     }
   }, [username]);
 
-  // 2. Filter local Reels matching this creator
-  const creatorReels = reels.filter(
-    (r) => r.creatorUsername.toLowerCase() === username.toLowerCase()
-  );
+  // Track which reels are already in user library
+  useEffect(() => {
+    const saved = new Set<string>();
+    reels.forEach((r) => {
+      if (r.instagramUrl) {
+        const match = r.instagramUrl.match(/(?:reel|p)\/([A-Za-z0-9_-]+)/);
+        if (match) saved.add(match[1]);
+      }
+    });
+    setSavedShortcodes(saved);
+  }, [reels]);
 
   const handleCopyProfile = () => {
     navigator.clipboard.writeText(`https://instagram.com/${username}`);
@@ -95,21 +115,47 @@ export default function CreatorProfilePage() {
     }
   };
 
-  const handleDiscoverSample = async (shortcode: string, caption: string) => {
-    setIsSaving(true);
-    const sampleUrl = `https://www.instagram.com/reel/${shortcode}/`;
+  const handlePlayDiscoveredReel = (dReel: DiscoveredReel) => {
+    const tempReel: Reel = {
+      id: `temp-${dReel.shortcode}`,
+      userId: "guest",
+      instagramUrl: `https://www.instagram.com/reel/${dReel.shortcode}/`,
+      creatorUsername: username,
+      creatorFullName: account?.displayName || username,
+      creatorProfileUrl: `https://instagram.com/${username}`,
+      creatorAvatar: account?.avatarUrl,
+      caption: dReel.caption,
+      thumbnailUrl: dReel.thumbnailUrl,
+      category: dReel.category || "General",
+      subcategories: [],
+      collections: [],
+      hashtags: [],
+      notes: "",
+      isFavorite: false,
+      duration: "0:30",
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      likes: dReel.likes,
+      viewCount: 100,
+    };
+    setActiveModalReel(tempReel);
+  };
+
+  const handleSaveDiscovered = async (dReel: DiscoveredReel, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const url = `https://www.instagram.com/reel/${dReel.shortcode}/`;
     try {
-      await saveReel(sampleUrl, { creator: username, caption });
-      showToast(`Added @${username}'s Reel to your library!`);
+      await saveReel(url, { creator: username, caption: dReel.caption, category: dReel.category });
+      showToast(`Saved Reel to your library!`);
     } catch {
-      showToast("Failed to add sample Reel.");
-    } finally {
-      setIsSaving(false);
+      showToast("Could not save Reel.");
     }
   };
 
+  const allFeedReels = account?.discoveredReels || [];
+
   return (
-    <div className="space-y-6 max-w-5xl mx-auto">
+    <div className="space-y-6 max-w-5xl mx-auto pb-12">
       {/* Top Back Navigation */}
       <button
         onClick={() => router.back()}
@@ -151,12 +197,6 @@ export default function CreatorProfilePage() {
 
               {/* Followers & Posts stats */}
               <div className="flex items-center space-x-4 text-xs text-secondaryText-light dark:text-secondaryText-dark pt-1">
-                <div>
-                  <span className="font-bold text-primaryText-light dark:text-primaryText-dark">
-                    {creatorReels.length}
-                  </span>{" "}
-                  <span>Saved in ReelDash</span>
-                </div>
                 {account?.followers && (
                   <div>
                     <span className="font-bold text-primaryText-light dark:text-primaryText-dark">
@@ -230,45 +270,90 @@ export default function CreatorProfilePage() {
         </form>
       </div>
 
-      {/* 2. REELS SECTION */}
+      {/* 2. REELS FEED SECTION */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
             <Film className="w-4 h-4 text-brand-500" />
-            <h2 className="text-sm font-bold text-primaryText-light dark:text-primaryText-dark">
-              Reels by @{username} in ReelDash ({creatorReels.length})
+            <h2 className="text-base font-bold text-primaryText-light dark:text-primaryText-dark">
+              Reels by @{username} on ReelDash
             </h2>
           </div>
+          <span className="text-xs text-mutedText-light font-medium">
+            {allFeedReels.length} Reels Available
+          </span>
         </div>
 
-        {creatorReels.length > 0 ? (
-          <ReelGrid reels={creatorReels} viewMode={viewMode} />
+        {isLoading ? (
+          <div className="p-12 text-center bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-xl">
+            <Loader2 className="w-6 h-6 animate-spin text-brand-500 mx-auto mb-2" />
+            <p className="text-xs text-secondaryText-light">Loading @{username}&apos;s Reels...</p>
+          </div>
         ) : (
-          <div className="p-8 text-center bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-xl space-y-4">
-            <div className="w-12 h-12 rounded-full bg-brand-500/10 text-brand-500 flex items-center justify-center mx-auto">
-              <Film className="w-6 h-6" />
-            </div>
-            <div className="space-y-1">
-              <h3 className="text-sm font-bold text-primaryText-light dark:text-primaryText-dark">
-                No Reels saved from @{username} yet
-              </h3>
-              <p className="text-xs text-secondaryText-light dark:text-secondaryText-dark max-w-md mx-auto">
-                Paste any Reel link from @{username} above, or discover their public Reels to play them directly inside ReelDash.
-              </p>
-            </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+            {allFeedReels.map((item) => {
+              const isSaved = savedShortcodes.has(item.shortcode);
+              return (
+                <div
+                  key={item.shortcode}
+                  onClick={() => handlePlayDiscoveredReel(item)}
+                  className="group relative aspect-[9/16] bg-zinc-950 rounded-rd-lg overflow-hidden border border-borderSubtle-light dark:border-borderSubtle-dark shadow-sm hover:shadow-md transition-all cursor-pointer flex flex-col justify-between"
+                >
+                  {/* Poster Image */}
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={item.thumbnailUrl}
+                    alt={item.caption}
+                    className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                  />
 
-            {/* Discover Sample Reels from this creator */}
-            <div className="pt-3 flex flex-wrap justify-center gap-2">
-              <a
-                href={`https://instagram.com/${username}/reels/`}
-                target="_blank"
-                rel="noreferrer"
-                className="px-4 py-2 bg-gradient-to-r from-pink-500 to-purple-600 text-white rounded-rd-md text-xs font-semibold flex items-center space-x-1.5 shadow-sm hover:opacity-90 transition-opacity"
-              >
-                <span>Browse @{username}&apos;s Reels on Instagram</span>
-                <ExternalLink className="w-3.5 h-3.5" />
-              </a>
-            </div>
+                  {/* Gradient Overlay */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-black/30 pointer-events-none" />
+
+                  {/* Top Bar: Category & Save button */}
+                  <div className="relative z-10 p-2.5 flex items-center justify-between">
+                    <span className="px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-md text-[10px] font-semibold text-white">
+                      {item.category}
+                    </span>
+                    <button
+                      onClick={(e) => handleSaveDiscovered(item, e)}
+                      className={`p-1.5 rounded-full backdrop-blur-md transition-colors ${
+                        isSaved
+                          ? "bg-brand-500 text-white"
+                          : "bg-black/60 text-white hover:bg-black/80"
+                      }`}
+                      title={isSaved ? "Saved to your library" : "Save to ReelDash"}
+                    >
+                      {isSaved ? <Check className="w-3.5 h-3.5" /> : <Bookmark className="w-3.5 h-3.5" />}
+                    </button>
+                  </div>
+
+                  {/* Center Play Icon on Hover */}
+                  <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                    <div className="w-11 h-11 rounded-full bg-brand-500/90 text-white flex items-center justify-center shadow-lg transform group-hover:scale-110 transition-transform">
+                      <Play className="w-5 h-5 fill-white ml-0.5" />
+                    </div>
+                  </div>
+
+                  {/* Bottom Stats & Caption */}
+                  <div className="relative z-10 p-2.5 space-y-1 text-white">
+                    <div className="flex items-center space-x-2 text-[11px] font-medium text-white/90">
+                      <div className="flex items-center space-x-1">
+                        <Eye className="w-3 h-3 text-white/70" />
+                        <span>{item.views}</span>
+                      </div>
+                      <div className="flex items-center space-x-1">
+                        <Heart className="w-3 h-3 text-white/70 fill-white/50" />
+                        <span>{item.likes}</span>
+                      </div>
+                    </div>
+                    <p className="text-xs text-white/90 line-clamp-2 leading-snug">
+                      {item.caption}
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
