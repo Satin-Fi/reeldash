@@ -208,20 +208,6 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
               <MoreVertical className="w-4 h-4" />
             </button>
 
-            {/* Hover Quick Action Bar */}
-            <div className="absolute bottom-10 inset-x-2 flex items-center justify-center space-x-2 p-1.5 rounded-rd-md bg-black/80 backdrop-blur-md text-white text-xs opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10">
-              <span className="px-3 py-1 rounded bg-brand-500 font-medium flex items-center space-x-1">
-                <Play className="w-3 h-3 fill-white" />
-                <span>Play Reel</span>
-              </span>
-              <button
-                onClick={handleCopyLink}
-                className="px-2.5 py-1 rounded bg-white/20 hover:bg-white/30 font-medium transition-colors cursor-pointer"
-              >
-                Copy
-              </button>
-            </div>
-
             {/* Context Menu Dropdown */}
             <AnimatePresence>
               {isMenuOpen && (
