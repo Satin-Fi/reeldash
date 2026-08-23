@@ -252,30 +252,29 @@ export function CommandPalette() {
                         </div>
                       </div>
 
-                      {/* External Link */}
-                      <a
-                        href={searchedAccount.profileUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="px-2.5 py-1 bg-brand-500 hover:bg-brand-600 text-white rounded text-xs font-medium flex items-center space-x-1 transition-colors shrink-0"
+                      {/* In-App ReelDash Profile Link */}
+                      <button
+                        onClick={() => {
+                          setIsCommandPaletteOpen(false);
+                          router.push(`/creator/${searchedAccount.username}`);
+                        }}
+                        className="px-2.5 py-1 bg-brand-500 hover:bg-brand-600 text-white rounded text-xs font-medium flex items-center space-x-1 transition-colors shrink-0 cursor-pointer"
                       >
-                        <span>View Profile</span>
-                        <ExternalLink className="w-3 h-3" />
-                      </a>
+                        <span>View on ReelDash</span>
+                      </button>
                     </div>
 
-                    {/* Quick Filters */}
+                    {/* Quick Filters & Actions */}
                     <div className="flex items-center space-x-2 pt-1 border-t border-borderSubtle-light dark:border-borderSubtle-dark">
                       <button
                         onClick={() => {
-                          setSearchQuery(`@${searchedAccount.username}`);
                           setIsCommandPaletteOpen(false);
-                          router.push(`/search?q=${encodeURIComponent(searchedAccount.username)}`);
+                          router.push(`/creator/${searchedAccount.username}`);
                         }}
                         className="text-[11px] text-brand-500 hover:underline flex items-center space-x-1 cursor-pointer"
                       >
-                        <Filter className="w-3 h-3" />
-                        <span>Filter saved Reels from @{searchedAccount.username}</span>
+                        <Film className="w-3 h-3" />
+                        <span>Open @{searchedAccount.username}&apos;s profile on ReelDash</span>
                       </button>
                     </div>
                   </div>

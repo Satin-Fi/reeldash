@@ -3,6 +3,8 @@
 import React, { useState, useEffect } from "react";
 import { useReels } from "@/context/ReelContext";
 import { ReelGrid } from "@/components/reels/ReelGrid";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   Search,
   X,
@@ -12,6 +14,8 @@ import {
   BadgeCheck,
   Loader2,
   User,
+  ArrowRight,
+  Film,
 } from "lucide-react";
 
 interface AccountResult {
@@ -26,7 +30,8 @@ interface AccountResult {
 }
 
 export default function SearchPage() {
-  const { reels, searchQuery, setSearchQuery, viewMode, smartCategories, collections } = useReels();
+  const router = useRouter();
+  const { reels, searchQuery, setSearchQuery, viewMode, smartCategories } = useReels();
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedCollection, setSelectedCollection] = useState<string | null>(null);
   const [onlyFavorites, setOnlyFavorites] = useState(false);
@@ -95,10 +100,10 @@ export default function SearchPage() {
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-primaryText-light dark:text-primaryText-dark">
-          Search Library & Instagram Accounts
+          Search Library & Instagram Creators
         </h1>
         <p className="text-xs text-secondaryText-light dark:text-secondaryText-dark mt-0.5">
-          Find saved Reels by topic or search any public Instagram account (@username).
+          Find saved Reels by topic or search any public Instagram account (@username) to view directly inside ReelDash.
         </p>
       </div>
 
@@ -126,62 +131,73 @@ export default function SearchPage() {
         )}
       </div>
 
-      {/* INSTAGRAM ACCOUNT SEARCH CARD */}
+      {/* INSTAGRAM ACCOUNT SEARCH CARD - Opens inside ReelDash */}
       {searchQuery.trim().length >= 2 && searchedAccount && (
-        <div className="p-4 bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-lg shadow-rd-subtle space-y-3">
+        <div className="p-5 bg-surface-light dark:bg-surface-dark border-2 border-brand-500/30 dark:border-brand-500/40 rounded-rd-xl shadow-rd-subtle space-y-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-1.5 text-xs font-semibold text-pink-500 uppercase tracking-wider">
-              <Instagram className="w-4 h-4" />
-              <span>Instagram Profile Result</span>
+            <div className="flex items-center space-x-1.5 text-xs font-bold text-brand-500 uppercase tracking-wider">
+              <Instagram className="w-4 h-4 text-pink-500" />
+              <span>Instagram Creator on ReelDash</span>
             </div>
-            <a
-              href={searchedAccount.profileUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="px-3 py-1.5 bg-gradient-to-r from-pink-500 to-purple-600 hover:opacity-90 text-white rounded-rd-md text-xs font-semibold flex items-center space-x-1.5 transition-all shadow-sm"
-            >
-              <span>Open on Instagram</span>
-              <ExternalLink className="w-3.5 h-3.5" />
-            </a>
+            <div className="flex items-center space-x-2">
+              <Link
+                href={`/creator/${searchedAccount.username}`}
+                className="px-3.5 py-1.5 bg-brand-500 hover:bg-brand-600 text-white rounded-rd-md text-xs font-semibold flex items-center space-x-1.5 transition-all shadow-sm"
+              >
+                <span>View Profile on ReelDash</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
+            </div>
           </div>
 
-          <div className="flex items-start space-x-4">
-            {/* Avatar with Gradient Ring */}
-            <div className="relative p-0.5 rounded-full bg-gradient-to-tr from-yellow-500 via-pink-500 to-purple-600 shrink-0">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={searchedAccount.avatarUrl}
-                alt={searchedAccount.username}
-                className="w-12 h-12 rounded-full object-cover bg-zinc-800"
-              />
-            </div>
-
-            <div className="flex-1 space-y-1 min-w-0">
-              <div className="flex items-center space-x-1.5">
-                <span className="text-sm font-bold text-primaryText-light dark:text-primaryText-dark">
-                  @{searchedAccount.username}
-                </span>
-                <BadgeCheck className="w-4 h-4 fill-[#0095F6] text-white shrink-0" />
+          <Link
+            href={`/creator/${searchedAccount.username}`}
+            className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3 bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark rounded-rd-lg hover:bg-surfaceSecondary-light/80 transition-colors group cursor-pointer"
+          >
+            <div className="flex items-center space-x-3.5 min-w-0">
+              {/* Avatar with Gradient Ring */}
+              <div className="relative p-0.5 rounded-full bg-gradient-to-tr from-yellow-500 via-pink-500 to-purple-600 shrink-0">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={searchedAccount.avatarUrl}
+                  alt={searchedAccount.username}
+                  className="w-12 h-12 rounded-full object-cover bg-zinc-800"
+                />
               </div>
 
-              <p className="text-xs font-medium text-secondaryText-light dark:text-secondaryText-dark">
-                {searchedAccount.displayName}
-              </p>
-
-              {searchedAccount.followers && (
-                <div className="flex items-center space-x-3 text-xs text-mutedText-light dark:text-mutedText-dark pt-0.5">
-                  <span className="font-semibold text-primaryText-light dark:text-primaryText-dark">
-                    {searchedAccount.followers} <span className="font-normal text-mutedText-light">followers</span>
+              <div className="space-y-0.5 min-w-0">
+                <div className="flex items-center space-x-1.5">
+                  <span className="text-sm font-bold text-primaryText-light dark:text-primaryText-dark group-hover:text-brand-500 transition-colors truncate">
+                    @{searchedAccount.username}
                   </span>
-                  {searchedAccount.postsCount && (
-                    <span className="font-semibold text-primaryText-light dark:text-primaryText-dark">
-                      {searchedAccount.postsCount} <span className="font-normal text-mutedText-light">posts</span>
-                    </span>
-                  )}
+                  <BadgeCheck className="w-4 h-4 fill-[#0095F6] text-white shrink-0" />
                 </div>
-              )}
+
+                <p className="text-xs font-medium text-secondaryText-light dark:text-secondaryText-dark truncate">
+                  {searchedAccount.displayName}
+                </p>
+
+                {searchedAccount.followers && (
+                  <div className="flex items-center space-x-3 text-xs text-mutedText-light dark:text-mutedText-dark pt-0.5">
+                    <span className="font-semibold text-primaryText-light dark:text-primaryText-dark">
+                      {searchedAccount.followers} <span className="font-normal text-mutedText-light">followers</span>
+                    </span>
+                    {searchedAccount.postsCount && (
+                      <span className="font-semibold text-primaryText-light dark:text-primaryText-dark">
+                        {searchedAccount.postsCount} <span className="font-normal text-mutedText-light">posts</span>
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
+
+            <div className="flex items-center space-x-2 shrink-0 self-end sm:self-center">
+              <span className="text-xs font-medium text-brand-500 group-hover:underline">
+                Explore Reels inside ReelDash &rarr;
+              </span>
+            </div>
+          </Link>
         </div>
       )}
 
