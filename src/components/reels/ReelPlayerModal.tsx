@@ -12,16 +12,12 @@ import {
   Bookmark,
   MoreHorizontal,
   BadgeCheck,
-  Plus,
   Music2,
-  Download,
   ExternalLink,
   Sparkles,
   Copy,
   Trash2,
   FolderPlus,
-  Edit2,
-  Check,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -36,9 +32,7 @@ export function ReelPlayerModal({ reel, isOpen, onClose }: ReelPlayerModalProps)
     toggleFavorite,
     deleteReel,
     updateNote,
-    updateCategory,
     generateAiSummary,
-    smartCategories,
     collections,
     addReelToCollection,
     showToast,
@@ -49,14 +43,12 @@ export function ReelPlayerModal({ reel, isOpen, onClose }: ReelPlayerModalProps)
   const [isCollectionPickerOpen, setIsCollectionPickerOpen] = useState(false);
   const [isEditingNote, setIsEditingNote] = useState(false);
   const [noteContent, setNoteContent] = useState(reel?.notes || "");
-  const [downloadState, setDownloadState] = useState<"idle" | "processing">("idle");
   const [likedComments, setLikedComments] = useState<Record<number, boolean>>({});
 
   if (!isOpen || !reel) return null;
 
   const shortcodeMatch = reel.instagramUrl.match(/(?:reel|p)\/([A-Za-z0-9_-]+)/);
   const shortcode = shortcodeMatch ? shortcodeMatch[1] : reel.id.replace(/^reel-/, "");
-  const creatorName = reel.creatorFullName || reel.creatorUsername || `creator_${shortcode?.substring(0, 5)}`;
   const creatorHandle = reel.creatorUsername || "instagram_user";
 
   const handleCopyLink = () => {
@@ -71,24 +63,14 @@ export function ReelPlayerModal({ reel, isOpen, onClose }: ReelPlayerModalProps)
     showToast("Personal note saved");
   };
 
-  const handleDownload = () => {
-    setDownloadState("processing");
-    const downloadUrl = `/api/download?shortcode=${shortcode}&reelUrl=${encodeURIComponent(reel.instagramUrl)}`;
-    const a = document.createElement("a");
-    a.href = downloadUrl;
-    a.download = `reel_${shortcode}.mp4`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    setTimeout(() => {
-      setDownloadState("idle");
-      showToast("Download started");
-    }, 1200);
-  };
-
   const toggleCommentLike = (index: number) => {
     setLikedComments((prev) => ({ ...prev, [index]: !prev[index] }));
   };
+
+  // Clean likes display string
+  const cleanLikes = reel.likes
+    ? reel.likes.replace(/likes/gi, "").trim()
+    : "17K";
 
   // Mock comments stream matching Instagram post layout
   const mockComments = [
@@ -129,11 +111,11 @@ export function ReelPlayerModal({ reel, isOpen, onClose }: ReelPlayerModalProps)
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 md:p-6 bg-black/80 backdrop-blur-md">
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 md:p-6 bg-black/85 backdrop-blur-md">
         {/* Backdrop Close */}
         <div className="absolute inset-0" onClick={onClose} />
 
-        {/* Modal Window: Split Instagram Post Layout */}
+        {/* Modal Window: Unified Pure Dark Split Instagram Layout */}
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -141,27 +123,27 @@ export function ReelPlayerModal({ reel, isOpen, onClose }: ReelPlayerModalProps)
           transition={{ duration: 0.2 }}
           className="relative w-full max-w-5xl h-[92vh] max-h-[750px] bg-black text-white rounded-xl overflow-hidden shadow-2xl border border-zinc-800 flex flex-col md:flex-row z-10"
         >
-          {/* Close Button on Mobile / Floating */}
+          {/* Close Button on Mobile */}
           <button
             onClick={onClose}
-            className="absolute top-3 right-3 md:hidden z-30 p-1.5 rounded-full bg-black/70 text-white hover:bg-black transition-colors"
+            className="absolute top-3 right-3 md:hidden z-30 p-1.5 rounded-full bg-black/80 text-white hover:bg-black transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
 
-          {/* LEFT COLUMN: 9:16 Vertical Video Player */}
+          {/* LEFT COLUMN: Pure Dark 9:16 Vertical Video Player */}
           <div className="w-full md:w-[48%] lg:w-[50%] h-[42vh] md:h-full bg-black flex items-center justify-center relative overflow-hidden border-b md:border-b-0 md:border-r border-zinc-800 shrink-0">
             <ReelPlayer
               reel={reel}
               autoPlay={true}
-              className="w-full h-full rounded-none border-0 shadow-none"
+              className="w-full h-full rounded-none border-0 shadow-none bg-black"
             />
           </div>
 
-          {/* RIGHT COLUMN: Instagram Post Social & Management Sidebar */}
-          <div className="w-full md:w-[52%] lg:w-[50%] h-[50vh] md:h-full flex flex-col bg-zinc-950 text-zinc-100 min-w-0">
+          {/* RIGHT COLUMN: Pure Dark Instagram Post Social & Management Sidebar */}
+          <div className="w-full md:w-[52%] lg:w-[50%] h-[50vh] md:h-full flex flex-col bg-black text-zinc-100 min-w-0 border-l border-zinc-800/60">
             {/* 1. TOP CREATOR HEADER */}
-            <div className="p-3.5 px-4 flex items-center justify-between border-b border-zinc-800/80 shrink-0">
+            <div className="p-3.5 px-4 flex items-center justify-between border-b border-zinc-800/80 shrink-0 bg-black">
               <div className="flex items-center space-x-3 min-w-0">
                 {/* Creator Avatar with Instagram gradient border ring */}
                 <div className="relative p-0.5 rounded-full bg-gradient-to-tr from-yellow-500 via-pink-500 to-purple-600 shrink-0">
@@ -175,7 +157,7 @@ export function ReelPlayerModal({ reel, isOpen, onClose }: ReelPlayerModalProps)
                     href={reel.creatorProfileUrl || `https://instagram.com/${creatorHandle}`}
                     target="_blank"
                     rel="noreferrer"
-                    className="text-xs font-bold hover:opacity-80 truncate"
+                    className="text-xs font-bold hover:opacity-80 truncate text-white"
                   >
                     {creatorHandle}
                   </a>
@@ -214,13 +196,6 @@ export function ReelPlayerModal({ reel, isOpen, onClose }: ReelPlayerModalProps)
                         <span>Copy Link</span>
                       </button>
                       <button
-                        onClick={handleDownload}
-                        className="w-full px-3 py-2 text-left text-zinc-200 hover:bg-zinc-800 flex items-center space-x-2"
-                      >
-                        <Download className="w-3.5 h-3.5" />
-                        <span>Download MP4</span>
-                      </button>
-                      <button
                         onClick={() => {
                           setIsCollectionPickerOpen(true);
                           setIsMenuOpen(false);
@@ -248,7 +223,7 @@ export function ReelPlayerModal({ reel, isOpen, onClose }: ReelPlayerModalProps)
                         className="w-full px-3 py-2 text-left text-red-400 hover:bg-red-500/10 flex items-center space-x-2"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
-                        <span>Delete from ReelDash</span>
+                        <span>Delete Reel</span>
                       </button>
                     </div>
                   )}
@@ -265,7 +240,7 @@ export function ReelPlayerModal({ reel, isOpen, onClose }: ReelPlayerModalProps)
             </div>
 
             {/* 2. MIDDLE SCROLLABLE FEED: Caption, Comments, AI Summary, Notes */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4 text-xs font-normal leading-relaxed custom-scrollbar">
+            <div className="flex-1 overflow-y-auto p-4 space-y-4 text-xs font-normal leading-relaxed custom-scrollbar bg-black">
               {/* Creator Caption Post */}
               <div className="flex items-start space-x-3">
                 <div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center font-bold text-xs text-white shrink-0 mt-0.5">
@@ -273,7 +248,7 @@ export function ReelPlayerModal({ reel, isOpen, onClose }: ReelPlayerModalProps)
                 </div>
                 <div className="flex-1 space-y-1.5 min-w-0">
                   <div className="flex items-center space-x-1.5">
-                    <span className="font-bold text-xs">{creatorHandle}</span>
+                    <span className="font-bold text-xs text-white">{creatorHandle}</span>
                     <BadgeCheck className="w-3 h-3 fill-[#0095F6] text-white shrink-0" />
                     <span className="text-zinc-500 text-[11px]">8h</span>
                   </div>
@@ -325,7 +300,7 @@ export function ReelPlayerModal({ reel, isOpen, onClose }: ReelPlayerModalProps)
               </div>
 
               {/* AI Key Insights Card */}
-              <div className="p-3 bg-zinc-900/90 border border-zinc-800 rounded-lg space-y-2">
+              <div className="p-3 bg-zinc-900/80 border border-zinc-800/80 rounded-lg space-y-2">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-1.5 text-brand-400 font-semibold text-[11px]">
                     <Sparkles className="w-3.5 h-3.5" />
@@ -343,8 +318,8 @@ export function ReelPlayerModal({ reel, isOpen, onClose }: ReelPlayerModalProps)
                 </p>
               </div>
 
-              {/* Personal Notes & Category Management */}
-              <div className="p-3 bg-zinc-900/50 border border-zinc-800 rounded-lg space-y-2">
+              {/* Personal Notes */}
+              <div className="p-3 bg-zinc-900/40 border border-zinc-800/80 rounded-lg space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">
                     My Notes
@@ -382,7 +357,7 @@ export function ReelPlayerModal({ reel, isOpen, onClose }: ReelPlayerModalProps)
             </div>
 
             {/* 3. BOTTOM ENGAGEMENT & ACTIONS BAR */}
-            <div className="p-3.5 px-4 border-t border-zinc-800 bg-zinc-950 shrink-0 space-y-2">
+            <div className="p-3.5 px-4 border-t border-zinc-800/80 bg-black shrink-0 space-y-2">
               {/* Row 1: Action Icons (Like, Comment, Share, Bookmark) */}
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-4">
@@ -423,42 +398,35 @@ export function ReelPlayerModal({ reel, isOpen, onClose }: ReelPlayerModalProps)
                 {/* Bookmark / Collection Button */}
                 <button
                   onClick={() => setIsCollectionPickerOpen(!isCollectionPickerOpen)}
-                  className="text-zinc-200 hover:text-white transition-transform hover:scale-110 cursor-pointer"
+                  className={`transition-transform hover:scale-110 cursor-pointer ${
+                    reel.isFavorite ? "text-brand-500" : "text-zinc-200 hover:text-white"
+                  }`}
                   title="Add to Collection"
                 >
-                  <Bookmark className="w-5 h-5" />
+                  <Bookmark className={`w-5 h-5 ${reel.isFavorite ? "fill-brand-500" : ""}`} />
                 </button>
               </div>
 
               {/* Row 2: Metrics and Date */}
               <div className="space-y-0.5">
                 <p className="text-xs font-bold text-white">
-                  {reel.likes || "9.4K"} likes
+                  {cleanLikes} likes
                 </p>
                 <p className="text-[10px] text-zinc-500 uppercase tracking-wide">
                   8 hours ago
                 </p>
               </div>
 
-              {/* Row 3: Action Buttons */}
-              <div className="pt-2 flex items-center space-x-2">
-                <button
-                  onClick={handleDownload}
-                  disabled={downloadState === "processing"}
-                  className="flex-1 py-1.5 px-3 bg-brand-500 hover:bg-brand-600 text-white rounded-md text-xs font-semibold flex items-center justify-center space-x-1.5 shadow-sm transition-colors cursor-pointer"
-                >
-                  <Download className="w-3.5 h-3.5" />
-                  <span>{downloadState === "processing" ? "Processing..." : "Download MP4"}</span>
-                </button>
-
+              {/* Row 3: Open on Instagram Button */}
+              <div className="pt-1.5 flex items-center">
                 <a
                   href={reel.instagramUrl}
                   target="_blank"
                   rel="noreferrer"
-                  className="py-1.5 px-3 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 rounded-md text-xs font-medium flex items-center space-x-1 transition-colors"
+                  className="w-full py-2 px-3 bg-zinc-900 hover:bg-zinc-800 text-zinc-200 rounded-md text-xs font-medium flex items-center justify-center space-x-1.5 border border-zinc-800 transition-colors"
                 >
-                  <span>Instagram</span>
-                  <ExternalLink className="w-3 h-3" />
+                  <span>Open on Instagram</span>
+                  <ExternalLink className="w-3.5 h-3.5" />
                 </a>
               </div>
             </div>

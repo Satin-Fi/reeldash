@@ -488,31 +488,22 @@ export default function ReelDetailPage() {
             {/* Row 2: Metrics and Date */}
             <div className="space-y-0.5">
               <p className="text-xs font-bold text-white">
-                {reel.likes || "9.4K"} likes
+                {reel.likes ? reel.likes.replace(/likes/gi, "").trim() : "17K"} likes
               </p>
               <p className="text-[10px] text-zinc-500 uppercase tracking-wide">
                 8 hours ago
               </p>
             </div>
 
-            {/* Row 3: Action Buttons */}
-            <div className="pt-2 flex items-center space-x-2">
-              <button
-                onClick={handleDownload}
-                disabled={downloadState === "processing"}
-                className="flex-1 py-2 px-3 bg-brand-500 hover:bg-brand-600 text-white rounded-md text-xs font-semibold flex items-center justify-center space-x-1.5 shadow-sm transition-colors cursor-pointer"
-              >
-                <Download className="w-3.5 h-3.5" />
-                <span>{downloadState === "processing" ? "Processing..." : "Download MP4"}</span>
-              </button>
-
+            {/* Row 3: Open on Instagram Button */}
+            <div className="pt-2 flex items-center">
               <a
                 href={reel.instagramUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="py-2 px-4 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 rounded-md text-xs font-medium flex items-center space-x-1.5 transition-colors"
+                className="w-full py-2 px-4 bg-zinc-900 hover:bg-zinc-800 text-zinc-200 rounded-md text-xs font-medium flex items-center justify-center space-x-1.5 border border-zinc-800 transition-colors"
               >
-                <span>Instagram</span>
+                <span>Open on Instagram</span>
                 <ExternalLink className="w-3.5 h-3.5" />
               </a>
             </div>

@@ -2,17 +2,7 @@
 
 import React, { useState, useRef } from "react";
 import { Reel } from "@/types/reel";
-import {
-  Play,
-  Loader2,
-  ExternalLink,
-  Image as ImageIcon,
-  Volume2,
-  VolumeX,
-  Maximize2,
-  RotateCcw,
-  Sparkles,
-} from "lucide-react";
+import { Play, Loader2, Volume2, VolumeX, Maximize2 } from "lucide-react";
 
 export type PlaybackStatus = "idle" | "playing" | "loading";
 
@@ -84,15 +74,9 @@ export function ReelPlayer({
       // Continue to iframe fallback
     }
 
-    // 3. Seamlessly fallback to Instagram Embed Player (authorized by user)
+    // 3. Seamlessly fallback to clean dark iframe
     setUseIframe(true);
     setStatus("playing");
-  };
-
-  const handleResetToCover = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setStatus("idle");
-    setUseIframe(false);
   };
 
   const toggleMute = (e: React.MouseEvent) => {
@@ -114,17 +98,17 @@ export function ReelPlayer({
 
   return (
     <div
-      className={`relative aspect-reel w-full rounded-rd-card overflow-hidden bg-black border border-borderSubtle-light dark:border-borderSubtle-dark shadow-2xl group select-none ${className}`}
+      className={`relative aspect-reel w-full overflow-hidden bg-black select-none ${className}`}
     >
-      {/* 1. PLAYING STATE: Native HTML5 Video OR Instagram Embed Iframe */}
+      {/* 1. PLAYING STATE: Seamless Dark Video Player */}
       {status === "playing" && (
-        <div className="relative w-full h-full bg-black flex items-center justify-center">
+        <div className="relative w-full h-full bg-black flex items-center justify-center overflow-hidden">
           {useIframe || !playbackUrl ? (
-            /* Instagram Embedded Iframe Player */
+            /* Instagram Embedded Player - Cropped cleanly to remove light header/footer bars */
             <div className="relative w-full h-full bg-black overflow-hidden flex items-center justify-center">
               <iframe
                 src={`https://www.instagram.com/reel/${shortcode}/embed/`}
-                className="w-full h-full border-0 bg-black scale-[1.02]"
+                className="w-full h-[calc(100%+96px)] -mt-[48px] border-0 bg-black"
                 allowFullScreen
                 scrolling="no"
                 allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
@@ -133,7 +117,7 @@ export function ReelPlayer({
             </div>
           ) : (
             /* Native HTML5 9:16 Video Player */
-            <div className="relative w-full h-full">
+            <div className="relative w-full h-full bg-black">
               <video
                 ref={videoRef}
                 src={playbackUrl}
@@ -150,14 +134,14 @@ export function ReelPlayer({
               <div className="absolute bottom-4 right-4 flex items-center space-x-2 z-20">
                 <button
                   onClick={toggleMute}
-                  className="w-8 h-8 rounded-full bg-black/60 hover:bg-black/80 text-white flex items-center justify-center backdrop-blur-md transition-transform hover:scale-105 cursor-pointer"
+                  className="w-8 h-8 rounded-full bg-black/70 hover:bg-black text-white flex items-center justify-center backdrop-blur-md transition-transform hover:scale-105 cursor-pointer"
                   title={isMuted ? "Unmute" : "Mute"}
                 >
                   {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
                 </button>
                 <button
                   onClick={handleFullscreen}
-                  className="w-8 h-8 rounded-full bg-black/60 hover:bg-black/80 text-white flex items-center justify-center backdrop-blur-md transition-transform hover:scale-105 cursor-pointer"
+                  className="w-8 h-8 rounded-full bg-black/70 hover:bg-black text-white flex items-center justify-center backdrop-blur-md transition-transform hover:scale-105 cursor-pointer"
                   title="Fullscreen"
                 >
                   <Maximize2 className="w-4 h-4" />
@@ -165,37 +149,25 @@ export function ReelPlayer({
               </div>
             </div>
           )}
-
-          {/* Top Control Bar: Cover switch & Instagram Link */}
-          <div className="absolute top-3 right-3 flex items-center space-x-1.5 z-20">
-            <button
-              onClick={handleResetToCover}
-              title="Show Cover Photo"
-              className="px-2.5 py-1 bg-black/70 hover:bg-black/90 text-white rounded-rd-sm text-[11px] font-medium backdrop-blur-md flex items-center space-x-1 transition-colors cursor-pointer shadow-md"
-            >
-              <ImageIcon className="w-3.5 h-3.5" />
-              <span>Cover</span>
-            </button>
-          </div>
         </div>
       )}
 
       {/* 2. LOADING STATE */}
       {status === "loading" && (
-        <div className="relative w-full h-full">
+        <div className="relative w-full h-full bg-black">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={coverImageSrc}
             alt={reel.caption || "Reel preview"}
             referrerPolicy="no-referrer"
             onError={() => setImageError(true)}
-            className="w-full h-full object-cover filter blur-sm brightness-50"
+            className="w-full h-full object-cover filter blur-sm brightness-40"
           />
           <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center text-white space-y-3 z-10">
             <Loader2 className="w-9 h-9 animate-spin text-brand-500" />
             <div className="space-y-1">
               <p className="text-xs font-semibold tracking-wide">Starting playback…</p>
-              <p className="text-[11px] text-zinc-400">Loading Reel player</p>
+              <p className="text-[11px] text-zinc-400">Loading Reel</p>
             </div>
           </div>
         </div>
@@ -204,7 +176,7 @@ export function ReelPlayer({
       {/* 3. IDLE / COVER PHOTO STATE */}
       {status === "idle" && (
         <div
-          className="relative w-full h-full cursor-pointer group"
+          className="relative w-full h-full cursor-pointer group bg-black"
           onClick={handlePlayClick}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -221,7 +193,7 @@ export function ReelPlayer({
           <button
             type="button"
             aria-label="Play Reel"
-            className="absolute inset-0 m-auto w-16 h-16 rounded-full bg-brand-500 text-white flex items-center justify-center shadow-rd-modal hover:scale-110 active:scale-95 transition-all cursor-pointer z-10"
+            className="absolute inset-0 m-auto w-16 h-16 rounded-full bg-brand-500 text-white flex items-center justify-center shadow-2xl hover:scale-110 active:scale-95 transition-all cursor-pointer z-10"
           >
             <Play className="w-7 h-7 fill-white ml-1" />
           </button>
