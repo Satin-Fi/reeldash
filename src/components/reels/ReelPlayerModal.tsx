@@ -161,7 +161,6 @@ export function ReelPlayerModal({ reel, isOpen, onClose }: ReelPlayerModalProps)
                   >
                     {creatorHandle}
                   </a>
-                  <BadgeCheck className="w-3.5 h-3.5 fill-[#0095F6] text-white shrink-0" />
                   <span className="text-zinc-500 text-xs">•</span>
                   <a
                     href={reel.creatorProfileUrl || `https://instagram.com/${creatorHandle}`}
@@ -249,7 +248,6 @@ export function ReelPlayerModal({ reel, isOpen, onClose }: ReelPlayerModalProps)
                 <div className="flex-1 space-y-1.5 min-w-0">
                   <div className="flex items-center space-x-1.5">
                     <span className="font-bold text-xs text-white">{creatorHandle}</span>
-                    <BadgeCheck className="w-3 h-3 fill-[#0095F6] text-white shrink-0" />
                     <span className="text-zinc-500 text-[11px]">8h</span>
                   </div>
 

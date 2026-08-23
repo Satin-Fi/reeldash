@@ -228,12 +228,15 @@ export function CommandPalette() {
                   <div className="p-3 mx-1 bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark rounded-rd-md border border-borderSubtle-light dark:border-borderSubtle-dark space-y-2.5 mt-1">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-3 min-w-0">
-                        {/* Avatar */}
+                        {/* Avatar with Gradient Ring */}
                         <div className="relative p-0.5 rounded-full bg-gradient-to-tr from-yellow-500 via-pink-500 to-purple-600 shrink-0">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img
                             src={searchedAccount.avatarUrl}
                             alt={searchedAccount.username}
+                            onError={(e) => {
+                              (e.target as HTMLElement).style.display = "none";
+                            }}
                             className="w-9 h-9 rounded-full object-cover bg-zinc-800"
                           />
                         </div>
@@ -243,7 +246,9 @@ export function CommandPalette() {
                             <span className="text-xs font-bold text-primaryText-light dark:text-primaryText-dark truncate">
                               @{searchedAccount.username}
                             </span>
-                            <BadgeCheck className="w-3.5 h-3.5 fill-[#0095F6] text-white shrink-0" />
+                            {searchedAccount.isVerified && (
+                              <BadgeCheck className="w-3.5 h-3.5 fill-[#0095F6] text-white shrink-0" />
+                            )}
                           </div>
                           <p className="text-[11px] text-secondaryText-light dark:text-secondaryText-dark truncate">
                             {searchedAccount.displayName}
