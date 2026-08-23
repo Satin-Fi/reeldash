@@ -188,7 +188,9 @@ export default function CreatorProfilePage() {
                 <h1 className="text-xl md:text-2xl font-bold tracking-tight text-primaryText-light dark:text-primaryText-dark truncate">
                   @{username}
                 </h1>
-                <BadgeCheck className="w-5 h-5 fill-[#0095F6] text-white shrink-0" />
+                {account?.isVerified && (
+                  <BadgeCheck className="w-5 h-5 fill-[#0095F6] text-white shrink-0" />
+                )}
               </div>
 
               <p className="text-sm font-medium text-secondaryText-light dark:text-secondaryText-dark">

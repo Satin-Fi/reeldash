@@ -236,7 +236,9 @@ export default function SearchPage() {
                   <span className="text-sm font-bold text-primaryText-light dark:text-primaryText-dark group-hover:text-brand-500 transition-colors truncate">
                     @{searchedAccount.username}
                   </span>
-                  <BadgeCheck className="w-4 h-4 fill-[#0095F6] text-white shrink-0" />
+                  {searchedAccount.isVerified && (
+                    <BadgeCheck className="w-4 h-4 fill-[#0095F6] text-white shrink-0" />
+                  )}
                 </div>
 
                 <p className="text-xs font-medium text-secondaryText-light dark:text-secondaryText-dark truncate">
