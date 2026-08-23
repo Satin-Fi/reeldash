@@ -10,10 +10,31 @@ const mediaCache = new Map<string, { cdnUrl: string; proxyUrl: string; expiresAt
  * Pure JS extraction strategies (works without Python on Vercel Serverless)
  */
 async function resolveViaPureJs(shortcode: string): Promise<string | null> {
+  const metaToken =
+    process.env.INSTAGRAM_ACCESS_TOKEN ||
+    process.env.GRAPH_API_TOKEN ||
+    process.env.META_ACCESS_TOKEN;
   const sessionId = process.env.INSTAGRAM_SESSION_ID;
   const rapidApiKey = process.env.RAPIDAPI_KEY;
 
-  // Strategy A: Instagram GraphQL with configured Session/Cookie
+  // Strategy 1: Official Meta Graph API with Access Token
+  if (metaToken) {
+    try {
+      const graphRes = await fetch(
+        `https://graph.instagram.com/v19.0/${shortcode}?fields=id,media_type,media_url,thumbnail_url,caption&access_token=${metaToken}`
+      );
+      if (graphRes.ok) {
+        const graphData = await graphRes.json();
+        if (graphData?.media_url && graphData.media_url.startsWith("http")) {
+          return graphData.media_url;
+        }
+      }
+    } catch (graphErr) {
+      console.warn("[Meta Graph API Resolution] notice:", graphErr);
+    }
+  }
+
+  // Strategy 2: Instagram GraphQL with configured Session/Cookie
   try {
     const headers: HeadersInit = {
       "User-Agent":
@@ -44,7 +65,7 @@ async function resolveViaPureJs(shortcode: string): Promise<string | null> {
     // Continue to next strategy
   }
 
-  // Strategy B: RapidAPI Instagram Downloader if configured
+  // Strategy 3: RapidAPI Instagram Downloader if configured
   if (rapidApiKey) {
     try {
       const rapidRes = await fetch(
@@ -68,7 +89,7 @@ async function resolveViaPureJs(shortcode: string): Promise<string | null> {
     }
   }
 
-  // Strategy C: Public Worker / FastDL
+  // Strategy 4: FastDL parser API
   try {
     const fastdlRes = await fetch("https://fastdl.app/c/", {
       method: "POST",
@@ -128,7 +149,7 @@ export async function GET(
     if (cached && Date.now() < cached.expiresAt) {
       return NextResponse.json({
         status: "available",
-        playbackUrl: cached.proxyUrl,
+        playbackUrl: cached.cdnUrl,
         directCdnUrl: cached.cdnUrl,
         expiresAt: cached.expiresAt,
         isTemporary: true,
@@ -190,7 +211,7 @@ export async function GET(
 
     return NextResponse.json({
       status: "available",
-      playbackUrl: proxyUrl,
+      playbackUrl: directCdnMp4Url,
       directCdnUrl: directCdnMp4Url,
       expiresAt,
       isTemporary: true,

@@ -36,10 +36,31 @@ function decodeEntities(str: string): string {
 }
 
 async function resolveDirectVideoUrl(shortcode: string): Promise<string | null> {
+  const metaToken =
+    process.env.INSTAGRAM_ACCESS_TOKEN ||
+    process.env.GRAPH_API_TOKEN ||
+    process.env.META_ACCESS_TOKEN;
   const sessionId = process.env.INSTAGRAM_SESSION_ID;
   const rapidApiKey = process.env.RAPIDAPI_KEY;
 
-  // 1. GraphQL with Session if available
+  // 1. Official Meta Graph API
+  if (metaToken) {
+    try {
+      const graphRes = await fetch(
+        `https://graph.instagram.com/v19.0/${shortcode}?fields=id,media_type,media_url,thumbnail_url,caption&access_token=${metaToken}`
+      );
+      if (graphRes.ok) {
+        const graphData = await graphRes.json();
+        if (graphData?.media_url && graphData.media_url.startsWith("http")) {
+          return graphData.media_url;
+        }
+      }
+    } catch (e) {
+      // Continue
+    }
+  }
+
+  // 2. GraphQL with Session if available
   try {
     const headers: HeadersInit = {
       "User-Agent":
@@ -66,7 +87,7 @@ async function resolveDirectVideoUrl(shortcode: string): Promise<string | null> 
     // Continue
   }
 
-  // 2. RapidAPI Scraper if available
+  // 3. RapidAPI Scraper if available
   if (rapidApiKey) {
     try {
       const res = await fetch(
@@ -88,7 +109,7 @@ async function resolveDirectVideoUrl(shortcode: string): Promise<string | null> 
     }
   }
 
-  // 3. FastDL parser API
+  // 4. FastDL parser API
   try {
     const fastdlRes = await fetch("https://fastdl.app/c/", {
       method: "POST",
@@ -114,7 +135,7 @@ async function resolveDirectVideoUrl(shortcode: string): Promise<string | null> 
     // Continue
   }
 
-  // 4. yt-dlp execution
+  // 5. yt-dlp execution
   try {
     const ytdlPromise = youtubedl(`https://www.instagram.com/reel/${shortcode}/`, {
       dumpSingleJson: true,
@@ -325,8 +346,6 @@ export async function POST(req: NextRequest) {
       category = "Productivity";
     }
 
-    const embedUrl = shortcode ? `https://www.instagram.com/p/${shortcode}/embed/` : null;
-
     return NextResponse.json({
       shortcode,
       creatorUsername,
@@ -337,7 +356,6 @@ export async function POST(req: NextRequest) {
       commentsCount,
       thumbnailUrl: thumbnailUrl || `/api/proxy-image?shortcode=${shortcode}`,
       mediaUrl,
-      embedUrl,
       category,
     });
   } catch (error) {
