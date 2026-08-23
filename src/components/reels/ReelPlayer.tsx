@@ -104,11 +104,11 @@ export function ReelPlayer({
       {status === "playing" && (
         <div className="relative w-full h-full bg-black flex items-center justify-center overflow-hidden">
           {useIframe || !playbackUrl ? (
-            /* Instagram Embedded Player - Cropped cleanly to remove light header/footer bars */
+            /* Instagram Embedded Player - Cropped cleanly to completely eliminate top and bottom white bars */
             <div className="relative w-full h-full bg-black overflow-hidden flex items-center justify-center">
               <iframe
                 src={`https://www.instagram.com/reel/${shortcode}/embed/`}
-                className="w-full h-[calc(100%+96px)] -mt-[48px] border-0 bg-black"
+                className="w-full h-[calc(100%+230px)] -mt-[54px] -mb-[176px] border-0 bg-black scale-[1.01]"
                 allowFullScreen
                 scrolling="no"
                 allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
