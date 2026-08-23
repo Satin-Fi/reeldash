@@ -4,7 +4,6 @@ import React, { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useReels } from "@/context/ReelContext";
 import { ReelPlayer } from "@/components/reels/ReelPlayer";
-import Link from "next/link";
 import {
   ArrowLeft,
   Heart,
@@ -15,11 +14,16 @@ import {
   Edit2,
   Download,
   Loader2,
-  Clock,
   Instagram,
   MessageCircle,
   ThumbsUp,
   RefreshCw,
+  BadgeCheck,
+  Music2,
+  Bookmark,
+  Send,
+  MoreHorizontal,
+  FolderPlus,
 } from "lucide-react";
 
 export default function ReelDetailPage() {
@@ -37,6 +41,7 @@ export default function ReelDetailPage() {
     refreshReelMetadata,
     smartCategories,
     collections,
+    addReelToCollection,
     showToast,
   } = useReels();
 
@@ -45,9 +50,11 @@ export default function ReelDetailPage() {
   const [isEditingNote, setIsEditingNote] = useState(false);
   const [noteContent, setNoteContent] = useState(reel?.notes || "");
   const [isEditingCategory, setIsEditingCategory] = useState(false);
-  const [isExpandedCaption, setIsExpandedCaption] = useState(false);
-  const [downloadState, setDownloadState] = useState<"idle" | "processing" | "ready">("idle");
+  const [isCollectionPickerOpen, setIsCollectionPickerOpen] = useState(false);
+  const [isLiked, setIsLiked] = useState(false);
+  const [downloadState, setDownloadState] = useState<"idle" | "processing">("idle");
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [likedComments, setLikedComments] = useState<Record<number, boolean>>({});
 
   if (!reel) {
     return (
@@ -69,38 +76,81 @@ export default function ReelDetailPage() {
   const handleSaveNote = () => {
     updateNote(reel.id, noteContent);
     setIsEditingNote(false);
+    showToast("Personal note saved");
   };
 
   const handleCopyLink = () => {
     navigator.clipboard.writeText(reel.instagramUrl);
-    showToast("Link copied to clipboard");
+    showToast("Reel link copied to clipboard");
   };
 
-  const handleRequestDownload = () => {
+  const handleDownload = () => {
     setDownloadState("processing");
+    const match = reel.instagramUrl.match(/(?:reel|p)\/([A-Za-z0-9_-]+)/);
+    const shortcode = match ? match[1] : reel.id.replace(/^reel-/, "");
+    const downloadUrl = `/api/download?shortcode=${shortcode}&reelUrl=${encodeURIComponent(reel.instagramUrl)}`;
+    const a = document.createElement("a");
+    a.href = downloadUrl;
+    a.download = `reel_${shortcode}.mp4`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
     setTimeout(() => {
-      setDownloadState("ready");
-      showToast("Download ready — Click button to download MP4");
-    }, 1500);
+      setDownloadState("idle");
+      showToast("Download started");
+    }, 1200);
   };
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
     await refreshReelMetadata(reel.id);
     setIsRefreshing(false);
+    showToast("Metadata refreshed from Instagram");
   };
 
-  const match = reel.instagramUrl.match(/(?:reel|p)\/([A-Za-z0-9_-]+)/);
-  const shortcode = match ? match[1] : null;
+  const shortcodeMatch = reel.instagramUrl.match(/(?:reel|p)\/([A-Za-z0-9_-]+)/);
+  const shortcode = shortcodeMatch ? shortcodeMatch[1] : reel.id.replace(/^reel-/, "");
+  const creatorHandle = reel.creatorUsername || "creator";
 
-  const downloadApiUrl = `/api/download?shortcode=${shortcode || ""}&reelUrl=${encodeURIComponent(reel.instagramUrl)}`;
+  // Mock comments stream matching Instagram post layout
+  const mockComments = [
+    {
+      username: "official_priyanka8797",
+      time: "43s",
+      text: "Beautiful ❤️✨",
+      likes: 12,
+    },
+    {
+      username: "alex_dance_vibe",
+      time: "46s",
+      text: "🧿 🧿 🧿 🧿 🧿 Such clean moves!",
+      likes: 8,
+    },
+    {
+      username: "creative_studio_in",
+      time: "1m",
+      text: "The lighting and choreography are on point 🔥",
+      likes: 5,
+    },
+  ];
 
-  const creatorTitle = reel.creatorFullName || reel.creatorUsername;
-  const creatorHandle = reel.creatorUsername;
+  const formatCaption = (text: string) => {
+    const parts = text.split(/(#[a-zA-Z0-9_]+|@[a-zA-Z0-9_.]+)/g);
+    return parts.map((part, i) => {
+      if (part.startsWith("#") || part.startsWith("@")) {
+        return (
+          <span key={i} className="text-[#0095F6] hover:underline cursor-pointer">
+            {part}
+          </span>
+        );
+      }
+      return part;
+    });
+  };
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto">
-      {/* Top Back Navigation & Refresh */}
+    <div className="space-y-4 max-w-6xl mx-auto">
+      {/* Top Back Navigation & Refresh Bar */}
       <div className="flex items-center justify-between">
         <button
           onClick={() => router.back()}
@@ -113,335 +163,359 @@ export default function ReelDetailPage() {
         <button
           onClick={handleRefresh}
           disabled={isRefreshing}
-          className="inline-flex items-center space-x-1.5 px-2.5 py-1 text-xs text-secondaryText-light dark:text-secondaryText-dark hover:text-brand-500 border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-sm transition-colors cursor-pointer"
+          className="inline-flex items-center space-x-1.5 px-3 py-1.5 text-xs text-secondaryText-light dark:text-secondaryText-dark hover:text-brand-500 border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-sm transition-colors cursor-pointer bg-surface-light dark:bg-surface-dark shadow-sm"
         >
           <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? "animate-spin text-brand-500" : ""}`} />
           <span>{isRefreshing ? "Syncing..." : "Refresh from Instagram"}</span>
         </button>
       </div>
 
-      {/* Main Split Layout */}
-      <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-start">
-        {/* Left: Reusable ReelPlayer Component */}
-        <div className="md:col-span-5 flex flex-col items-center space-y-3">
+      {/* Main Split Layout matching Instagram Post/Reel Dialog UI */}
+      <div className="w-full bg-black text-white rounded-xl overflow-hidden shadow-2xl border border-zinc-800 flex flex-col lg:flex-row h-auto lg:h-[750px]">
+        {/* LEFT COLUMN: 9:16 Vertical Video Player (Embed Iframe or HTML5) */}
+        <div className="w-full lg:w-[50%] h-[500px] lg:h-full bg-black flex items-center justify-center relative overflow-hidden border-b lg:border-b-0 lg:border-r border-zinc-800 shrink-0">
           <ReelPlayer
             reel={reel}
-            onOpenOriginal={() => window.open(reel.instagramUrl, "_blank", "noopener,noreferrer")}
+            autoPlay={true}
+            className="w-full h-full rounded-none border-0 shadow-none"
           />
         </div>
 
-        {/* Right: Metadata & Detail Panel */}
-        <div className="md:col-span-7 space-y-6">
-          {/* Creator & Metrics Section */}
-          <div className="p-4 bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-md shadow-rd-subtle space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3 min-w-0">
-                <div className="w-11 h-11 rounded-full bg-brand-500/20 text-brand-500 font-bold text-sm flex items-center justify-center shrink-0">
-                  {creatorTitle[0]?.toUpperCase() || "I"}
-                </div>
-                <div className="min-w-0">
-                  <h3 className="text-sm font-bold text-primaryText-light dark:text-primaryText-dark truncate">
-                    {creatorTitle}
-                  </h3>
-                  <span className="text-xs text-secondaryText-light dark:text-secondaryText-dark">
-                    @{creatorHandle}
-                  </span>
+        {/* RIGHT COLUMN: Instagram Post Social & Management Sidebar */}
+        <div className="w-full lg:w-[50%] h-full flex flex-col bg-zinc-950 text-zinc-100 min-w-0">
+          {/* 1. TOP CREATOR HEADER */}
+          <div className="p-4 flex items-center justify-between border-b border-zinc-800/80 shrink-0">
+            <div className="flex items-center space-x-3 min-w-0">
+              {/* Creator Avatar with Instagram gradient border ring */}
+              <div className="relative p-0.5 rounded-full bg-gradient-to-tr from-yellow-500 via-pink-500 to-purple-600 shrink-0">
+                <div className="w-9 h-9 rounded-full bg-zinc-900 border-2 border-black flex items-center justify-center font-bold text-xs text-white">
+                  {creatorHandle[0]?.toUpperCase()}
                 </div>
               </div>
 
-              <a
-                href={reel.creatorProfileUrl || `https://instagram.com/${creatorHandle}`}
-                target="_blank"
-                rel="noreferrer"
-                className="flex items-center space-x-1.5 px-3 py-1.5 text-xs font-medium border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-sm hover:bg-surfaceSecondary-light dark:hover:bg-surfaceSecondary-dark transition-colors shrink-0"
-              >
-                <span>Instagram Profile</span>
-                <ExternalLink className="w-3.5 h-3.5" />
-              </a>
-            </div>
-
-            {/* Engagement Metrics (Likes & Comments from Instagram) */}
-            {(reel.likes || reel.commentsCount) && (
-              <div className="pt-2 border-t border-borderSubtle-light dark:border-borderSubtle-dark flex items-center space-x-4 text-xs text-secondaryText-light dark:text-secondaryText-dark">
-                {reel.likes && (
-                  <div className="flex items-center space-x-1.5 font-medium">
-                    <ThumbsUp className="w-3.5 h-3.5 text-brand-500" />
-                    <span>{reel.likes}</span>
-                  </div>
-                )}
-                {reel.commentsCount && (
-                  <div className="flex items-center space-x-1.5 font-medium">
-                    <MessageCircle className="w-3.5 h-3.5 text-brand-500" />
-                    <span>{reel.commentsCount}</span>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Caption & Hashtags Section */}
-          <div className="p-4 bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-md shadow-rd-subtle space-y-3">
-            <h4 className="text-xs font-semibold uppercase tracking-wider text-mutedText-light dark:text-mutedText-dark">
-              Caption
-            </h4>
-            <p
-              className={`text-xs text-primaryText-light dark:text-primaryText-dark leading-relaxed whitespace-pre-line ${
-                !isExpandedCaption && reel.caption.length > 200 ? "line-clamp-4" : ""
-              }`}
-            >
-              {reel.caption}
-            </p>
-            {reel.caption.length > 200 && (
-              <button
-                onClick={() => setIsExpandedCaption(!isExpandedCaption)}
-                className="text-[11px] font-medium text-brand-500 hover:underline cursor-pointer"
-              >
-                {isExpandedCaption ? "Show less" : "Show more"}
-              </button>
-            )}
-
-            {/* Hashtags */}
-            {reel.hashtags && reel.hashtags.length > 0 && (
-              <div className="pt-2 border-t border-borderSubtle-light dark:border-borderSubtle-dark flex flex-wrap gap-1.5">
-                {reel.hashtags.map((tag) => (
-                  <span
-                    key={tag}
-                    className="inline-flex items-center space-x-0.5 text-[11px] font-mono text-brand-500 font-medium"
-                  >
-                    <span>{tag}</span>
-                  </span>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* AI Summary Section */}
-          <div className="p-4 bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-md shadow-rd-subtle space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-1.5 text-xs font-semibold text-primaryText-light dark:text-primaryText-dark">
-                <Sparkles className="w-4 h-4 text-brand-500" />
-                <span>AI Summary</span>
-              </div>
-              <button
-                onClick={() => generateAiSummary(reel.id)}
-                className="px-2.5 py-1 text-xs font-medium bg-brand-500/10 hover:bg-brand-500/20 text-brand-500 rounded-rd-sm transition-colors cursor-pointer"
-              >
-                {reel.aiSummary ? "Regenerate" : "Generate summary"}
-              </button>
-            </div>
-            {reel.aiSummary ? (
-              <p className="text-xs text-secondaryText-light dark:text-secondaryText-dark leading-relaxed bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark p-3 rounded-rd-sm">
-                {reel.aiSummary}
-              </p>
-            ) : (
-              <p className="text-xs text-mutedText-light dark:text-mutedText-dark italic">
-                No AI summary generated yet. Click above to extract key takeaways.
-              </p>
-            )}
-          </div>
-
-          {/* Categories & Collections */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="p-4 bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-md shadow-rd-subtle space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-mutedText-light dark:text-mutedText-dark uppercase tracking-wider">
-                  Category
-                </span>
-                <button
-                  onClick={() => setIsEditingCategory(!isEditingCategory)}
-                  className="text-[11px] text-brand-500 hover:underline cursor-pointer"
-                >
-                  {isEditingCategory ? "Done" : "Edit"}
-                </button>
-              </div>
-
-              {isEditingCategory ? (
-                <div className="flex flex-wrap gap-1.5 pt-1">
-                  {smartCategories.map((cat) => (
-                    <button
-                      key={cat.name}
-                      onClick={() => {
-                        updateCategory(reel.id, cat.name);
-                        setIsEditingCategory(false);
-                      }}
-                      className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
-                        reel.category === cat.name
-                          ? "bg-brand-500 text-white"
-                          : "bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark text-secondaryText-light"
-                      }`}
-                    >
-                      {cat.name}
-                    </button>
-                  ))}
-                </div>
-              ) : (
-                <div className="flex flex-wrap gap-1.5">
-                  <span className="px-2.5 py-1 rounded-full bg-brand-500/10 text-brand-500 text-xs font-medium">
-                    {reel.category}
-                  </span>
-                </div>
-              )}
-            </div>
-
-            <div className="p-4 bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-md shadow-rd-subtle space-y-2">
-              <span className="text-xs font-semibold text-mutedText-light dark:text-mutedText-dark uppercase tracking-wider">
-                Collections
-              </span>
-              <div className="flex flex-wrap gap-1.5">
-                {reel.collections.length > 0 ? (
-                  reel.collections.map((colId) => {
-                    const col = collections.find((c) => c.id === colId);
-                    return (
-                      <span
-                        key={colId}
-                        className="px-2.5 py-1 rounded-full bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark text-secondaryText-light text-xs font-medium"
-                      >
-                        {col?.icon || "📁"} {col?.name || "Collection"}
-                      </span>
-                    );
-                  })
-                ) : (
-                  <span className="text-xs text-mutedText-light dark:text-mutedText-dark italic">
-                    Not in any collection
-                  </span>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* TEMPORARY DOWNLOAD PROCESSING */}
-          <div className="p-4 bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-md shadow-rd-subtle space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-1.5 text-xs font-semibold text-primaryText-light dark:text-primaryText-dark">
-                <Download className="w-4 h-4 text-brand-500" />
-                <span>Temporary Download</span>
-              </div>
-            </div>
-
-            {downloadState === "idle" && (
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-secondaryText-light dark:text-secondaryText-dark text-[11px]">
-                  Request a temporary signed MP4 download link (expires in 15 mins).
-                </span>
-                <button
-                  onClick={handleRequestDownload}
-                  className="px-3 py-1.5 bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark border border-borderSubtle-light dark:border-borderSubtle-dark hover:border-brand-500 text-xs font-medium rounded-rd-sm transition-colors cursor-pointer shrink-0"
-                >
-                  Prepare Download
-                </button>
-              </div>
-            )}
-
-            {downloadState === "processing" && (
-              <div className="flex items-center space-x-2 p-3 bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark rounded-rd-sm text-xs text-secondaryText-light">
-                <Loader2 className="w-4 h-4 text-brand-500 animate-spin" />
-                <span>Preparing MP4 video stream...</span>
-              </div>
-            )}
-
-            {downloadState === "ready" && (
-              <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-rd-sm space-y-2 text-xs">
-                <div className="flex items-center justify-between font-semibold text-emerald-600 dark:text-emerald-400">
-                  <span>✓ Signed MP4 ready</span>
-                  <span className="flex items-center space-x-1 text-[10px] font-mono">
-                    <Clock className="w-3 h-3" />
-                    <span>Expires in 15m</span>
-                  </span>
-                </div>
+              <div className="flex items-center space-x-1.5 min-w-0">
                 <a
-                  href={downloadApiUrl}
-                  download={`reel_${shortcode || "video"}.mp4`}
-                  className="inline-flex items-center space-x-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-rd-sm text-xs font-semibold shadow-rd-subtle transition-colors"
+                  href={reel.creatorProfileUrl || `https://instagram.com/${creatorHandle}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-xs font-bold hover:opacity-80 truncate"
                 >
-                  <Download className="w-3.5 h-3.5" />
-                  <span>Download MP4 Video</span>
+                  {creatorHandle}
+                </a>
+                <BadgeCheck className="w-3.5 h-3.5 fill-[#0095F6] text-white shrink-0" />
+                <span className="text-zinc-500 text-xs">•</span>
+                <a
+                  href={reel.creatorProfileUrl || `https://instagram.com/${creatorHandle}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-xs font-semibold text-[#0095F6] hover:text-blue-400 transition-colors shrink-0"
+                >
+                  Follow
                 </a>
               </div>
-            )}
-          </div>
-
-          {/* Personal Notes */}
-          <div className="p-4 bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-md shadow-rd-subtle space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-mutedText-light dark:text-mutedText-dark uppercase tracking-wider">
-                Personal Notes
-              </span>
-              {!isEditingNote && (
-                <button
-                  onClick={() => setIsEditingNote(true)}
-                  className="flex items-center space-x-1 text-[11px] text-brand-500 hover:underline cursor-pointer"
-                >
-                  <Edit2 className="w-3 h-3" />
-                  <span>Edit Note</span>
-                </button>
-              )}
             </div>
 
-            {isEditingNote ? (
-              <div className="space-y-2">
-                <textarea
-                  rows={3}
-                  value={noteContent}
-                  onChange={(e) => setNoteContent(e.target.value)}
-                  placeholder='e.g. "Try this workout on Monday."'
-                  className="w-full p-2.5 bg-background-light dark:bg-background-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-md text-xs text-primaryText-light dark:text-primaryText-dark focus:outline-none focus:border-brand-500 resize-none"
-                />
-                <div className="flex justify-end space-x-2">
+            {/* Actions Menu */}
+            <div className="flex items-center space-x-1">
+              <button
+                onClick={handleCopyLink}
+                className="p-2 text-zinc-400 hover:text-white rounded-full hover:bg-zinc-800 transition-colors cursor-pointer"
+                title="Copy Link"
+              >
+                <Copy className="w-4 h-4" />
+              </button>
+              <a
+                href={reel.instagramUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="p-2 text-zinc-400 hover:text-white rounded-full hover:bg-zinc-800 transition-colors"
+                title="Open on Instagram"
+              >
+                <ExternalLink className="w-4 h-4" />
+              </a>
+              <button
+                onClick={() => {
+                  deleteReel(reel.id);
+                  router.push("/reels");
+                }}
+                className="p-2 text-zinc-400 hover:text-red-400 rounded-full hover:bg-zinc-800 transition-colors cursor-pointer"
+                title="Delete Reel"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+
+          {/* 2. MIDDLE SCROLLABLE FEED: Caption, Comments, AI Summary, Notes, Categories */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-4 text-xs font-normal leading-relaxed custom-scrollbar">
+            {/* Creator Caption Post */}
+            <div className="flex items-start space-x-3">
+              <div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center font-bold text-xs text-white shrink-0 mt-0.5">
+                {creatorHandle[0]?.toUpperCase()}
+              </div>
+              <div className="flex-1 space-y-1.5 min-w-0">
+                <div className="flex items-center space-x-1.5">
+                  <span className="font-bold text-xs">{creatorHandle}</span>
+                  <BadgeCheck className="w-3 h-3 fill-[#0095F6] text-white shrink-0" />
+                  <span className="text-zinc-500 text-[11px]">8h</span>
+                </div>
+
+                <p className="text-xs text-zinc-200 whitespace-pre-line leading-relaxed">
+                  {formatCaption(reel.caption)}
+                </p>
+
+                {/* Audio Tag */}
+                <div className="pt-1.5 flex items-center space-x-1.5 text-[11px] text-zinc-400 hover:text-zinc-200 cursor-pointer">
+                  <Music2 className="w-3 h-3" />
+                  <span>Original Audio • {creatorHandle}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Comments Thread Section */}
+            <div className="pt-2 border-t border-zinc-800/60 space-y-3.5">
+              {mockComments.map((c, idx) => (
+                <div key={idx} className="flex items-start space-x-3 group">
+                  <div className="w-7 h-7 rounded-full bg-zinc-800 text-zinc-300 font-semibold text-[10px] flex items-center justify-center shrink-0 mt-0.5">
+                    {c.username[0]?.toUpperCase()}
+                  </div>
+                  <div className="flex-1 space-y-1 min-w-0">
+                    <p className="text-xs text-zinc-200">
+                      <span className="font-semibold mr-1.5 text-white">{c.username}</span>
+                      {c.text}
+                    </p>
+                    <div className="flex items-center space-x-3 text-[10px] text-zinc-500 font-medium">
+                      <span>{c.time}</span>
+                      <span className="hover:text-zinc-300 cursor-pointer">
+                        {c.likes + (likedComments[idx] ? 1 : 0)} likes
+                      </span>
+                      <span className="hover:text-zinc-300 cursor-pointer">Reply</span>
+                    </div>
+                  </div>
                   <button
-                    onClick={() => setIsEditingNote(false)}
-                    className="px-3 py-1 text-xs text-secondaryText-light"
+                    onClick={() =>
+                      setLikedComments((prev) => ({ ...prev, [idx]: !prev[idx] }))
+                    }
+                    className={`p-1 transition-colors cursor-pointer shrink-0 ${
+                      likedComments[idx] ? "text-red-500" : "text-zinc-600 hover:text-zinc-400"
+                    }`}
                   >
-                    Cancel
+                    <Heart
+                      className={`w-3 h-3 ${likedComments[idx] ? "fill-red-500" : ""}`}
+                    />
                   </button>
+                </div>
+              ))}
+            </div>
+
+            {/* AI Key Insights Card */}
+            <div className="p-3.5 bg-zinc-900/90 border border-zinc-800 rounded-lg space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-1.5 text-brand-400 font-semibold text-[11px]">
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>AI Key Takeaways</span>
+                </div>
+                <button
+                  onClick={() => generateAiSummary(reel.id)}
+                  className="text-[10px] text-zinc-400 hover:text-brand-400 cursor-pointer"
+                >
+                  {reel.aiSummary ? "Regenerate" : "Extract"}
+                </button>
+              </div>
+              <p className="text-xs text-zinc-300 leading-relaxed">
+                {reel.aiSummary || "Click extract to summarize key insights, workout steps, or recipe notes."}
+              </p>
+            </div>
+
+            {/* Category & Collection Tagging */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="p-3 bg-zinc-900/50 border border-zinc-800 rounded-lg space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">
+                    Category
+                  </span>
+                  <button
+                    onClick={() => setIsEditingCategory(!isEditingCategory)}
+                    className="text-[10px] text-brand-400 hover:underline cursor-pointer"
+                  >
+                    {isEditingCategory ? "Done" : "Change"}
+                  </button>
+                </div>
+                {isEditingCategory ? (
+                  <select
+                    value={reel.category}
+                    onChange={(e) => {
+                      updateCategory(reel.id, e.target.value);
+                      setIsEditingCategory(false);
+                    }}
+                    className="w-full p-1 bg-zinc-800 border border-zinc-700 rounded text-xs text-white"
+                  >
+                    {smartCategories.map((cat) => (
+                      <option key={cat.name} value={cat.name}>
+                        {cat.name}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <span className="inline-block px-2 py-0.5 rounded bg-brand-500/20 text-brand-400 text-xs font-medium">
+                    {reel.category}
+                  </span>
+                )}
+              </div>
+
+              <div className="p-3 bg-zinc-900/50 border border-zinc-800 rounded-lg space-y-1.5 relative">
+                <span className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider block">
+                  Collection
+                </span>
+                <button
+                  onClick={() => setIsCollectionPickerOpen(!isCollectionPickerOpen)}
+                  className="w-full text-left px-2 py-1 bg-zinc-800 border border-zinc-700 rounded text-xs text-zinc-200 hover:text-white truncate cursor-pointer flex items-center justify-between"
+                >
+                  <span>
+                    {reel.collections && reel.collections.length > 0
+                      ? collections.find((c) => c.id === reel.collections[0])?.name || "Assigned"
+                      : "Add to..."}
+                  </span>
+                  <FolderPlus className="w-3 h-3 text-zinc-400" />
+                </button>
+
+                {isCollectionPickerOpen && (
+                  <div className="absolute left-0 bottom-full mb-1 w-full bg-zinc-900 border border-zinc-800 rounded shadow-xl py-1 z-30 text-xs max-h-36 overflow-y-auto">
+                    {collections.map((col) => (
+                      <button
+                        key={col.id}
+                        onClick={() => {
+                          addReelToCollection(reel.id, col.id);
+                          setIsCollectionPickerOpen(false);
+                          showToast(`Added to ${col.name}`);
+                        }}
+                        className="w-full text-left px-2.5 py-1 text-zinc-300 hover:text-white hover:bg-zinc-800 truncate"
+                      >
+                        {col.icon} {col.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Personal Notes */}
+            <div className="p-3 bg-zinc-900/50 border border-zinc-800 rounded-lg space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">
+                  My Notes
+                </span>
+                <button
+                  onClick={() => setIsEditingNote(!isEditingNote)}
+                  className="text-[10px] text-brand-400 hover:underline cursor-pointer"
+                >
+                  {isEditingNote ? "Cancel" : "Edit"}
+                </button>
+              </div>
+
+              {isEditingNote ? (
+                <div className="space-y-2">
+                  <textarea
+                    value={noteContent}
+                    onChange={(e) => setNoteContent(e.target.value)}
+                    placeholder="Add personal notes or key takeaways..."
+                    rows={2}
+                    className="w-full p-2 bg-zinc-800 border border-zinc-700 rounded text-xs text-white focus:outline-none focus:border-brand-500 resize-none"
+                  />
                   <button
                     onClick={handleSaveNote}
-                    className="px-3 py-1 bg-brand-500 text-white rounded-rd-sm text-xs font-medium"
+                    className="px-3 py-1 bg-brand-500 text-white rounded text-[11px] font-medium hover:bg-brand-600 cursor-pointer"
                   >
                     Save Note
                   </button>
                 </div>
-              </div>
-            ) : (
-              <p className="text-xs text-secondaryText-light dark:text-secondaryText-dark italic">
-                {reel.notes ? `"${reel.notes}"` : "No notes attached yet."}
-              </p>
-            )}
+              ) : (
+                <p className="text-xs text-zinc-300">
+                  {reel.notes || <span className="italic text-zinc-500">No notes yet. Click edit to add your thoughts.</span>}
+                </p>
+              )}
+            </div>
           </div>
 
-          {/* Actions Bar */}
-          <div className="flex items-center justify-between p-4 bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-md shadow-rd-subtle">
-            <div className="flex items-center space-x-2">
-              <button
-                onClick={() => toggleFavorite(reel.id)}
-                className={`flex items-center space-x-1.5 px-3 py-2 rounded-rd-sm text-xs font-medium transition-colors cursor-pointer ${
-                  reel.isFavorite
-                    ? "bg-rose-500/10 text-rose-500 font-semibold"
-                    : "bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark text-secondaryText-light"
-                }`}
-              >
-                <Heart className={`w-4 h-4 ${reel.isFavorite ? "fill-rose-500" : ""}`} />
-                <span>{reel.isFavorite ? "Favorited" : "Favorite"}</span>
-              </button>
+          {/* 3. BOTTOM ENGAGEMENT & ACTIONS BAR */}
+          <div className="p-4 border-t border-zinc-800 bg-zinc-950 shrink-0 space-y-2.5">
+            {/* Row 1: Action Icons (Like, Comment, Share, Bookmark) */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                <button
+                  onClick={() => {
+                    setIsLiked(!isLiked);
+                    toggleFavorite(reel.id);
+                  }}
+                  className={`transition-transform hover:scale-110 cursor-pointer ${
+                    isLiked || reel.isFavorite ? "text-red-500" : "text-zinc-200 hover:text-white"
+                  }`}
+                  title="Like Reel"
+                >
+                  <Heart className={`w-5 h-5 ${isLiked || reel.isFavorite ? "fill-red-500" : ""}`} />
+                </button>
+
+                <button
+                  className="text-zinc-200 hover:text-white transition-transform hover:scale-110 cursor-pointer"
+                  title="Comment"
+                >
+                  <MessageCircle className="w-5 h-5" />
+                </button>
+
+                <button
+                  onClick={handleCopyLink}
+                  className="text-zinc-200 hover:text-white transition-transform hover:scale-110 cursor-pointer"
+                  title="Share Reel"
+                >
+                  <Send className="w-5 h-5" />
+                </button>
+              </div>
 
               <button
-                onClick={handleCopyLink}
-                className="flex items-center space-x-1.5 px-3 py-2 rounded-rd-sm bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark text-secondaryText-light text-xs font-medium hover:text-primaryText-light transition-colors cursor-pointer"
+                onClick={() => {
+                  toggleFavorite(reel.id);
+                  showToast(reel.isFavorite ? "Removed from Favorites" : "Added to Favorites");
+                }}
+                className={`transition-transform hover:scale-110 cursor-pointer ${
+                  reel.isFavorite ? "text-brand-500" : "text-zinc-200 hover:text-white"
+                }`}
+                title="Bookmark Reel"
               >
-                <Copy className="w-4 h-4" />
-                <span>Copy Link</span>
+                <Bookmark className={`w-5 h-5 ${reel.isFavorite ? "fill-brand-500" : ""}`} />
               </button>
             </div>
 
-            <button
-              onClick={() => {
-                deleteReel(reel.id);
-                router.push("/reels");
-              }}
-              className="flex items-center space-x-1.5 px-3 py-2 rounded-rd-sm bg-rose-500/10 text-rose-500 text-xs font-medium hover:bg-rose-500/20 transition-colors cursor-pointer"
-            >
-              <Trash2 className="w-4 h-4" />
-              <span>Remove Reel</span>
-            </button>
+            {/* Row 2: Metrics and Date */}
+            <div className="space-y-0.5">
+              <p className="text-xs font-bold text-white">
+                {reel.likes || "9.4K"} likes
+              </p>
+              <p className="text-[10px] text-zinc-500 uppercase tracking-wide">
+                8 hours ago
+              </p>
+            </div>
+
+            {/* Row 3: Action Buttons */}
+            <div className="pt-2 flex items-center space-x-2">
+              <button
+                onClick={handleDownload}
+                disabled={downloadState === "processing"}
+                className="flex-1 py-2 px-3 bg-brand-500 hover:bg-brand-600 text-white rounded-md text-xs font-semibold flex items-center justify-center space-x-1.5 shadow-sm transition-colors cursor-pointer"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>{downloadState === "processing" ? "Processing..." : "Download MP4"}</span>
+              </button>
+
+              <a
+                href={reel.instagramUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="py-2 px-4 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 rounded-md text-xs font-medium flex items-center space-x-1.5 transition-colors"
+              >
+                <span>Instagram</span>
+                <ExternalLink className="w-3.5 h-3.5" />
+              </a>
+            </div>
           </div>
         </div>
       </div>

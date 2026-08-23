@@ -1,6 +1,7 @@
 # Strict Project Rules
-- NEVER use Instagram embed iframes (<iframe src=".../embed">). It is strictly forbidden.
-- ONLY use native HTML5 <video> elements in 9:16 aspect ratio with custom controls.
-- When stream is unavailable, show the Reel cover thumbnail + "Preview unavailable" state + "Open on Instagram" button.
-- ZERO placeholder or random fallback videos.
-- Treat Instagram CDN .mp4 URLs as temporary session data.
+- Instagram Embedded Player (<iframe src=".../embed">) is authorized by user.
+- Video playback layout must match the split Instagram dialog reference:
+  - Left: 9:16 vertical video player (iframe / HTML5).
+  - Right: Creator header (with verified badge and follow), full caption, comments thread, and engagement metrics (likes, comments, share, save).
+- Zero fake / random fallback videos.
+- Maintain 11-phase progress tracker block.

@@ -1,22 +1,16 @@
-# ReelDash Strict Architectural Rules
+# ReelDash Architectural Rules
 
-## 1. ABSOLUTE ZERO INSTAGRAM EMBED IFRAME RULE
-- **NEVER use `<iframe src="https://www.instagram.com/reel/.../embed">` under any circumstances.**
-- The Instagram embed widget is explicitly forbidden in this codebase.
-- ReelDash video player must ONLY be a native, styled HTML5 `<video>` element in 9:16 aspect ratio.
+## 1. INSTAGRAM EMBEDDED PLAYER & REFERENCE LAYOUT (USER AUTHORIZED)
+- When playing a Reel, render the split Instagram layout matching the reference UI:
+  - **Left Side**: 9:16 Vertical Video Player (supports authorized Instagram Embed `<iframe src="https://www.instagram.com/reel/[shortcode]/embed/">` or direct HTML5 `<video>` player).
+  - **Right Side**: Full Instagram Post/Reel Social Sidebar:
+    - Creator Header: Avatar + Username + Blue Verified Badge + `• Follow` button + `•••` menu.
+    - Scrollable Post Body: Full caption with highlighted hashtags/mentions, Audio info, and Comments thread.
+    - Engagement Bar: Like (Heart) + Comment bubble + Share (Paper plane) + Bookmark + Likes/Comments count + Timestamp.
+    - ReelDash Actions: Download MP4, AI Summary, Category picker, Collection picker, and Personal Notes.
 
-## 2. PLAYER STATES (STRICT 4-STATE ARCHITECTURE)
-The ReelPlayer component must ONLY render one of these 4 states:
-1. **Idle**: High-resolution cover photo + play button + duration badge.
-2. **Loading**: Reel cover photo blurred + "Preparing preview..." spinner.
-3. **Available**: Native HTML5 `<video src={directCdnUrl} controls playsInline crossOrigin="anonymous">`.
-4. **Unavailable**: Reel cover photo + "Preview unavailable" badge + "Open on Instagram ↗" action button.
-
-## 3. ZERO PLACEHOLDER / UNRELATED FALLBACK VIDEOS
+## 2. ZERO FAKE / RANDOM VIDEOS
 - NEVER play ocean videos, zencdn sample videos, or unrelated reels.
-- If a Reel's media stream cannot be resolved, show State 4 (Unavailable with Reel thumbnail).
 
-## 4. EXPIRING CDN URLS
-- Treat Instagram CDN `.mp4` URLs as temporary session data (15-min cache).
-- Never store ephemeral CDN URLs as permanent database links.
-- Use the canonical Instagram Reel URL (`https://www.instagram.com/reel/XXXXX/`) as the permanent identifier.
+## 3. STRICT 11-PHASE PROGRESS TRACKER
+- Maintain the 11-phase progress tracker block in all responses.

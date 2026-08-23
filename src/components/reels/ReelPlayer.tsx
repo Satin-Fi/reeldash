@@ -7,17 +7,21 @@ import {
   Loader2,
   ExternalLink,
   Image as ImageIcon,
-  AlertCircle,
-  RefreshCw,
+  Volume2,
+  VolumeX,
+  Maximize2,
+  RotateCcw,
+  Sparkles,
 } from "lucide-react";
 
-export type PlaybackStatus = "idle" | "loading" | "available" | "unavailable";
+export type PlaybackStatus = "idle" | "playing" | "loading";
 
 interface ReelPlayerProps {
   reel: Reel;
   thumbnailUrl?: string;
   onOpenOriginal?: () => void;
   className?: string;
+  autoPlay?: boolean;
 }
 
 export function ReelPlayer({
@@ -25,11 +29,13 @@ export function ReelPlayer({
   thumbnailUrl,
   onOpenOriginal,
   className = "",
+  autoPlay = false,
 }: ReelPlayerProps) {
-  const [status, setStatus] = useState<PlaybackStatus>("idle");
-  const [playbackUrl, setPlaybackUrl] = useState<string | null>(null);
-  const [retryCount, setRetryCount] = useState(0);
+  const [status, setStatus] = useState<PlaybackStatus>(autoPlay ? "playing" : "idle");
+  const [playbackUrl, setPlaybackUrl] = useState<string | null>(reel.mediaUrl || null);
   const [imageError, setImageError] = useState(false);
+  const [useIframe, setUseIframe] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
   const shortcodeMatch = reel.instagramUrl.match(/(?:reel|p)\/([A-Za-z0-9_-]+)/);
@@ -45,115 +51,136 @@ export function ReelPlayer({
       ? `/api/proxy-image?shortcode=${shortcode}`
       : "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80";
 
-  // Request temporary playable CDN MP4 media URL from backend resolution layer
-  const resolveAndPlay = async () => {
-    // 1. If reel already has a direct valid CDN mediaUrl, use direct stream immediately
+  const handlePlayClick = async () => {
+    // 1. If direct valid media URL exists, play via native HTML5 video
     if (
-      reel.mediaUrl &&
-      !reel.mediaUrl.includes("zencdn.net") &&
-      !reel.mediaUrl.includes("googleapis.com") &&
-      reel.mediaUrl.startsWith("http")
+      playbackUrl &&
+      !playbackUrl.includes("zencdn.net") &&
+      !playbackUrl.includes("googleapis.com") &&
+      playbackUrl.startsWith("http")
     ) {
-      setPlaybackUrl(reel.mediaUrl);
-      setStatus("available");
+      setStatus("playing");
+      setUseIframe(false);
       return;
     }
 
     setStatus("loading");
 
-    // 2. Otherwise, resolve from backend playback endpoint
+    // 2. Try fetching direct stream from playback endpoint
     try {
       const res = await fetch(
         `/api/reels/${reel.id}/playback?url=${encodeURIComponent(reel.instagramUrl)}`
       );
-
-      if (!res.ok) {
-        setStatus("unavailable");
-        return;
-      }
-
-      const data = await res.json();
-
-      if (data.status === "available" && (data.directCdnUrl || data.playbackUrl)) {
-        setPlaybackUrl(data.directCdnUrl || data.playbackUrl);
-        setStatus("available");
-      } else {
-        setStatus("unavailable");
-      }
-    } catch (err) {
-      console.warn(`[ReelPlayer] Playback resolution error:`, err);
-      setStatus("unavailable");
-    }
-  };
-
-  // Handle expired CDN media URL or video loading error
-  const handleVideoError = async () => {
-    console.warn(`[ReelPlayer] CDN media URL expired or error encountered. Re-resolving...`);
-    if (retryCount < 1) {
-      setRetryCount((prev) => prev + 1);
-      try {
-        const res = await fetch(
-          `/api/reels/${reel.id}/playback?url=${encodeURIComponent(reel.instagramUrl)}&refresh=true`
-        );
+      if (res.ok) {
         const data = await res.json();
         if (data.status === "available" && (data.directCdnUrl || data.playbackUrl)) {
           setPlaybackUrl(data.directCdnUrl || data.playbackUrl);
-          setStatus("available");
+          setStatus("playing");
+          setUseIframe(false);
           return;
         }
-      } catch {
-        // Fall through to unavailable
+      }
+    } catch {
+      // Continue to iframe fallback
+    }
+
+    // 3. Seamlessly fallback to Instagram Embed Player (authorized by user)
+    setUseIframe(true);
+    setStatus("playing");
+  };
+
+  const handleResetToCover = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setStatus("idle");
+    setUseIframe(false);
+  };
+
+  const toggleMute = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (videoRef.current) {
+      videoRef.current.muted = !videoRef.current.muted;
+      setIsMuted(videoRef.current.muted);
+    }
+  };
+
+  const handleFullscreen = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (videoRef.current) {
+      if (videoRef.current.requestFullscreen) {
+        videoRef.current.requestFullscreen();
       }
     }
-    setStatus("unavailable");
-  };
-
-  const handleOpenOriginal = () => {
-    if (onOpenOriginal) {
-      onOpenOriginal();
-    } else {
-      window.open(reel.instagramUrl, "_blank", "noopener,noreferrer");
-    }
-  };
-
-  const handleResetToCover = () => {
-    setStatus("idle");
-    setPlaybackUrl(null);
-    setRetryCount(0);
   };
 
   return (
     <div
-      className={`relative aspect-reel w-full rounded-rd-card overflow-hidden bg-black border border-borderSubtle-light dark:border-borderSubtle-dark shadow-rd-card group ${className}`}
+      className={`relative aspect-reel w-full rounded-rd-card overflow-hidden bg-black border border-borderSubtle-light dark:border-borderSubtle-dark shadow-2xl group select-none ${className}`}
     >
-      {/* STATE 1: AVAILABLE (Exact Reel CDN .mp4 in Native HTML5 Video Player) */}
-      {status === "available" && playbackUrl && (
-        <div className="relative w-full h-full bg-black">
-          <video
-            ref={videoRef}
-            src={playbackUrl}
-            poster={coverImageSrc}
-            controls
-            autoPlay
-            playsInline
-            crossOrigin="anonymous"
-            onError={handleVideoError}
-            className="w-full h-full object-cover rounded-rd-card"
-          />
+      {/* 1. PLAYING STATE: Native HTML5 Video OR Instagram Embed Iframe */}
+      {status === "playing" && (
+        <div className="relative w-full h-full bg-black flex items-center justify-center">
+          {useIframe || !playbackUrl ? (
+            /* Instagram Embedded Iframe Player */
+            <div className="relative w-full h-full bg-black overflow-hidden flex items-center justify-center">
+              <iframe
+                src={`https://www.instagram.com/reel/${shortcode}/embed/`}
+                className="w-full h-full border-0 bg-black scale-[1.02]"
+                allowFullScreen
+                scrolling="no"
+                allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
+                title={reel.caption || "Instagram Reel"}
+              />
+            </div>
+          ) : (
+            /* Native HTML5 9:16 Video Player */
+            <div className="relative w-full h-full">
+              <video
+                ref={videoRef}
+                src={playbackUrl}
+                poster={coverImageSrc}
+                controls
+                autoPlay
+                playsInline
+                crossOrigin="anonymous"
+                onError={() => setUseIframe(true)}
+                className="w-full h-full object-cover"
+              />
 
-          {/* Switch back to cover photo button */}
-          <button
-            onClick={handleResetToCover}
-            title="Show Cover Photo"
-            className="absolute top-3 right-3 px-2.5 py-1 bg-black/75 hover:bg-black/90 text-white rounded-rd-sm text-[11px] font-medium backdrop-blur-md flex items-center space-x-1.5 transition-colors z-20 cursor-pointer shadow-rd-subtle"
-          >
-            <ImageIcon className="w-3.5 h-3.5" />
-            <span>Cover Photo</span>
-          </button>
+              {/* Sound & Fullscreen floating controls for HTML5 video */}
+              <div className="absolute bottom-4 right-4 flex items-center space-x-2 z-20">
+                <button
+                  onClick={toggleMute}
+                  className="w-8 h-8 rounded-full bg-black/60 hover:bg-black/80 text-white flex items-center justify-center backdrop-blur-md transition-transform hover:scale-105 cursor-pointer"
+                  title={isMuted ? "Unmute" : "Mute"}
+                >
+                  {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+                </button>
+                <button
+                  onClick={handleFullscreen}
+                  className="w-8 h-8 rounded-full bg-black/60 hover:bg-black/80 text-white flex items-center justify-center backdrop-blur-md transition-transform hover:scale-105 cursor-pointer"
+                  title="Fullscreen"
+                >
+                  <Maximize2 className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Top Control Bar: Cover switch & Instagram Link */}
+          <div className="absolute top-3 right-3 flex items-center space-x-1.5 z-20">
+            <button
+              onClick={handleResetToCover}
+              title="Show Cover Photo"
+              className="px-2.5 py-1 bg-black/70 hover:bg-black/90 text-white rounded-rd-sm text-[11px] font-medium backdrop-blur-md flex items-center space-x-1 transition-colors cursor-pointer shadow-md"
+            >
+              <ImageIcon className="w-3.5 h-3.5" />
+              <span>Cover</span>
+            </button>
+          </div>
         </div>
       )}
 
-      {/* STATE 2: LOADING ("Preparing preview...") */}
+      {/* 2. LOADING STATE */}
       {status === "loading" && (
         <div className="relative w-full h-full">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -162,75 +189,23 @@ export function ReelPlayer({
             alt={reel.caption || "Reel preview"}
             referrerPolicy="no-referrer"
             onError={() => setImageError(true)}
-            className="w-full h-full object-cover filter blur-sm brightness-40"
+            className="w-full h-full object-cover filter blur-sm brightness-50"
           />
           <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center text-white space-y-3 z-10">
-            <Loader2 className="w-8 h-8 animate-spin text-brand-500" />
+            <Loader2 className="w-9 h-9 animate-spin text-brand-500" />
             <div className="space-y-1">
-              <p className="text-xs font-semibold tracking-wide">Preparing preview…</p>
-              <p className="text-[11px] text-zinc-400">Resolving media from source</p>
+              <p className="text-xs font-semibold tracking-wide">Starting playback…</p>
+              <p className="text-[11px] text-zinc-400">Loading Reel player</p>
             </div>
           </div>
         </div>
       )}
 
-      {/* STATE 3: UNAVAILABLE ("Preview unavailable" + "Open on Instagram") */}
-      {status === "unavailable" && (
-        <div className="relative w-full h-full">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={coverImageSrc}
-            alt={reel.caption || "Reel thumbnail"}
-            referrerPolicy="no-referrer"
-            onError={() => setImageError(true)}
-            className="w-full h-full object-cover filter blur-[2px] brightness-40"
-          />
-          <div className="absolute inset-0 bg-black/60 p-6 flex flex-col items-center justify-center text-center text-white space-y-3 z-10">
-            <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-amber-400">
-              <AlertCircle className="w-5 h-5" />
-            </div>
-
-            <div className="space-y-1">
-              <h4 className="text-xs font-bold tracking-wide">Preview unavailable</h4>
-              <p className="text-[11px] text-zinc-300 max-w-[210px] leading-relaxed">
-                Direct media stream is restricted by Instagram. You can watch the original Reel directly.
-              </p>
-            </div>
-
-            <div className="pt-2 flex flex-col space-y-2 w-full max-w-[200px]">
-              <button
-                onClick={handleOpenOriginal}
-                className="w-full inline-flex items-center justify-center space-x-2 px-3 py-2 bg-brand-500 hover:bg-brand-600 text-white rounded-rd-sm text-xs font-semibold shadow-rd-subtle transition-colors cursor-pointer"
-              >
-                <span>Open on Instagram</span>
-                <ExternalLink className="w-3.5 h-3.5" />
-              </button>
-
-              <div className="flex items-center space-x-1.5 w-full">
-                <button
-                  onClick={resolveAndPlay}
-                  className="flex-1 inline-flex items-center justify-center space-x-1 px-2 py-1.5 bg-white/10 hover:bg-white/20 text-zinc-300 hover:text-white rounded-rd-sm text-[11px] font-medium transition-colors cursor-pointer"
-                >
-                  <RefreshCw className="w-3 h-3" />
-                  <span>Try Again</span>
-                </button>
-                <button
-                  onClick={handleResetToCover}
-                  className="flex-1 inline-flex items-center justify-center px-2 py-1.5 bg-white/10 hover:bg-white/20 text-zinc-300 hover:text-white rounded-rd-sm text-[11px] font-medium transition-colors cursor-pointer"
-                >
-                  <span>Cover</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* STATE 4: IDLE / COVER PHOTO (Clean high-res cover thumbnail with Play button) */}
+      {/* 3. IDLE / COVER PHOTO STATE */}
       {status === "idle" && (
         <div
           className="relative w-full h-full cursor-pointer group"
-          onClick={resolveAndPlay}
+          onClick={handlePlayClick}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
@@ -238,9 +213,9 @@ export function ReelPlayer({
             alt={reel.caption || "Reel cover"}
             referrerPolicy="no-referrer"
             onError={() => setImageError(true)}
-            className="w-full h-full object-cover group-hover:scale-102 transition-transform duration-300 ease-out"
+            className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-300 ease-out"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/20 opacity-80 group-hover:opacity-90 transition-opacity" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/30 opacity-70 group-hover:opacity-85 transition-opacity" />
 
           {/* Big Center Play Button */}
           <button
@@ -251,9 +226,22 @@ export function ReelPlayer({
             <Play className="w-7 h-7 fill-white ml-1" />
           </button>
 
-          {/* Duration Badge */}
-          <div className="absolute bottom-3 left-3 px-2 py-1 rounded bg-black/60 backdrop-blur-md text-white text-xs font-medium z-10">
-            {reel.duration}
+          {/* Bottom Overlay: Creator info & Duration */}
+          <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between z-10">
+            <div className="flex items-center space-x-2 min-w-0 pr-2">
+              <div className="w-6 h-6 rounded-full bg-brand-500/30 text-white font-bold text-[10px] flex items-center justify-center border border-white/20 shrink-0">
+                {(reel.creatorUsername || "I")[0]?.toUpperCase()}
+              </div>
+              <span className="text-xs font-medium text-white/90 truncate drop-shadow-md">
+                @{reel.creatorUsername}
+              </span>
+            </div>
+
+            {reel.duration && (
+              <div className="px-2 py-0.5 rounded bg-black/60 backdrop-blur-md text-white text-[11px] font-medium shrink-0">
+                {reel.duration}
+              </div>
+            )}
           </div>
         </div>
       )}
