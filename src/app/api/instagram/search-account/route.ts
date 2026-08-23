@@ -10,9 +10,17 @@ function decodeHtmlEntities(str: string): string {
     .replace(/&#x2022;/g, "•")
     .replace(/&quot;/g, '"')
     .replace(/&#x27;/g, "'")
+    .replace(/&apos;/g, "'")
     .replace(/&amp;/g, "&")
     .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">");
+    .replace(/&gt;/g, ">")
+    .replace(/&#([0-9]+);/g, (_, code) => {
+      try {
+        return String.fromCodePoint(parseInt(code, 10));
+      } catch {
+        return "";
+      }
+    });
 }
 
 export async function GET(request: NextRequest) {
@@ -30,13 +38,13 @@ export async function GET(request: NextRequest) {
     }
 
     let displayName = cleanUsername;
-    let bio = "";
+    let bio: string | null = null;
     let followers: string | null = null;
     let postsCount: string | null = null;
     let avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(cleanUsername)}&background=7c3aed&color=fff&size=160`;
     let isVerified = false;
 
-    // Strategy 1: OpenGraph with facebookexternalhit (100% authentic, works on Vercel)
+    // Strategy 1: OpenGraph live extractor
     try {
       const profileUrl = `https://www.instagram.com/${cleanUsername}/`;
       const response = await fetch(profileUrl, {
@@ -45,31 +53,32 @@ export async function GET(request: NextRequest) {
           "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
           "Accept-Language": "en-US,en;q=0.9",
         },
-        next: { revalidate: 300 },
+        cache: "no-store",
       });
 
       if (response.ok) {
         const html = await response.text();
+
         const titleMatch =
-          html.match(/<meta\s+property=["']og:title["']\s+content=["']([^"']+)["']/i) ||
-          html.match(/content=["']([^"']+)["']\s+property=["']og:title["']/i);
+          html.match(/<meta[^>]+(?:property|name)=["']og:title["'][^>]+content=["']([^"']+)["']/i) ||
+          html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+(?:property|name)=["']og:title["']/i);
+
         const descMatch =
-          html.match(/<meta\s+property=["']og:description["']\s+content=["']([^"']+)["']/i) ||
-          html.match(/content=["']([^"']+)["']\s+property=["']og:description["']/i);
+          html.match(/<meta[^>]+(?:property|name)=["'](?:og:description|description)["'][^>]+content=["']([^"']+)["']/i) ||
+          html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+(?:property|name)=["'](?:og:description|description)["']/i);
+
         const imageMatch =
-          html.match(/<meta\s+property=["']og:image["']\s+content=["']([^"']+)["']/i) ||
-          html.match(/content=["']([^"']+)["']\s+property=["']og:image["']/i);
+          html.match(/<meta[^>]+(?:property|name)=["']og:image["'][^>]+content=["']([^"']+)["']/i) ||
+          html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+(?:property|name)=["']og:image["']/i);
 
         if (titleMatch && titleMatch[1]) {
           const rawTitle = decodeHtmlEntities(titleMatch[1]);
-          // Pattern: "Romana Flowers (@lifeof.romana) • Instagram photos and videos"
           const namePart = rawTitle.split("(@")[0]?.trim();
           if (namePart) displayName = namePart;
         }
 
         if (descMatch && descMatch[1]) {
           const rawDesc = decodeHtmlEntities(descMatch[1]);
-          // Pattern: "1,312 Followers, 952 Following, 95 Posts - See Instagram photos and videos from Romana Flowers (@lifeof.romana)"
           const followerMatch = rawDesc.match(/([0-9.,KMkm]+)\s+Followers/i);
           const postMatch = rawDesc.match(/([0-9.,KMkm]+)\s+Posts/i);
           if (followerMatch) followers = followerMatch[1];
@@ -78,14 +87,15 @@ export async function GET(request: NextRequest) {
         }
 
         if (imageMatch && imageMatch[1]) {
-          avatarUrl = `/api/proxy-image?url=${encodeURIComponent(decodeHtmlEntities(imageMatch[1]))}`;
+          const rawImg = decodeHtmlEntities(imageMatch[1]);
+          avatarUrl = `/api/proxy-image?url=${encodeURIComponent(rawImg)}`;
         }
       }
     } catch {
-      // Fallback
+      // Continue to next strategy
     }
 
-    // Strategy 2: Web Profile Info API
+    // Strategy 2: Instagram Web Profile Info API
     if (!followers) {
       try {
         const igRes = await fetch(
@@ -98,7 +108,7 @@ export async function GET(request: NextRequest) {
               "Accept": "*/*",
               "Referer": `https://www.instagram.com/${cleanUsername}/`,
             },
-            next: { revalidate: 300 },
+            cache: "no-store",
           }
         );
 
@@ -131,7 +141,7 @@ export async function GET(request: NextRequest) {
         avatarUrl,
         followers: followers || null,
         postsCount: postsCount || null,
-        bio: bio || `Instagram profile for @${cleanUsername}`,
+        bio: bio || null,
         isVerified,
       },
     });
