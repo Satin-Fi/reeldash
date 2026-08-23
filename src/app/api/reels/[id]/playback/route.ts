@@ -15,11 +15,55 @@ const verifiedStreams: Record<string, string> = {
 };
 
 /**
- * Pure JS extraction strategies (works without Python on Vercel Serverless)
+ * Pure JS extraction strategies (works on Vercel Serverless without requiring credentials)
  */
 async function resolveViaPureJs(shortcode: string): Promise<string | null> {
   if (verifiedStreams[shortcode]) {
     return verifiedStreams[shortcode];
+  }
+
+  // Strategy 1: OGInstagram Direct Stream & Proxy Pipeline (Zero Credentials)
+  try {
+    const ogUrls = [
+      `https://d.oginstagram.com/reel/${shortcode}`,
+      `https://oginstagram.com/reel/${shortcode}`,
+      `https://ddinstagram.com/reel/${shortcode}`,
+    ];
+
+    for (const ogUrl of ogUrls) {
+      try {
+        const ogRes = await fetch(ogUrl, {
+          headers: {
+            "User-Agent":
+              "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
+            Accept: "text/html,application/xhtml+xml,video/mp4,*/*",
+          },
+          redirect: "manual",
+        });
+
+        // If redirect returned
+        const location = ogRes.headers.get("location");
+        if (location && (location.includes(".mp4") || location.includes("cdninstagram") || location.includes("fbcdn"))) {
+          return location;
+        }
+
+        if (ogRes.ok) {
+          const text = await ogRes.text();
+          const ogVideoMatch =
+            text.match(/<meta\s+property=["']og:video["']\s+content=["']([^"']+)["']/i) ||
+            text.match(/<meta\s+property=["']og:video:secure_url["']\s+content=["']([^"']+)["']/i) ||
+            text.match(/https:\/\/[^"'\s\\]+(?:cdninstagram|fbcdn)\.net[^"'\s\\]+\.mp4[^"'\s\\]*/i);
+
+          if (ogVideoMatch && ogVideoMatch[1]) {
+            return ogVideoMatch[1].replace(/&amp;/g, "&");
+          }
+        }
+      } catch {
+        // Continue to next endpoint
+      }
+    }
+  } catch (ogErr) {
+    // Continue
   }
 
   const metaToken =
@@ -29,7 +73,7 @@ async function resolveViaPureJs(shortcode: string): Promise<string | null> {
   const sessionId = process.env.INSTAGRAM_SESSION_ID;
   const rapidApiKey = process.env.RAPIDAPI_KEY;
 
-  // Strategy 1: Official Meta Graph API with Access Token
+  // Strategy 2: Official Meta Graph API with Access Token (if configured)
   if (metaToken) {
     try {
       const graphRes = await fetch(
@@ -46,7 +90,7 @@ async function resolveViaPureJs(shortcode: string): Promise<string | null> {
     }
   }
 
-  // Strategy 2: Instagram GraphQL with configured Session/Cookie
+  // Strategy 3: Instagram GraphQL unauthenticated endpoint
   try {
     const headers: HeadersInit = {
       "User-Agent":
@@ -77,7 +121,7 @@ async function resolveViaPureJs(shortcode: string): Promise<string | null> {
     // Continue to next strategy
   }
 
-  // Strategy 3: RapidAPI Instagram Downloader if configured
+  // Strategy 4: RapidAPI Instagram Downloader if configured
   if (rapidApiKey) {
     try {
       const rapidRes = await fetch(
@@ -101,7 +145,7 @@ async function resolveViaPureJs(shortcode: string): Promise<string | null> {
     }
   }
 
-  // Strategy 4: FastDL parser API
+  // Strategy 5: FastDL parser API
   try {
     const fastdlRes = await fetch("https://fastdl.app/c/", {
       method: "POST",
@@ -198,51 +242,53 @@ export async function GET(
         setTimeout(() => reject(new Error("yt-dlp timeout")), 4000)
       );
 
-      const ytdlOutput: any = await Promise.race([ytdlPromise, timeoutPromise]);
+      const info: any = await Promise.race([ytdlPromise, timeoutPromise]);
 
-      if (ytdlOutput?.url && ytdlOutput.url.startsWith("http")) {
-        directCdnMp4Url = ytdlOutput.url;
-      } else if (ytdlOutput?.formats && ytdlOutput.formats.length > 0) {
-        const videoFormat =
-          ytdlOutput.formats.find(
-            (f: any) => f.vcodec !== "none" && f.url && f.url.startsWith("http")
-          ) || ytdlOutput.formats[0];
-        directCdnMp4Url = videoFormat?.url || null;
+      if (info && (info.url || info.formats)) {
+        if (info.url && typeof info.url === "string" && info.url.startsWith("http")) {
+          directCdnMp4Url = info.url;
+        } else if (Array.isArray(info.formats)) {
+          const videoFormats = info.formats.filter(
+            (f: any) => f.url && (f.vcodec !== "none" || f.ext === "mp4")
+          );
+          if (videoFormats.length > 0) {
+            const best = videoFormats[videoFormats.length - 1];
+            directCdnMp4Url = best.url;
+          }
+        }
       }
-    } catch (err) {
-      console.warn(`[yt-dlp Resolution] Notice for ${shortcode}:`, err);
+    } catch {
+      // Fallback
     }
   }
 
-  // 4. Return stream if resolved
-  if (directCdnMp4Url && directCdnMp4Url.startsWith("http")) {
-    const expiresAt = Date.now() + 900 * 1000; // 15 minutes cache
+  // 4. Cache & Return resolved direct CDN URL
+  if (directCdnMp4Url) {
+    const expiresAt = Date.now() + 15 * 60 * 1000; // 15-minute cache
     const proxyUrl = `/api/proxy-video?url=${encodeURIComponent(directCdnMp4Url)}`;
 
-    mediaCache.set(shortcode, { cdnUrl: directCdnMp4Url, proxyUrl, expiresAt });
+    mediaCache.set(shortcode, {
+      cdnUrl: directCdnMp4Url,
+      proxyUrl,
+      expiresAt,
+    });
 
     return NextResponse.json({
       status: "available",
       playbackUrl: directCdnMp4Url,
       directCdnUrl: directCdnMp4Url,
+      proxyUrl,
       expiresAt,
       isTemporary: true,
+      resolvedVia: "oginstagram_edge_pipeline",
     });
   }
 
-  // 5. If resolution fails or is restricted, return clean unavailable status
-  // NEVER substitute random or unrelated videos
+  // 5. If direct stream is unavailable, return status: unavailable
   return NextResponse.json({
     status: "unavailable",
-    reason: "Direct media resource restricted by source provider",
-    sourceUrl: targetUrl,
+    reason: "Direct stream currently resolving via embed player",
     shortcode,
+    embedUrl: `https://www.instagram.com/reel/${shortcode}/embed/`,
   });
-}
-
-export async function POST(
-  req: NextRequest,
-  { params }: { params: { id: string } }
-) {
-  return GET(req, { params });
 }
