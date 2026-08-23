@@ -47,6 +47,48 @@ async function resolveDirectVideoUrl(shortcode: string): Promise<string | null> 
     return verifiedStreams[shortcode];
   }
 
+  // Strategy: OGInstagram Direct Stream & Resolver
+  try {
+    const ogUrls = [
+      `https://d.oginstagram.com/reel/${shortcode}`,
+      `https://oginstagram.com/reel/${shortcode}`,
+    ];
+
+    for (const ogUrl of ogUrls) {
+      try {
+        const ogRes = await fetch(ogUrl, {
+          headers: {
+            "User-Agent":
+              "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
+            Accept: "text/html,application/xhtml+xml,video/mp4,*/*",
+          },
+          redirect: "manual",
+        });
+
+        const location = ogRes.headers.get("location");
+        if (location && (location.includes(".mp4") || location.includes("cdninstagram") || location.includes("fbcdn"))) {
+          return location;
+        }
+
+        if (ogRes.ok) {
+          const text = await ogRes.text();
+          const ogVideoMatch =
+            text.match(/<meta\s+property=["']og:video["']\s+content=["']([^"']+)["']/i) ||
+            text.match(/<meta\s+property=["']og:video:secure_url["']\s+content=["']([^"']+)["']/i) ||
+            text.match(/https:\/\/[^"'\s\\]+(?:cdninstagram|fbcdn)\.net[^"'\s\\]+\.mp4[^"'\s\\]*/i);
+
+          if (ogVideoMatch && ogVideoMatch[1]) {
+            return ogVideoMatch[1].replace(/&amp;/g, "&");
+          }
+        }
+      } catch {
+        // Fallback
+      }
+    }
+  } catch {
+    // Fallback
+  }
+
   const metaToken =
     process.env.INSTAGRAM_ACCESS_TOKEN ||
     process.env.GRAPH_API_TOKEN ||
@@ -54,7 +96,6 @@ async function resolveDirectVideoUrl(shortcode: string): Promise<string | null> 
   const sessionId = process.env.INSTAGRAM_SESSION_ID;
   const rapidApiKey = process.env.RAPIDAPI_KEY;
 
-  // 1. Official Meta Graph API
   if (metaToken) {
     try {
       const graphRes = await fetch(
@@ -66,12 +107,11 @@ async function resolveDirectVideoUrl(shortcode: string): Promise<string | null> 
           return graphData.media_url;
         }
       }
-    } catch (e) {
-      // Continue
+    } catch {
+      // Fallback
     }
   }
 
-  // 2. GraphQL with Session if available
   try {
     const headers: HeadersInit = {
       "User-Agent":
@@ -79,14 +119,18 @@ async function resolveDirectVideoUrl(shortcode: string): Promise<string | null> 
       "X-IG-App-ID": "936619743392459",
       "X-Requested-With": "XMLHttpRequest",
       "Referer": `https://www.instagram.com/reel/${shortcode}/`,
+      "Accept": "*/*",
     };
+
     if (sessionId) {
       headers["Cookie"] = `sessionid=${sessionId};`;
     }
+
     const gqlRes = await fetch(
       `https://www.instagram.com/graphql/query/?doc_id=8845758582119845&variables=%7B%22shortcode%22%3A%22${shortcode}%22%7D`,
       { headers }
     );
+
     if (gqlRes.ok) {
       const gqlData = await gqlRes.json();
       const item = gqlData?.data?.xdt_shortcode_media;
@@ -94,14 +138,13 @@ async function resolveDirectVideoUrl(shortcode: string): Promise<string | null> 
         return item.video_url;
       }
     }
-  } catch (e) {
-    // Continue
+  } catch {
+    // Fallback
   }
 
-  // 3. RapidAPI Scraper if available
   if (rapidApiKey) {
     try {
-      const res = await fetch(
+      const rapidRes = await fetch(
         `https://instagram-downloader-download-instagram-videos-stories1.p.rapidapi.com/get-info-shortcode?shortcode=${shortcode}`,
         {
           headers: {
@@ -110,24 +153,25 @@ async function resolveDirectVideoUrl(shortcode: string): Promise<string | null> 
           },
         }
       );
-      if (res.ok) {
-        const data = await res.json();
-        const vid = data?.video_url || data?.url || data?.download_url;
-        if (vid && vid.startsWith("http")) return vid;
+      if (rapidRes.ok) {
+        const rapidData = await rapidRes.json();
+        const videoUrl = rapidData?.video_url || rapidData?.url || rapidData?.download_url;
+        if (videoUrl && videoUrl.startsWith("http")) {
+          return videoUrl;
+        }
       }
-    } catch (e) {
-      // Continue
+    } catch {
+      // Fallback
     }
   }
 
-  // 4. FastDL parser API
   try {
     const fastdlRes = await fetch("https://fastdl.app/c/", {
       method: "POST",
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
         "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
         "Referer": "https://fastdl.app/en",
       },
       body: new URLSearchParams({
@@ -135,81 +179,54 @@ async function resolveDirectVideoUrl(shortcode: string): Promise<string | null> 
         lang_code: "en",
       }),
     });
+
     if (fastdlRes.ok) {
       const text = await fastdlRes.text();
-      const match =
+      const mp4Match =
         text.match(/https:\/\/[^"'\s\\]+cdninstagram\.com[^"'\s\\]+\.mp4[^"'\s\\]*/i) ||
         text.match(/https:\/\/media\.fastdl\.app\/get\?[^"'\s\\]+/i);
-      if (match) return match[0].replace(/&amp;/g, "&");
+      if (mp4Match) {
+        return mp4Match[0].replace(/&amp;/g, "&");
+      }
     }
-  } catch (e) {
-    // Continue
-  }
-
-  // 5. yt-dlp execution
-  try {
-    const ytdlPromise = youtubedl(`https://www.instagram.com/reel/${shortcode}/`, {
-      dumpSingleJson: true,
-      noCheckCertificates: true,
-      noWarnings: true,
-      preferFreeFormats: true,
-      addHeader: [
-        "referer:instagram.com",
-        "user-agent:Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-      ],
-    });
-    const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error("yt-dlp timeout")), 3000)
-    );
-    const output: any = await Promise.race([ytdlPromise, timeoutPromise]);
-    if (output?.url && output.url.startsWith("http")) {
-      return output.url;
-    } else if (output?.formats && output.formats.length > 0) {
-      const videoFormat =
-        output.formats.find(
-          (f: any) => f.vcodec !== "none" && f.url && f.url.startsWith("http")
-        ) || output.formats[0];
-      return videoFormat?.url || null;
-    }
-  } catch (e) {
-    // End
+  } catch {
+    // Fallback
   }
 
   return null;
 }
 
-export async function POST(req: NextRequest) {
-  try {
-    const { url } = await req.json();
+async function handleReelExtraction(url: string) {
+  let shortcode: string | null = null;
+  let creatorUsername = "";
+  let creatorFullName = "";
+  let caption = "";
+  let likes = "";
+  let commentsCount = "";
+  let hashtags: string[] = [];
+  let mediaUrl = "";
+  let thumbnailUrl = "";
 
-    if (!url || typeof url !== "string") {
-      return NextResponse.json({ error: "Invalid URL" }, { status: 400 });
-    }
+  const reelMatch = url.match(/(?:reel|p)\/([A-Za-z0-9_-]+)/);
+  if (reelMatch) {
+    shortcode = reelMatch[1];
+  }
 
-    let shortcode: string | null = null;
-    let creatorUsername = "";
-    let creatorFullName = "";
-    let caption = "";
-    let likes = "";
-    let commentsCount = "";
-    let hashtags: string[] = [];
-    let mediaUrl = "";
-    let thumbnailUrl = "";
+  const userMatch = url.match(/instagram\.com\/([A-Za-z0-9_.]+)\/(?:reel|p)\//);
+  if (userMatch && userMatch[1] && userMatch[1] !== "reel" && userMatch[1] !== "p") {
+    creatorUsername = userMatch[1];
+  }
 
-    const reelMatch = url.match(/(?:reel|p)\/([A-Za-z0-9_-]+)/);
-    if (reelMatch) {
-      shortcode = reelMatch[1];
-    }
+  // 1. OGInstagram & Instagram OpenGraph extraction
+  if (shortcode) {
+    const ogUrls = [
+      `https://oginstagram.com/reel/${shortcode}`,
+      `https://www.instagram.com/p/${shortcode}/`,
+    ];
 
-    const userMatch = url.match(/instagram\.com\/([A-Za-z0-9_.]+)\/(?:reel|p)\//);
-    if (userMatch && userMatch[1] && userMatch[1] !== "reel" && userMatch[1] !== "p") {
-      creatorUsername = userMatch[1];
-    }
-
-    // 1. OpenGraph Extraction (Instant & highly reliable)
-    if (shortcode) {
+    for (const ogUrl of ogUrls) {
       try {
-        const ogRes = await fetch(`https://www.instagram.com/p/${shortcode}/`, {
+        const ogRes = await fetch(ogUrl, {
           headers: {
             "User-Agent": "facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)",
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
@@ -227,6 +244,9 @@ export async function POST(req: NextRequest) {
           const ogDescMatch =
             html.match(/<meta\s+(?:property|name)="og:description"\s+content="([^"]*)"/i) ||
             html.match(/content="([^"]*)"\s+property="og:description"/i);
+          const ogImageMatch =
+            html.match(/<meta\s+(?:property|name)="og:image"\s+content="([^"]*)"/i) ||
+            html.match(/content="([^"]*)"\s+property="og:image"/i);
 
           const ogTitle = ogTitleMatch ? decodeEntities(ogTitleMatch[1]) : "";
           const ogDesc = ogDescMatch ? decodeEntities(ogDescMatch[1]) : "";
@@ -239,138 +259,205 @@ export async function POST(req: NextRequest) {
           }
 
           if (ogDesc) {
-            const descMatch = ogDesc.match(
-              /^(?:([0-9,KkMm\.]+\s+likes)?,?\s*)?(?:([0-9,KkMm\.]+\s+comments)?\s*-\s*)?([a-zA-Z0-9_\.]+)\s+on\s+[^:]+:\s*"?([\s\S]*?)"?\s*\.?\s*$/i
-            );
+            const descStatsMatch = ogDesc.match(/^([0-9.,KMkm]+)\s+likes,\s+([0-9.,KMkm]+)\s+comments\s*-\s*([^\s@]+)?\s*(?:\(([^)]+)\))?\s*on\s+Instagram:\s*"([\s\S]*)"$/);
 
-            if (descMatch) {
-              if (descMatch[1] && !likes) likes = descMatch[1].trim();
-              if (descMatch[2] && !commentsCount) commentsCount = descMatch[2].trim();
-              if (descMatch[3] && !creatorUsername) creatorUsername = descMatch[3].trim();
-              if (descMatch[4] && !caption) caption = descMatch[4].trim();
+            if (descStatsMatch) {
+              if (!likes) likes = descStatsMatch[1];
+              if (!commentsCount) commentsCount = descStatsMatch[2];
+              if (!creatorUsername && descStatsMatch[3]) creatorUsername = descStatsMatch[3];
+              if (!creatorFullName && descStatsMatch[4]) creatorFullName = descStatsMatch[4];
+              if (!caption && descStatsMatch[5]) caption = descStatsMatch[5].trim();
+            } else {
+              const simplerMatch = ogDesc.match(/^([0-9.,KMkm]+)\s+likes,\s+([0-9.,KMkm]+)\s+comments\s*-\s*([\s\S]*)$/);
+              if (simplerMatch) {
+                if (!likes) likes = simplerMatch[1];
+                if (!commentsCount) commentsCount = simplerMatch[2];
+                if (!caption) caption = simplerMatch[3].trim();
+              } else if (!caption) {
+                caption = ogDesc.replace(/^[0-9.,KMkm]+\s+likes,\s+[0-9.,KMkm]+\s+comments\s*-\s*/, "");
+              }
             }
           }
 
-          if (!caption && ogTitle.includes(":")) {
-            caption = ogTitle.substring(ogTitle.indexOf(":") + 1).trim().replace(/^"|"$/g, "");
+          if (ogImageMatch && ogImageMatch[1] && !thumbnailUrl) {
+            thumbnailUrl = decodeEntities(ogImageMatch[1]);
+          }
+
+          if (caption || creatorUsername) {
+            break;
           }
         }
-      } catch (ogErr) {
-        console.warn("OpenGraph notice:", ogErr);
+      } catch {
+        // Fallback
       }
     }
+  }
 
-    // 2. Direct Video Resolution
-    if (shortcode) {
-      try {
-        const resolvedVideo = await resolveDirectVideoUrl(shortcode);
-        if (resolvedVideo && resolvedVideo.startsWith("http")) {
-          mediaUrl = resolvedVideo;
+  // 2. Resolve direct video streaming URL
+  if (shortcode) {
+    const directUrl = await resolveDirectVideoUrl(shortcode);
+    if (directUrl) {
+      mediaUrl = directUrl;
+    }
+  }
+
+  // 3. Fallback to yt-dlp if needed
+  if (!mediaUrl && url) {
+    try {
+      const ytdlPromise = youtubedl(url, {
+        dumpSingleJson: true,
+        noCheckCertificates: true,
+        noWarnings: true,
+        preferFreeFormats: true,
+        addHeader: [
+          "referer:instagram.com",
+          "user-agent:Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+        ],
+      });
+
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("yt-dlp timeout")), 3500)
+      );
+
+      const info: any = await Promise.race([ytdlPromise, timeoutPromise]);
+
+      if (info) {
+        if (!caption && info.description) caption = info.description;
+        if (!caption && info.title) caption = info.title;
+        if (!creatorUsername && info.uploader_id) creatorUsername = info.uploader_id;
+        if (!creatorUsername && info.channel) creatorUsername = info.channel;
+        if (!creatorFullName && info.uploader) creatorFullName = info.uploader;
+        if (!likes && info.like_count) likes = String(info.like_count);
+        if (!commentsCount && info.comment_count) commentsCount = String(info.comment_count);
+        if (!thumbnailUrl && info.thumbnail) thumbnailUrl = info.thumbnail;
+        if (info.url && typeof info.url === "string" && info.url.startsWith("http")) {
+          mediaUrl = info.url;
         }
-      } catch (vidErr) {
-        console.warn("Direct video resolution notice:", vidErr);
       }
+    } catch {
+      // Fallback
     }
+  }
 
-    if (!creatorUsername) {
-      if (creatorFullName) {
-        creatorUsername = creatorFullName.toLowerCase().replace(/[^a-z0-9_]/g, "_");
-      } else {
-        creatorUsername = shortcode ? `reels_${shortcode.substring(0, 6)}` : "instagram_creator";
-      }
+  // Extract hashtags from caption
+  if (caption) {
+    const matchedTags = caption.match(/#[a-zA-Z0-9_]+/g);
+    if (matchedTags) {
+      hashtags = Array.from(new Set(matchedTags.map((t) => t.replace("#", "").toLowerCase())));
     }
+  }
 
-    if (!creatorFullName) {
-      creatorFullName = creatorUsername;
-    }
+  // Fallback defaults
+  if (!creatorUsername) {
+    creatorUsername = shortcode ? `creator_${shortcode.slice(0, 5)}` : "instagram_creator";
+  }
+  if (!creatorFullName) {
+    creatorFullName = creatorUsername;
+  }
+  if (!caption) {
+    caption = `Instagram Reel (${shortcode || "saved"})`;
+  }
 
-    if (!caption) {
-      caption = `Saved Instagram Reel (${shortcode || "video"})`;
-    }
+  // Smart categorization
+  const lowerCaption = caption.toLowerCase();
+  let category = "General";
 
-    const extractedTags = caption.match(/#[A-Za-z0-9_]+/g);
-    if (extractedTags) {
-      hashtags = Array.from(new Set(extractedTags));
-    }
+  if (
+    lowerCaption.includes("fitness") ||
+    lowerCaption.includes("workout") ||
+    lowerCaption.includes("gym") ||
+    lowerCaption.includes("exercise") ||
+    lowerCaption.includes("health") ||
+    lowerCaption.includes("nutrition") ||
+    lowerCaption.includes("diet")
+  ) {
+    category = "Health & Fitness";
+  } else if (
+    lowerCaption.includes("recipe") ||
+    lowerCaption.includes("cook") ||
+    lowerCaption.includes("food") ||
+    lowerCaption.includes("bake") ||
+    lowerCaption.includes("kitchen") ||
+    lowerCaption.includes("chef")
+  ) {
+    category = "Food & Cooking";
+  } else if (
+    lowerCaption.includes("ai") ||
+    lowerCaption.includes("tech") ||
+    lowerCaption.includes("code") ||
+    lowerCaption.includes("developer") ||
+    lowerCaption.includes("software") ||
+    lowerCaption.includes("coding") ||
+    lowerCaption.includes("gpt") ||
+    lowerCaption.includes("app")
+  ) {
+    category = "AI & Tech";
+  } else if (
+    lowerCaption.includes("design") ||
+    lowerCaption.includes("ui") ||
+    lowerCaption.includes("figma") ||
+    lowerCaption.includes("ux") ||
+    lowerCaption.includes("spacing") ||
+    lowerCaption.includes("fits") ||
+    lowerCaption.includes("fashion") ||
+    lowerCaption.includes("style")
+  ) {
+    category = "Design";
+  } else if (
+    lowerCaption.includes("productivity") ||
+    lowerCaption.includes("system") ||
+    lowerCaption.includes("habit") ||
+    lowerCaption.includes("time") ||
+    lowerCaption.includes("notion") ||
+    lowerCaption.includes("focus") ||
+    lowerCaption.includes("motivation")
+  ) {
+    category = "Productivity";
+  }
 
-    if (!thumbnailUrl && shortcode) {
-      thumbnailUrl = `/api/proxy-image?shortcode=${shortcode}`;
-    }
+  return {
+    shortcode,
+    creatorUsername,
+    creatorFullName,
+    caption,
+    hashtags,
+    likes,
+    commentsCount,
+    thumbnailUrl: thumbnailUrl || `/api/proxy-image?shortcode=${shortcode}`,
+    mediaUrl,
+    category,
+  };
+}
 
-    // AI Categorization engine
-    let category = "General";
-    const lowerCaption = (caption + " " + hashtags.join(" ")).toLowerCase();
-    if (
-      lowerCaption.includes("workout") ||
-      lowerCaption.includes("exercise") ||
-      lowerCaption.includes("gym") ||
-      lowerCaption.includes("posture") ||
-      lowerCaption.includes("fitness") ||
-      lowerCaption.includes("health") ||
-      lowerCaption.includes("sleep") ||
-      lowerCaption.includes("run") ||
-      lowerCaption.includes("race") ||
-      lowerCaption.includes("marathon")
-    ) {
-      category = "Health & Fitness";
-    } else if (
-      lowerCaption.includes("recipe") ||
-      lowerCaption.includes("cook") ||
-      lowerCaption.includes("food") ||
-      lowerCaption.includes("paneer") ||
-      lowerCaption.includes("dinner") ||
-      lowerCaption.includes("kitchen") ||
-      lowerCaption.includes("dish") ||
-      lowerCaption.includes("beer")
-    ) {
-      category = "Food & Cooking";
-    } else if (
-      lowerCaption.includes("ai") ||
-      lowerCaption.includes("code") ||
-      lowerCaption.includes("python") ||
-      lowerCaption.includes("tech") ||
-      lowerCaption.includes("software") ||
-      lowerCaption.includes("agent") ||
-      lowerCaption.includes("developer")
-    ) {
-      category = "AI & Tech";
-    } else if (
-      lowerCaption.includes("design") ||
-      lowerCaption.includes("ui") ||
-      lowerCaption.includes("figma") ||
-      lowerCaption.includes("ux") ||
-      lowerCaption.includes("spacing") ||
-      lowerCaption.includes("fits") ||
-      lowerCaption.includes("fashion") ||
-      lowerCaption.includes("style")
-    ) {
-      category = "Design";
-    } else if (
-      lowerCaption.includes("productivity") ||
-      lowerCaption.includes("system") ||
-      lowerCaption.includes("habit") ||
-      lowerCaption.includes("time") ||
-      lowerCaption.includes("notion") ||
-      lowerCaption.includes("focus") ||
-      lowerCaption.includes("motivation")
-    ) {
-      category = "Productivity";
-    }
+export async function GET(req: NextRequest) {
+  const { searchParams } = new URL(req.url);
+  const url = searchParams.get("url");
 
-    return NextResponse.json({
-      shortcode,
-      creatorUsername,
-      creatorFullName,
-      caption,
-      hashtags,
-      likes,
-      commentsCount,
-      thumbnailUrl: thumbnailUrl || `/api/proxy-image?shortcode=${shortcode}`,
-      mediaUrl,
-      category,
-    });
+  if (!url) {
+    return NextResponse.json({ error: "Missing ?url parameter" }, { status: 400 });
+  }
+
+  try {
+    const result = await handleReelExtraction(url);
+    return NextResponse.json(result);
   } catch (error) {
-    console.error("Reel metadata extraction error:", error);
+    console.error("Reel metadata GET error:", error);
+    return NextResponse.json({ error: "Failed to process Reel metadata" }, { status: 500 });
+  }
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    const { url } = await req.json();
+
+    if (!url || typeof url !== "string") {
+      return NextResponse.json({ error: "Invalid URL" }, { status: 400 });
+    }
+
+    const result = await handleReelExtraction(url);
+    return NextResponse.json(result);
+  } catch (error) {
+    console.error("Reel metadata POST error:", error);
     return NextResponse.json({ error: "Failed to process Reel metadata" }, { status: 500 });
   }
 }
