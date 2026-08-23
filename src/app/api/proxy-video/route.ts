@@ -17,7 +17,8 @@ export async function GET(req: NextRequest) {
   if (
     !targetUrl.includes("cdninstagram.com") &&
     !targetUrl.includes("fbcdn.net") &&
-    !targetUrl.includes("instagram.com")
+    !targetUrl.includes("instagram.com") &&
+    !targetUrl.includes("fastdl.app")
   ) {
     return NextResponse.json(
       { error: "Only authorized CDN media endpoints can be proxied" },
@@ -32,6 +33,7 @@ export async function GET(req: NextRequest) {
       "User-Agent":
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
       "Accept": "*/*",
+      "Referer": "https://www.instagram.com/",
     };
 
     if (range) {
@@ -54,6 +56,9 @@ export async function GET(req: NextRequest) {
     headers.set("Content-Type", videoRes.headers.get("content-type") || "video/mp4");
     headers.set("Accept-Ranges", "bytes");
     headers.set("Cache-Control", "public, max-age=3600");
+    headers.set("Access-Control-Allow-Origin", "*");
+    headers.set("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS");
+    headers.set("Access-Control-Allow-Headers", "*");
 
     const contentLength = videoRes.headers.get("content-length");
     if (contentLength) {
@@ -65,7 +70,7 @@ export async function GET(req: NextRequest) {
       headers.set("Content-Range", contentRange);
     }
 
-    // Return the stream directly
+    // Return the stream directly with chunking
     return new NextResponse(videoRes.body, {
       status: videoRes.status,
       headers,
@@ -77,4 +82,15 @@ export async function GET(req: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 204,
+    headers: {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, HEAD, OPTIONS",
+      "Access-Control-Allow-Headers": "*",
+    },
+  });
 }
