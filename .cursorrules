@@ -1,7 +1,7 @@
 # Strict Project Rules
-- Instagram Embedded Player (<iframe src=".../embed">) is authorized by user.
-- Video playback layout must match the split Instagram dialog reference:
-  - Left: 9:16 vertical video player (iframe / HTML5).
-  - Right: Creator header (with verified badge and follow), full caption, comments thread, and engagement metrics (likes, comments, share, save).
-- Zero fake / random fallback videos.
+- Instagram Embedded Player (<iframe src=".../embed">) is the authorized, compliant way to play a Reel inside ReelDash. It is shown with Instagram's native chrome (header, controls, attribution) intact — do NOT crop, hide, or obscure Instagram's branding.
+- Video playback layout is a split dialog:
+  - Left: Instagram's 9:16 embed player (iframe) as Instagram ships it, framed by ReelDash.
+  - Right: ReelDash-owned sidebar — Creator header (with verified badge and follow), full caption, comments thread, and engagement metrics (likes, comments, share, save). This is ReelDash's own chrome/CTA around the official player.
+- Zero fake / random fallback videos. If a Reel's stream cannot be resolved, show a clean "Open on Instagram" state — never substitute another video.
 - Maintain 11-phase progress tracker block.

@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useReels } from "@/context/ReelContext";
 import { ReelGrid } from "@/components/reels/ReelGrid";
 import { ReelPlayerModal } from "@/components/reels/ReelPlayerModal";
+import { CreatorReelGrid, CreatorReelItem } from "@/components/reels/CreatorReelGrid";
 import { Reel } from "@/types/reel";
 import {
   Instagram,
@@ -16,6 +17,7 @@ import {
   Copy,
   Loader2,
   Sparkles,
+  User,
 } from "lucide-react";
 
 interface AccountData {
@@ -43,7 +45,12 @@ export default function CreatorProfilePage() {
   const [isSaving, setIsSaving] = useState(false);
   const [activeModalReel, setActiveModalReel] = useState<Reel | null>(null);
 
-  // 1. Fetch authentic Creator Info from API
+  // Discovered reels from Instagram (SociableKIT-style grid)
+  const [discovered, setDiscovered] = useState<CreatorReelItem[]>([]);
+  const [discovering, setDiscovering] = useState(false);
+  const [discoverError, setDiscoverError] = useState<string | null>(null);
+
+  // 1. Fetch authentic Creator Info + their Instagram reel grid
   useEffect(() => {
     async function loadProfile() {
       setIsLoading(true);
@@ -61,8 +68,30 @@ export default function CreatorProfilePage() {
         setIsLoading(false);
       }
     }
+
+    async function loadReels() {
+      setDiscovering(true);
+      setDiscoverError(null);
+      try {
+        const res = await fetch(`/api/instagram/creator-reels?username=${encodeURIComponent(username)}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data.items) && data.items.length > 0) {
+            setDiscovered(data.items);
+          } else if (data.reason) {
+            setDiscoverError(data.reason);
+          }
+        }
+      } catch {
+        setDiscoverError("Could not reach Instagram right now. Try again shortly.");
+      } finally {
+        setDiscovering(false);
+      }
+    }
+
     if (username) {
       loadProfile();
+      loadReels();
     }
   }, [username]);
 
@@ -111,13 +140,18 @@ export default function CreatorProfilePage() {
             <div className="relative p-1 rounded-full bg-gradient-to-tr from-yellow-500 via-pink-500 to-purple-600 shrink-0 shadow-md">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={
-                  account?.avatarUrl ||
-                  `https://ui-avatars.com/api/?name=${encodeURIComponent(username)}&background=7c3aed&color=fff&size=160`
-                }
+                src={account?.avatarUrl || `https://instagram.com/${username}/media/?size=l`}
                 alt={username}
+                onError={(e) => {
+                  (e.target as HTMLElement).style.display = "none";
+                  const fallback = (e.target as HTMLElement).nextElementSibling as HTMLElement;
+                  if (fallback) fallback.style.display = "flex";
+                }}
                 className="w-16 h-16 md:w-20 md:h-20 rounded-full object-cover bg-zinc-900 border-2 border-white dark:border-zinc-900"
               />
+              <div className="hidden w-16 h-16 md:w-20 md:h-20 rounded-full bg-zinc-900 border-2 border-white dark:border-zinc-900 items-center justify-center text-zinc-400">
+                <User className="w-8 h-8" />
+              </div>
             </div>
 
             {/* Handle & Real Name */}
@@ -244,6 +278,53 @@ export default function CreatorProfilePage() {
             </div>
           </div>
         )}
+      </div>
+
+      {/* 3. DISCOVER ON INSTAGRAM — SociableKIT-style grid of @username's public reels */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <Instagram className="w-4 h-4 text-pink-500" />
+            <h2 className="text-base font-bold text-primaryText-light dark:text-primaryText-dark">
+              Discover on Instagram (@{username})
+            </h2>
+          </div>
+          {discovering && (
+            <span className="flex items-center space-x-1.5 text-xs text-mutedText-light">
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              <span>Loading reels…</span>
+            </span>
+          )}
+        </div>
+
+        {discovering && discovered.length === 0 && (
+          <div className="p-8 text-center bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-xl">
+            <Loader2 className="w-6 h-6 animate-spin text-brand-500 mx-auto" />
+            <p className="text-xs text-secondaryText-light dark:text-secondaryText-dark mt-3">
+              Fetching @{username}'s public Reels from Instagram…
+            </p>
+          </div>
+        )}
+
+        {!discovering && discoverError && discovered.length === 0 && (
+          <div className="p-6 text-center bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-xl space-y-3">
+            <p className="text-xs text-secondaryText-light dark:text-secondaryText-dark max-w-md mx-auto">
+              {discoverError}
+            </p>
+            <a
+              href={`https://instagram.com/${username}`}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center space-x-1.5 px-3.5 py-2 bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-md text-xs font-semibold hover:border-brand-500/40 transition-colors"
+            >
+              <Instagram className="w-3.5 h-3.5 text-pink-500" />
+              <span>Open @{username} on Instagram</span>
+              <ExternalLink className="w-3 h-3" />
+            </a>
+          </div>
+        )}
+
+        {discovered.length > 0 && <CreatorReelGrid items={discovered} />}
       </div>
 
       {/* Reel Player Modal */}

@@ -187,6 +187,11 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // Filter out Instagram login challenge string from bio
+    if (bio && (bio.includes("Welcome back to Instagram") || bio.includes("Sign in to check out") || bio.includes("Capture and share"))) {
+      bio = null;
+    }
+
     return NextResponse.json({
       success: true,
       account: {
@@ -196,7 +201,7 @@ export async function GET(request: NextRequest) {
         avatarUrl,
         followers: followers || null,
         postsCount: postsCount || null,
-        bio: bio || `Instagram profile for @${cleanUsername}`,
+        bio: bio || null,
         isVerified,
       },
     });

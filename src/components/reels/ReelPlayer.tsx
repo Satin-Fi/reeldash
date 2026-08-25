@@ -2,7 +2,104 @@
 
 import React, { useState, useRef } from "react";
 import { Reel } from "@/types/reel";
-import { Play, Loader2, Volume2, VolumeX, Maximize2 } from "lucide-react";
+import { useReels } from "@/context/ReelContext";
+import { Play, Loader2, Volume2, VolumeX, Maximize2, ExternalLink, FolderPlus } from "lucide-react";
+
+/**
+ * ReelDash-owned frame around the official Instagram embed.
+ * Instagram's native chrome (header, controls, attribution) is shown intact and
+ * un-cropped — ReelDash owns the card/chrome/CTA *around* the player.
+ */
+function ReelDashEmbedFrame({ reel, shortcode }: { reel: Reel; shortcode: string }) {
+  const { collections, addReelToCollection, showToast } = useReels();
+  const [colOpen, setColOpen] = useState(false);
+
+  const creatorHandle = reel.creatorUsername || "instagram_user";
+
+  const copyLink = () => {
+    navigator.clipboard.writeText(reel.instagramUrl);
+    showToast("Reel link copied to clipboard");
+  };
+
+  return (
+    <div className="relative w-full h-full flex flex-col bg-black">
+      {/* TOP CHROME — ReelDash owns this */}
+      <div className="shrink-0 flex items-center justify-between px-3 py-2 border-b border-zinc-800 bg-zinc-950">
+        <div className="flex items-center space-x-2 min-w-0">
+          <div className="w-6 h-6 rounded-md bg-brand-500 text-white flex items-center justify-center text-xs font-bold shrink-0">
+            ⚡
+          </div>
+          <span className="text-xs font-bold text-white shrink-0">ReelDash</span>
+          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-zinc-800 text-zinc-400 shrink-0">
+            Via Instagram
+          </span>
+        </div>
+        <button
+          onClick={copyLink}
+          title="Copy link"
+          className="p-1.5 text-zinc-400 hover:text-white rounded-full hover:bg-zinc-800 transition-colors cursor-pointer shrink-0"
+        >
+          <ExternalLink className="w-3.5 h-3.5" />
+        </button>
+      </div>
+
+      {/* INSTAGRAM EMBED — faithful, no crop/hack */}
+      <div className="flex-1 flex items-center justify-center overflow-auto bg-black p-2">
+        <iframe
+          src={`https://www.instagram.com/reel/${shortcode}/embed/`}
+          className="w-full max-w-[340px] border-0 bg-black"
+          allowFullScreen
+          scrolling="no"
+          allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
+          title={reel.caption || "Instagram Reel"}
+        />
+      </div>
+
+      {/* BOTTOM CTA — ReelDash owns this */}
+      <div className="shrink-0 p-2.5 border-t border-zinc-800 bg-zinc-950 space-y-2">
+        <a
+          href={reel.instagramUrl}
+          target="_blank"
+          rel="noreferrer"
+          className="w-full py-2 px-3 bg-brand-500 hover:bg-brand-600 text-white rounded-md text-xs font-semibold flex items-center justify-center space-x-1.5 transition-colors"
+        >
+          <ExternalLink className="w-3.5 h-3.5" />
+          <span>Open on Instagram</span>
+        </a>
+
+        <div className="relative">
+          <button
+            onClick={() => setColOpen((o) => !o)}
+            className="w-full py-2 px-3 bg-zinc-800 hover:bg-zinc-700 text-zinc-100 rounded-md text-xs font-medium flex items-center justify-center space-x-1.5 transition-colors cursor-pointer"
+          >
+            <FolderPlus className="w-3.5 h-3.5" />
+            <span>Save to ReelDash</span>
+          </button>
+
+          {colOpen && (
+            <div className="absolute bottom-full mb-1.5 left-0 right-0 z-30 max-h-56 overflow-y-auto rounded-md border border-zinc-800 bg-zinc-900 shadow-xl p-1 space-y-0.5">
+              {collections.length === 0 && (
+                <p className="px-2.5 py-2 text-[11px] text-zinc-500">No collections yet.</p>
+              )}
+              {collections.map((col) => (
+                <button
+                  key={col.id}
+                  onClick={() => {
+                    addReelToCollection(reel.id, col.id);
+                    setColOpen(false);
+                  }}
+                  className="w-full text-left px-2.5 py-1.5 rounded text-xs text-zinc-200 hover:bg-zinc-800 transition-colors truncate"
+                >
+                  {col.icon} {col.name}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export type PlaybackStatus = "idle" | "playing" | "loading";
 
@@ -74,7 +171,7 @@ export function ReelPlayer({
       // Continue to iframe fallback
     }
 
-    // 3. Seamlessly fallback to clean dark iframe
+    // 3. Fallback to the ReelDash-framed official Instagram embed
     setUseIframe(true);
     setStatus("playing");
   };
@@ -104,17 +201,8 @@ export function ReelPlayer({
       {status === "playing" && (
         <div className="relative w-full h-full bg-black flex items-center justify-center overflow-hidden">
           {useIframe || !playbackUrl ? (
-            /* Instagram Embedded Player - Cropped cleanly to completely eliminate top and bottom white bars */
-            <div className="relative w-full h-full bg-black overflow-hidden flex items-center justify-center">
-              <iframe
-                src={`https://www.instagram.com/reel/${shortcode}/embed/`}
-                className="w-full h-[calc(100%+230px)] -mt-[54px] -mb-[176px] border-0 bg-black scale-[1.01]"
-                allowFullScreen
-                scrolling="no"
-                allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
-                title={reel.caption || "Instagram Reel"}
-              />
-            </div>
+            /* ReelDash-owned frame around the official Instagram embed */
+            <ReelDashEmbedFrame reel={reel} shortcode={shortcode} />
           ) : (
             /* Native HTML5 9:16 Video Player */
             <div className="relative w-full h-full bg-black">
