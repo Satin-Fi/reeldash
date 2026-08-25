@@ -116,7 +116,28 @@ export default {
         return json({ status: "unavailable", shortcode });
       }
 
-      return json({ error: "Unknown route", routes: ["/ig", "/reels", "/reel"] }, 404);
+      // Creator profile header: /profile?username=X  (proxied web_profile_info)
+      if (url.pathname === "/profile") {
+        const username = (url.searchParams.get("username") || "").trim().replace(/^@/, "");
+        if (!username) return json({ error: "Missing ?username" }, 400);
+        const target = `https://www.instagram.com/api/v1/users/web_profile_info/?username=${encodeURIComponent(username)}`;
+        const igRes = await fetch(target, { headers: IG_HEADERS });
+        if (!igRes.ok) return json({ error: "Instagram upstream " + igRes.status, upstream: igRes.status }, igRes.status);
+        const data = await igRes.json();
+        const user = data?.data?.user;
+        if (!user) return json({ error: "No user returned", raw: data }, 502);
+        return json({
+          username,
+          displayName: user.full_name,
+          bio: user.biography || null,
+          followers: user.edge_followed_by?.count ?? null,
+          postsCount: user.edge_owner_to_timeline_media?.count ?? null,
+          avatarUrl: user.profile_pic_url_hd || user.profile_pic_url || null,
+          isVerified: !!user.is_verified,
+        });
+      }
+
+      return json({ error: "Unknown route", routes: ["/ig", "/reels", "/reel", "/profile"] }, 404);
     } catch (err) {
       return json({ error: err.message || String(err) }, 500);
     }

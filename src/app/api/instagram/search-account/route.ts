@@ -37,6 +37,40 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Preferred path: proxy through Cloudflare Worker edge (free, no login).
+    // Avoids Vercel's cloud-IP rate-limit so followers/bio/avatar actually return.
+    const workerUrl = process.env.REELDASH_CF_WORKER_URL;
+    if (workerUrl) {
+      try {
+        const wRes = await fetch(
+          `${workerUrl.replace(/\/$/, "")}/profile?username=${encodeURIComponent(cleanUsername)}`,
+          { cache: "no-store" }
+        );
+        if (wRes.ok) {
+          const w = await wRes.json();
+          if (w && (w.followers != null || w.displayName)) {
+            return NextResponse.json({
+              success: true,
+              account: {
+                username: w.username || cleanUsername,
+                displayName: w.displayName || cleanUsername,
+                profileUrl: `https://instagram.com/${w.username || cleanUsername}`,
+                avatarUrl: w.avatarUrl
+                  ? `/api/proxy-image?url=${encodeURIComponent(w.avatarUrl)}`
+                  : `https://ui-avatars.com/api/?name=${encodeURIComponent(cleanUsername)}&background=7c3aed&color=fff&size=160`,
+                followers: w.followers != null ? String(w.followers) : null,
+                postsCount: w.postsCount != null ? String(w.postsCount) : null,
+                bio: w.bio || null,
+                isVerified: !!w.isVerified,
+              },
+            });
+          }
+        }
+      } catch {
+        // fall through to direct strategies
+      }
+    }
+
     let displayName = cleanUsername;
     let bio: string | null = null;
     let followers: string | null = null;
