@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "cf:deploy": "cd cloudflare-worker && npx wrangler deploy",
+    "cf:local": "cd cloudflare-worker && npx wrangler dev"
   },
   "dependencies": {
     "clsx": "^2.1.1",

@@ -3,7 +3,7 @@
 import React, { useState, useRef } from "react";
 import { Reel } from "@/types/reel";
 import { useReels } from "@/context/ReelContext";
-import { Play, Loader2, Volume2, VolumeX, Maximize2, ExternalLink, FolderPlus } from "lucide-react";
+import { Play, Loader2, Volume2, VolumeX, Maximize2, ExternalLink } from "lucide-react";
 
 /**
  * ReelDash-owned frame around the official Instagram embed.
@@ -11,8 +11,7 @@ import { Play, Loader2, Volume2, VolumeX, Maximize2, ExternalLink, FolderPlus } 
  * un-cropped — ReelDash owns the card/chrome/CTA *around* the player.
  */
 function ReelDashEmbedFrame({ reel, shortcode }: { reel: Reel; shortcode: string }) {
-  const { collections, addReelToCollection, showToast } = useReels();
-  const [colOpen, setColOpen] = useState(false);
+  const { showToast } = useReels();
 
   const creatorHandle = reel.creatorUsername || "instagram_user";
 
@@ -55,48 +54,9 @@ function ReelDashEmbedFrame({ reel, shortcode }: { reel: Reel; shortcode: string
         />
       </div>
 
-      {/* BOTTOM CTA — ReelDash owns this */}
-      <div className="shrink-0 p-2.5 border-t border-zinc-800 bg-zinc-950 space-y-2">
-        <a
-          href={reel.instagramUrl}
-          target="_blank"
-          rel="noreferrer"
-          className="w-full py-2 px-3 bg-brand-500 hover:bg-brand-600 text-white rounded-md text-xs font-semibold flex items-center justify-center space-x-1.5 transition-colors"
-        >
-          <ExternalLink className="w-3.5 h-3.5" />
-          <span>Open on Instagram</span>
-        </a>
-
-        <div className="relative">
-          <button
-            onClick={() => setColOpen((o) => !o)}
-            className="w-full py-2 px-3 bg-zinc-800 hover:bg-zinc-700 text-zinc-100 rounded-md text-xs font-medium flex items-center justify-center space-x-1.5 transition-colors cursor-pointer"
-          >
-            <FolderPlus className="w-3.5 h-3.5" />
-            <span>Save to ReelDash</span>
-          </button>
-
-          {colOpen && (
-            <div className="absolute bottom-full mb-1.5 left-0 right-0 z-30 max-h-56 overflow-y-auto rounded-md border border-zinc-800 bg-zinc-900 shadow-xl p-1 space-y-0.5">
-              {collections.length === 0 && (
-                <p className="px-2.5 py-2 text-[11px] text-zinc-500">No collections yet.</p>
-              )}
-              {collections.map((col) => (
-                <button
-                  key={col.id}
-                  onClick={() => {
-                    addReelToCollection(reel.id, col.id);
-                    setColOpen(false);
-                  }}
-                  className="w-full text-left px-2.5 py-1.5 rounded text-xs text-zinc-200 hover:bg-zinc-800 transition-colors truncate"
-                >
-                  {col.icon} {col.name}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
+      {/* The reel is already saved in ReelDash here. Library actions (Open in
+          Instagram, Add to Collection) live in the modal sidebar / More menu, so
+          we intentionally do NOT duplicate a "Save" or second "Open on Instagram" here. */}
     </div>
   );
 }

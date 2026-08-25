@@ -33,7 +33,37 @@ function cleanCode(code: string): string {
 }
 
 async function fetchAllMedia(username: string): Promise<any[]> {
-  // Layer 1: web_profile_info gives the user id + first page of timeline media
+  const workerUrl = process.env.REELDASH_CF_WORKER_URL;
+
+  // Preferred path: proxy through Cloudflare Worker edge (free, no login).
+  // Cloudflare's egress IPs are far less likely to be rate-limited than Vercel's.
+  if (workerUrl) {
+    try {
+      const res = await fetch(
+        `${workerUrl.replace(/\/$/, "")}/reels?username=${encodeURIComponent(username)}`,
+        { cache: "no-store" }
+      );
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data.items) && data.items.length > 0) {
+          return data.items.map((it: any) => ({
+            shortcode: it.shortcode,
+            display_url: it.thumbnail,
+            is_video: it.isVideo,
+            edge_media_to_caption: it.caption
+              ? { edges: [{ node: { text: it.caption } }] }
+              : { edges: [] },
+            edge_media_preview_like: { count: it.likes },
+            edge_media_to_comment: { count: it.comments },
+          }));
+        }
+      }
+    } catch {
+      // fall through to direct fetch
+    }
+  }
+
+  // Direct unauthenticated fetch from this server (Vercel). Works for first page.
   const res = await fetch(
     `https://www.instagram.com/api/v1/users/web_profile_info/?username=${encodeURIComponent(username)}`,
     { headers: igHeaders(), cache: "no-store" }
@@ -44,34 +74,10 @@ async function fetchAllMedia(username: string): Promise<any[]> {
   if (!user) return [];
 
   const firstConn = user.edge_owner_to_timeline_media;
-  let nodes = (firstConn?.edges || []).map((e: any) => e.node);
-  let pageInfo = firstConn?.page_info;
-  const userId = user.id;
+  const nodes = (firstConn?.edges || []).map((e: any) => e.node);
 
-  // Layer 2: paginate the timeline media connection until exhausted (full grid)
-  const docId = "6387012724718600"; // edge_owner_to_timeline_media
-  let guard = 0;
-  while (pageInfo?.has_next_page && pageInfo?.end_cursor && guard < 12) {
-    guard++;
-    const variables = {
-      id: userId,
-      first: 50,
-      after: pageInfo.end_cursor,
-    };
-    const url = `https://www.instagram.com/graphql/query/?doc_id=${docId}&variables=${encodeURIComponent(JSON.stringify(variables))}`;
-    try {
-      const pg = await fetch(url, { headers: igHeaders(), cache: "no-store" });
-      if (!pg.ok) break;
-      const pd = await pg.json();
-      const conn = pd?.data?.user?.edge_owner_to_timeline_media;
-      if (!conn) break;
-      nodes = nodes.concat((conn.edges || []).map((e: any) => e.node));
-      pageInfo = conn.page_info;
-    } catch {
-      break;
-    }
-  }
-
+  // Note: unauthenticated GraphQL pagination (doc_id) returns 400 from cloud IPs,
+  // so the first page (most-recent ~12) is the reliable ceiling without a proxy.
   return dedup(nodes);
 }
 

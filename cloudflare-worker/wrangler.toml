@@ -1,3 +1,6 @@
-name = "reeldash-resolver"
+name = "reeldash-ig-proxy"
 main = "worker.js"
-compatibility_date = "2024-04-01"
+compatibility_date = "2024-09-23"
+
+# Free tier is enough. No bindings, no secrets — purely an egress proxy hop.
+# Deploy:  npm run cf:deploy   (after `wrangler login`)
