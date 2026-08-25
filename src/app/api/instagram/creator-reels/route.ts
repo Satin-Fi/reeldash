@@ -32,8 +32,8 @@ function cleanCode(code: string): string {
   return code.replace(/[^\w-]/g, "");
 }
 
-async function fetchViaWebProfile(username: string): Promise<any[]> {
-  // 1. web_profile_info gives the user id + first page of timeline media
+async function fetchAllMedia(username: string): Promise<any[]> {
+  // Layer 1: web_profile_info gives the user id + first page of timeline media
   const res = await fetch(
     `https://www.instagram.com/api/v1/users/web_profile_info/?username=${encodeURIComponent(username)}`,
     { headers: igHeaders(), cache: "no-store" }
@@ -41,28 +41,38 @@ async function fetchViaWebProfile(username: string): Promise<any[]> {
   if (!res.ok) return [];
   const data = await res.json();
   const user = data?.data?.user;
-  const edges = user?.edge_owner_to_timeline_media?.edges || [];
-  const items = edges.map((e: any) => e.node);
-  // If a reels-specific container exists, prefer it
-  const reelsEdges = user?.edge_owner_to_timeline_media?.edges || [];
-  if (reelsEdges.length >= items.length) return dedup(items);
-  return dedup(items);
-}
+  if (!user) return [];
 
-async function fetchViaGraphQL(username: string, userId: string): Promise<any[]> {
-  // 2. Reels connection (clips) via GraphQL
-  const docId = "5473576870861646"; // edge_clips
-  const variables = {
-    user_id: userId,
-    include_reel: true,
-    first: 50,
-  };
-  const url = `https://www.instagram.com/graphql/query/?doc_id=${docId}&variables=${encodeURIComponent(JSON.stringify(variables))}`;
-  const res = await fetch(url, { headers: igHeaders(), cache: "no-store" });
-  if (!res.ok) return [];
-  const data = await res.json();
-  const clips = data?.data?.user?.edge_clips?.edges || [];
-  return dedup(clips.map((e: any) => e.node));
+  const firstConn = user.edge_owner_to_timeline_media;
+  let nodes = (firstConn?.edges || []).map((e: any) => e.node);
+  let pageInfo = firstConn?.page_info;
+  const userId = user.id;
+
+  // Layer 2: paginate the timeline media connection until exhausted (full grid)
+  const docId = "6387012724718600"; // edge_owner_to_timeline_media
+  let guard = 0;
+  while (pageInfo?.has_next_page && pageInfo?.end_cursor && guard < 12) {
+    guard++;
+    const variables = {
+      id: userId,
+      first: 50,
+      after: pageInfo.end_cursor,
+    };
+    const url = `https://www.instagram.com/graphql/query/?doc_id=${docId}&variables=${encodeURIComponent(JSON.stringify(variables))}`;
+    try {
+      const pg = await fetch(url, { headers: igHeaders(), cache: "no-store" });
+      if (!pg.ok) break;
+      const pd = await pg.json();
+      const conn = pd?.data?.user?.edge_owner_to_timeline_media;
+      if (!conn) break;
+      nodes = nodes.concat((conn.edges || []).map((e: any) => e.node));
+      pageInfo = conn.page_info;
+    } catch {
+      break;
+    }
+  }
+
+  return dedup(nodes);
 }
 
 function dedup(nodes: any[]): any[] {
@@ -129,37 +139,15 @@ export async function GET(request: NextRequest) {
   }
 
   let items: any[] = [];
-  let userId: string | null = null;
 
-  // Layer 1: web_profile_info (works unauthenticated most often)
+  // Unauthenticated scrape of any public account's media (no login, no OAuth)
   try {
-    const res = await fetch(
-      `https://www.instagram.com/api/v1/users/web_profile_info/?username=${encodeURIComponent(username)}`,
-      { headers: igHeaders(), cache: "no-store" }
-    );
-    if (res.ok) {
-      const data = await res.json();
-      const user = data?.data?.user;
-      if (user) {
-        userId = user.id;
-        const edges = user.edge_owner_to_timeline_media?.edges || [];
-        items = dedup(edges.map((e: any) => e.node));
-      }
-    }
+    items = await fetchAllMedia(username);
   } catch {
     // continue
   }
 
-  // Layer 2: reels-specific GraphQL if we got a userId and still need more
-  if (userId && items.length === 0) {
-    try {
-      items = await fetchViaGraphQL(username, userId);
-    } catch {
-      // continue
-    }
-  }
-
-  // Layer 3: oembed-ish fallback for a single probe (rare) — skip if empty
+  // Graceful empty state
   const normalized = items.map(normalize).filter((n) => n.shortcode);
 
   if (normalized.length === 0) {
@@ -168,7 +156,7 @@ export async function GET(request: NextRequest) {
         username,
         items: [],
         reason:
-          "Instagram rate-limited or blocked this cloud request. Set INSTAGRAM_SESSION_ID to improve reliability, or open the profile on instagram.com.",
+          "Instagram didn't return media for this request. It may rate-limit cloud requests occasionally — refresh in a moment, or open the profile on instagram.com.",
       },
       { status: 200 }
     );
