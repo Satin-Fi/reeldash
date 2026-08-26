@@ -18,6 +18,7 @@ import {
   Copy,
   Trash2,
   FolderPlus,
+  ThumbsUp,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -63,36 +64,10 @@ export function ReelPlayerModal({ reel, isOpen, onClose }: ReelPlayerModalProps)
     showToast("Personal note saved");
   };
 
-  const toggleCommentLike = (index: number) => {
-    setLikedComments((prev) => ({ ...prev, [index]: !prev[index] }));
-  };
-
   // Clean likes display string
   const cleanLikes = reel.likes
     ? reel.likes.replace(/likes/gi, "").trim()
     : "17K";
-
-  // Mock comments stream matching Instagram post layout
-  const mockComments = [
-    {
-      username: "official_priyanka8797",
-      time: "43s",
-      text: "Beautiful ❤️✨",
-      likes: 12,
-    },
-    {
-      username: "alex_dance_vibe",
-      time: "46s",
-      text: "🧿 🧿 🧿 🧿 🧿 Such clean moves!",
-      likes: 8,
-    },
-    {
-      username: "creative_studio_in",
-      time: "1m",
-      text: "The lighting and choreography are on point 🔥",
-      likes: 5,
-    },
-  ];
 
   // Helper to format text with hashtags and mentions in blue
   const formatCaption = (text: string) => {
@@ -272,38 +247,47 @@ export function ReelPlayerModal({ reel, isOpen, onClose }: ReelPlayerModalProps)
                 </div>
               </div>
 
-              {/* Comments Thread Section */}
-              <div className="pt-2 border-t border-zinc-800/60 space-y-3.5">
-                {mockComments.map((c, idx) => (
-                  <div key={idx} className="flex items-start space-x-3 group">
-                    <div className="w-7 h-7 rounded-full bg-zinc-800 text-zinc-300 font-semibold text-[10px] flex items-center justify-center shrink-0 mt-0.5">
-                      {c.username[0]?.toUpperCase()}
-                    </div>
-                    <div className="flex-1 space-y-1 min-w-0">
-                      <p className="text-xs text-zinc-200">
-                        <span className="font-semibold mr-1.5 text-white">{c.username}</span>
-                        {c.text}
-                      </p>
-                      <div className="flex items-center space-x-3 text-[10px] text-zinc-500 font-medium">
-                        <span>{c.time}</span>
-                        <span className="hover:text-zinc-300 cursor-pointer">
-                          {c.likes + (likedComments[idx] ? 1 : 0)} likes
-                        </span>
-                        <span className="hover:text-zinc-300 cursor-pointer">Reply</span>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => toggleCommentLike(idx)}
-                      className={`p-1 transition-colors cursor-pointer shrink-0 ${
-                        likedComments[idx] ? "text-red-500" : "text-zinc-600 hover:text-zinc-400"
-                      }`}
-                    >
-                      <Heart
-                        className={`w-3 h-3 ${likedComments[idx] ? "fill-red-500" : ""}`}
-                      />
-                    </button>
+              {/* Engagement & Metadata Breakdown */}
+              <div className="pt-3 border-t border-zinc-800/60 space-y-3">
+                <div className="flex items-center justify-between text-xs text-zinc-400">
+                  <div className="flex items-center space-x-3">
+                    {reel.likes && (
+                      <span className="flex items-center space-x-1 text-zinc-300 font-semibold">
+                        <ThumbsUp className="w-3.5 h-3.5 text-zinc-400" />
+                        <span>{reel.likes}</span>
+                      </span>
+                    )}
+                    {reel.commentsCount && (
+                      <span className="flex items-center space-x-1 text-zinc-300">
+                        <MessageCircle className="w-3.5 h-3.5 text-zinc-400" />
+                        <span>{reel.commentsCount} comments</span>
+                      </span>
+                    )}
                   </div>
-                ))}
+                  <a
+                    href={reel.instagramUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-[11px] text-[#0095F6] hover:underline flex items-center space-x-1"
+                  >
+                    <span>View on Instagram</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
+
+                {/* Hashtags list */}
+                {reel.hashtags && reel.hashtags.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 pt-1">
+                    {reel.hashtags.map((tag, i) => (
+                      <span
+                        key={i}
+                        className="text-[11px] px-2 py-0.5 rounded-full bg-zinc-900 border border-zinc-800 text-brand-400 font-medium"
+                      >
+                        #{tag}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* AI Key Insights Card */}

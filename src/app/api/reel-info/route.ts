@@ -255,10 +255,30 @@ async function handleReelExtraction(url: string) {
     creatorUsername = userMatch[1];
   }
 
-  // 2. OpenGraph / Instagram metadata extraction
+  // 2. Official Instagram oEmbed & OpenGraph metadata extraction
   if (shortcode || url) {
+    // Strategy 0: Official Instagram oEmbed
+    try {
+      const oembedRes = await fetch(
+        `https://api.instagram.com/oembed/?url=${encodeURIComponent(url)}&omitscript=true`,
+        { cache: "no-store" }
+      );
+      if (oembedRes.ok) {
+        const oeData = await oembedRes.json();
+        if (oeData.title && !caption) caption = oeData.title;
+        if (oeData.author_name && !creatorUsername) creatorUsername = oeData.author_name;
+        if (oeData.author_name && !creatorFullName) creatorFullName = oeData.author_name;
+        if (oeData.thumbnail_url && !thumbnailUrl) {
+          thumbnailUrl = `/api/proxy-image?url=${encodeURIComponent(oeData.thumbnail_url)}`;
+        }
+      }
+    } catch {
+      // Fall through to next strategy
+    }
+
     const ogUrls = [
       shortcode ? `https://oginstagram.com/${mediaType === "post" ? "p" : "reel"}/${shortcode}` : "",
+      shortcode ? `https://ddinstagram.com/${mediaType === "post" ? "p" : "reel"}/${shortcode}` : "",
       shortcode ? `https://www.instagram.com/${mediaType === "post" ? "p" : "reel"}/${shortcode}/` : "",
     ].filter(Boolean);
 
@@ -266,7 +286,7 @@ async function handleReelExtraction(url: string) {
       try {
         const ogRes = await fetch(ogUrl, {
           headers: {
-            "User-Agent": "facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)",
+            "User-Agent": "Mozilla/5.0 (compatible; Discordbot/2.0; +https://discord.app)",
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
             "Accept-Language": "en-US,en;q=0.9",
           },

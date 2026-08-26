@@ -27,11 +27,11 @@ export interface CreatorReelItem {
 }
 
 /** A single discovered reel tile with ReelDash Save + play chrome. */
-function CreatorReelTile({ item }: { item: CreatorReelItem }) {
+function CreatorReelTile({ item, creatorUsername }: { item: CreatorReelItem; creatorUsername?: string }) {
   const { saveReel, reels, showToast } = useReels();
   const [saving, setSaving] = useState(false);
   const [open, setOpen] = useState(false);
-  const [colOpen, setColOpen] = useState(false);
+  const [imgSrc, setImgSrc] = useState(item.thumbnailUrl);
 
   const alreadySaved = reels.some(
     (r) => r.instagramUrl.replace(/\/$/, "") === item.instagramUrl.replace(/\/$/, "")
@@ -41,11 +41,11 @@ function CreatorReelTile({ item }: { item: CreatorReelItem }) {
     id: item.id,
     userId: "preview",
     instagramUrl: item.instagramUrl,
-    creatorUsername: item.instagramUrl.match(/instagram\.com\/([^/]+)\//)?.[1] || "instagram",
+    creatorUsername: creatorUsername || "instagram",
     creatorFullName: "",
-    creatorProfileUrl: item.instagramUrl,
+    creatorProfileUrl: `https://instagram.com/${creatorUsername || ""}`,
     creatorAvatar: "",
-    thumbnailUrl: item.thumbnailUrl,
+    thumbnailUrl: imgSrc,
     mediaUrl: "",
     caption: item.caption,
     category: "General",
@@ -80,9 +80,14 @@ function CreatorReelTile({ item }: { item: CreatorReelItem }) {
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src={item.thumbnailUrl}
+          src={imgSrc}
           alt={item.caption || "Instagram Reel"}
           referrerPolicy="no-referrer"
+          onError={() => {
+            if (item.shortcode) {
+              setImgSrc(`/api/proxy-image?shortcode=${item.shortcode}`);
+            }
+          }}
           className="w-full h-full object-cover group-hover:scale-103 transition-transform duration-300 ease-out"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/30 opacity-70 group-hover:opacity-90 transition-opacity" />
@@ -104,12 +109,11 @@ function CreatorReelTile({ item }: { item: CreatorReelItem }) {
           }`}
         >
           {saving ? (
-            <Loader2 className="w-3 h-3 animate-spin" />
-          ) : alreadySaved ? (
-            <span>Saved</span>
+            <Loader2 className="w-2.5 h-2.5 animate-spin" />
           ) : (
-            <span>Save</span>
+            <FolderPlus className="w-2.5 h-2.5" />
           )}
+          <span>{alreadySaved ? "Saved" : "Save"}</span>
         </button>
 
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
@@ -141,12 +145,12 @@ function CreatorReelTile({ item }: { item: CreatorReelItem }) {
   );
 }
 
-export function CreatorReelGrid({ items }: { items: CreatorReelItem[] }) {
+export function CreatorReelGrid({ items, username }: { items: CreatorReelItem[]; username?: string }) {
   if (items.length === 0) return null;
   return (
     <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-5">
       {items.map((it) => (
-        <CreatorReelTile key={it.id} item={it} />
+        <CreatorReelTile key={it.id} item={it} creatorUsername={username} />
       ))}
     </div>
   );

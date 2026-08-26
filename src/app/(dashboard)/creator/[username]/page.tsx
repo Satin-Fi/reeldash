@@ -357,23 +357,47 @@ export default function CreatorProfilePage() {
             )}
 
             {!discovering && discoverError && discovered.length === 0 && creatorReels.length === 0 && (
-              <div className="p-8 text-center bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-xl space-y-3">
+              <div className="p-8 text-center bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-xl space-y-4">
                 <p className="text-xs text-secondaryText-light dark:text-secondaryText-dark max-w-md mx-auto">
                   {discoverError}
                 </p>
-                <a
-                  href={`https://instagram.com/${username}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center space-x-1.5 px-4 py-2 bg-brand-500 text-white rounded-rd-md text-xs font-semibold hover:bg-brand-600 transition-colors shadow-sm"
-                >
-                  <Instagram className="w-3.5 h-3.5" />
-                  <span>Open @{username} on Instagram</span>
-                </a>
+                <div className="flex items-center justify-center gap-3">
+                  <button
+                    onClick={() => {
+                      setDiscovering(true);
+                      setDiscoverError(null);
+                      fetch(`/api/instagram/creator-reels?username=${encodeURIComponent(username)}`)
+                        .then((r) => r.json())
+                        .then((d) => {
+                          if (Array.isArray(d.items) && d.items.length > 0) {
+                            setDiscovered(d.items);
+                          } else if (d.reason) {
+                            setDiscoverError(d.reason);
+                          }
+                        })
+                        .catch(() => setDiscoverError("Could not reach Instagram right now."))
+                        .finally(() => setDiscovering(false));
+                    }}
+                    className="inline-flex items-center space-x-1.5 px-4 py-2 bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark border border-borderSubtle-light dark:border-borderSubtle-dark hover:border-brand-500 text-primaryText-light dark:text-primaryText-dark rounded-rd-md text-xs font-semibold transition-colors cursor-pointer"
+                  >
+                    <Loader2 className={`w-3.5 h-3.5 ${discovering ? "animate-spin" : ""}`} />
+                    <span>Retry Live Feed</span>
+                  </button>
+
+                  <a
+                    href={`https://instagram.com/${username}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center space-x-1.5 px-4 py-2 bg-brand-500 text-white rounded-rd-md text-xs font-semibold hover:bg-brand-600 transition-colors shadow-sm"
+                  >
+                    <Instagram className="w-3.5 h-3.5" />
+                    <span>Open @{username} on Instagram</span>
+                  </a>
+                </div>
               </div>
             )}
 
-            {discovered.length > 0 && <CreatorReelGrid items={discovered} />}
+            {discovered.length > 0 && <CreatorReelGrid items={discovered} username={username} />}
           </div>
         </div>
       )}
