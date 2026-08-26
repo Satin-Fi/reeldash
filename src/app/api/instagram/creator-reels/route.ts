@@ -27,6 +27,70 @@ function cleanCode(code: string): string {
 }
 
 async function fetchAllMedia(username: string): Promise<any[]> {
+  // Strategy 0: RSS Bridge (rss-bridge.org) - proven to return real posts from any public account
+  try {
+    const rssBridgeUrls = [
+      `https://rss-bridge.org/bridge01/?action=display&bridge=InstagramBridge&u=${encodeURIComponent(username)}&format=Json`,
+      `https://rss.rss-bridge.org/bridge01/?action=display&bridge=InstagramBridge&u=${encodeURIComponent(username)}&format=Json`,
+    ];
+    for (const bridgeUrl of rssBridgeUrls) {
+      try {
+        const res = await fetch(bridgeUrl, {
+          headers: {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+            "Accept": "application/json",
+          },
+          cache: "no-store",
+          signal: AbortSignal.timeout(8000),
+        });
+        if (res.ok) {
+          const json = await res.json();
+          const items: any[] = json.items || [];
+          if (items.length > 0) {
+            // Parse RSS Bridge items into normalized nodes
+            const nodes = items.map((item: any) => {
+              const url = item.url || "";
+              const shortcodeMatch = url.match(/\/(reel|p)\/([A-Za-z0-9_-]+)/);
+              const shortcode = shortcodeMatch?.[2] || "";
+              const isVideo = item.title?.startsWith("▶") || url.includes("/reel/");
+              const isReel = url.includes("/reel/");
+
+              // Extract image from content_html
+              const content = item.content_html || "";
+              const imgMatch = content.match(/src="(https:\/\/[^"]+\.jpg[^"]*)"/);
+              const videoMatch = content.match(/src="(https:\/\/[^"]+\.mp4[^"]*)"/);
+              const displayUrl = imgMatch?.[1] || "";
+
+              // Extract caption
+              const caption = item.title?.replace(/^▶\s*/, "") || "";
+
+              return {
+                shortcode,
+                display_url: displayUrl,
+                video_url: videoMatch?.[1] || "",
+                is_video: isVideo,
+                isReel,
+                __typename: isVideo ? "GraphVideo" : "GraphImage",
+                edge_media_to_caption: { edges: [{ node: { text: caption } }] },
+                edge_media_preview_like: { count: null },
+                edge_media_to_comment: { count: null },
+              };
+            }).filter((n: any) => n.shortcode);
+
+            if (nodes.length > 0) {
+              console.log(`[RSS Bridge] Fetched ${nodes.length} items for @${username}`);
+              return dedup(nodes);
+            }
+          }
+        }
+      } catch {
+        // try next bridge URL
+      }
+    }
+  } catch {
+    // Fall through to SnapSave
+  }
+
   // Strategy 1: SnapSave Profile Scraper (Bypasses Cloud 429/401 rate-limits, zero credentials)
   try {
     const snapItems = await resolveProfileViaSnapSave(username);
