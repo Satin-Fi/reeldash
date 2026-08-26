@@ -43,30 +43,45 @@ export default function DashboardPage() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {/* Saved Reels */}
         <div className="p-4 bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-md shadow-rd-subtle flex items-center space-x-3">
-          <div className="p-2.5 rounded-rd-sm bg-brand-500/10 text-brand-500">
+          <div className="p-2.5 rounded-rd-sm bg-purple-500/10 text-purple-500">
             <Film className="w-4 h-4" />
           </div>
           <div>
             <p className="text-[11px] font-medium text-secondaryText-light dark:text-secondaryText-dark">
-              Saved Reels
+              Reels
             </p>
             <p className="text-lg font-bold font-mono text-primaryText-light dark:text-primaryText-dark mt-0.5">
-              {reels.length}
+              {reels.filter((r) => !r.mediaType || r.mediaType === "reel").length}
             </p>
           </div>
         </div>
 
-        {/* Collections */}
+        {/* Posts & Carousels */}
         <div className="p-4 bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-md shadow-rd-subtle flex items-center space-x-3">
-          <div className="p-2.5 rounded-rd-sm bg-indigo-500/10 text-indigo-500">
-            <Folder className="w-4 h-4" />
+          <div className="p-2.5 rounded-rd-sm bg-blue-500/10 text-blue-500">
+            <Bookmark className="w-4 h-4" />
           </div>
           <div>
             <p className="text-[11px] font-medium text-secondaryText-light dark:text-secondaryText-dark">
-              Collections
+              Posts & Photos
             </p>
             <p className="text-lg font-bold font-mono text-primaryText-light dark:text-primaryText-dark mt-0.5">
-              {collections.length}
+              {reels.filter((r) => r.mediaType === "post").length}
+            </p>
+          </div>
+        </div>
+
+        {/* Songs & Audio */}
+        <div className="p-4 bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-md shadow-rd-subtle flex items-center space-x-3">
+          <div className="p-2.5 rounded-rd-sm bg-emerald-500/10 text-emerald-500">
+            <Sparkles className="w-4 h-4" />
+          </div>
+          <div>
+            <p className="text-[11px] font-medium text-secondaryText-light dark:text-secondaryText-dark">
+              Songs & Audio
+            </p>
+            <p className="text-lg font-bold font-mono text-primaryText-light dark:text-primaryText-dark mt-0.5">
+              {reels.filter((r) => r.mediaType === "audio").length}
             </p>
           </div>
         </div>
@@ -82,21 +97,6 @@ export default function DashboardPage() {
             </p>
             <p className="text-lg font-bold font-mono text-primaryText-light dark:text-primaryText-dark mt-0.5">
               {favorites.length}
-            </p>
-          </div>
-        </div>
-
-        {/* Saved This Week */}
-        <div className="p-4 bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-md shadow-rd-subtle flex items-center space-x-3">
-          <div className="p-2.5 rounded-rd-sm bg-emerald-500/10 text-emerald-500">
-            <Sparkles className="w-4 h-4" />
-          </div>
-          <div>
-            <p className="text-[11px] font-medium text-secondaryText-light dark:text-secondaryText-dark">
-              Saved This Week
-            </p>
-            <p className="text-lg font-bold font-mono text-primaryText-light dark:text-primaryText-dark mt-0.5">
-              {reels.filter((r) => new Date(r.createdAt).getTime() > Date.now() - 7 * 24 * 3600 * 1000).length}
             </p>
           </div>
         </div>

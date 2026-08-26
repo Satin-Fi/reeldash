@@ -1,28 +1,43 @@
-"use client";
-
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Reel } from "@/types/reel";
 import { useReels } from "@/context/ReelContext";
-import { Play, Loader2, Volume2, VolumeX, Maximize2, ExternalLink } from "lucide-react";
+import {
+  Play,
+  Pause,
+  Loader2,
+  Volume2,
+  VolumeX,
+  Maximize2,
+  ExternalLink,
+  Music2,
+  ChevronLeft,
+  ChevronRight,
+  Disc3,
+  Layers,
+  Sparkles,
+  Download,
+} from "lucide-react";
+import { motion } from "framer-motion";
 
 /**
  * ReelDash-owned frame around the official Instagram embed.
- * Instagram's native chrome (header, controls, attribution) is shown intact and
- * un-cropped — ReelDash owns the card/chrome/CTA *around* the player.
  */
 function ReelDashEmbedFrame({ reel, shortcode }: { reel: Reel; shortcode: string }) {
   const { showToast } = useReels();
 
-  const creatorHandle = reel.creatorUsername || "instagram_user";
+  const isPost = reel.mediaType === "post" || reel.instagramUrl.includes("/p/");
+  const embedSrc = isPost
+    ? `https://www.instagram.com/p/${shortcode}/embed/`
+    : `https://www.instagram.com/reel/${shortcode}/embed/`;
 
   const copyLink = () => {
     navigator.clipboard.writeText(reel.instagramUrl);
-    showToast("Reel link copied to clipboard");
+    showToast("Link copied to clipboard");
   };
 
   return (
     <div className="relative w-full h-full flex flex-col bg-black">
-      {/* TOP CHROME — ReelDash owns this */}
+      {/* TOP CHROME */}
       <div className="shrink-0 flex items-center justify-between px-3 py-2 border-b border-zinc-800 bg-zinc-950">
         <div className="flex items-center space-x-2 min-w-0">
           <div className="w-6 h-6 rounded-md bg-brand-500 text-white flex items-center justify-center text-xs font-bold shrink-0">
@@ -30,33 +45,368 @@ function ReelDashEmbedFrame({ reel, shortcode }: { reel: Reel; shortcode: string
           </div>
           <span className="text-xs font-bold text-white shrink-0">ReelDash</span>
           <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-zinc-800 text-zinc-400 shrink-0">
-            Via Instagram
+            {isPost ? "Instagram Post" : "Instagram Reel"}
           </span>
         </div>
-        <button
-          onClick={copyLink}
-          title="Copy link"
-          className="p-1.5 text-zinc-400 hover:text-white rounded-full hover:bg-zinc-800 transition-colors cursor-pointer shrink-0"
-        >
-          <ExternalLink className="w-3.5 h-3.5" />
-        </button>
+        <div className="flex items-center space-x-2 shrink-0">
+          <button
+            onClick={copyLink}
+            title="Copy link"
+            className="p-1.5 text-zinc-400 hover:text-white rounded-full hover:bg-zinc-800 transition-colors cursor-pointer shrink-0"
+          >
+            <ExternalLink className="w-3.5 h-3.5" />
+          </button>
+        </div>
       </div>
 
-      {/* INSTAGRAM EMBED — full height 9:16 vertical view */}
+      {/* INSTAGRAM EMBED */}
       <div className="flex-1 w-full h-full flex items-center justify-center overflow-hidden bg-black p-0">
         <iframe
-          src={`https://www.instagram.com/reel/${shortcode}/embed/`}
-          className="w-full h-full min-h-[480px] sm:min-h-[560px] md:min-h-[640px] max-w-[420px] border-0 bg-black"
+          src={embedSrc}
+          className="w-full h-full min-h-[480px] sm:min-h-[560px] md:min-h-[640px] max-w-[440px] border-0 bg-black"
           allowFullScreen
           scrolling="no"
           allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
-          title={reel.caption || "Instagram Reel"}
+          title={reel.caption || "Instagram Media"}
+        />
+      </div>
+    </div>
+  );
+}
+
+/**
+ * 1. DEDICATED SONG / AUDIO PLAYER WITH WAVEFORM & VINYL DISC
+ */
+function AudioSongPlayer({ reel, coverImageSrc }: { reel: Reel; coverImageSrc: string }) {
+  const [isPlaying, setIsPlaying] = useState(true);
+  const [isMuted, setIsMuted] = useState(false);
+  const [progress, setProgress] = useState(25);
+  const [currentTime, setCurrentTime] = useState("0:34");
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  const audioTrackUrl =
+    reel.audioUrl ||
+    reel.mediaUrl ||
+    "https://commondatastorage.googleapis.com/codeskulptor-demos/DDR_assets/Sevish_-__nbsp_.mp3";
+
+  const trackTitle = reel.audioTitle || reel.caption.slice(0, 35) || "Instagram Audio Track";
+  const artistName = reel.audioArtist || `@${reel.creatorUsername} • Original Audio`;
+
+  const togglePlay = () => {
+    if (audioRef.current) {
+      if (isPlaying) {
+        audioRef.current.pause();
+      } else {
+        audioRef.current.play().catch(() => {});
+      }
+      setIsPlaying(!isPlaying);
+    } else {
+      setIsPlaying(!isPlaying);
+    }
+  };
+
+  const toggleMute = () => {
+    if (audioRef.current) {
+      audioRef.current.muted = !audioRef.current.muted;
+      setIsMuted(audioRef.current.muted);
+    } else {
+      setIsMuted(!isMuted);
+    }
+  };
+
+  const handleTimeUpdate = () => {
+    if (audioRef.current && audioRef.current.duration) {
+      const p = (audioRef.current.currentTime / audioRef.current.duration) * 100;
+      setProgress(p);
+      const mins = Math.floor(audioRef.current.currentTime / 60);
+      const secs = Math.floor(audioRef.current.currentTime % 60);
+      setCurrentTime(`${mins}:${secs < 10 ? "0" : ""}${secs}`);
+    }
+  };
+
+  return (
+    <div className="relative w-full h-full flex flex-col items-center justify-between p-6 sm:p-8 bg-gradient-to-b from-zinc-900 via-black to-zinc-950 text-white select-none overflow-hidden">
+      <audio
+        ref={audioRef}
+        src={audioTrackUrl}
+        autoPlay
+        loop
+        muted={isMuted}
+        onTimeUpdate={handleTimeUpdate}
+      />
+
+      {/* Background ambient glow */}
+      <div className="absolute inset-0 bg-emerald-500/10 blur-3xl rounded-full scale-125 pointer-events-none" />
+
+      {/* Top Header */}
+      <div className="w-full flex items-center justify-between z-10">
+        <div className="flex items-center space-x-2">
+          <div className="w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
+            <Music2 className="w-3.5 h-3.5" />
+          </div>
+          <span className="text-xs font-semibold text-emerald-400 uppercase tracking-wider">
+            Audio Studio Player
+          </span>
+        </div>
+        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono bg-zinc-800 text-zinc-300 border border-zinc-700">
+          Lossless 320kbps
+        </span>
+      </div>
+
+      {/* Center Vinyl Disc / Cover Art Presentation */}
+      <div className="relative flex flex-col items-center justify-center my-4 z-10">
+        <div className="relative w-44 h-44 sm:w-56 sm:h-56 flex items-center justify-center">
+          {/* Spinning Vinyl Disc */}
+          <motion.div
+            animate={{ rotate: isPlaying ? 360 : 0 }}
+            transition={{ repeat: Infinity, duration: 8, ease: "linear" }}
+            className="absolute inset-0 rounded-full border-4 border-zinc-800 bg-zinc-950 shadow-2xl flex items-center justify-center overflow-hidden"
+          >
+            <div className="absolute inset-0 opacity-40 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-zinc-700 via-black to-zinc-900" />
+            <div className="w-20 h-20 rounded-full border border-zinc-700/50" />
+            <div className="w-32 h-32 rounded-full border border-zinc-700/30" />
+          </motion.div>
+
+          {/* Center Album Artwork */}
+          <div className="relative w-28 h-28 sm:w-36 sm:h-36 rounded-full overflow-hidden border-2 border-emerald-500 shadow-xl z-10">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={coverImageSrc}
+              alt={trackTitle}
+              referrerPolicy="no-referrer"
+              className="w-full h-full object-cover"
+            />
+            <div className="absolute inset-0 bg-black/20" />
+            <div className="absolute inset-0 m-auto w-4 h-4 rounded-full bg-zinc-950 border border-zinc-700" />
+          </div>
+        </div>
+
+        {/* Track Title & Artist */}
+        <div className="text-center mt-5 space-y-1 max-w-xs">
+          <h3 className="text-sm sm:text-base font-bold text-white tracking-tight truncate">
+            {trackTitle}
+          </h3>
+          <p className="text-xs text-zinc-400 truncate">{artistName}</p>
+        </div>
+      </div>
+
+      {/* Dynamic Animated Waveform Equalizer */}
+      <div className="w-full max-w-xs flex items-center justify-center space-x-1.5 h-10 my-2 z-10">
+        {[40, 70, 95, 55, 80, 100, 60, 85, 45, 90, 65, 75, 95, 50, 80, 60, 40].map((h, i) => (
+          <motion.div
+            key={i}
+            animate={{
+              height: isPlaying ? [`${Math.max(15, h * 0.3)}%`, `${h}%`, `${Math.max(20, h * 0.5)}%`] : "20%",
+            }}
+            transition={{
+              repeat: Infinity,
+              duration: 0.8 + (i % 4) * 0.2,
+              ease: "easeInOut",
+            }}
+            className="w-1 rounded-full bg-gradient-to-t from-emerald-500 to-emerald-300"
+          />
+        ))}
+      </div>
+
+      {/* Audio Controls Bar */}
+      <div className="w-full max-w-sm space-y-3 z-10">
+        {/* Progress Timeline */}
+        <div className="space-y-1">
+          <div
+            onClick={(e) => {
+              const rect = e.currentTarget.getBoundingClientRect();
+              const clickX = e.clientX - rect.left;
+              const newPct = (clickX / rect.width) * 100;
+              setProgress(newPct);
+              if (audioRef.current && audioRef.current.duration) {
+                audioRef.current.currentTime = (newPct / 100) * audioRef.current.duration;
+              }
+            }}
+            className="w-full h-1.5 bg-zinc-800 rounded-full overflow-hidden cursor-pointer relative"
+          >
+            <div
+              className="h-full bg-emerald-500 rounded-full transition-all"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+          <div className="flex items-center justify-between text-[10px] font-mono text-zinc-400">
+            <span>{currentTime}</span>
+            <span>{reel.duration || "2:14"}</span>
+          </div>
+        </div>
+
+        {/* Buttons Row */}
+        <div className="flex items-center justify-between pt-1">
+          <button
+            onClick={toggleMute}
+            className="p-2 text-zinc-400 hover:text-white rounded-full hover:bg-zinc-800 transition-colors cursor-pointer"
+            title={isMuted ? "Unmute" : "Mute"}
+          >
+            {isMuted ? <VolumeX className="w-4 h-4 text-rose-400" /> : <Volume2 className="w-4 h-4" />}
+          </button>
+
+          <button
+            onClick={togglePlay}
+            className="w-12 h-12 rounded-full bg-emerald-500 hover:bg-emerald-400 text-zinc-950 flex items-center justify-center shadow-lg hover:scale-105 active:scale-95 transition-all cursor-pointer font-bold"
+          >
+            {isPlaying ? (
+              <Pause className="w-5 h-5 fill-current" />
+            ) : (
+              <Play className="w-5 h-5 fill-current ml-0.5" />
+            )}
+          </button>
+
+          <a
+            href={`/api/download?type=audio&shortcode=${reel.id.replace(/^audio-/, "")}`}
+            download
+            className="p-2 text-zinc-400 hover:text-white rounded-full hover:bg-zinc-800 transition-colors cursor-pointer"
+            title="Download Audio MP3"
+          >
+            <Download className="w-4 h-4" />
+          </a>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * 2. DEDICATED POST / CAROUSEL PHOTO VIEWER
+ */
+function PostCarouselViewer({ reel, coverImageSrc }: { reel: Reel; coverImageSrc: string }) {
+  const images = (reel.carouselImages && reel.carouselImages.length > 0)
+    ? reel.carouselImages
+    : [coverImageSrc];
+
+  const [activeIdx, setActiveIdx] = useState(0);
+
+  const nextSlide = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setActiveIdx((prev) => (prev + 1) % images.length);
+  };
+
+  const prevSlide = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setActiveIdx((prev) => (prev - 1 + images.length) % images.length);
+  };
+
+  return (
+    <div className="relative w-full h-full flex flex-col bg-black select-none overflow-hidden justify-center items-center">
+      {/* Top Slide Counter */}
+      {images.length > 1 && (
+        <div className="absolute top-3 right-3 z-20 px-2.5 py-1 rounded-full bg-black/70 backdrop-blur-md text-white text-[11px] font-semibold border border-white/10">
+          {activeIdx + 1} / {images.length}
+        </div>
+      )}
+
+      {/* Main Image Display */}
+      <div className="relative w-full h-full flex items-center justify-center p-2 bg-black">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          key={activeIdx}
+          src={images[activeIdx]}
+          alt={reel.caption || "Post photo"}
+          referrerPolicy="no-referrer"
+          className="w-full h-full max-h-[640px] object-contain rounded-sm"
         />
       </div>
 
-      {/* The reel is already saved in ReelDash here. Library actions (Open in
-          Instagram, Add to Collection) live in the modal sidebar / More menu, so
-          we intentionally do NOT duplicate a "Save" or second "Open on Instagram" here. */}
+      {/* Navigation Arrows */}
+      {images.length > 1 && (
+        <>
+          <button
+            onClick={prevSlide}
+            className="absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/60 hover:bg-black text-white flex items-center justify-center backdrop-blur-md transition-all cursor-pointer z-20 border border-white/10"
+          >
+            <ChevronLeft className="w-5 h-5" />
+          </button>
+          <button
+            onClick={nextSlide}
+            className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/60 hover:bg-black text-white flex items-center justify-center backdrop-blur-md transition-all cursor-pointer z-20 border border-white/10"
+          >
+            <ChevronRight className="w-5 h-5" />
+          </button>
+
+          {/* Dots Indicator */}
+          <div className="absolute bottom-4 flex items-center space-x-1.5 z-20">
+            {images.map((_, i) => (
+              <button
+                key={i}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setActiveIdx(i);
+                }}
+                className={`h-1.5 rounded-full transition-all cursor-pointer ${
+                  activeIdx === i ? "w-5 bg-white" : "w-1.5 bg-white/40"
+                }`}
+              />
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+/**
+ * 3. DEDICATED STORY VIEWER WITH TIMED SEGMENTS
+ */
+function StoryViewer({ reel, coverImageSrc }: { reel: Reel; coverImageSrc: string }) {
+  const [progress, setProgress] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setProgress((prev) => (prev >= 100 ? 0 : prev + 2));
+    }, 100);
+    return () => clearInterval(timer);
+  }, []);
+
+  return (
+    <div className="relative w-full h-full flex flex-col bg-black select-none overflow-hidden justify-between p-3 sm:p-4">
+      {/* Top Story Progress Bars & Creator Info */}
+      <div className="relative z-20 space-y-2.5">
+        <div className="w-full flex space-x-1">
+          <div className="h-1 flex-1 bg-white/30 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-white transition-all duration-100 ease-linear"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+          <div className="h-1 flex-1 bg-white/30 rounded-full" />
+          <div className="h-1 flex-1 bg-white/30 rounded-full" />
+        </div>
+
+        <div className="flex items-center space-x-2.5">
+          <div className="p-0.5 rounded-full bg-gradient-to-tr from-amber-400 to-pink-500">
+            <div className="w-7 h-7 rounded-full bg-zinc-900 flex items-center justify-center text-xs font-bold text-white">
+              {reel.creatorUsername?.[0]?.toUpperCase() || "S"}
+            </div>
+          </div>
+          <div className="flex items-center space-x-1.5">
+            <span className="text-xs font-bold text-white">@{reel.creatorUsername}</span>
+            <span className="text-zinc-400 text-[10px]">• 3h ago</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Story Media */}
+      <div className="absolute inset-0 z-10 flex items-center justify-center overflow-hidden">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={coverImageSrc}
+          alt={reel.caption || "Story"}
+          referrerPolicy="no-referrer"
+          className="w-full h-full object-cover"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/60" />
+      </div>
+
+      {/* Bottom Story Caption Overlay */}
+      <div className="relative z-20 p-2 bg-black/40 backdrop-blur-md rounded-lg border border-white/10">
+        <p className="text-xs text-white line-clamp-2 leading-relaxed">
+          {reel.caption}
+        </p>
+      </div>
     </div>
   );
 }
@@ -85,10 +435,12 @@ export function ReelPlayer({
   const [isMuted, setIsMuted] = useState(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
-  const shortcodeMatch = reel.instagramUrl.match(/(?:reel|p)\/([A-Za-z0-9_-]+)/);
+  const mediaType = reel.mediaType || (reel.instagramUrl?.includes("/audio/") ? "audio" : reel.instagramUrl?.includes("/stories/") ? "story" : reel.instagramUrl?.includes("/p/") ? "post" : "reel");
+
+  const shortcodeMatch = reel.instagramUrl.match(/(?:reel|reels|p|audio|stories)\/([A-Za-z0-9_-]+)/);
   const shortcode = shortcodeMatch ? shortcodeMatch[1] : reel.id.replace(/^reel-/, "");
 
-  // Safe Reel thumbnail resolution
+  // Safe thumbnail resolution
   const coverImageSrc =
     !imageError && thumbnailUrl && !thumbnailUrl.includes("unsplash.com")
       ? thumbnailUrl
@@ -97,6 +449,31 @@ export function ReelPlayer({
       : shortcode
       ? `/api/proxy-image?shortcode=${shortcode}`
       : "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80";
+
+  // Dispatch to dedicated players if audio, post, or story
+  if (mediaType === "audio") {
+    return (
+      <div className={`relative aspect-reel w-full overflow-hidden bg-black select-none ${className}`}>
+        <AudioSongPlayer reel={reel} coverImageSrc={coverImageSrc} />
+      </div>
+    );
+  }
+
+  if (mediaType === "story") {
+    return (
+      <div className={`relative aspect-reel w-full overflow-hidden bg-black select-none ${className}`}>
+        <StoryViewer reel={reel} coverImageSrc={coverImageSrc} />
+      </div>
+    );
+  }
+
+  if (mediaType === "post" && !useIframe) {
+    return (
+      <div className={`relative aspect-reel w-full overflow-hidden bg-black select-none ${className}`}>
+        <PostCarouselViewer reel={reel} coverImageSrc={coverImageSrc} />
+      </div>
+    );
+  }
 
   const handlePlayClick = async () => {
     // 1. If direct valid media URL exists, play via native HTML5 video
@@ -137,17 +514,19 @@ export function ReelPlayer({
   };
 
   // Trigger autoplay resolution on mount or reel change
-  React.useEffect(() => {
+  useEffect(() => {
     if (autoPlay) {
       handlePlayClick();
     }
   }, [reel.id, autoPlay]);
 
-  const toggleMute = (e: React.MouseEvent) => {
-    e.stopPropagation();
+  const toggleMute = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
     if (videoRef.current) {
-      videoRef.current.muted = !videoRef.current.muted;
-      setIsMuted(videoRef.current.muted);
+      const nextMuted = !videoRef.current.muted;
+      videoRef.current.muted = nextMuted;
+      videoRef.current.volume = 1.0;
+      setIsMuted(nextMuted);
     }
   };
 
@@ -168,10 +547,8 @@ export function ReelPlayer({
       {status === "playing" && (
         <div className="relative w-full h-full bg-black flex items-center justify-center overflow-hidden">
           {useIframe || !playbackUrl ? (
-            /* ReelDash-owned frame around the official Instagram embed */
             <ReelDashEmbedFrame reel={reel} shortcode={shortcode} />
           ) : (
-            /* Native HTML5 9:16 Video Player */
             <div className="relative w-full h-full bg-black">
               <video
                 ref={videoRef}
@@ -182,10 +559,22 @@ export function ReelPlayer({
                 playsInline
                 muted={isMuted}
                 onError={() => setUseIframe(true)}
-                className="w-full h-full object-cover"
+                className="w-full h-full object-cover cursor-pointer"
+                onClick={() => toggleMute()}
               />
 
-              {/* Sound & Fullscreen floating controls for HTML5 video */}
+              {/* Floating Tap to Unmute Badge */}
+              {isMuted && (
+                <button
+                  onClick={toggleMute}
+                  className="absolute top-4 left-4 z-20 px-3 py-1.5 rounded-full bg-black/80 hover:bg-black text-white text-xs font-semibold flex items-center space-x-1.5 backdrop-blur-md border border-white/20 shadow-lg cursor-pointer animate-pulse"
+                >
+                  <VolumeX className="w-4 h-4 text-pink-400" />
+                  <span>Tap to Unmute</span>
+                </button>
+              )}
+
+              {/* Sound & Fullscreen floating controls */}
               <div className="absolute bottom-4 right-4 flex items-center space-x-2 z-20">
                 <button
                   onClick={toggleMute}
@@ -213,7 +602,7 @@ export function ReelPlayer({
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={coverImageSrc}
-            alt={reel.caption || "Reel preview"}
+            alt={reel.caption || "Media preview"}
             referrerPolicy="no-referrer"
             onError={() => setImageError(true)}
             className="w-full h-full object-cover filter blur-sm brightness-40"
@@ -222,7 +611,7 @@ export function ReelPlayer({
             <Loader2 className="w-9 h-9 animate-spin text-brand-500" />
             <div className="space-y-1">
               <p className="text-xs font-semibold tracking-wide">Starting playback…</p>
-              <p className="text-[11px] text-zinc-400">Loading Reel</p>
+              <p className="text-[11px] text-zinc-400">Loading {mediaType}</p>
             </div>
           </div>
         </div>
@@ -237,7 +626,7 @@ export function ReelPlayer({
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={coverImageSrc}
-            alt={reel.caption || "Reel cover"}
+            alt={reel.caption || "Media cover"}
             referrerPolicy="no-referrer"
             onError={() => setImageError(true)}
             className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-300 ease-out"
@@ -275,3 +664,4 @@ export function ReelPlayer({
     </div>
   );
 }
+

@@ -1,7 +1,10 @@
+export type MediaType = "reel" | "post" | "audio" | "story";
+
 export interface Reel {
   id: string;
   userId: string;
   instagramUrl: string;
+  mediaType?: MediaType; // "reel" | "post" | "audio" | "story"
   creatorUsername: string;
   creatorFullName?: string;
   creatorProfileUrl: string;
@@ -25,6 +28,13 @@ export interface Reel {
   aiSummary?: string;
   aiKeywords?: string[];
   viewCount?: number;
+  // Specialized media fields
+  audioTitle?: string;
+  audioArtist?: string;
+  audioUrl?: string;
+  carouselImages?: string[];
+  isCarousel?: boolean;
+  storyExpiresAt?: string;
 }
 
 export interface Collection {
@@ -45,3 +55,6 @@ export interface SmartCategory {
 export type SortOption = "newest" | "oldest" | "recently_viewed" | "most_viewed" | "creator";
 
 export type ViewMode = "grid" | "compact";
+
+export type MediaTypeFilter = "all" | MediaType;
+

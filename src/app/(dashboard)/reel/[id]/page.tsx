@@ -84,20 +84,23 @@ export default function ReelDetailPage() {
     showToast("Reel link copied to clipboard");
   };
 
+  const mediaType = reel.mediaType || (reel.instagramUrl.includes("/audio/") ? "audio" : reel.instagramUrl.includes("/stories/") ? "story" : reel.instagramUrl.includes("/p/") ? "post" : "reel");
+
   const handleDownload = () => {
     setDownloadState("processing");
-    const match = reel.instagramUrl.match(/(?:reel|p)\/([A-Za-z0-9_-]+)/);
-    const shortcode = match ? match[1] : reel.id.replace(/^reel-/, "");
-    const downloadUrl = `/api/download?shortcode=${shortcode}&reelUrl=${encodeURIComponent(reel.instagramUrl)}`;
+    const match = reel.instagramUrl.match(/(?:reel|reels|p|audio|stories)\/([A-Za-z0-9_-]+)/);
+    const shortcode = match ? match[1] : reel.id.replace(/^(reel|audio|post|story)-/, "");
+    const ext = mediaType === "audio" ? "mp3" : mediaType === "post" ? "jpg" : "mp4";
+    const downloadUrl = `/api/download?shortcode=${shortcode}&type=${mediaType === "audio" ? "audio" : mediaType === "post" ? "image" : "video"}&reelUrl=${encodeURIComponent(reel.instagramUrl)}`;
     const a = document.createElement("a");
     a.href = downloadUrl;
-    a.download = `reel_${shortcode}.mp4`;
+    a.download = `instagram_${mediaType}_${shortcode}.${ext}`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     setTimeout(() => {
       setDownloadState("idle");
-      showToast("Download started");
+      showToast(`Downloading ${mediaType.toUpperCase()} file...`);
     }, 1200);
   };
 
@@ -108,8 +111,8 @@ export default function ReelDetailPage() {
     showToast("Metadata refreshed from Instagram");
   };
 
-  const shortcodeMatch = reel.instagramUrl.match(/(?:reel|p)\/([A-Za-z0-9_-]+)/);
-  const shortcode = shortcodeMatch ? shortcodeMatch[1] : reel.id.replace(/^reel-/, "");
+  const shortcodeMatch = reel.instagramUrl.match(/(?:reel|reels|p|audio|stories)\/([A-Za-z0-9_-]+)/);
+  const shortcode = shortcodeMatch ? shortcodeMatch[1] : reel.id.replace(/^(reel|audio|post|story)-/, "");
   const creatorHandle = reel.creatorUsername || "creator";
 
   // Mock comments stream matching Instagram post layout

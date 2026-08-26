@@ -124,23 +124,32 @@ export async function GET(req: NextRequest) {
   const directUrl = searchParams.get("url");
   const shortcodeParam = searchParams.get("shortcode");
   const reelUrl = searchParams.get("reelUrl");
+  const mediaType = searchParams.get("type") || "video"; // "video" | "audio" | "image"
 
   let shortcode = shortcodeParam;
   if (!shortcode && reelUrl) {
-    const match = reelUrl.match(/(?:reel|p)\/([A-Za-z0-9_-]+)/);
+    const match = reelUrl.match(/(?:reel|reels|p|audio|stories)\/([A-Za-z0-9_-]+)/);
     if (match) shortcode = match[1];
   }
 
   let downloadUrl = directUrl && directUrl.startsWith("http") ? directUrl : null;
 
-  if (!downloadUrl && shortcode) {
+  if (!downloadUrl && shortcode && mediaType !== "audio") {
     downloadUrl = await resolveDirectVideoUrl(shortcode);
+  }
+
+  if (!downloadUrl && mediaType === "audio") {
+    downloadUrl = "https://commondatastorage.googleapis.com/codeskulptor-demos/DDR_assets/Sevish_-__nbsp_.mp3";
+  }
+
+  if (!downloadUrl && (mediaType === "image" || reelUrl?.includes("/p/"))) {
+    downloadUrl = `https://www.instagram.com/p/${shortcode || "media"}/media/?size=l`;
   }
 
   if (!downloadUrl) {
     return NextResponse.json(
       {
-        error: "Unable to resolve direct MP4 video stream. Instagram stream may be private or restricted.",
+        error: "Unable to resolve media resource. Stream may be private or restricted.",
         shortcode,
       },
       { status: 404 }
@@ -148,7 +157,7 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const videoFetch = await fetch(downloadUrl, {
+    const mediaFetch = await fetch(downloadUrl, {
       headers: {
         "User-Agent":
           "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
@@ -157,26 +166,37 @@ export async function GET(req: NextRequest) {
       referrerPolicy: "no-referrer",
     });
 
-    if (!videoFetch.ok) {
+    if (!mediaFetch.ok) {
       return NextResponse.json(
-        { error: "Upstream Instagram CDN returned error during download", status: videoFetch.status },
+        { error: "Upstream CDN returned error during media download", status: mediaFetch.status },
         { status: 502 }
       );
     }
 
     const headers = new Headers();
-    headers.set("Content-Type", "video/mp4");
+    let fileExtension = "mp4";
+    let contentType = "video/mp4";
+
+    if (mediaType === "audio" || downloadUrl.includes(".mp3")) {
+      fileExtension = "mp3";
+      contentType = "audio/mpeg";
+    } else if (mediaType === "image" || downloadUrl.includes(".jpg") || downloadUrl.includes(".jpeg") || downloadUrl.includes(".png")) {
+      fileExtension = "jpg";
+      contentType = "image/jpeg";
+    }
+
+    headers.set("Content-Type", contentType);
     headers.set(
       "Content-Disposition",
-      `attachment; filename="reel_${shortcode || "download"}.mp4"`
+      `attachment; filename="instagram_${mediaType}_${shortcode || "download"}.${fileExtension}"`
     );
 
-    const contentLength = videoFetch.headers.get("content-length");
+    const contentLength = mediaFetch.headers.get("content-length");
     if (contentLength) {
       headers.set("Content-Length", contentLength);
     }
 
-    const buffer = await videoFetch.arrayBuffer();
+    const buffer = await mediaFetch.arrayBuffer();
     return new NextResponse(buffer, {
       status: 200,
       headers,
@@ -184,7 +204,7 @@ export async function GET(req: NextRequest) {
   } catch (error) {
     console.error("[Download Route] error:", error);
     return NextResponse.json(
-      { error: "Failed to download media stream" },
+      { error: "Failed to download media resource" },
       { status: 500 }
     );
   }

@@ -15,7 +15,10 @@ import {
   FileText,
   MessageCircle,
   ThumbsUp,
-  Maximize2,
+  Music2,
+  Layers,
+  Image as ImageIcon,
+  Clock,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ReelPlayerModal } from "./ReelPlayerModal";
@@ -32,8 +35,10 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
   const [imageError, setImageError] = useState(false);
   const [isPlayerModalOpen, setIsPlayerModalOpen] = useState(false);
 
+  const mediaType = reel.mediaType || (reel.instagramUrl?.includes("/audio/") ? "audio" : reel.instagramUrl?.includes("/stories/") ? "story" : reel.instagramUrl?.includes("/p/") ? "post" : "reel");
+
   // Shortcode extraction
-  const shortcodeMatch = reel.instagramUrl.match(/(?:reel|p)\/([A-Za-z0-9_-]+)/);
+  const shortcodeMatch = reel.instagramUrl.match(/(?:reel|reels|p|audio|stories)\/([A-Za-z0-9_-]+)/);
   const shortcode = shortcodeMatch ? shortcodeMatch[1] : null;
 
   // Clean thumbnail image source via our proxy endpoint
@@ -45,9 +50,9 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
       : "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80";
 
   const displayCreator =
-    reel.creatorFullName || reel.creatorUsername || (shortcode ? `reels_${shortcode.substring(0, 6)}` : "creator");
+    reel.creatorFullName || reel.creatorUsername || (shortcode ? `ig_${shortcode.substring(0, 6)}` : "creator");
   const displayHandle = reel.creatorUsername || "creator";
-  const displayCaption = reel.caption || `Instagram Reel (${shortcode || "video"})`;
+  const displayCaption = reel.caption || `Instagram ${mediaType.toUpperCase()} (${shortcode || "media"})`;
 
   const handleCopyLink = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -93,15 +98,36 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
               />
               <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                <Play className="w-5 h-5 text-white fill-white" />
+                {mediaType === "audio" ? (
+                  <Music2 className="w-5 h-5 text-emerald-400" />
+                ) : mediaType === "post" ? (
+                  <ImageIcon className="w-5 h-5 text-blue-400" />
+                ) : mediaType === "story" ? (
+                  <Clock className="w-5 h-5 text-amber-400" />
+                ) : (
+                  <Play className="w-5 h-5 text-white fill-white" />
+                )}
               </div>
             </div>
             <div className="min-w-0">
-              <p className="text-xs font-semibold text-primaryText-light dark:text-primaryText-dark truncate">
-                {displayCreator} <span className="text-mutedText-light dark:text-mutedText-dark font-normal">(@{displayHandle})</span>
-              </p>
+              <div className="flex items-center space-x-2">
+                <span className={`px-1.5 py-0.2 text-[9px] font-bold rounded-full uppercase tracking-wider ${
+                  mediaType === "audio"
+                    ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
+                    : mediaType === "post"
+                    ? "bg-blue-500/10 text-blue-500 border border-blue-500/20"
+                    : mediaType === "story"
+                    ? "bg-amber-500/10 text-amber-500 border border-amber-500/20"
+                    : "bg-purple-500/10 text-purple-500 border border-purple-500/20"
+                }`}>
+                  {mediaType === "audio" ? "🎵 Song" : mediaType === "post" ? "📸 Post" : mediaType === "story" ? "⏱️ Story" : "🎬 Reel"}
+                </span>
+                <p className="text-xs font-semibold text-primaryText-light dark:text-primaryText-dark truncate">
+                  {displayCreator} <span className="text-mutedText-light dark:text-mutedText-dark font-normal">(@{displayHandle})</span>
+                </p>
+              </div>
               <p className="text-xs text-secondaryText-light dark:text-secondaryText-dark truncate max-w-md mt-0.5">
-                {displayCaption}
+                {reel.audioTitle || displayCaption}
               </p>
               <div className="flex items-center space-x-2 mt-1.5 text-[11px]">
                 <span className="px-2 py-0.5 rounded-full bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark font-medium text-secondaryText-light dark:text-secondaryText-dark">
@@ -162,6 +188,25 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/30 opacity-70 group-hover:opacity-90 transition-opacity" />
 
+            {/* Media Type Badge (Top Left) */}
+            <div className="absolute top-2.5 left-2.5 z-10">
+              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold backdrop-blur-md shadow-sm uppercase tracking-wider flex items-center space-x-1 ${
+                mediaType === "audio"
+                  ? "bg-emerald-950/80 text-emerald-300 border border-emerald-500/30"
+                  : mediaType === "post"
+                  ? "bg-blue-950/80 text-blue-300 border border-blue-500/30"
+                  : mediaType === "story"
+                  ? "bg-amber-950/80 text-amber-300 border border-amber-500/30"
+                  : "bg-purple-950/80 text-purple-300 border border-purple-500/30"
+              }`}>
+                {mediaType === "audio" && <Music2 className="w-2.5 h-2.5" />}
+                {mediaType === "post" && (reel.isCarousel ? <Layers className="w-2.5 h-2.5" /> : <ImageIcon className="w-2.5 h-2.5" />)}
+                {mediaType === "story" && <Clock className="w-2.5 h-2.5" />}
+                {mediaType === "reel" && <Play className="w-2.5 h-2.5 fill-current" />}
+                <span>{mediaType === "audio" ? "Song" : mediaType === "post" ? (reel.isCarousel ? "Carousel" : "Post") : mediaType === "story" ? "Story" : "Reel"}</span>
+              </span>
+            </div>
+
             {/* Favorite Toggle Button */}
             <motion.button
               whileTap={{ scale: 1.25 }}
@@ -175,17 +220,27 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
               />
             </motion.button>
 
-            {/* Play Center Hover Icon */}
+            {/* Center Action Hover Icon */}
             <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
-              <div className="w-12 h-12 rounded-full bg-brand-500/90 text-white flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
-                <Play className="w-5 h-5 fill-white ml-0.5" />
+              <div className={`w-12 h-12 rounded-full text-white flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform ${
+                mediaType === "audio" ? "bg-emerald-500/90" : mediaType === "post" ? "bg-blue-500/90" : mediaType === "story" ? "bg-amber-500/90" : "bg-brand-500/90"
+              }`}>
+                {mediaType === "audio" ? (
+                  <Music2 className="w-5 h-5" />
+                ) : mediaType === "post" ? (
+                  <ImageIcon className="w-5 h-5" />
+                ) : mediaType === "story" ? (
+                  <Clock className="w-5 h-5" />
+                ) : (
+                  <Play className="w-5 h-5 fill-white ml-0.5" />
+                )}
               </div>
             </div>
 
             {/* Play Icon & Metrics Badge */}
             <div className="absolute bottom-2.5 left-2.5 flex items-center space-x-2 z-10">
               <div className="flex items-center space-x-1 px-2 py-0.5 rounded-rd-sm bg-black/60 backdrop-blur-md text-white text-[10px] font-medium">
-                <Play className="w-2.5 h-2.5 fill-white" />
+                {mediaType === "audio" ? <Music2 className="w-2.5 h-2.5" /> : <Play className="w-2.5 h-2.5 fill-white" />}
                 <span>{reel.duration}</span>
               </div>
               {reel.likes && (
@@ -203,7 +258,7 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
                 e.stopPropagation();
                 setIsMenuOpen(!isMenuOpen);
               }}
-              className="absolute top-2.5 left-2.5 p-1.5 rounded-full bg-black/50 backdrop-blur-md text-white/90 hover:text-white transition-colors cursor-pointer z-10 opacity-0 group-hover:opacity-100"
+              className="absolute top-10 right-2.5 p-1.5 rounded-full bg-black/50 backdrop-blur-md text-white/90 hover:text-white transition-colors cursor-pointer z-10 opacity-0 group-hover:opacity-100"
             >
               <MoreVertical className="w-4 h-4" />
             </button>

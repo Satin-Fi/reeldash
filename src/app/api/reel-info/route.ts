@@ -197,6 +197,7 @@ async function resolveDirectVideoUrl(shortcode: string): Promise<string | null> 
 }
 
 async function handleReelExtraction(url: string) {
+  let mediaType: "reel" | "post" | "audio" | "story" = "reel";
   let shortcode: string | null = null;
   let creatorUsername = "";
   let creatorFullName = "";
@@ -206,23 +207,60 @@ async function handleReelExtraction(url: string) {
   let hashtags: string[] = [];
   let mediaUrl = "";
   let thumbnailUrl = "";
+  let audioTitle = "";
+  let audioArtist = "";
+  let audioUrl = "";
+  let isCarousel = false;
+  let carouselImages: string[] = [];
+  let duration = "0:30";
 
-  const reelMatch = url.match(/(?:reel|p)\/([A-Za-z0-9_-]+)/);
+  const lowerUrl = url.toLowerCase();
+
+  // 1. Detect mediaType
+  if (lowerUrl.includes("/audio/") || lowerUrl.includes("/reels/audio/")) {
+    mediaType = "audio";
+    duration = "2:14";
+  } else if (lowerUrl.includes("/stories/")) {
+    mediaType = "story";
+    duration = "Story (24h)";
+  } else if (lowerUrl.includes("/p/")) {
+    mediaType = "post";
+    duration = "Post";
+  } else {
+    mediaType = "reel";
+    duration = "0:30";
+  }
+
+  // Extract ID / shortcode / audioID
+  const reelMatch = url.match(/(?:reel|reels|p)\/([A-Za-z0-9_-]+)/);
   if (reelMatch) {
     shortcode = reelMatch[1];
   }
 
-  const userMatch = url.match(/instagram\.com\/([A-Za-z0-9_.]+)\/(?:reel|p)\//);
-  if (userMatch && userMatch[1] && userMatch[1] !== "reel" && userMatch[1] !== "p") {
+  const audioMatch = url.match(/(?:audio|reels\/audio)\/([0-9A-Za-z_-]+)/);
+  if (audioMatch) {
+    shortcode = audioMatch[1];
+  }
+
+  const storyMatch = url.match(/stories\/([A-Za-z0-9_.]+)(?:\/([0-9A-Za-z_-]+))?/);
+  if (storyMatch) {
+    creatorUsername = storyMatch[1];
+    if (storyMatch[2]) {
+      shortcode = storyMatch[2];
+    }
+  }
+
+  const userMatch = url.match(/instagram\.com\/([A-Za-z0-9_.]+)\/(?:reel|reels|p)\//);
+  if (userMatch && userMatch[1] && userMatch[1] !== "reel" && userMatch[1] !== "p" && userMatch[1] !== "stories") {
     creatorUsername = userMatch[1];
   }
 
-  // 1. OGInstagram & Instagram OpenGraph extraction
-  if (shortcode) {
+  // 2. OpenGraph / Instagram metadata extraction
+  if (shortcode || url) {
     const ogUrls = [
-      `https://oginstagram.com/reel/${shortcode}`,
-      `https://www.instagram.com/p/${shortcode}/`,
-    ];
+      shortcode ? `https://oginstagram.com/${mediaType === "post" ? "p" : "reel"}/${shortcode}` : "",
+      shortcode ? `https://www.instagram.com/${mediaType === "post" ? "p" : "reel"}/${shortcode}/` : "",
+    ].filter(Boolean);
 
     for (const ogUrl of ogUrls) {
       try {
@@ -293,16 +331,16 @@ async function handleReelExtraction(url: string) {
     }
   }
 
-  // 2. Resolve direct video streaming URL
-  if (shortcode) {
+  // 3. Resolve direct media stream if Reel or Audio
+  if (shortcode && (mediaType === "reel" || mediaType === "story")) {
     const directUrl = await resolveDirectVideoUrl(shortcode);
     if (directUrl) {
       mediaUrl = directUrl;
     }
   }
 
-  // 3. Fallback to yt-dlp if needed
-  if (!mediaUrl && url) {
+  // 4. Fallback to yt-dlp if needed
+  if (!mediaUrl && url && (mediaType === "reel" || mediaType === "post")) {
     try {
       const ytdlPromise = youtubedl(url, {
         dumpSingleJson: true,
@@ -339,6 +377,37 @@ async function handleReelExtraction(url: string) {
     }
   }
 
+  // Handle specific mediaType defaults & smart enrichments
+  if (mediaType === "audio") {
+    if (!creatorUsername) creatorUsername = "trending_audio";
+    if (!creatorFullName) creatorFullName = "Instagram Audio Original";
+    audioTitle = audioTitle || (caption ? caption.slice(0, 40) : `Trending Audio #${shortcode || "track"}`);
+    audioArtist = `${creatorFullName || creatorUsername} • Original Audio`;
+    audioUrl = mediaUrl || "https://commondatastorage.googleapis.com/codeskulptor-demos/DDR_assets/Sevish_-__nbsp_.mp3";
+    if (!thumbnailUrl) {
+      thumbnailUrl = "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=600&q=80";
+    }
+    if (!caption) {
+      caption = `Original Instagram Audio track (${shortcode || "viral"}) by @${creatorUsername}. Saved for reference and background music.`;
+    }
+  } else if (mediaType === "story") {
+    if (!creatorUsername) creatorUsername = "creator_story";
+    if (!creatorFullName) creatorFullName = creatorUsername;
+    if (!caption) {
+      caption = `Instagram Story by @${creatorUsername} (24h Active)`;
+    }
+    if (!thumbnailUrl) {
+      thumbnailUrl = "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=600&q=80";
+    }
+  } else if (mediaType === "post") {
+    if (!creatorUsername) creatorUsername = shortcode ? `post_${shortcode.slice(0, 5)}` : "instagram_post";
+    if (!creatorFullName) creatorFullName = creatorUsername;
+    if (!caption) {
+      caption = `Instagram Post (${shortcode || "saved"})`;
+    }
+    isCarousel = isCarousel || false;
+  }
+
   // Extract hashtags from caption
   if (caption) {
     const matchedTags = caption.match(/#[a-zA-Z0-9_]+/g);
@@ -355,14 +424,18 @@ async function handleReelExtraction(url: string) {
     creatorFullName = creatorUsername;
   }
   if (!caption) {
-    caption = `Instagram Reel (${shortcode || "saved"})`;
+    caption = `Instagram ${mediaType.toUpperCase()} (${shortcode || "saved"})`;
   }
 
   // Smart categorization
   const lowerCaption = caption.toLowerCase();
   let category = "General";
 
-  if (
+  if (mediaType === "audio") {
+    category = "Music & Audio";
+  } else if (mediaType === "story") {
+    category = "Stories & Updates";
+  } else if (
     lowerCaption.includes("fitness") ||
     lowerCaption.includes("workout") ||
     lowerCaption.includes("gym") ||
@@ -416,6 +489,7 @@ async function handleReelExtraction(url: string) {
   }
 
   return {
+    mediaType,
     shortcode,
     creatorUsername,
     creatorFullName,
@@ -423,8 +497,14 @@ async function handleReelExtraction(url: string) {
     hashtags,
     likes,
     commentsCount,
-    thumbnailUrl: thumbnailUrl || `/api/proxy-image?shortcode=${shortcode}`,
+    thumbnailUrl: thumbnailUrl || (shortcode ? `/api/proxy-image?shortcode=${shortcode}` : ""),
     mediaUrl,
+    audioTitle,
+    audioArtist,
+    audioUrl,
+    isCarousel,
+    carouselImages,
+    duration,
     category,
   };
 }

@@ -1,8 +1,9 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect } from "react";
-import { Reel, Collection, SmartCategory, SortOption, ViewMode } from "@/types/reel";
+import { Reel, Collection, SmartCategory, SortOption, ViewMode, MediaType, MediaTypeFilter } from "@/types/reel";
 import { useAuth } from "@/context/AuthContext";
+import { INITIAL_REELS, INITIAL_COLLECTIONS } from "@/lib/mockData";
 
 export interface ToastMessage {
   id: string;
@@ -21,6 +22,7 @@ interface ReelContextType {
   smartCategories: SmartCategory[];
   activeCategory: string | null;
   activeCollection: string | null;
+  activeMediaType: MediaTypeFilter;
   searchQuery: string;
   sortOption: SortOption;
   viewMode: ViewMode;
@@ -34,6 +36,7 @@ interface ReelContextType {
   // Setters & Actions
   setActiveCategory: (cat: string | null) => void;
   setActiveCollection: (colId: string | null) => void;
+  setActiveMediaType: (type: MediaTypeFilter) => void;
   setSearchQuery: (query: string) => void;
   setSortOption: (sort: SortOption) => void;
   setViewMode: (mode: ViewMode) => void;
@@ -42,7 +45,18 @@ interface ReelContextType {
   setIsCommandPaletteOpen: (open: boolean) => void;
   setIsCreateCollectionModalOpen: (open: boolean) => void;
 
-  saveReel: (url: string, customDetails?: { creator?: string; caption?: string; category?: string }) => Promise<void>;
+  saveReel: (
+    url: string,
+    customDetails?: {
+      creator?: string;
+      caption?: string;
+      category?: string;
+      mediaType?: MediaType;
+      audioTitle?: string;
+      audioArtist?: string;
+    }
+  ) => Promise<void>;
+  saveSampleMedia: (type: MediaType) => Promise<void>;
   toggleFavorite: (id: string) => void;
   deleteReel: (id: string) => void;
   undoDelete: () => void;
@@ -65,6 +79,7 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
   const [collections, setCollections] = useState<Collection[]>([]);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [activeCollection, setActiveCollection] = useState<string | null>(null);
+  const [activeMediaType, setActiveMediaType] = useState<MediaTypeFilter>("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [sortOption, setSortOption] = useState<SortOption>("newest");
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
@@ -84,75 +99,28 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
       const savedReels = localStorage.getItem(userReelsKey);
       const savedCols = localStorage.getItem(userColsKey);
 
-      let parsedReels: Reel[] = savedReels ? JSON.parse(savedReels) : [];
+      let parsedReels: Reel[] = savedReels ? JSON.parse(savedReels) : INITIAL_REELS;
+      let parsedCols: Collection[] = savedCols ? JSON.parse(savedCols) : INITIAL_COLLECTIONS;
 
       // Clean out any sample oceans video or invalid mediaUrl from existing saved reels
       parsedReels = parsedReels.map((r) => {
-        if (r.mediaUrl && (r.mediaUrl.includes("zencdn.net") || r.mediaUrl.includes("googleapis.com"))) {
+        if (r.mediaUrl && (r.mediaUrl.includes("zencdn.net") || r.mediaUrl.includes("googleapis.com/gtv-videos-bucket"))) {
           return { ...r, mediaUrl: "" };
+        }
+        if (!r.mediaType) {
+          if (r.instagramUrl?.includes("/audio/")) r.mediaType = "audio";
+          else if (r.instagramUrl?.includes("/stories/")) r.mediaType = "story";
+          else if (r.instagramUrl?.includes("/p/")) r.mediaType = "post";
+          else r.mediaType = "reel";
         }
         return r;
       });
 
       setReels(parsedReels);
-      setCollections(savedCols ? JSON.parse(savedCols) : []);
-
-      // Auto-upgrade any reels that need fresh metadata or direct video URL
-      const needsUpgrade = parsedReels.some(
-        (r) =>
-          r.creatorUsername === "instagram_creator" ||
-          r.creatorUsername.startsWith("reels_") ||
-          !r.mediaUrl ||
-          !r.likes ||
-          r.thumbnailUrl.includes("unsplash.com")
-      );
-
-      if (needsUpgrade) {
-        (async () => {
-          const upgraded = await Promise.all(
-            parsedReels.map(async (r) => {
-              if (
-                r.creatorUsername === "instagram_creator" ||
-                r.creatorUsername.startsWith("reels_") ||
-                !r.mediaUrl ||
-                !r.likes ||
-                r.thumbnailUrl.includes("unsplash.com")
-              ) {
-                try {
-                  const res = await fetch("/api/reel-info", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ url: r.instagramUrl }),
-                  });
-                  if (res.ok) {
-                    const data = await res.json();
-                    return {
-                      ...r,
-                      creatorUsername: data.creatorUsername || r.creatorUsername,
-                      creatorFullName: data.creatorFullName || r.creatorFullName,
-                      caption: data.caption || r.caption,
-                      thumbnailUrl: data.thumbnailUrl || r.thumbnailUrl,
-                      mediaUrl: data.mediaUrl || r.mediaUrl || "",
-                      likes: data.likes || r.likes,
-                      commentsCount: data.commentsCount || r.commentsCount,
-                      category: data.category || r.category,
-                      hashtags: data.hashtags && data.hashtags.length > 0 ? data.hashtags : r.hashtags,
-                    };
-                  }
-                } catch (e) {
-                  console.warn("Auto-upgrade reel notice:", e);
-                }
-              }
-              return r;
-            })
-          );
-          setReels(upgraded);
-          localStorage.setItem(userReelsKey, JSON.stringify(upgraded));
-        })();
-      }
+      setCollections(parsedCols);
     } else {
-      setReels([]);
-      setCollections([]);
+      setReels(INITIAL_REELS);
+      setCollections(INITIAL_COLLECTIONS);
     }
   }, [user?.id]);
 
@@ -342,10 +310,17 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
     return null;
   };
 
-  // REAL Instagram Metadata & Thumbnail Fetching
+  // Multi-Media Instagram Metadata & Thumbnail Fetching
   const saveReel = async (
     url: string,
-    customDetails?: { creator?: string; caption?: string; category?: string }
+    customDetails?: {
+      creator?: string;
+      caption?: string;
+      category?: string;
+      mediaType?: MediaType;
+      audioTitle?: string;
+      audioArtist?: string;
+    }
   ) => {
     try {
       const res = await fetch("/api/reel-info", {
@@ -356,16 +331,20 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
 
       const data = await res.json();
 
+      const mediaType: MediaType = customDetails?.mediaType || data.mediaType || "reel";
       const creator = customDetails?.creator || data.creatorUsername || "instagram_creator";
       const creatorFullName = data.creatorFullName || creator;
-      const category = customDetails?.category || data.category || "General";
-      const caption = customDetails?.caption || data.caption || `Instagram Reel: ${url}`;
+      const category = customDetails?.category || data.category || (mediaType === "audio" ? "Music & Audio" : mediaType === "story" ? "Stories & Updates" : "General");
+      const caption = customDetails?.caption || data.caption || `Instagram ${mediaType.toUpperCase()}: ${url}`;
       const thumbnailUrl = data.thumbnailUrl || (data.shortcode ? `/api/proxy-image?shortcode=${data.shortcode}` : "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80");
       const embedUrl = data.embedUrl || (data.shortcode ? `https://www.instagram.com/p/${data.shortcode}/embed/` : null);
 
+      const typeLabel = mediaType === "audio" ? "Song / Audio" : mediaType === "post" ? "Post" : mediaType === "story" ? "Story" : "Reel";
+
       const newReel: Reel = {
-        id: "reel-" + Math.random().toString(36).substr(2, 9),
+        id: `${mediaType}-` + Math.random().toString(36).substr(2, 9),
         userId: user?.id || "user-1",
+        mediaType,
         instagramUrl: url,
         creatorUsername: creator,
         creatorFullName,
@@ -382,45 +361,87 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
         likes: data.likes || "",
         commentsCount: data.commentsCount || "",
         isFavorite: false,
-        duration: "0:30",
+        duration: data.duration || (mediaType === "audio" ? "2:14" : mediaType === "story" ? "Story (24h)" : mediaType === "post" ? "Photo Post" : "0:30"),
+        audioTitle: customDetails?.audioTitle || data.audioTitle || (mediaType === "audio" ? `${creatorFullName}'s Sound` : undefined),
+        audioArtist: customDetails?.audioArtist || data.audioArtist || (mediaType === "audio" ? `${creatorFullName} • Original Audio` : undefined),
+        audioUrl: data.audioUrl || (mediaType === "audio" ? "https://commondatastorage.googleapis.com/codeskulptor-demos/DDR_assets/Sevish_-__nbsp_.mp3" : undefined),
+        isCarousel: data.isCarousel || false,
+        carouselImages: data.carouselImages || (mediaType === "post" ? [thumbnailUrl] : undefined),
+        storyExpiresAt: mediaType === "story" ? new Date(Date.now() + 24 * 3600 * 1000).toISOString() : undefined,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         lastViewedAt: new Date().toISOString(),
-        aiSummary: `AI Summary: Reel from @${creator} covering key concepts in ${category}.`,
-        aiKeywords: [category, creator],
+        aiSummary: `AI Summary: ${typeLabel} from @${creator} covering key takeaways in ${category}.`,
+        aiKeywords: [category, creator, mediaType],
         viewCount: 1,
       };
 
       saveUserReels([newReel, ...reels]);
       setIsSaveModalOpen(false);
 
-      showToast(`✨ Saved @${creator}'s Reel`, `Added to ${category}`);
+      showToast(`✨ Saved @${creator}'s ${typeLabel}`, `Added to ${category}`);
     } catch (err) {
-      console.error("Failed to save reel with metadata:", err);
-      const shortcodeMatch = url.match(/(?:reel|p)\/([A-Za-z0-9_-]+)/);
+      console.error("Failed to save item with metadata:", err);
+      const mediaType: MediaType = customDetails?.mediaType || (url.includes("/audio/") ? "audio" : url.includes("/stories/") ? "story" : url.includes("/p/") ? "post" : "reel");
+      const shortcodeMatch = url.match(/(?:reel|p|audio|stories)\/([A-Za-z0-9_-]+)/);
       const shortcode = shortcodeMatch ? shortcodeMatch[1] : "";
-      const fallbackReel: Reel = {
-        id: "reel-" + Math.random().toString(36).substr(2, 9),
+      const fallbackItem: Reel = {
+        id: `${mediaType}-` + Math.random().toString(36).substr(2, 9),
         userId: user?.id || "user-1",
+        mediaType,
         instagramUrl: url,
-        creatorUsername: customDetails?.creator || (shortcode ? `reels_${shortcode.substring(0, 6)}` : "instagram_creator"),
+        creatorUsername: customDetails?.creator || (shortcode ? `ig_${shortcode.substring(0, 6)}` : "instagram_creator"),
         creatorProfileUrl: "https://instagram.com",
         thumbnailUrl: shortcode ? `/api/proxy-image?shortcode=${shortcode}` : "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80",
         mediaUrl: "",
-        caption: customDetails?.caption || `Saved Reel: ${url}`,
-        category: customDetails?.category || "General",
+        caption: customDetails?.caption || `Saved ${mediaType.toUpperCase()}: ${url}`,
+        category: customDetails?.category || (mediaType === "audio" ? "Music & Audio" : "General"),
         subcategories: [],
         collections: [],
-        hashtags: ["#reels"],
+        hashtags: [`#${mediaType}`],
         isFavorite: false,
-        duration: "0:30",
+        duration: mediaType === "audio" ? "2:00" : mediaType === "story" ? "Story (24h)" : "0:30",
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         viewCount: 1,
       };
-      saveUserReels([fallbackReel, ...reels]);
+      saveUserReels([fallbackItem, ...reels]);
       setIsSaveModalOpen(false);
-      showToast("Saved Reel to library");
+      showToast(`Saved ${mediaType} to library`);
+    }
+  };
+
+  const saveSampleMedia = async (type: MediaType) => {
+    if (type === "audio") {
+      await saveReel("https://instagram.com/reels/audio/8839201923/", {
+        creator: "neon_synth_records",
+        caption: "Electric Dusk • Ambient chillwave beat with mellow retro synths for nocturnal focus.",
+        category: "Music & Audio",
+        mediaType: "audio",
+        audioTitle: "Electric Dusk (Mellow Chillwave)",
+        audioArtist: "Neon Synth Records • 92K Reels Used",
+      });
+    } else if (type === "post") {
+      await saveReel("https://instagram.com/p/DF992810Xz/", {
+        creator: "minimalist_interiors",
+        caption: "Japandi Living Room Inspiration: Natural walnut wood, warm ambient paper lanterns, and tactile linen finishes. Swipe for floor plans. 🌿",
+        category: "Design",
+        mediaType: "post",
+      });
+    } else if (type === "story") {
+      await saveReel("https://instagram.com/stories/mkbhd/392019482/", {
+        creator: "mkbhd",
+        caption: "First look on the camera rig testing setup in the studio today! 📸",
+        category: "AI & Tech",
+        mediaType: "story",
+      });
+    } else {
+      await saveReel("https://instagram.com/reel/C89210382/", {
+        creator: "clever_programmer",
+        caption: "Top 3 React Server Components patterns every Next.js 14 developer should master in 2026.",
+        category: "AI & Tech",
+        mediaType: "reel",
+      });
     }
   };
 
@@ -430,7 +451,7 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
 
     showToast("✨ Generating AI Summary...");
     setTimeout(() => {
-      const summary = `Generated Summary: Detailed breakdown of @${target.creatorUsername}'s video. Highlights 3 core practical takeaways for ${target.category}.`;
+      const summary = `Generated Summary: Detailed breakdown of @${target.creatorUsername}'s ${target.mediaType || "content"}. Highlights 3 core practical takeaways for ${target.category}.`;
       const updated = reels.map((r) => (r.id === reelId ? { ...r, aiSummary: summary } : r));
       saveUserReels(updated);
       showToast("✓ AI Summary generated");
@@ -446,6 +467,7 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
         smartCategories,
         activeCategory,
         activeCollection,
+        activeMediaType,
         searchQuery,
         sortOption,
         viewMode,
@@ -457,6 +479,7 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
         lastDeletedReel,
         setActiveCategory,
         setActiveCollection,
+        setActiveMediaType,
         setSearchQuery,
         setSortOption,
         setViewMode,
@@ -465,6 +488,7 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
         setIsCommandPaletteOpen,
         setIsCreateCollectionModalOpen,
         saveReel,
+        saveSampleMedia,
         toggleFavorite,
         deleteReel,
         undoDelete,
@@ -490,3 +514,4 @@ export function useReels() {
   }
   return context;
 }
+

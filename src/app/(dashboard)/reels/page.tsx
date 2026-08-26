@@ -11,22 +11,31 @@ export default function AllReelsPage() {
     reels,
     activeCategory,
     activeCollection,
+    activeMediaType,
     searchQuery,
     sortOption,
     viewMode,
     setIsSaveModalOpen,
   } = useReels();
 
-  // Filter Reels based on search, category, and collection
+  // Filter Reels based on mediaType, search, category, and collection
   let filteredReels = reels.filter((reel) => {
+    // Media type filter
+    if (activeMediaType && activeMediaType !== "all") {
+      const type = reel.mediaType || "reel";
+      if (type !== activeMediaType) {
+        return false;
+      }
+    }
     // Search match
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       const matchCaption = reel.caption.toLowerCase().includes(q);
       const matchCreator = reel.creatorUsername.toLowerCase().includes(q);
       const matchCategory = reel.category.toLowerCase().includes(q);
+      const matchAudio = reel.audioTitle?.toLowerCase().includes(q) || reel.audioArtist?.toLowerCase().includes(q);
       const matchKeywords = reel.aiKeywords?.some((k) => k.toLowerCase().includes(q));
-      if (!matchCaption && !matchCreator && !matchCategory && !matchKeywords) {
+      if (!matchCaption && !matchCreator && !matchCategory && !matchAudio && !matchKeywords) {
         return false;
       }
     }

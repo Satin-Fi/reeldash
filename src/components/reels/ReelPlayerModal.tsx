@@ -248,17 +248,26 @@ export function ReelPlayerModal({ reel, isOpen, onClose }: ReelPlayerModalProps)
                 <div className="flex-1 space-y-1.5 min-w-0">
                   <div className="flex items-center space-x-1.5">
                     <span className="font-bold text-xs text-white">{creatorHandle}</span>
-                    <span className="text-zinc-500 text-[11px]">8h</span>
+                    <span className="text-zinc-500 text-[11px]">
+                      {reel.mediaType === "audio" ? "• Audio Track" : reel.mediaType === "story" ? "• 24h Story" : reel.mediaType === "post" ? "• Photo Post" : "• 8h"}
+                    </span>
                   </div>
+
+                  {reel.audioTitle && (
+                    <div className="p-2 bg-emerald-500/10 border border-emerald-500/20 rounded-md">
+                      <p className="text-xs font-semibold text-emerald-400">🎵 {reel.audioTitle}</p>
+                      <p className="text-[11px] text-zinc-400">{reel.audioArtist}</p>
+                    </div>
+                  )}
 
                   <p className="text-xs text-zinc-200 whitespace-pre-line leading-relaxed">
                     {formatCaption(reel.caption)}
                   </p>
 
-                  {/* Audio Tag */}
+                  {/* Audio Tag / Category */}
                   <div className="pt-1.5 flex items-center space-x-1.5 text-[11px] text-zinc-400 hover:text-zinc-200 cursor-pointer">
-                    <Music2 className="w-3 h-3" />
-                    <span>Original Audio • {creatorHandle}</span>
+                    <Music2 className="w-3 h-3 text-brand-400" />
+                    <span>{reel.audioArtist || `Original Audio • ${creatorHandle}`}</span>
                   </div>
                 </div>
               </div>
