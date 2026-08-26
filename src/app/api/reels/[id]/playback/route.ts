@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import youtubedl from "youtube-dl-exec";
+import { resolveViaSnapSave } from "@/lib/instagram";
 
 export const dynamic = "force-dynamic";
 
@@ -22,7 +23,17 @@ async function resolveViaPureJs(shortcode: string): Promise<string | null> {
     return verifiedStreams[shortcode];
   }
 
-  // Strategy 0: InstagAPI Direct Media Engine
+  // Strategy 0: Free Open Scraper Engine (Zero Quota / Unlimited)
+  try {
+    const snapUrl = await resolveViaSnapSave(shortcode);
+    if (snapUrl && snapUrl.startsWith("http")) {
+      return snapUrl;
+    }
+  } catch {
+    // Continue to next strategy
+  }
+
+  // Strategy 1: InstagAPI Direct Media Engine (Quota-Preserved Fallback)
   const instagapiKey = process.env.INSTAGAPI_KEY;
   if (instagapiKey) {
     try {

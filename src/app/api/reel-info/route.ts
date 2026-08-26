@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import youtubedl from "youtube-dl-exec";
+import { resolveViaSnapSave } from "@/lib/instagram";
 
 export const dynamic = "force-dynamic";
 
@@ -255,7 +256,17 @@ async function handleReelExtraction(url: string) {
     creatorUsername = userMatch[1];
   }
 
-  // 2. High-Performance InstagAPI & Instagram oEmbed / OpenGraph metadata extraction
+  // 2. Free Open Scraper Engine for direct video resolution (Zero quota used)
+  try {
+    const snapUrl = await resolveViaSnapSave(url || shortcode || "");
+    if (snapUrl && snapUrl.startsWith("http")) {
+      mediaUrl = snapUrl;
+    }
+  } catch {
+    // Continue to next strategy
+  }
+
+  // 3. High-Performance InstagAPI & Instagram oEmbed / OpenGraph metadata extraction
   const instagapiKey = process.env.INSTAGAPI_KEY;
   if (instagapiKey && (shortcode || url)) {
     try {
