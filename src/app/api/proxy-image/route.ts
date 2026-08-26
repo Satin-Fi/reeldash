@@ -40,60 +40,64 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    // Secondary fallback for shortcode size=m
+    // Strategy 2: Fetch via Meta oEmbed to get fresh signed CDN thumbnail
     if (shortcode) {
-      const retryRes = await fetch(`https://www.instagram.com/p/${shortcode}/media/?size=m`, {
-        headers: {
-          "User-Agent": "facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)",
-          "Accept": "image/*",
-        },
-        redirect: "follow",
-      });
-      if (retryRes.ok) {
-        const contentType = retryRes.headers.get("content-type") || "image/jpeg";
-        const buffer = await retryRes.arrayBuffer();
-        return new NextResponse(buffer, {
-          headers: {
-            "Content-Type": contentType,
-            "Cache-Control": "public, max-age=86400, s-maxage=86400",
-          },
-        });
+      try {
+        const oembedRes = await fetch(
+          `https://www.instagram.com/api/v1/oembed/?url=https://www.instagram.com/p/${shortcode}/`,
+          {
+            headers: {
+              "User-Agent":
+                "Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15",
+              "Accept": "application/json",
+            },
+            cache: "no-store",
+          }
+        );
+        if (oembedRes.ok) {
+          const oembedData = await oembedRes.json();
+          if (oembedData?.thumbnail_url) {
+            const thumbRes = await fetch(oembedData.thumbnail_url, {
+              headers: {
+                "User-Agent":
+                  "Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15",
+                "Referer": "https://www.instagram.com/",
+              },
+            });
+            if (thumbRes.ok) {
+              const contentType = thumbRes.headers.get("content-type") || "image/jpeg";
+              const buffer = await thumbRes.arrayBuffer();
+              return new NextResponse(buffer, {
+                headers: {
+                  "Content-Type": contentType,
+                  "Cache-Control": "public, max-age=86400, s-maxage=86400",
+                },
+              });
+            }
+          }
+        }
+      } catch {
+        // continue
       }
     }
 
-    // High-res curated visual fallback based on shortcode hash
-    const fallbacks = [
-      "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80",
-      "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=800&q=80",
-      "https://images.unsplash.com/photo-1507238691740-187a5b1d37b8?auto=format&fit=crop&w=800&q=80",
-      "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=800&q=80",
-      "https://images.unsplash.com/photo-1541781774459-bb2af2f05b55?auto=format&fit=crop&w=800&q=80",
-      "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?auto=format&fit=crop&w=800&q=80",
-      "https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=800&q=80",
-      "https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=800&q=80",
-    ];
+    // Clean neutral SVG placeholder (Never fake stock photos)
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="400" height="500" viewBox="0 0 400 500" fill="#18181b">
+      <rect width="400" height="500" fill="#18181b"/>
+      <circle cx="200" cy="220" r="36" fill="#27272a"/>
+      <path d="M188 210h24v20h-24z" fill="#71717a"/>
+      <circle cx="200" cy="220" r="6" fill="#18181b"/>
+      <text x="200" y="280" fill="#a1a1aa" font-family="system-ui, sans-serif" font-size="13" font-weight="600" text-anchor="middle">Instagram Media</text>
+    </svg>`;
 
-    let hash = 0;
-    const str = shortcode || targetUrl || "default";
-    for (let i = 0; i < str.length; i++) {
-      hash = (hash << 5) - hash + str.charCodeAt(i);
-      hash |= 0;
-    }
-    const selectedFallback = fallbacks[Math.abs(hash) % fallbacks.length];
-
-    const fbRes = await fetch(selectedFallback);
-    if (fbRes.ok) {
-      const buffer = await fbRes.arrayBuffer();
-      return new NextResponse(buffer, {
-        headers: {
-          "Content-Type": "image/jpeg",
-          "Cache-Control": "public, max-age=86400",
-        },
-      });
-    }
-
-    return NextResponse.redirect(selectedFallback);
+    return new NextResponse(svg, {
+      status: 200,
+      headers: {
+        "Content-Type": "image/svg+xml",
+        "Cache-Control": "public, max-age=3600",
+      },
+    });
   } catch (err) {
-    return NextResponse.redirect("https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80");
+    return new NextResponse(null, { status: 404 });
   }
 }
