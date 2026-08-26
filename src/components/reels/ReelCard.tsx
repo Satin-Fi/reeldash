@@ -223,12 +223,18 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
             {/* Center Action Hover Icon */}
             <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
               <div className={`w-12 h-12 rounded-full text-white flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform ${
-                mediaType === "audio" ? "bg-emerald-500/90" : mediaType === "post" ? "bg-blue-500/90" : mediaType === "story" ? "bg-amber-500/90" : "bg-brand-500/90"
+                mediaType === "audio"
+                  ? "bg-emerald-500/90"
+                  : mediaType === "post"
+                  ? "bg-blue-500/90"
+                  : mediaType === "story"
+                  ? "bg-amber-500/90"
+                  : "bg-brand-500/90"
               }`}>
                 {mediaType === "audio" ? (
                   <Music2 className="w-5 h-5" />
                 ) : mediaType === "post" ? (
-                  <ImageIcon className="w-5 h-5" />
+                  reel.isCarousel ? <Layers className="w-5 h-5" /> : <ImageIcon className="w-5 h-5" />
                 ) : mediaType === "story" ? (
                   <Clock className="w-5 h-5" />
                 ) : (
@@ -237,10 +243,18 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
               </div>
             </div>
 
-            {/* Play Icon & Metrics Badge */}
+            {/* Media Type & Metrics Badge */}
             <div className="absolute bottom-2.5 left-2.5 flex items-center space-x-2 z-10">
               <div className="flex items-center space-x-1 px-2 py-0.5 rounded-rd-sm bg-black/60 backdrop-blur-md text-white text-[10px] font-medium">
-                {mediaType === "audio" ? <Music2 className="w-2.5 h-2.5" /> : <Play className="w-2.5 h-2.5 fill-white" />}
+                {mediaType === "audio" ? (
+                  <Music2 className="w-2.5 h-2.5 text-emerald-400" />
+                ) : mediaType === "post" ? (
+                  reel.isCarousel ? <Layers className="w-2.5 h-2.5 text-blue-400" /> : <ImageIcon className="w-2.5 h-2.5 text-blue-400" />
+                ) : mediaType === "story" ? (
+                  <Clock className="w-2.5 h-2.5 text-amber-400" />
+                ) : (
+                  <Play className="w-2.5 h-2.5 fill-white" />
+                )}
                 <span>{reel.duration}</span>
               </div>
               {reel.likes && (

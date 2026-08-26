@@ -458,11 +458,12 @@ async function handleReelExtraction(url: string) {
   } else if (mediaType === "story") {
     if (!creatorUsername) creatorUsername = "creator_story";
     if (!creatorFullName) creatorFullName = creatorUsername;
+    duration = "Story (24h)";
     if (!caption) {
-      caption = `Instagram Story by @${creatorUsername} (24h Active)`;
+      caption = `Instagram Story from @${creatorUsername} (24h story archive)`;
     }
-    if (!thumbnailUrl) {
-      thumbnailUrl = "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=600&q=80";
+    if (!thumbnailUrl && creatorUsername) {
+      thumbnailUrl = `/api/proxy-image?url=${encodeURIComponent(`https://ui-avatars.com/api/?name=${encodeURIComponent(creatorUsername)}&background=f59e0b&color=fff&size=400`)}`;
     }
   } else if (mediaType === "post") {
     if (!creatorUsername) creatorUsername = shortcode ? `post_${shortcode.slice(0, 5)}` : "instagram_post";
