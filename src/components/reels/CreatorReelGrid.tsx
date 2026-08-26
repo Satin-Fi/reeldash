@@ -10,6 +10,8 @@ import {
   ExternalLink,
   Loader2,
   FolderPlus,
+  Layers,
+  Image as ImageIcon,
 } from "lucide-react";
 import { ReelPlayerModal } from "./ReelPlayerModal";
 
@@ -138,8 +140,14 @@ function CreatorReelTile({ item, creatorUsername }: { item: CreatorReelItem; cre
         </button>
 
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <div className="w-11 h-11 rounded-full bg-brand-500/90 text-white flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
-            <Play className="w-4 h-4 fill-white ml-0.5" />
+          <div className="w-11 h-11 rounded-full bg-black/60 backdrop-blur-md text-white flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform border border-white/20">
+            {item.isCarousel ? (
+              <Layers className="w-5 h-5 text-blue-400" />
+            ) : !item.isVideo ? (
+              <ImageIcon className="w-5 h-5 text-blue-400" />
+            ) : (
+              <Play className="w-5 h-5 fill-white ml-0.5" />
+            )}
           </div>
         </div>
 
