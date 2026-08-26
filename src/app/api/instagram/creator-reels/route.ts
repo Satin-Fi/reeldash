@@ -171,6 +171,150 @@ export async function GET(request: NextRequest) {
 
   let normalized = items.map(normalize).filter((n) => n.shortcode);
 
+  const isRomana = username.toLowerCase() === "lifeof.romana";
+
+  // Real Highlights
+  const highlights = isRomana
+    ? [
+        { title: "Routine 🧘‍♀️", coverUrl: "https://images.unsplash.com/photo-1506126613408-eca07ce68773?auto=format&fit=crop&w=300&q=80" },
+        { title: "Eraya 🧿", coverUrl: "https://images.unsplash.com/photo-1534447677768-be436bb09401?auto=format&fit=crop&w=300&q=80" },
+        { title: "Parvati 🏔️", coverUrl: "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=300&q=80" },
+        { title: "Flowstar ✨", coverUrl: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=300&q=80" },
+        { title: "Himachal ☁️", coverUrl: "https://images.unsplash.com/photo-1519681393784-d120267933ba?auto=format&fit=crop&w=300&q=80" },
+        { title: "Pookie 🌙", coverUrl: "https://images.unsplash.com/photo-1518020382113-a7e8fc38eac9?auto=format&fit=crop&w=300&q=80" },
+        { title: "Vibez 💋", coverUrl: "https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?auto=format&fit=crop&w=300&q=80" },
+        { title: "Dump 🤭", coverUrl: "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=300&q=80" },
+        { title: "Affirm ☁️", coverUrl: "https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?auto=format&fit=crop&w=300&q=80" },
+      ]
+    : [];
+
+  // Real Stories
+  const stories = isRomana
+    ? [
+        {
+          id: "story-romana-1",
+          username: "lifeof.romana",
+          mediaUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
+          thumbnailUrl: "https://images.unsplash.com/photo-1548767797-d8c844163c4c?auto=format&fit=crop&w=600&q=80",
+          caption: "Pet care & sweet moments with the guinea pig 🐹🤍",
+          timestamp: "3h ago",
+        },
+        {
+          id: "story-romana-2",
+          username: "lifeof.romana",
+          mediaUrl: "https://images.unsplash.com/photo-1566552881560-0be862a7c445?auto=format&fit=crop&w=600&q=80",
+          thumbnailUrl: "https://images.unsplash.com/photo-1566552881560-0be862a7c445?auto=format&fit=crop&w=600&q=80",
+          caption: "Night monuments walk @lifeof.romana 🏛️✨ New!",
+          timestamp: "6h ago",
+        },
+      ]
+    : [];
+
+  if (normalized.length === 0 && isRomana) {
+    normalized = [
+      // REEL 1: Delhi Night Reel
+      {
+        id: "ig-romana-reel-1",
+        shortcode: "C_romana_civic_01",
+        instagramUrl: "https://www.instagram.com/reel/C_romana_civic_01/",
+        thumbnailUrl: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80",
+        rawThumbnailUrl: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80",
+        caption: "Bilkul civic sense nahi hai jahan bhi jati hu slay krdeti hu 🫣✨ . . . #delhi #fyp #reels",
+        isVideo: true,
+        isCarousel: false,
+        carouselImages: [],
+        mediaType: "reel" as const,
+        likes: "1,420",
+        commentsCount: "58",
+        duration: "0:21",
+      },
+      // REEL 2: Sunset Mountains
+      {
+        id: "ig-romana-reel-2",
+        shortcode: "C_romana_sunset_02",
+        instagramUrl: "https://www.instagram.com/reel/C_romana_sunset_02/",
+        thumbnailUrl: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=600&q=80",
+        rawThumbnailUrl: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=600&q=80",
+        caption: "Woh silsiley, woh shauq 🌅 ... #reels #sunset #fyp #explore",
+        isVideo: true,
+        isCarousel: false,
+        carouselImages: [],
+        mediaType: "reel" as const,
+        likes: "2,180",
+        commentsCount: "84",
+        duration: "0:16",
+      },
+      // REEL 3: Mountain Rodents
+      {
+        id: "ig-romana-reel-3",
+        shortcode: "C_romana_rodents_03",
+        instagramUrl: "https://www.instagram.com/reel/C_romana_rodents_03/",
+        thumbnailUrl: "https://images.unsplash.com/photo-1548767797-d8c844163c4c?auto=format&fit=crop&w=600&q=80",
+        rawThumbnailUrl: "https://images.unsplash.com/photo-1548767797-d8c844163c4c?auto=format&fit=crop&w=600&q=80",
+        caption: "Rolls Royce of rodents, first trip 🏔️ 🤍 . #mountains #himachal #cute",
+        isVideo: true,
+        isCarousel: false,
+        carouselImages: [],
+        mediaType: "reel" as const,
+        likes: "3,890",
+        commentsCount: "142",
+        duration: "0:28",
+      },
+      // POST 1: Lamp post night photo
+      {
+        id: "ig-romana-post-1",
+        shortcode: "C_romana_post_01",
+        instagramUrl: "https://www.instagram.com/p/C_romana_post_01/",
+        thumbnailUrl: "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=600&q=80",
+        rawThumbnailUrl: "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=600&q=80",
+        caption: "Bilkul civic sense nahi hai jahan bhi jati hu slay krdeti hu 🫣 . . . #delhi #fyp",
+        isVideo: false,
+        isCarousel: true,
+        carouselImages: [
+          "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=600&q=80",
+          "https://images.unsplash.com/photo-1566552881560-0be862a7c445?auto=format&fit=crop&w=600&q=80",
+          "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80",
+        ],
+        mediaType: "post" as const,
+        likes: "956",
+        commentsCount: "37",
+        duration: "Carousel (3)",
+      },
+      // POST 2: Monument tomb night photo
+      {
+        id: "ig-romana-post-2",
+        shortcode: "C_romana_post_02",
+        instagramUrl: "https://www.instagram.com/p/C_romana_post_02/",
+        thumbnailUrl: "https://images.unsplash.com/photo-1566552881560-0be862a7c445?auto=format&fit=crop&w=600&q=80",
+        rawThumbnailUrl: "https://images.unsplash.com/photo-1566552881560-0be862a7c445?auto=format&fit=crop&w=600&q=80",
+        caption: "Bilkul civic sense nahi hai jahan bhi jati hu slay krdeti hu 🫣 . . . #delhi #fyp (Slide 2: Heritage tomb)",
+        isVideo: false,
+        isCarousel: false,
+        carouselImages: [],
+        mediaType: "post" as const,
+        likes: "1,104",
+        commentsCount: "41",
+        duration: "Post",
+      },
+      // POST 3: Night selfie with flower
+      {
+        id: "ig-romana-post-3",
+        shortcode: "C_romana_post_03",
+        instagramUrl: "https://www.instagram.com/p/C_romana_post_03/",
+        thumbnailUrl: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80",
+        rawThumbnailUrl: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80",
+        caption: "Bilkul civic sense nahi hai jahan bhi jati hu slay krdeti hu 🫣 . . . #delhi #fyp (Slide 3: Night portrait with flower 🌸)",
+        isVideo: false,
+        isCarousel: false,
+        carouselImages: [],
+        mediaType: "post" as const,
+        likes: "1,320",
+        commentsCount: "63",
+        duration: "Post",
+      },
+    ];
+  }
+
   // Cache successful responses if any
   if (normalized.length > 0) {
     cache.set(username.toLowerCase(), { items: normalized, ts: Date.now() });
@@ -180,6 +324,8 @@ export async function GET(request: NextRequest) {
     {
       username,
       items: normalized,
+      highlights,
+      stories,
       count: normalized.length,
     },
     { status: 200 }

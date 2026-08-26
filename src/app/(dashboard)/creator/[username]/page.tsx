@@ -20,6 +20,7 @@ import {
   Copy,
   Loader2,
   User,
+  Sparkles,
 } from "lucide-react";
 
 interface AccountData {
@@ -60,8 +61,10 @@ function CreatorProfileContent() {
     }
   }, [tabParam]);
 
-  // Discovered media from Instagram
+  // Discovered media, highlights, and stories from Instagram
   const [discovered, setDiscovered] = useState<CreatorReelItem[]>([]);
+  const [highlights, setHighlights] = useState<Array<{ title: string; coverUrl: string }>>([]);
+  const [discoveredStories, setDiscoveredStories] = useState<any[]>([]);
   const [discovering, setDiscovering] = useState(false);
   const [discoverError, setDiscoverError] = useState<string | null>(null);
 
@@ -93,7 +96,14 @@ function CreatorProfileContent() {
           const data = await res.json();
           if (Array.isArray(data.items) && data.items.length > 0) {
             setDiscovered(data.items);
-          } else if (data.reason) {
+          }
+          if (Array.isArray(data.highlights)) {
+            setHighlights(data.highlights);
+          }
+          if (Array.isArray(data.stories)) {
+            setDiscoveredStories(data.stories);
+          }
+          if (data.reason) {
             setDiscoverError(data.reason);
           }
         }
@@ -273,6 +283,37 @@ function CreatorProfileContent() {
           </p>
         )}
 
+        {/* HIGHLIGHTS BAR */}
+        {highlights.length > 0 && (
+          <div className="border-t border-borderSubtle-light dark:border-borderSubtle-dark pt-4">
+            <div className="flex items-center space-x-1.5 mb-3 text-xs font-bold text-secondaryText-light dark:text-secondaryText-dark uppercase tracking-wider">
+              <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+              <span>Story Highlights</span>
+            </div>
+            <div className="flex items-center space-x-4 overflow-x-auto pb-2 scrollbar-none">
+              {highlights.map((h, i) => (
+                <div
+                  key={i}
+                  className="flex flex-col items-center space-y-1.5 shrink-0 cursor-pointer group"
+                >
+                  <div className="p-0.5 rounded-full bg-gradient-to-tr from-amber-400 via-pink-500 to-purple-600 group-hover:scale-105 transition-transform shadow-sm">
+                    <div className="w-14 h-14 rounded-full overflow-hidden border-2 border-surface-light dark:border-surface-dark bg-zinc-800 flex items-center justify-center">
+                      <img
+                        src={h.coverUrl}
+                        alt={h.title}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  </div>
+                  <span className="text-[11px] font-semibold text-primaryText-light dark:text-primaryText-dark truncate max-w-[70px] text-center">
+                    {h.title}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Quick Save URL Box */}
         <form onSubmit={handleQuickAdd} className="flex items-center gap-2 pt-2">
           <input
@@ -332,7 +373,7 @@ function CreatorProfileContent() {
           }`}
         >
           <CircleDashed className="w-4 h-4" />
-          <span>Stories ({creatorStories.length})</span>
+          <span>Stories ({creatorStories.length + discoveredStories.length})</span>
         </button>
 
         <button
@@ -455,22 +496,100 @@ function CreatorProfileContent() {
 
       {/* TAB C: STORIES */}
       {activeTab === "stories" && (
-        <div className="space-y-4">
-          {creatorStories.length > 0 ? (
-            <ReelGrid reels={creatorStories} viewMode={viewMode} />
-          ) : (
-            <div className="p-12 text-center bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-xl space-y-3">
-              <div className="w-12 h-12 rounded-full bg-brand-500/10 text-brand-500 flex items-center justify-center mx-auto">
-                <CircleDashed className="w-6 h-6" />
-              </div>
-              <h3 className="text-sm font-bold text-primaryText-light dark:text-primaryText-dark">
-                No Stories Saved from @{username}
+        <div className="space-y-6">
+          {creatorStories.length > 0 && (
+            <div className="space-y-3">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-secondaryText-light dark:text-secondaryText-dark">
+                Saved in Your Library ({creatorStories.length})
               </h3>
-              <p className="text-xs text-secondaryText-light dark:text-secondaryText-dark max-w-md mx-auto">
-                Stories saved from @{username} will appear here.
-              </p>
+              <ReelGrid reels={creatorStories} viewMode={viewMode} />
             </div>
           )}
+
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-secondaryText-light dark:text-secondaryText-dark">
+                Active 24h Instagram Stories (@{username})
+              </h3>
+            </div>
+
+            {discoveredStories.length > 0 ? (
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                {discoveredStories.map((story) => (
+                  <div
+                    key={story.id}
+                    className="group relative rounded-rd-card overflow-hidden bg-zinc-900 border border-borderSubtle-light dark:border-borderSubtle-dark aspect-reel shadow-rd-subtle hover:-translate-y-0.5 transition-all"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={story.thumbnailUrl}
+                      alt={story.caption}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-black/40" />
+
+                    {/* Top bar with avatar & timestamp */}
+                    <div className="absolute top-2.5 inset-x-2.5 flex items-center justify-between z-10">
+                      <div className="flex items-center space-x-1.5">
+                        <div className="p-0.5 rounded-full bg-gradient-to-tr from-amber-400 to-pink-600">
+                          <div className="w-5 h-5 rounded-full overflow-hidden bg-zinc-800">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={account?.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(username)}`}
+                              alt={username}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                        </div>
+                        <span className="text-[10px] font-bold text-white">@{username}</span>
+                      </div>
+                      <span className="text-[9px] font-medium text-amber-300 bg-black/60 px-1.5 py-0.5 rounded-full">
+                        {story.timestamp || "24h Active"}
+                      </span>
+                    </div>
+
+                    {/* Bottom Caption & Save Button */}
+                    <div className="absolute bottom-2.5 inset-x-2.5 space-y-2 z-10">
+                      <p className="text-[11px] text-white line-clamp-2 leading-snug">
+                        {story.caption}
+                      </p>
+                      <button
+                        onClick={async () => {
+                          try {
+                            await saveReel(`https://instagram.com/stories/${username}/`, {
+                              creator: username,
+                              caption: story.caption,
+                              mediaType: "story",
+                              category: "Productivity",
+                            });
+                            showToast(`Saved story from @${username}`);
+                          } catch {
+                            showToast("Could not save story");
+                          }
+                        }}
+                        className="w-full py-1.5 px-2.5 bg-brand-500 hover:bg-brand-600 active:scale-95 text-white font-semibold text-[11px] rounded-rd-sm transition-all flex items-center justify-center space-x-1 cursor-pointer"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>Save Story</span>
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="p-12 text-center bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-xl space-y-3">
+                <div className="w-12 h-12 rounded-full bg-brand-500/10 text-brand-500 flex items-center justify-center mx-auto">
+                  <CircleDashed className="w-6 h-6" />
+                </div>
+                <h3 className="text-sm font-bold text-primaryText-light dark:text-primaryText-dark">
+                  No Active 24h Stories from @{username}
+                </h3>
+                <p className="text-xs text-secondaryText-light dark:text-secondaryText-dark max-w-md mx-auto">
+                  Instagram stories expire after 24 hours. Saved stories will stay permanently in your library.
+                </p>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
