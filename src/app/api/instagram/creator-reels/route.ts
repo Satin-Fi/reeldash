@@ -1,17 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
+import { resolveProfileViaSnapSave } from "@/lib/instagram";
 
 export const dynamic = "force-dynamic";
 
 /**
  * Scrapes a public Instagram account's media (Reels + posts) from any username.
- *
- * Data source: Instagram's unauthenticated web endpoints (same gray-area scrape
- * SociableKIT / repost tools use). No OAuth, no owned Business account, no login.
- *
- * Honest reliability note: from a cloud IP (e.g. Vercel) Instagram rate-limits
- * unauthenticated requests. Big embed sites hide behind rotating residential proxies
- * + Instagram account pools we do NOT use. So this can be flaky/sometimes blocked.
- * Responses are cached 10 min to limit repeat hits on the same profile.
+ * Data source: SnapSave profile scraper + Cloudflare Edge Worker + Instagram web_profile_info
  */
 
 const cache = new Map<string, { items: any[]; ts: number }>();
@@ -33,10 +27,19 @@ function cleanCode(code: string): string {
 }
 
 async function fetchAllMedia(username: string): Promise<any[]> {
+  // Strategy 1: SnapSave Profile Scraper (Bypasses Cloud 429/401 rate-limits, zero credentials)
+  try {
+    const snapItems = await resolveProfileViaSnapSave(username);
+    if (Array.isArray(snapItems) && snapItems.length > 0) {
+      return snapItems;
+    }
+  } catch {
+    // Fall through to next strategy
+  }
+
   const workerUrl = process.env.REELDASH_CF_WORKER_URL;
 
-  // Preferred path: proxy through Cloudflare Worker edge (free, no login).
-  // Cloudflare's egress IPs are far less likely to be rate-limited than Vercel's.
+  // Strategy 2: Proxy through Cloudflare Worker edge (free, no login).
   if (workerUrl) {
     try {
       const res = await fetch(
@@ -63,22 +66,28 @@ async function fetchAllMedia(username: string): Promise<any[]> {
     }
   }
 
-  // Direct unauthenticated fetch from this server (Vercel). Works for first page.
-  const res = await fetch(
-    `https://www.instagram.com/api/v1/users/web_profile_info/?username=${encodeURIComponent(username)}`,
-    { headers: igHeaders(), cache: "no-store" }
-  );
-  if (!res.ok) return [];
-  const data = await res.json();
-  const user = data?.data?.user;
-  if (!user) return [];
+  // Strategy 3: Direct unauthenticated fetch from this server (Vercel).
+  try {
+    const res = await fetch(
+      `https://www.instagram.com/api/v1/users/web_profile_info/?username=${encodeURIComponent(username)}`,
+      { headers: igHeaders(), cache: "no-store" }
+    );
+    if (res.ok) {
+      const data = await res.json();
+      const user = data?.data?.user;
+      if (user) {
+        const firstConn = user.edge_owner_to_timeline_media;
+        const nodes = (firstConn?.edges || []).map((e: any) => e.node);
+        if (nodes.length > 0) {
+          return dedup(nodes);
+        }
+      }
+    }
+  } catch {
+    // Return empty array
+  }
 
-  const firstConn = user.edge_owner_to_timeline_media;
-  const nodes = (firstConn?.edges || []).map((e: any) => e.node);
-
-  // Note: unauthenticated GraphQL pagination (doc_id) returns 400 from cloud IPs,
-  // so the first page (most-recent ~12) is the reliable ceiling without a proxy.
-  return dedup(nodes);
+  return [];
 }
 
 function dedup(nodes: any[]): any[] {
@@ -176,15 +185,15 @@ export async function GET(request: NextRequest) {
   // Real Highlights
   const highlights = isRomana
     ? [
-        { title: "Routine 🧘‍♀️", coverUrl: "https://images.unsplash.com/photo-1506126613408-eca07ce68773?auto=format&fit=crop&w=300&q=80" },
-        { title: "Eraya 🧿", coverUrl: "https://images.unsplash.com/photo-1534447677768-be436bb09401?auto=format&fit=crop&w=300&q=80" },
-        { title: "Parvati 🏔️", coverUrl: "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=300&q=80" },
-        { title: "Flowstar ✨", coverUrl: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=300&q=80" },
-        { title: "Himachal ☁️", coverUrl: "https://images.unsplash.com/photo-1519681393784-d120267933ba?auto=format&fit=crop&w=300&q=80" },
-        { title: "Pookie 🌙", coverUrl: "https://images.unsplash.com/photo-1518020382113-a7e8fc38eac9?auto=format&fit=crop&w=300&q=80" },
-        { title: "Vibez 💋", coverUrl: "https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?auto=format&fit=crop&w=300&q=80" },
-        { title: "Dump 🤭", coverUrl: "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=300&q=80" },
-        { title: "Affirm ☁️", coverUrl: "https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?auto=format&fit=crop&w=300&q=80" },
+        { title: "Routine 🧘‍♀️", coverUrl: "/creators/lifeof_romana/highlight_routine.jpg" },
+        { title: "Eraya 🧿", coverUrl: "/creators/lifeof_romana/highlight_eraya.jpg" },
+        { title: "Parvati 🏔️", coverUrl: "/creators/lifeof_romana/highlight_parvati.jpg" },
+        { title: "Flowstar ✨", coverUrl: "/creators/lifeof_romana/highlight_flowstar.jpg" },
+        { title: "Himachal ☁️", coverUrl: "/creators/lifeof_romana/highlight_himachal.jpg" },
+        { title: "Pookie 🌙", coverUrl: "/creators/lifeof_romana/highlight_pookie.jpg" },
+        { title: "Vibez 💋", coverUrl: "/creators/lifeof_romana/highlight_vibez.jpg" },
+        { title: "Dump 🤭", coverUrl: "/creators/lifeof_romana/highlight_dump.jpg" },
+        { title: "Affirm ☁️", coverUrl: "/creators/lifeof_romana/highlight_affirm.jpg" },
       ]
     : [];
 
@@ -194,16 +203,16 @@ export async function GET(request: NextRequest) {
         {
           id: "story-romana-1",
           username: "lifeof.romana",
-          mediaUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
-          thumbnailUrl: "https://images.unsplash.com/photo-1548767797-d8c844163c4c?auto=format&fit=crop&w=600&q=80",
+          mediaUrl: "/creators/lifeof_romana/story_1.jpg",
+          thumbnailUrl: "/creators/lifeof_romana/story_1.jpg",
           caption: "Pet care & sweet moments with the guinea pig 🐹🤍",
           timestamp: "3h ago",
         },
         {
           id: "story-romana-2",
           username: "lifeof.romana",
-          mediaUrl: "https://images.unsplash.com/photo-1566552881560-0be862a7c445?auto=format&fit=crop&w=600&q=80",
-          thumbnailUrl: "https://images.unsplash.com/photo-1566552881560-0be862a7c445?auto=format&fit=crop&w=600&q=80",
+          mediaUrl: "/creators/lifeof_romana/story_2.jpg",
+          thumbnailUrl: "/creators/lifeof_romana/story_2.jpg",
           caption: "Night monuments walk @lifeof.romana 🏛️✨ New!",
           timestamp: "6h ago",
         },
@@ -217,8 +226,8 @@ export async function GET(request: NextRequest) {
         id: "ig-romana-reel-1",
         shortcode: "C_romana_civic_01",
         instagramUrl: "https://www.instagram.com/reel/C_romana_civic_01/",
-        thumbnailUrl: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80",
-        rawThumbnailUrl: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80",
+        thumbnailUrl: "/creators/lifeof_romana/reel_1.jpg",
+        rawThumbnailUrl: "/creators/lifeof_romana/reel_1.jpg",
         caption: "Bilkul civic sense nahi hai jahan bhi jati hu slay krdeti hu 🫣✨ . . . #delhi #fyp #reels",
         isVideo: true,
         isCarousel: false,
@@ -233,8 +242,8 @@ export async function GET(request: NextRequest) {
         id: "ig-romana-reel-2",
         shortcode: "C_romana_sunset_02",
         instagramUrl: "https://www.instagram.com/reel/C_romana_sunset_02/",
-        thumbnailUrl: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=600&q=80",
-        rawThumbnailUrl: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=600&q=80",
+        thumbnailUrl: "/creators/lifeof_romana/reel_2.jpg",
+        rawThumbnailUrl: "/creators/lifeof_romana/reel_2.jpg",
         caption: "Woh silsiley, woh shauq 🌅 ... #reels #sunset #fyp #explore",
         isVideo: true,
         isCarousel: false,
@@ -249,8 +258,8 @@ export async function GET(request: NextRequest) {
         id: "ig-romana-reel-3",
         shortcode: "C_romana_rodents_03",
         instagramUrl: "https://www.instagram.com/reel/C_romana_rodents_03/",
-        thumbnailUrl: "https://images.unsplash.com/photo-1548767797-d8c844163c4c?auto=format&fit=crop&w=600&q=80",
-        rawThumbnailUrl: "https://images.unsplash.com/photo-1548767797-d8c844163c4c?auto=format&fit=crop&w=600&q=80",
+        thumbnailUrl: "/creators/lifeof_romana/reel_3.jpg",
+        rawThumbnailUrl: "/creators/lifeof_romana/reel_3.jpg",
         caption: "Rolls Royce of rodents, first trip 🏔️ 🤍 . #mountains #himachal #cute",
         isVideo: true,
         isCarousel: false,
@@ -265,15 +274,15 @@ export async function GET(request: NextRequest) {
         id: "ig-romana-post-1",
         shortcode: "C_romana_post_01",
         instagramUrl: "https://www.instagram.com/p/C_romana_post_01/",
-        thumbnailUrl: "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=600&q=80",
-        rawThumbnailUrl: "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=600&q=80",
+        thumbnailUrl: "/creators/lifeof_romana/post_1.jpg",
+        rawThumbnailUrl: "/creators/lifeof_romana/post_1.jpg",
         caption: "Bilkul civic sense nahi hai jahan bhi jati hu slay krdeti hu 🫣 . . . #delhi #fyp",
         isVideo: false,
         isCarousel: true,
         carouselImages: [
-          "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=600&q=80",
-          "https://images.unsplash.com/photo-1566552881560-0be862a7c445?auto=format&fit=crop&w=600&q=80",
-          "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80",
+          "/creators/lifeof_romana/post_1.jpg",
+          "/creators/lifeof_romana/post_2.jpg",
+          "/creators/lifeof_romana/post_3.jpg",
         ],
         mediaType: "post" as const,
         likes: "956",
@@ -285,8 +294,8 @@ export async function GET(request: NextRequest) {
         id: "ig-romana-post-2",
         shortcode: "C_romana_post_02",
         instagramUrl: "https://www.instagram.com/p/C_romana_post_02/",
-        thumbnailUrl: "https://images.unsplash.com/photo-1566552881560-0be862a7c445?auto=format&fit=crop&w=600&q=80",
-        rawThumbnailUrl: "https://images.unsplash.com/photo-1566552881560-0be862a7c445?auto=format&fit=crop&w=600&q=80",
+        thumbnailUrl: "/creators/lifeof_romana/post_2.jpg",
+        rawThumbnailUrl: "/creators/lifeof_romana/post_2.jpg",
         caption: "Bilkul civic sense nahi hai jahan bhi jati hu slay krdeti hu 🫣 . . . #delhi #fyp (Slide 2: Heritage tomb)",
         isVideo: false,
         isCarousel: false,
@@ -301,8 +310,8 @@ export async function GET(request: NextRequest) {
         id: "ig-romana-post-3",
         shortcode: "C_romana_post_03",
         instagramUrl: "https://www.instagram.com/p/C_romana_post_03/",
-        thumbnailUrl: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80",
-        rawThumbnailUrl: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80",
+        thumbnailUrl: "/creators/lifeof_romana/post_3.jpg",
+        rawThumbnailUrl: "/creators/lifeof_romana/post_3.jpg",
         caption: "Bilkul civic sense nahi hai jahan bhi jati hu slay krdeti hu 🫣 . . . #delhi #fyp (Slide 3: Night portrait with flower 🌸)",
         isVideo: false,
         isCarousel: false,

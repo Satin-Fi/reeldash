@@ -113,3 +113,94 @@ export async function resolveViaSnapSave(urlOrShortcode: string): Promise<string
 
   return null;
 }
+
+/**
+ * Scrape full public creator profile media using SnapSave pipeline
+ */
+export async function resolveProfileViaSnapSave(username: string): Promise<any[]> {
+  const cleanUser = username.replace(/^@/, "").trim();
+  const targetUrl = `https://www.instagram.com/${cleanUser}/`;
+
+  try {
+    const res = await fetch("https://snapsave.app/action.php?lang=en", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
+        "Referer": "https://snapsave.app/",
+      },
+      body: `url=${encodeURIComponent(targetUrl)}`,
+      cache: "no-store",
+    });
+
+    if (!res.ok) return [];
+    const raw = await res.text();
+    const match = raw.match(/eval\(function\(h,u,n,t,e,r\)\{[\s\S]*?\}\("([\s\S]*?)",\s*(\d+),\s*"([\s\S]*?)",\s*(\d+),\s*(\d+),\s*(\d+)\)\)/);
+    if (!match) return [];
+
+    const [_, h, u, n, t, e] = match;
+    const _0xc50e = ["", "split", "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ+/", "slice", "indexOf", "", "", ".", "pow", "reduce", "reverse", "0"];
+
+    function _0xe19c(d: string, eVal: number, f: number) {
+      const g = _0xc50e[2].split("");
+      const hStr = g.slice(0, eVal);
+      const iStr = g.slice(0, f);
+      const j = d.split("").reverse().reduce((a: number, b: string, c: number) => {
+        if (hStr.indexOf(b) !== -1) return (a += hStr.indexOf(b) * Math.pow(eVal, c));
+        return a;
+      }, 0);
+      let k = "";
+      let jVal = j;
+      while (jVal > 0) {
+        k = iStr[jVal % f] + k;
+        jVal = (jVal - (jVal % f)) / f;
+      }
+      return k || "0";
+    }
+
+    let decoded = "";
+    const tNum = parseInt(t, 10);
+    const eNum = parseInt(e, 10);
+    for (let i = 0, len = h.length; i < len; i++) {
+      let s = "";
+      while (h[i] !== n[eNum] && i < len) {
+        s += h[i];
+        i++;
+      }
+      for (let j = 0; j < n.length; j++) {
+        s = s.replace(new RegExp(n[j], "g"), String(j));
+      }
+      decoded += String.fromCharCode(parseInt(_0xe19c(s, eNum, 10), 10) - tNum);
+    }
+    const html = decodeURIComponent(escape(decoded));
+
+    const items: any[] = [];
+    const allDownloads = [...html.matchAll(/href=\\"(https:\/\/d\.rapidcdn\.app\/[^\\"]+)\\"/g)].map(m => m[1]);
+    const allThumbs = [...html.matchAll(/src=\\"(https:\/\/d\.rapidcdn\.app\/[^\\"]+)\\"/g)].map(m => m[1]);
+
+    const count = Math.max(allDownloads.length, allThumbs.length);
+    for (let i = 0; i < count; i++) {
+      const dl = allDownloads[i] || "";
+      const tb = allThumbs[i] || dl;
+      const isVid = dl.includes("/v2") || dl.includes("video") || dl.includes(".mp4");
+      const shortcode = `snap_${cleanUser}_${i}`;
+
+      items.push({
+        id: shortcode,
+        shortcode,
+        display_url: tb,
+        thumbnail_src: tb,
+        media_url: dl,
+        is_video: isVid,
+        caption: { text: `Media from @${cleanUser}` },
+        edge_media_to_caption: { edges: [{ node: { text: `Media from @${cleanUser}` } }] },
+        edge_media_preview_like: { count: 0 },
+        edge_media_to_comment: { count: 0 },
+      });
+    }
+
+    return items;
+  } catch {
+    return [];
+  }
+}
