@@ -20,56 +20,68 @@ import {
 import { motion } from "framer-motion";
 
 /**
- * ReelDash-owned frame around the official Instagram embed.
+ * ReelDash-owned Native Fallback View (No broken Instagram iframe popup)
  */
 function ReelDashEmbedFrame({ reel, shortcode }: { reel: Reel; shortcode: string }) {
   const { showToast } = useReels();
 
   const isPost = reel.mediaType === "post" || reel.instagramUrl.includes("/p/");
-  const embedSrc = isPost
-    ? `https://www.instagram.com/p/${shortcode}/embed/`
-    : `https://www.instagram.com/reel/${shortcode}/embed/`;
 
   const copyLink = () => {
     navigator.clipboard.writeText(reel.instagramUrl);
-    showToast("Link copied to clipboard");
+    showToast("Instagram link copied to clipboard");
+  };
+
+  const openInstagram = () => {
+    window.open(reel.instagramUrl, "_blank", "noopener,noreferrer");
   };
 
   return (
-    <div className="relative w-full h-full flex flex-col bg-black">
-      {/* TOP CHROME */}
-      <div className="shrink-0 flex items-center justify-between px-3 py-2 border-b border-zinc-800 bg-zinc-950">
-        <div className="flex items-center space-x-2 min-w-0">
-          <div className="w-6 h-6 rounded-md bg-brand-500 text-white flex items-center justify-center text-xs font-bold shrink-0">
+    <div className="relative w-full h-full flex flex-col justify-between bg-zinc-950 text-white p-6 select-none overflow-hidden">
+      {/* Top Header */}
+      <div className="flex items-center justify-between z-10">
+        <div className="flex items-center space-x-2">
+          <div className="w-6 h-6 rounded-md bg-brand-500 text-white flex items-center justify-center text-xs font-bold">
             ⚡
           </div>
-          <span className="text-xs font-bold text-white shrink-0">ReelDash</span>
-          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-zinc-800 text-zinc-400 shrink-0">
+          <span className="text-xs font-bold text-white">ReelDash</span>
+          <span className="text-[10px] px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-400">
             {isPost ? "Instagram Post" : "Instagram Reel"}
           </span>
         </div>
-        <div className="flex items-center space-x-2 shrink-0">
-          <button
-            onClick={copyLink}
-            title="Copy link"
-            className="p-1.5 text-zinc-400 hover:text-white rounded-full hover:bg-zinc-800 transition-colors cursor-pointer shrink-0"
-          >
-            <ExternalLink className="w-3.5 h-3.5" />
-          </button>
-        </div>
+        <button
+          onClick={copyLink}
+          title="Copy link"
+          className="p-1.5 text-zinc-400 hover:text-white rounded-full hover:bg-zinc-800 transition-colors cursor-pointer"
+        >
+          <ExternalLink className="w-4 h-4" />
+        </button>
       </div>
 
-      {/* INSTAGRAM EMBED — sandboxed to prevent tab hijacking & external navigation */}
-      <div className="flex-1 w-full h-full flex items-center justify-center overflow-hidden bg-black p-0">
-        <iframe
-          src={embedSrc}
-          className="w-full h-full min-h-[480px] sm:min-h-[560px] md:min-h-[640px] max-w-[440px] border-0 bg-black"
-          allowFullScreen
-          scrolling="no"
-          sandbox="allow-scripts allow-same-origin allow-presentation"
-          allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
-          title={reel.caption || "Instagram Media"}
-        />
+      {/* Middle Notice */}
+      <div className="flex flex-col items-center justify-center text-center space-y-4 my-auto z-10 px-4">
+        <div className="w-14 h-14 rounded-full bg-brand-500/10 text-brand-400 flex items-center justify-center border border-brand-500/20">
+          <Play className="w-6 h-6" />
+        </div>
+        <div className="space-y-1.5 max-w-xs">
+          <h4 className="text-sm font-bold text-white">Direct Stream Restricted</h4>
+          <p className="text-xs text-zinc-400 leading-relaxed">
+            Instagram has restricted third-party video streaming for this reel. You can view it directly on Instagram.
+          </p>
+        </div>
+        <button
+          onClick={openInstagram}
+          className="px-5 py-2.5 bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 active:scale-95 text-white font-semibold text-xs rounded-rd-lg transition-all shadow-lg flex items-center space-x-2 cursor-pointer"
+        >
+          <span>Watch on Instagram</span>
+          <ExternalLink className="w-3.5 h-3.5" />
+        </button>
+      </div>
+
+      {/* Bottom Creator Info */}
+      <div className="z-10 border-t border-zinc-800/80 pt-3 flex items-center justify-between text-xs text-zinc-400">
+        <span className="font-semibold text-zinc-300">@{reel.creatorUsername}</span>
+        <span className="text-[11px] truncate max-w-[150px]">{reel.caption || "Instagram Reel"}</span>
       </div>
     </div>
   );

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import youtubedl from "youtube-dl-exec";
 
+import { resolveViaSnapSave } from "@/lib/instagram";
+
 export const dynamic = "force-dynamic";
 
 export async function GET(
@@ -15,34 +17,46 @@ export async function GET(
 
   let directUrl = "";
 
-  // 1. Resolve direct media URL on demand
+  // 1. Resolve direct media URL via SnapSave
   try {
-    const ytdlPromise = youtubedl(`https://www.instagram.com/reel/${shortcode}/`, {
-      dumpSingleJson: true,
-      noCheckCertificates: true,
-      noWarnings: true,
-      preferFreeFormats: true,
-      addHeader: [
-        "referer:instagram.com",
-        "user-agent:Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
-      ],
-    });
-
-    const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error("Stream extraction timeout")), 4000)
-    );
-
-    const output: any = await Promise.race([ytdlPromise, timeoutPromise]);
-
-    if (output?.url) {
-      directUrl = output.url;
-    } else if (output?.formats && output.formats.length > 0) {
-      const videoFormat =
-        output.formats.find((f: any) => f.vcodec !== "none" && f.url) || output.formats[0];
-      directUrl = videoFormat?.url || "";
+    const snapUrl = await resolveViaSnapSave(`https://www.instagram.com/reel/${shortcode}/`);
+    if (snapUrl && snapUrl.startsWith("http")) {
+      directUrl = snapUrl;
     }
-  } catch (err) {
-    console.warn(`[Stream Proxy] Failed to extract direct stream for ${shortcode}:`, err);
+  } catch {
+    // continue
+  }
+
+  // 2. Fallback via youtubedl
+  if (!directUrl) {
+    try {
+      const ytdlPromise = youtubedl(`https://www.instagram.com/reel/${shortcode}/`, {
+        dumpSingleJson: true,
+        noCheckCertificates: true,
+        noWarnings: true,
+        preferFreeFormats: true,
+        addHeader: [
+          "referer:instagram.com",
+          "user-agent:Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+        ],
+      });
+
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("Stream extraction timeout")), 4000)
+      );
+
+      const output: any = await Promise.race([ytdlPromise, timeoutPromise]);
+
+      if (output?.url) {
+        directUrl = output.url;
+      } else if (output?.formats && output.formats.length > 0) {
+        const videoFormat =
+          output.formats.find((f: any) => f.vcodec !== "none" && f.url) || output.formats[0];
+        directUrl = videoFormat?.url || "";
+      }
+    } catch (err) {
+      console.warn(`[Stream Proxy] Failed to extract direct stream for ${shortcode}:`, err);
+    }
   }
 
   // Strictly enforce: Never return random fallback videos

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import youtubedl from "youtube-dl-exec";
 
+import { resolveViaSnapSave } from "@/lib/instagram";
+
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
@@ -16,7 +18,19 @@ export async function GET(req: NextRequest) {
       ? passedUrl
       : "";
 
-  // Attempt backend resolution on demand if not provided
+  // 1. Resolve via SnapSave engine (Reliable on Vercel Serverless)
+  if (!targetUrl && shortcode) {
+    try {
+      const snapUrl = await resolveViaSnapSave(`https://www.instagram.com/reel/${shortcode}/`);
+      if (snapUrl && snapUrl.startsWith("http")) {
+        targetUrl = snapUrl;
+      }
+    } catch {
+      // continue
+    }
+  }
+
+  // 2. Fallback attempt backend resolution
   if (!targetUrl && shortcode) {
     try {
       const ytdlPromise = youtubedl(`https://www.instagram.com/reel/${shortcode}/`, {
