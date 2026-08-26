@@ -643,31 +643,18 @@ export function ReelPlayer({
   }
 
   const handlePlayClick = async () => {
-    // 1. If direct valid media URL exists, play via native HTML5 video
-    if (
-      playbackUrl &&
-      !playbackUrl.includes("zencdn.net") &&
-      !playbackUrl.includes("googleapis.com") &&
-      playbackUrl.startsWith("http")
-    ) {
-      setStatus("playing");
-      setUseIframe(false);
-      return;
-    }
-
     setStatus("loading");
 
-    // 2. Try fetching direct stream from playback endpoint
+    // 1. Fetch direct CDN video stream from SnapSave engine
     try {
       const res = await fetch(
         `/api/reels/${reel.id}/playback?url=${encodeURIComponent(reel.instagramUrl)}`
       );
       if (res.ok) {
         const data = await res.json();
-        if (data.status === "available" && (data.directCdnUrl || data.playbackUrl)) {
+        if (data.directCdnUrl || data.playbackUrl) {
           setPlaybackUrl(data.directCdnUrl || data.playbackUrl);
           setStatus("playing");
-          setUseIframe(false);
           return;
         }
       }
@@ -675,16 +662,19 @@ export function ReelPlayer({
       // Continue to stream proxy
     }
 
-    // 3. Play via direct video stream proxy endpoint
+    // 2. Stream through backend video proxy with SnapSave
     if (shortcode) {
       setPlaybackUrl(`/api/video-stream?shortcode=${shortcode}`);
       setStatus("playing");
-      setUseIframe(false);
       return;
     }
 
-    // 4. Last resort: Sandboxed embed frame
-    setUseIframe(true);
+    if (reel.mediaUrl && reel.mediaUrl.startsWith("http")) {
+      setPlaybackUrl(reel.mediaUrl);
+      setStatus("playing");
+      return;
+    }
+
     setStatus("playing");
   };
 
@@ -718,27 +708,22 @@ export function ReelPlayer({
     <div
       className={`relative aspect-reel w-full overflow-hidden bg-black select-none ${className}`}
     >
-      {/* 1. PLAYING STATE: Seamless Dark Video Player */}
+      {/* 1. PLAYING STATE: Native HTML5 Video Player */}
       {status === "playing" && (
         <div className="relative w-full h-full bg-black flex items-center justify-center overflow-hidden">
-          {useIframe || !playbackUrl ? (
-            <ReelDashEmbedFrame reel={reel} shortcode={shortcode} />
-          ) : (
-            <div className="relative w-full h-full bg-black">
-              <video
-                ref={videoRef}
-                src={playbackUrl}
-                poster={coverImageSrc}
-                controls
-                autoPlay
-                playsInline
-                muted={isMuted}
-                onError={() => setUseIframe(true)}
-                className="w-full h-full object-cover cursor-pointer"
-                onClick={() => toggleMute()}
-              />
-            </div>
-          )}
+          <div className="relative w-full h-full bg-black">
+            <video
+              ref={videoRef}
+              src={playbackUrl || (shortcode ? `/api/video-stream?shortcode=${shortcode}` : undefined)}
+              poster={coverImageSrc}
+              controls
+              autoPlay
+              playsInline
+              muted={isMuted}
+              className="w-full h-full object-cover cursor-pointer"
+              onClick={() => toggleMute()}
+            />
+          </div>
 
           {/* Persistent Floating Tap to Unmute Badge */}
           {isMuted && (
