@@ -568,37 +568,37 @@ export function ReelPlayer({
                 className="w-full h-full object-cover cursor-pointer"
                 onClick={() => toggleMute()}
               />
-
-              {/* Floating Tap to Unmute Badge */}
-              {isMuted && (
-                <button
-                  onClick={toggleMute}
-                  className="absolute top-4 left-4 z-20 px-3 py-1.5 rounded-full bg-black/80 hover:bg-black text-white text-xs font-semibold flex items-center space-x-1.5 backdrop-blur-md border border-white/20 shadow-lg cursor-pointer animate-pulse"
-                >
-                  <VolumeX className="w-4 h-4 text-pink-400" />
-                  <span>Tap to Unmute</span>
-                </button>
-              )}
-
-              {/* Sound & Fullscreen floating controls */}
-              <div className="absolute bottom-4 right-4 flex items-center space-x-2 z-20">
-                <button
-                  onClick={toggleMute}
-                  className="w-8 h-8 rounded-full bg-black/70 hover:bg-black text-white flex items-center justify-center backdrop-blur-md transition-transform hover:scale-105 cursor-pointer"
-                  title={isMuted ? "Unmute" : "Mute"}
-                >
-                  {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
-                </button>
-                <button
-                  onClick={handleFullscreen}
-                  className="w-8 h-8 rounded-full bg-black/70 hover:bg-black text-white flex items-center justify-center backdrop-blur-md transition-transform hover:scale-105 cursor-pointer"
-                  title="Fullscreen"
-                >
-                  <Maximize2 className="w-4 h-4" />
-                </button>
-              </div>
             </div>
           )}
+
+          {/* Persistent Floating Tap to Unmute Badge */}
+          {isMuted && (
+            <button
+              onClick={toggleMute}
+              className="absolute top-12 left-4 z-30 px-3 py-1.5 rounded-full bg-black/85 hover:bg-black text-white text-xs font-semibold flex items-center space-x-1.5 backdrop-blur-md border border-white/20 shadow-xl cursor-pointer animate-pulse"
+            >
+              <VolumeX className="w-4 h-4 text-pink-400" />
+              <span>Tap to Unmute</span>
+            </button>
+          )}
+
+          {/* Persistent Sound & Fullscreen floating controls */}
+          <div className="absolute bottom-4 right-4 flex items-center space-x-2 z-30 pointer-events-auto">
+            <button
+              onClick={toggleMute}
+              className="w-9 h-9 rounded-full bg-black/80 hover:bg-black text-white flex items-center justify-center backdrop-blur-md transition-transform hover:scale-105 cursor-pointer shadow-xl border border-white/20"
+              title={isMuted ? "Unmute" : "Mute"}
+            >
+              {isMuted ? <VolumeX className="w-4 h-4 text-pink-400" /> : <Volume2 className="w-4 h-4 text-emerald-400" />}
+            </button>
+            <button
+              onClick={handleFullscreen}
+              className="w-9 h-9 rounded-full bg-black/80 hover:bg-black text-white flex items-center justify-center backdrop-blur-md transition-transform hover:scale-105 cursor-pointer shadow-xl border border-white/20"
+              title="Fullscreen"
+            >
+              <Maximize2 className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       )}
 
