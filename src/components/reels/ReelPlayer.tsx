@@ -78,7 +78,7 @@ export function ReelPlayer({
   className = "",
   autoPlay = false,
 }: ReelPlayerProps) {
-  const [status, setStatus] = useState<PlaybackStatus>(autoPlay ? "playing" : "idle");
+  const [status, setStatus] = useState<PlaybackStatus>(autoPlay ? "loading" : "idle");
   const [playbackUrl, setPlaybackUrl] = useState<string | null>(reel.mediaUrl || null);
   const [imageError, setImageError] = useState(false);
   const [useIframe, setUseIframe] = useState(false);
@@ -136,6 +136,13 @@ export function ReelPlayer({
     setStatus("playing");
   };
 
+  // Trigger autoplay resolution on mount or reel change
+  React.useEffect(() => {
+    if (autoPlay) {
+      handlePlayClick();
+    }
+  }, [reel.id, autoPlay]);
+
   const toggleMute = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (videoRef.current) {
@@ -173,7 +180,7 @@ export function ReelPlayer({
                 controls
                 autoPlay
                 playsInline
-                crossOrigin="anonymous"
+                muted={isMuted}
                 onError={() => setUseIframe(true)}
                 className="w-full h-full object-cover"
               />

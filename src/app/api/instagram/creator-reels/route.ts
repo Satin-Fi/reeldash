@@ -156,18 +156,28 @@ export async function GET(request: NextRequest) {
   // Graceful empty state
   const normalized = items.map(normalize).filter((n) => n.shortcode);
 
-  if (normalized.length === 0) {
-    return NextResponse.json(
-      {
-        username,
-        items: [],
-        reason:
-          "Instagram didn't return media for this request. It may rate-limit cloud requests occasionally — refresh in a moment, or open the profile on instagram.com.",
-      },
-      { status: 200 }
-    );
+  // Cache successful responses
+  if (normalized.length > 0) {
+    cache.set(username.toLowerCase(), { items: normalized, ts: Date.now() });
   }
 
-  cache.set(username.toLowerCase(), { items: normalized, ts: Date.now() });
-  return NextResponse.json({ username, items: normalized, cached: false });
+  const response = NextResponse.json(
+    {
+      username,
+      items: normalized,
+      count: normalized.length,
+      reason:
+        normalized.length === 0
+          ? "Instagram temporarily rate-limits media scraping on cloud endpoints. You can save any reel directly by pasting its link in the box above."
+          : undefined,
+    },
+    { status: 200 }
+  );
+
+  response.headers.set(
+    "Cache-Control",
+    "public, s-maxage=1800, stale-while-revalidate=86400"
+  );
+
+  return response;
 }
