@@ -19,13 +19,8 @@ import {
   ExternalLink,
   Copy,
   Loader2,
-  Sparkles,
   User,
-  Heart,
-  Play,
-  Share2,
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
 
 interface AccountData {
   username: string;
@@ -105,14 +100,22 @@ export default function CreatorProfilePage() {
     }
   }, [username]);
 
-  // 2. Filter local Reels matching this creator
+  // 2. Real saved items belonging to this creator
   const creatorReels = reels.filter(
-    (r) => r.creatorUsername.toLowerCase() === username.toLowerCase()
+    (r) => r.creatorUsername.toLowerCase() === username.toLowerCase() && (r.mediaType === "reel" || !r.mediaType)
   );
 
-  const creatorPosts = creatorReels.filter((r) => r.mediaType === "post" || !r.mediaUrl?.includes(".mp4"));
-  const creatorStories = creatorReels.filter((r) => r.mediaType === "story");
-  const creatorAudio = creatorReels.filter((r) => r.mediaType === "audio" || !!r.audioTitle);
+  const creatorPosts = reels.filter(
+    (r) => r.creatorUsername.toLowerCase() === username.toLowerCase() && r.mediaType === "post"
+  );
+
+  const creatorStories = reels.filter(
+    (r) => r.creatorUsername.toLowerCase() === username.toLowerCase() && r.mediaType === "story"
+  );
+
+  const creatorAudio = reels.filter(
+    (r) => r.creatorUsername.toLowerCase() === username.toLowerCase() && (r.mediaType === "audio" || !!r.audioTitle)
+  );
 
   const handleCopyProfile = () => {
     navigator.clipboard.writeText(`https://instagram.com/${username}`);
@@ -134,14 +137,6 @@ export default function CreatorProfilePage() {
       setIsSaving(false);
     }
   };
-
-  // Sample stories for interactive story presentation
-  const storyHighlights = [
-    { id: "h1", title: "Highlights", count: 4, cover: account?.avatarUrl },
-    { id: "h2", title: "Behind Scenes", count: 3, cover: account?.avatarUrl },
-    { id: "h3", title: "Work & Travel", count: 5, cover: account?.avatarUrl },
-    { id: "h4", title: "Q&A", count: 2, cover: account?.avatarUrl },
-  ];
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto pb-12">
@@ -249,29 +244,6 @@ export default function CreatorProfilePage() {
           </div>
         )}
 
-        {/* Story Highlights Circles */}
-        <div className="pt-2 border-t border-borderSubtle-light dark:border-borderSubtle-dark flex items-center space-x-4 overflow-x-auto pb-1 scrollbar-none">
-          {storyHighlights.map((hl) => (
-            <button
-              key={hl.id}
-              onClick={() => {
-                setActiveTab("stories");
-                showToast(`Viewing @${username}'s ${hl.title}`);
-              }}
-              className="flex flex-col items-center space-y-1.5 shrink-0 group cursor-pointer"
-            >
-              <div className="w-14 h-14 rounded-full p-0.5 bg-gradient-to-tr from-yellow-500 via-pink-500 to-purple-600 group-hover:scale-105 transition-transform">
-                <div className="w-full h-full rounded-full bg-zinc-900 border-2 border-white dark:border-zinc-900 flex items-center justify-center text-white text-xs font-bold">
-                  {hl.title[0]}
-                </div>
-              </div>
-              <span className="text-[11px] text-secondaryText-light dark:text-secondaryText-dark font-medium group-hover:text-primaryText-light truncate max-w-[70px]">
-                {hl.title}
-              </span>
-            </button>
-          ))}
-        </div>
-
         {/* Quick Ingest / Save Reel form for this creator */}
         <form
           onSubmit={handleQuickAdd}
@@ -296,10 +268,10 @@ export default function CreatorProfilePage() {
       </div>
 
       {/* 2. TAB NAVIGATION (Reels, Posts, Stories, Audio) */}
-      <div className="flex items-center space-x-2 border-b border-borderSubtle-light dark:border-borderSubtle-dark pb-2">
+      <div className="flex items-center space-x-2 border-b border-borderSubtle-light dark:border-borderSubtle-dark pb-2 overflow-x-auto scrollbar-none">
         <button
           onClick={() => setActiveTab("reels")}
-          className={`flex items-center space-x-2 px-4 py-2 rounded-rd-lg text-xs font-bold transition-colors cursor-pointer ${
+          className={`flex items-center space-x-2 px-4 py-2 rounded-rd-lg text-xs font-bold transition-colors cursor-pointer shrink-0 ${
             activeTab === "reels"
               ? "bg-brand-500 text-white shadow-sm"
               : "text-secondaryText-light dark:text-secondaryText-dark hover:bg-surfaceSecondary-light dark:hover:bg-surfaceSecondary-dark"
@@ -311,7 +283,7 @@ export default function CreatorProfilePage() {
 
         <button
           onClick={() => setActiveTab("posts")}
-          className={`flex items-center space-x-2 px-4 py-2 rounded-rd-lg text-xs font-bold transition-colors cursor-pointer ${
+          className={`flex items-center space-x-2 px-4 py-2 rounded-rd-lg text-xs font-bold transition-colors cursor-pointer shrink-0 ${
             activeTab === "posts"
               ? "bg-brand-500 text-white shadow-sm"
               : "text-secondaryText-light dark:text-secondaryText-dark hover:bg-surfaceSecondary-light dark:hover:bg-surfaceSecondary-dark"
@@ -323,26 +295,26 @@ export default function CreatorProfilePage() {
 
         <button
           onClick={() => setActiveTab("stories")}
-          className={`flex items-center space-x-2 px-4 py-2 rounded-rd-lg text-xs font-bold transition-colors cursor-pointer ${
+          className={`flex items-center space-x-2 px-4 py-2 rounded-rd-lg text-xs font-bold transition-colors cursor-pointer shrink-0 ${
             activeTab === "stories"
               ? "bg-brand-500 text-white shadow-sm"
               : "text-secondaryText-light dark:text-secondaryText-dark hover:bg-surfaceSecondary-light dark:hover:bg-surfaceSecondary-dark"
           }`}
         >
           <CircleDashed className="w-4 h-4" />
-          <span>Stories & Highlights ({storyHighlights.length})</span>
+          <span>Stories ({creatorStories.length})</span>
         </button>
 
         <button
           onClick={() => setActiveTab("audio")}
-          className={`flex items-center space-x-2 px-4 py-2 rounded-rd-lg text-xs font-bold transition-colors cursor-pointer ${
+          className={`flex items-center space-x-2 px-4 py-2 rounded-rd-lg text-xs font-bold transition-colors cursor-pointer shrink-0 ${
             activeTab === "audio"
               ? "bg-brand-500 text-white shadow-sm"
               : "text-secondaryText-light dark:text-secondaryText-dark hover:bg-surfaceSecondary-light dark:hover:bg-surfaceSecondary-dark"
           }`}
         >
           <Music2 className="w-4 h-4" />
-          <span>Original Audio</span>
+          <span>Audio ({creatorAudio.length})</span>
         </button>
       </div>
 
@@ -355,7 +327,7 @@ export default function CreatorProfilePage() {
           {creatorReels.length > 0 && (
             <div className="space-y-3">
               <h3 className="text-xs font-bold uppercase tracking-wider text-secondaryText-light dark:text-secondaryText-dark">
-                Saved in Your ReelDash Library ({creatorReels.length})
+                Saved in Your Library ({creatorReels.length})
               </h3>
               <ReelGrid reels={creatorReels} viewMode={viewMode} />
             </div>
@@ -379,7 +351,7 @@ export default function CreatorProfilePage() {
               <div className="p-8 text-center bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-xl">
                 <Loader2 className="w-6 h-6 animate-spin text-brand-500 mx-auto" />
                 <p className="text-xs text-secondaryText-light dark:text-secondaryText-dark mt-3">
-                  Fetching @{username}&apos;s public Reels…
+                  Fetching @{username}&apos;s public Reels from Instagram…
                 </p>
               </div>
             )}
@@ -417,129 +389,55 @@ export default function CreatorProfilePage() {
                 <Grid className="w-6 h-6" />
               </div>
               <h3 className="text-sm font-bold text-primaryText-light dark:text-primaryText-dark">
-                No Post Carousels Saved
+                No Posts Saved from @{username}
               </h3>
               <p className="text-xs text-secondaryText-light dark:text-secondaryText-dark max-w-md mx-auto">
-                Save multi-photo carousel posts from @{username} to organize them in your library.
+                Paste any post link from @{username} in the save box above to store and organize it in your library.
               </p>
             </div>
           )}
         </div>
       )}
 
-      {/* TAB C: STORIES & HIGHLIGHTS */}
+      {/* TAB C: STORIES */}
       {activeTab === "stories" && (
         <div className="space-y-4">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            {storyHighlights.map((hl, i) => (
-              <div
-                key={hl.id}
-                onClick={() => {
-                  const demoStory: Reel = {
-                    id: `story-${username}-${i}`,
-                    userId: "usr-demo",
-                    instagramUrl: `https://www.instagram.com/stories/${username}/`,
-                    creatorUsername: username,
-                    creatorProfileUrl: `https://instagram.com/${username}`,
-                    caption: `${hl.title} • Story highlight by @${username}`,
-                    thumbnailUrl: account?.avatarUrl || "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80",
-                    category: "Stories",
-                    mediaType: "story",
-                    subcategories: [],
-                    collections: [],
-                    hashtags: [],
-                    duration: "0:15",
-                    isFavorite: false,
-                    createdAt: new Date().toISOString(),
-                    updatedAt: new Date().toISOString(),
-                  };
-                  setActiveModalReel(demoStory);
-                }}
-                className="relative aspect-[9/16] rounded-rd-xl overflow-hidden bg-zinc-900 border border-borderSubtle-light dark:border-borderSubtle-dark group cursor-pointer shadow-sm hover:scale-[1.02] transition-all"
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={account?.avatarUrl || "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80"}
-                  alt={hl.title}
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/30" />
-                <div className="absolute top-3 left-3 flex items-center space-x-1.5">
-                  <div className="w-3 h-3 rounded-full bg-emerald-500 animate-pulse" />
-                  <span className="text-[10px] font-bold text-white uppercase tracking-wider">Active</span>
-                </div>
-                <div className="absolute bottom-3 left-3 right-3">
-                  <p className="text-xs font-bold text-white truncate">{hl.title}</p>
-                  <p className="text-[10px] text-zinc-300">{hl.count} Story Clips</p>
-                </div>
+          {creatorStories.length > 0 ? (
+            <ReelGrid reels={creatorStories} viewMode={viewMode} />
+          ) : (
+            <div className="p-12 text-center bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-xl space-y-3">
+              <div className="w-12 h-12 rounded-full bg-brand-500/10 text-brand-500 flex items-center justify-center mx-auto">
+                <CircleDashed className="w-6 h-6" />
               </div>
-            ))}
-          </div>
+              <h3 className="text-sm font-bold text-primaryText-light dark:text-primaryText-dark">
+                No Stories Saved from @{username}
+              </h3>
+              <p className="text-xs text-secondaryText-light dark:text-secondaryText-dark max-w-md mx-auto">
+                Stories saved from @{username} will appear here.
+              </p>
+            </div>
+          )}
         </div>
       )}
 
-      {/* TAB D: AUDIO & SOUNDTRACKS */}
+      {/* TAB D: AUDIO & SOUNDS */}
       {activeTab === "audio" && (
         <div className="space-y-4">
-          <div className="p-6 bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-xl space-y-4">
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
-                <Music2 className="w-5 h-5" />
+          {creatorAudio.length > 0 ? (
+            <ReelGrid reels={creatorAudio} viewMode={viewMode} />
+          ) : (
+            <div className="p-12 text-center bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-xl space-y-3">
+              <div className="w-12 h-12 rounded-full bg-brand-500/10 text-brand-500 flex items-center justify-center mx-auto">
+                <Music2 className="w-6 h-6" />
               </div>
-              <div>
-                <h3 className="text-sm font-bold text-primaryText-light dark:text-primaryText-dark">
-                  Original Audio by @{username}
-                </h3>
-                <p className="text-xs text-secondaryText-light dark:text-secondaryText-dark">
-                  Audio tracks and sounds used across @{username}&apos;s reels
-                </p>
-              </div>
+              <h3 className="text-sm font-bold text-primaryText-light dark:text-primaryText-dark">
+                No Audio Tracks Saved from @{username}
+              </h3>
+              <p className="text-xs text-secondaryText-light dark:text-secondaryText-dark max-w-md mx-auto">
+                Original audio tracks saved from @{username} will appear here.
+              </p>
             </div>
-
-            <div
-              onClick={() => {
-                const audioReel: Reel = {
-                  id: `audio-${username}`,
-                  userId: "usr-demo",
-                  instagramUrl: `https://www.instagram.com/reels/audio/${username}/`,
-                  creatorUsername: username,
-                  creatorProfileUrl: `https://instagram.com/${username}`,
-                  caption: `Original sound by @${username}`,
-                  thumbnailUrl: account?.avatarUrl || "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80",
-                  category: "Audio",
-                  mediaType: "audio",
-                  subcategories: [],
-                  collections: [],
-                  hashtags: [],
-                  duration: "0:30",
-                  audioTitle: `Original Sound • @${username}`,
-                  audioArtist: username,
-                  isFavorite: false,
-                  createdAt: new Date().toISOString(),
-                  updatedAt: new Date().toISOString(),
-                };
-                setActiveModalReel(audioReel);
-              }}
-              className="flex items-center justify-between p-4 bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark rounded-rd-lg border border-borderSubtle-light dark:border-borderSubtle-dark group cursor-pointer hover:border-emerald-500/40 transition-colors"
-            >
-              <div className="flex items-center space-x-3 min-w-0">
-                <div className="w-10 h-10 rounded-lg bg-emerald-500 text-white flex items-center justify-center shadow-md group-hover:scale-105 transition-transform">
-                  <Play className="w-5 h-5 fill-white ml-0.5" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-xs font-bold text-primaryText-light dark:text-primaryText-dark group-hover:text-emerald-500 transition-colors truncate">
-                    Original Sound • @{username}
-                  </p>
-                  <p className="text-[11px] text-secondaryText-light dark:text-secondaryText-dark truncate">
-                    {account?.displayName || username} • Lossless Audio
-                  </p>
-                </div>
-              </div>
-              <span className="text-xs font-semibold text-emerald-500 px-3 py-1 bg-emerald-500/10 rounded-full">
-                Play Audio Studio
-              </span>
-            </div>
-          </div>
+          )}
         </div>
       )}
 

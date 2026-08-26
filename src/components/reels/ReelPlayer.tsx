@@ -85,10 +85,7 @@ function AudioSongPlayer({ reel, coverImageSrc }: { reel: Reel; coverImageSrc: s
   const [currentTime, setCurrentTime] = useState("0:34");
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  const audioTrackUrl =
-    reel.audioUrl ||
-    reel.mediaUrl ||
-    "https://commondatastorage.googleapis.com/codeskulptor-demos/DDR_assets/Sevish_-__nbsp_.mp3";
+  const audioTrackUrl = reel.audioUrl || reel.mediaUrl || "";
 
   const trackTitle = reel.audioTitle || reel.caption.slice(0, 35) || "Instagram Audio Track";
   const artistName = reel.audioArtist || `@${reel.creatorUsername} • Original Audio`;
