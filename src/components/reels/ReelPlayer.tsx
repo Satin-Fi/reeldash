@@ -42,11 +42,11 @@ function ReelDashEmbedFrame({ reel, shortcode }: { reel: Reel; shortcode: string
         </button>
       </div>
 
-      {/* INSTAGRAM EMBED — faithful, no crop/hack */}
-      <div className="flex-1 flex items-center justify-center overflow-auto bg-black p-2">
+      {/* INSTAGRAM EMBED — full height 9:16 vertical view */}
+      <div className="flex-1 w-full h-full flex items-center justify-center overflow-hidden bg-black p-0">
         <iframe
           src={`https://www.instagram.com/reel/${shortcode}/embed/`}
-          className="w-full max-w-[340px] border-0 bg-black"
+          className="w-full h-full min-h-[480px] sm:min-h-[560px] md:min-h-[640px] max-w-[420px] border-0 bg-black"
           allowFullScreen
           scrolling="no"
           allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"

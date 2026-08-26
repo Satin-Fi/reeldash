@@ -132,7 +132,7 @@ export function ReelPlayerModal({ reel, isOpen, onClose }: ReelPlayerModalProps)
           </button>
 
           {/* LEFT COLUMN: Pure Dark 9:16 Vertical Video Player */}
-          <div className="w-full md:w-[48%] lg:w-[50%] h-[42vh] md:h-full bg-black flex items-center justify-center relative overflow-hidden border-b md:border-b-0 md:border-r border-zinc-800 shrink-0">
+          <div className="w-full md:w-[48%] lg:w-[50%] h-[55vh] md:h-full min-h-[380px] bg-black flex items-center justify-center relative overflow-hidden border-b md:border-b-0 md:border-r border-zinc-800 shrink-0">
             <ReelPlayer
               reel={reel}
               autoPlay={true}
@@ -141,7 +141,7 @@ export function ReelPlayerModal({ reel, isOpen, onClose }: ReelPlayerModalProps)
           </div>
 
           {/* RIGHT COLUMN: Pure Dark Instagram Post Social & Management Sidebar */}
-          <div className="w-full md:w-[52%] lg:w-[50%] h-[50vh] md:h-full flex flex-col bg-black text-zinc-100 min-w-0 border-l border-zinc-800/60">
+          <div className="w-full md:w-[52%] lg:w-[50%] flex-1 md:h-full flex flex-col bg-black text-zinc-100 min-w-0 border-l border-zinc-800/60 overflow-y-auto">
             {/* 1. TOP CREATOR HEADER */}
             <div className="p-3.5 px-4 flex items-center justify-between border-b border-zinc-800/80 shrink-0 bg-black">
               <div className="flex items-center space-x-3 min-w-0">
