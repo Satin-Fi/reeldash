@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { useParams, useRouter } from "next/navigation";
+import React, { useState, useEffect, Suspense } from "react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useReels } from "@/context/ReelContext";
 import { ReelGrid } from "@/components/reels/ReelGrid";
 import { ReelPlayerModal } from "@/components/reels/ReelPlayerModal";
@@ -35,9 +35,12 @@ interface AccountData {
 
 export type CreatorTab = "reels" | "posts" | "stories" | "audio";
 
-export default function CreatorProfilePage() {
+function CreatorProfileContent() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const tabParam = searchParams.get("tab") as CreatorTab | null;
+
   const rawUsername = params.username as string;
   const username = decodeURIComponent(rawUsername).replace(/^@/, "").toLowerCase();
 
@@ -49,6 +52,13 @@ export default function CreatorProfilePage() {
   const [isSaving, setIsSaving] = useState(false);
   const [activeModalReel, setActiveModalReel] = useState<Reel | null>(null);
   const [activeTab, setActiveTab] = useState<CreatorTab>("reels");
+
+  // Sync tab with URL query parameter
+  useEffect(() => {
+    if (tabParam && ["reels", "posts", "stories", "audio"].includes(tabParam)) {
+      setActiveTab(tabParam);
+    }
+  }, [tabParam]);
 
   // Discovered media from Instagram
   const [discovered, setDiscovered] = useState<CreatorReelItem[]>([]);
@@ -117,6 +127,14 @@ export default function CreatorProfilePage() {
     (r) => r.creatorUsername.toLowerCase() === username.toLowerCase() && (r.mediaType === "audio" || !!r.audioTitle)
   );
 
+  const discoveredReels = discovered.filter(
+    (d) => d.mediaType === "reel" || (d.isVideo && !d.isCarousel)
+  );
+
+  const discoveredPosts = discovered.filter(
+    (d) => d.mediaType === "post" || d.isCarousel || !d.isVideo
+  );
+
   const handleCopyProfile = () => {
     navigator.clipboard.writeText(`https://instagram.com/${username}`);
     showToast("Instagram profile link copied");
@@ -139,42 +157,48 @@ export default function CreatorProfilePage() {
   };
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto pb-12">
-      {/* Top Back Navigation */}
+    <div className="space-y-6 max-w-6xl mx-auto pb-16">
+      {/* Back Link */}
       <button
         onClick={() => router.back()}
-        className="inline-flex items-center space-x-2 text-xs font-medium text-secondaryText-light dark:text-secondaryText-dark hover:text-primaryText-light transition-colors cursor-pointer"
+        className="flex items-center space-x-1.5 text-xs font-semibold text-secondaryText-light dark:text-secondaryText-dark hover:text-primaryText-light transition-colors cursor-pointer"
       >
         <ArrowLeft className="w-4 h-4" />
         <span>Back to search</span>
       </button>
 
-      {/* 1. CREATOR PROFILE HEADER CARD */}
+      {/* 1. CREATOR PROFILE HEADER */}
       <div className="p-6 bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-xl shadow-rd-subtle space-y-6">
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center space-x-4 min-w-0">
-            {/* Avatar with Instagram Gradient Ring */}
+            {/* Avatar */}
             <div className="relative p-1 rounded-full bg-gradient-to-tr from-yellow-500 via-pink-500 to-purple-600 shrink-0 shadow-md">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={account?.avatarUrl || `https://instagram.com/${username}/media/?size=l`}
+                src={
+                  account?.avatarUrl ||
+                  `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                    username
+                  )}&background=7c3aed&color=fff&size=160`
+                }
                 alt={username}
+                className="w-16 h-16 sm:w-20 sm:h-20 rounded-full object-cover bg-zinc-800"
                 onError={(e) => {
                   (e.target as HTMLElement).style.display = "none";
-                  const fallback = (e.target as HTMLElement).nextElementSibling as HTMLElement;
+                  const fallback = (e.target as HTMLElement)
+                    .nextElementSibling as HTMLElement;
                   if (fallback) fallback.style.display = "flex";
                 }}
-                className="w-16 h-16 md:w-20 md:h-20 rounded-full object-cover bg-zinc-900 border-2 border-white dark:border-zinc-900"
               />
-              <div className="hidden w-16 h-16 md:w-20 md:h-20 rounded-full bg-zinc-900 border-2 border-white dark:border-zinc-900 items-center justify-center text-zinc-400">
+              <div className="hidden w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-zinc-800 items-center justify-center text-zinc-400">
                 <User className="w-8 h-8" />
               </div>
             </div>
 
-            {/* Handle & Real Name */}
+            {/* Creator Names & Meta */}
             <div className="space-y-1 min-w-0">
               <div className="flex items-center space-x-2">
-                <h1 className="text-xl md:text-2xl font-bold tracking-tight text-primaryText-light dark:text-primaryText-dark truncate">
+                <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-primaryText-light dark:text-primaryText-dark truncate">
                   @{username}
                 </h1>
                 {account?.isVerified && (
@@ -182,93 +206,99 @@ export default function CreatorProfilePage() {
                 )}
               </div>
 
-              <p className="text-sm font-medium text-secondaryText-light dark:text-secondaryText-dark">
+              <p className="text-xs sm:text-sm font-medium text-secondaryText-light dark:text-secondaryText-dark truncate">
                 {account?.displayName || username}
               </p>
 
-              {/* Real Followers & Posts stats */}
-              <div className="flex items-center space-x-4 text-xs text-secondaryText-light dark:text-secondaryText-dark pt-1">
+              {/* Stats */}
+              <div className="flex items-center space-x-4 text-xs pt-1">
                 {account?.followers && (
-                  <div>
-                    <span className="font-bold text-primaryText-light dark:text-primaryText-dark">
+                  <span>
+                    <strong className="font-bold text-primaryText-light dark:text-primaryText-dark font-mono">
                       {account.followers}
-                    </span>{" "}
-                    <span>Followers</span>
-                  </div>
+                    </strong>{" "}
+                    <span className="text-mutedText-light dark:text-mutedText-dark">
+                      Followers
+                    </span>
+                  </span>
                 )}
                 {account?.postsCount && (
-                  <div>
-                    <span className="font-bold text-primaryText-light dark:text-primaryText-dark">
+                  <span>
+                    <strong className="font-bold text-primaryText-light dark:text-primaryText-dark font-mono">
                       {account.postsCount}
-                    </span>{" "}
-                    <span>Posts</span>
-                  </div>
+                    </strong>{" "}
+                    <span className="text-mutedText-light dark:text-mutedText-dark">
+                      Posts
+                    </span>
+                  </span>
                 )}
-                <div>
-                  <span className="font-bold text-primaryText-light dark:text-primaryText-dark">
-                    {creatorReels.length}
-                  </span>{" "}
-                  <span>Saved in ReelDash</span>
-                </div>
+                <span>
+                  <strong className="font-bold text-brand-500 font-mono">
+                    {creatorReels.length + creatorPosts.length + creatorStories.length + creatorAudio.length}
+                  </strong>{" "}
+                  <span className="text-mutedText-light dark:text-mutedText-dark">
+                    Saved in ReelDash
+                  </span>
+                </span>
               </div>
             </div>
           </div>
 
-          {/* Action Buttons */}
+          {/* Action buttons */}
           <div className="flex items-center space-x-2 shrink-0">
             <button
               onClick={handleCopyProfile}
-              className="p-2 border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-md text-secondaryText-light dark:text-secondaryText-dark hover:text-primaryText-light transition-colors cursor-pointer bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark"
-              title="Copy Instagram Profile Link"
+              className="p-2 bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark border border-borderSubtle-light dark:border-borderSubtle-dark hover:border-brand-500 text-secondaryText-light hover:text-primaryText-light rounded-rd-md transition-colors cursor-pointer"
+              title="Copy Profile Link"
             >
               <Copy className="w-4 h-4" />
             </button>
-
             <a
               href={`https://instagram.com/${username}`}
               target="_blank"
               rel="noreferrer"
-              className="px-3.5 py-2 bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark hover:bg-zinc-200 dark:hover:bg-zinc-800 text-primaryText-light dark:text-primaryText-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-md text-xs font-semibold flex items-center space-x-1.5 transition-colors"
+              className="flex items-center space-x-1.5 px-3 py-2 bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark border border-borderSubtle-light dark:border-borderSubtle-dark hover:border-pink-500/50 text-secondaryText-light hover:text-pink-500 rounded-rd-md text-xs font-semibold transition-colors"
             >
-              <Instagram className="w-3.5 h-3.5 text-pink-500" />
+              <Instagram className="w-4 h-4 text-pink-500" />
               <span>Instagram</span>
               <ExternalLink className="w-3 h-3 text-mutedText-light" />
             </a>
           </div>
         </div>
 
-        {/* Real Bio */}
+        {/* Bio */}
         {account?.bio && (
-          <div className="pt-2 border-t border-borderSubtle-light dark:border-borderSubtle-dark text-xs text-secondaryText-light dark:text-secondaryText-dark leading-relaxed whitespace-pre-line">
+          <p className="text-xs sm:text-sm text-secondaryText-light dark:text-secondaryText-dark border-t border-borderSubtle-light dark:border-borderSubtle-dark pt-3 leading-relaxed">
             {account.bio}
-          </div>
+          </p>
         )}
 
-        {/* Quick Ingest / Save Reel form for this creator */}
-        <form
-          onSubmit={handleQuickAdd}
-          className="flex items-center gap-2 p-3 bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark rounded-rd-lg border border-borderSubtle-light dark:border-borderSubtle-dark"
-        >
+        {/* Quick Save URL Box */}
+        <form onSubmit={handleQuickAdd} className="flex items-center gap-2 pt-2">
           <input
             type="url"
             placeholder={`Paste any Reel link from @${username} (e.g. https://www.instagram.com/reel/...)`}
             value={reelUrlInput}
             onChange={(e) => setReelUrlInput(e.target.value)}
-            className="flex-1 px-3 py-2 bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-md text-xs text-primaryText-light dark:text-primaryText-dark focus:outline-none focus:border-brand-500"
+            className="flex-1 px-3.5 py-2 bg-background-light dark:bg-background-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-md text-xs sm:text-sm text-primaryText-light dark:text-primaryText-dark focus:outline-none focus:border-brand-500"
           />
           <button
             type="submit"
             disabled={isSaving || !reelUrlInput.trim()}
-            className="px-4 py-2 bg-brand-500 hover:bg-brand-600 disabled:opacity-50 text-white rounded-rd-md text-xs font-semibold flex items-center space-x-1.5 transition-colors cursor-pointer shadow-sm shrink-0"
+            className="px-4 py-2 bg-brand-500 hover:bg-brand-600 active:scale-95 text-white font-semibold text-xs rounded-rd-md shadow-sm transition-all disabled:opacity-50 flex items-center space-x-1.5 cursor-pointer shrink-0"
           >
-            {isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
+            {isSaving ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <Plus className="w-3.5 h-3.5" />
+            )}
             <span>Save to ReelDash</span>
           </button>
         </form>
       </div>
 
-      {/* 2. TAB NAVIGATION (Reels, Posts, Stories, Audio) */}
-      <div className="flex items-center space-x-2 border-b border-borderSubtle-light dark:border-borderSubtle-dark pb-2 overflow-x-auto scrollbar-none">
+      {/* 2. MEDIA TYPE TABS */}
+      <div className="flex items-center space-x-2 border-b border-borderSubtle-light dark:border-borderSubtle-dark pb-2 overflow-x-auto">
         <button
           onClick={() => setActiveTab("reels")}
           className={`flex items-center space-x-2 px-4 py-2 rounded-rd-lg text-xs font-bold transition-colors cursor-pointer shrink-0 ${
@@ -278,7 +308,7 @@ export default function CreatorProfilePage() {
           }`}
         >
           <Film className="w-4 h-4" />
-          <span>Reels ({creatorReels.length + discovered.length})</span>
+          <span>Reels ({creatorReels.length + discoveredReels.length})</span>
         </button>
 
         <button
@@ -290,7 +320,7 @@ export default function CreatorProfilePage() {
           }`}
         >
           <Grid className="w-4 h-4" />
-          <span>Posts ({creatorPosts.length})</span>
+          <span>Posts & Carousels ({creatorPosts.length + discoveredPosts.length})</span>
         </button>
 
         <button
@@ -347,7 +377,7 @@ export default function CreatorProfilePage() {
               )}
             </div>
 
-            {discovering && discovered.length === 0 && (
+            {discovering && discoveredReels.length === 0 && (
               <div className="p-8 text-center bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-xl">
                 <Loader2 className="w-6 h-6 animate-spin text-brand-500 mx-auto" />
                 <p className="text-xs text-secondaryText-light dark:text-secondaryText-dark mt-3">
@@ -356,70 +386,45 @@ export default function CreatorProfilePage() {
               </div>
             )}
 
-            {!discovering && discoverError && discovered.length === 0 && creatorReels.length === 0 && (
-              <div className="p-8 text-center bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-xl space-y-4">
-                <p className="text-xs text-secondaryText-light dark:text-secondaryText-dark max-w-md mx-auto">
-                  {discoverError}
-                </p>
-                <div className="flex items-center justify-center gap-3">
-                  <button
-                    onClick={() => {
-                      setDiscovering(true);
-                      setDiscoverError(null);
-                      fetch(`/api/instagram/creator-reels?username=${encodeURIComponent(username)}`)
-                        .then((r) => r.json())
-                        .then((d) => {
-                          if (Array.isArray(d.items) && d.items.length > 0) {
-                            setDiscovered(d.items);
-                          } else if (d.reason) {
-                            setDiscoverError(d.reason);
-                          }
-                        })
-                        .catch(() => setDiscoverError("Could not reach Instagram right now."))
-                        .finally(() => setDiscovering(false));
-                    }}
-                    className="inline-flex items-center space-x-1.5 px-4 py-2 bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark border border-borderSubtle-light dark:border-borderSubtle-dark hover:border-brand-500 text-primaryText-light dark:text-primaryText-dark rounded-rd-md text-xs font-semibold transition-colors cursor-pointer"
-                  >
-                    <Loader2 className={`w-3.5 h-3.5 ${discovering ? "animate-spin" : ""}`} />
-                    <span>Retry Live Feed</span>
-                  </button>
-
-                  <a
-                    href={`https://instagram.com/${username}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center space-x-1.5 px-4 py-2 bg-brand-500 text-white rounded-rd-md text-xs font-semibold hover:bg-brand-600 transition-colors shadow-sm"
-                  >
-                    <Instagram className="w-3.5 h-3.5" />
-                    <span>Open @{username} on Instagram</span>
-                  </a>
-                </div>
-              </div>
+            {discoveredReels.length > 0 && (
+              <CreatorReelGrid items={discoveredReels} username={username} />
             )}
-
-            {discovered.length > 0 && <CreatorReelGrid items={discovered} username={username} />}
           </div>
         </div>
       )}
 
       {/* TAB B: POSTS & CAROUSELS */}
       {activeTab === "posts" && (
-        <div className="space-y-4">
-          {creatorPosts.length > 0 ? (
-            <ReelGrid reels={creatorPosts} viewMode={viewMode} />
-          ) : (
-            <div className="p-12 text-center bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-xl space-y-3">
-              <div className="w-12 h-12 rounded-full bg-brand-500/10 text-brand-500 flex items-center justify-center mx-auto">
-                <Grid className="w-6 h-6" />
-              </div>
-              <h3 className="text-sm font-bold text-primaryText-light dark:text-primaryText-dark">
-                No Posts Saved from @{username}
+        <div className="space-y-6">
+          {creatorPosts.length > 0 && (
+            <div className="space-y-3">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-secondaryText-light dark:text-secondaryText-dark">
+                Saved in Your Library ({creatorPosts.length})
               </h3>
-              <p className="text-xs text-secondaryText-light dark:text-secondaryText-dark max-w-md mx-auto">
-                Paste any post link from @{username} in the save box above to store and organize it in your library.
-              </p>
+              <ReelGrid reels={creatorPosts} viewMode={viewMode} />
             </div>
           )}
+
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-secondaryText-light dark:text-secondaryText-dark">
+                Public Instagram Posts & Sidecar Carousels (@{username})
+              </h3>
+            </div>
+
+            {discoveredPosts.length > 0 ? (
+              <CreatorReelGrid items={discoveredPosts} username={username} />
+            ) : (
+              <div className="p-12 text-center bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-xl space-y-3">
+                <div className="w-12 h-12 rounded-full bg-brand-500/10 text-brand-500 flex items-center justify-center mx-auto">
+                  <Grid className="w-6 h-6" />
+                </div>
+                <h3 className="text-sm font-bold text-primaryText-light dark:text-primaryText-dark">
+                  No Posts Discovered from @{username}
+                </h3>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -474,5 +479,13 @@ export default function CreatorProfilePage() {
         />
       )}
     </div>
+  );
+}
+
+export default function CreatorProfilePage() {
+  return (
+    <Suspense fallback={<div className="p-6 text-xs text-mutedText-light">Loading creator profile…</div>}>
+      <CreatorProfileContent />
+    </Suspense>
   );
 }

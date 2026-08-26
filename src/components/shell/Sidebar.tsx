@@ -17,18 +17,71 @@ import {
   Plus,
   ChevronRight,
   LogOut,
+  Film,
+  Image as ImageIcon,
+  Music2,
+  CircleDashed,
+  Layers,
 } from "lucide-react";
 
 export function Sidebar() {
   const pathname = usePathname();
-  const { reels, favorites, collections, smartCategories, activeCategory, setActiveCategory, setIsCreateCollectionModalOpen } = useReels();
+  const {
+    reels,
+    favorites,
+    collections,
+    smartCategories,
+    activeCategory,
+    setActiveCategory,
+    activeMediaType,
+    setActiveMediaType,
+    setIsCreateCollectionModalOpen,
+  } = useReels();
   const { user, logout } = useAuth();
 
-  const totalReelsCount = reels.length;
+  const reelsCount = reels.filter((r) => !r.mediaType || r.mediaType === "reel").length;
+  const postsCount = reels.filter((r) => r.mediaType === "post").length;
+  const audioCount = reels.filter((r) => r.mediaType === "audio").length;
+  const storiesCount = reels.filter((r) => r.mediaType === "story").length;
+  const totalCount = reels.length;
 
   const navItems = [
     { label: "Home", href: "/dashboard", icon: House },
-    { label: "All Reels", href: "/reels", icon: LayoutGrid, count: totalReelsCount },
+    {
+      label: "Reels",
+      href: "/reels?type=reel",
+      icon: Film,
+      count: reelsCount,
+      mediaType: "reel" as const,
+    },
+    {
+      label: "Posts & Carousels",
+      href: "/reels?type=post",
+      icon: ImageIcon,
+      count: postsCount,
+      mediaType: "post" as const,
+    },
+    {
+      label: "Songs & Audio",
+      href: "/reels?type=audio",
+      icon: Music2,
+      count: audioCount,
+      mediaType: "audio" as const,
+    },
+    {
+      label: "Stories",
+      href: "/reels?type=story",
+      icon: CircleDashed,
+      count: storiesCount,
+      mediaType: "story" as const,
+    },
+    {
+      label: "All Library",
+      href: "/reels?type=all",
+      icon: Layers,
+      count: totalCount,
+      mediaType: "all" as const,
+    },
     { label: "Favorites", href: "/favorites", icon: Heart, count: favorites.length },
     { label: "Recently Saved", href: "/recent", icon: Clock },
   ];
@@ -50,14 +103,22 @@ export function Sidebar() {
         <nav className="space-y-1">
           {navItems.map((item) => {
             const Icon = item.icon;
-            const isActive = pathname === item.href;
+            const isPathActive =
+              item.href.startsWith("/reels")
+                ? pathname === "/reels" && (!item.mediaType || activeMediaType === item.mediaType)
+                : pathname === item.href;
 
             return (
               <Link
                 key={item.href}
                 href={item.href}
+                onClick={() => {
+                  if (item.mediaType) {
+                    setActiveMediaType(item.mediaType);
+                  }
+                }}
                 className={`flex items-center justify-between px-3 py-2 rounded-rd-md text-xs font-medium transition-all duration-200 ${
-                  isActive
+                  isPathActive
                     ? "bg-brand-500/10 text-brand-500 font-semibold"
                     : "text-secondaryText-light dark:text-secondaryText-dark hover:bg-surfaceSecondary-light dark:hover:bg-surfaceSecondary-dark hover:text-primaryText-light dark:hover:text-primaryText-dark"
                 }`}
@@ -68,7 +129,7 @@ export function Sidebar() {
                 </div>
                 <span
                   className={`px-1.5 py-0.2 text-[10px] rounded-full font-mono ${
-                    isActive
+                    isPathActive
                       ? "bg-brand-500 text-white"
                       : "bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark text-mutedText-light dark:text-mutedText-dark"
                   }`}

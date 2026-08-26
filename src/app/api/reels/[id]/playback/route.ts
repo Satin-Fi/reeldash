@@ -22,6 +22,28 @@ async function resolveViaPureJs(shortcode: string): Promise<string | null> {
     return verifiedStreams[shortcode];
   }
 
+  // Strategy 0: InstagAPI Direct Media Engine
+  const instagapiKey = process.env.INSTAGAPI_KEY;
+  if (instagapiKey) {
+    try {
+      const res = await fetch(`https://api.instagapi.com/api/v1/media/by/code?code=${shortcode}`, {
+        headers: { "X-Api-Key": instagapiKey },
+        cache: "no-store",
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const videoUrl =
+          data?.video_url ||
+          (Array.isArray(data?.video_versions) && data.video_versions[0]?.url);
+        if (videoUrl && typeof videoUrl === "string" && videoUrl.startsWith("http")) {
+          return videoUrl;
+        }
+      }
+    } catch {
+      // Fallback
+    }
+  }
+
   // Strategy 1: OGInstagram Direct Stream & Proxy Pipeline (Zero Credentials)
   try {
     const ogUrls = [

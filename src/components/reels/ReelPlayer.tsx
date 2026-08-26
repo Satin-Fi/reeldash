@@ -605,7 +605,13 @@ export function ReelPlayer({
     );
   }
 
-  if (mediaType === "post" || reel.isCarousel || (reel.carouselSlides && reel.carouselSlides.length > 0) || (reel.carouselImages && reel.carouselImages.length > 1)) {
+  if (
+    mediaType === "post" ||
+    (mediaType !== "reel" &&
+      (reel.isCarousel ||
+        (reel.carouselSlides && reel.carouselSlides.length > 0) ||
+        (reel.carouselImages && reel.carouselImages.length > 1)))
+  ) {
     return (
       <div className={`relative aspect-reel w-full overflow-hidden bg-black select-none ${className}`}>
         <MultiMediaPostViewer reel={reel} coverImageSrc={coverImageSrc} />

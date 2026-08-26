@@ -40,10 +40,13 @@ export default function DashboardPage() {
       </div>
 
       {/* 14. Dashboard Stat Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
         {/* Saved Reels */}
-        <div className="p-4 bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-md shadow-rd-subtle flex items-center space-x-3">
-          <div className="p-2.5 rounded-rd-sm bg-purple-500/10 text-purple-500">
+        <Link
+          href="/reels?type=reel"
+          className="p-4 bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark hover:border-purple-500/50 rounded-rd-md shadow-rd-subtle flex items-center space-x-3 transition-all cursor-pointer group"
+        >
+          <div className="p-2.5 rounded-rd-sm bg-purple-500/10 text-purple-500 group-hover:scale-105 transition-transform">
             <Film className="w-4 h-4" />
           </div>
           <div>
@@ -54,11 +57,14 @@ export default function DashboardPage() {
               {reels.filter((r) => !r.mediaType || r.mediaType === "reel").length}
             </p>
           </div>
-        </div>
+        </Link>
 
         {/* Posts & Carousels */}
-        <div className="p-4 bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-md shadow-rd-subtle flex items-center space-x-3">
-          <div className="p-2.5 rounded-rd-sm bg-blue-500/10 text-blue-500">
+        <Link
+          href="/reels?type=post"
+          className="p-4 bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark hover:border-blue-500/50 rounded-rd-md shadow-rd-subtle flex items-center space-x-3 transition-all cursor-pointer group"
+        >
+          <div className="p-2.5 rounded-rd-sm bg-blue-500/10 text-blue-500 group-hover:scale-105 transition-transform">
             <Bookmark className="w-4 h-4" />
           </div>
           <div>
@@ -69,11 +75,14 @@ export default function DashboardPage() {
               {reels.filter((r) => r.mediaType === "post").length}
             </p>
           </div>
-        </div>
+        </Link>
 
         {/* Songs & Audio */}
-        <div className="p-4 bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-md shadow-rd-subtle flex items-center space-x-3">
-          <div className="p-2.5 rounded-rd-sm bg-emerald-500/10 text-emerald-500">
+        <Link
+          href="/reels?type=audio"
+          className="p-4 bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark hover:border-emerald-500/50 rounded-rd-md shadow-rd-subtle flex items-center space-x-3 transition-all cursor-pointer group"
+        >
+          <div className="p-2.5 rounded-rd-sm bg-emerald-500/10 text-emerald-500 group-hover:scale-105 transition-transform">
             <Sparkles className="w-4 h-4" />
           </div>
           <div>
@@ -84,11 +93,32 @@ export default function DashboardPage() {
               {reels.filter((r) => r.mediaType === "audio").length}
             </p>
           </div>
-        </div>
+        </Link>
+
+        {/* Stories */}
+        <Link
+          href="/reels?type=story"
+          className="p-4 bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark hover:border-amber-500/50 rounded-rd-md shadow-rd-subtle flex items-center space-x-3 transition-all cursor-pointer group"
+        >
+          <div className="p-2.5 rounded-rd-sm bg-amber-500/10 text-amber-500 group-hover:scale-105 transition-transform">
+            <Film className="w-4 h-4 text-amber-500" />
+          </div>
+          <div>
+            <p className="text-[11px] font-medium text-secondaryText-light dark:text-secondaryText-dark">
+              Stories
+            </p>
+            <p className="text-lg font-bold font-mono text-primaryText-light dark:text-primaryText-dark mt-0.5">
+              {reels.filter((r) => r.mediaType === "story").length}
+            </p>
+          </div>
+        </Link>
 
         {/* Favorites */}
-        <div className="p-4 bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-md shadow-rd-subtle flex items-center space-x-3">
-          <div className="p-2.5 rounded-rd-sm bg-rose-500/10 text-rose-500">
+        <Link
+          href="/favorites"
+          className="p-4 bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark hover:border-rose-500/50 rounded-rd-md shadow-rd-subtle flex items-center space-x-3 transition-all cursor-pointer group"
+        >
+          <div className="p-2.5 rounded-rd-sm bg-rose-500/10 text-rose-500 group-hover:scale-105 transition-transform">
             <Heart className="w-4 h-4" />
           </div>
           <div>
@@ -99,7 +129,7 @@ export default function DashboardPage() {
               {favorites.length}
             </p>
           </div>
-        </div>
+        </Link>
       </div>
 
       {/* 15. Recently Saved / Zero Data Empty State */}

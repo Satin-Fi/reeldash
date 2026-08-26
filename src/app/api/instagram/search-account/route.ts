@@ -79,7 +79,40 @@ export async function GET(request: NextRequest) {
     let avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(cleanUsername)}&background=7c3aed&color=fff&size=160`;
     let isVerified = false;
 
-    // Strategy 1: OGInstagram with Discordbot UA (100% genuine live data)
+    // Strategy 0: InstagAPI (High-Reliability Direct Instagram Engine)
+    const instagapiKey = process.env.INSTAGAPI_KEY;
+    if (instagapiKey) {
+      try {
+        const iRes = await fetch(
+          `https://api.instagapi.com/api/user/info?username_or_id=${encodeURIComponent(cleanUsername)}`,
+          { headers: { "X-Api-Key": instagapiKey }, cache: "no-store" }
+        );
+        if (iRes.ok) {
+          const resJson = await iRes.json();
+          const u = resJson?.data;
+          if (u && (u.username || u.full_name)) {
+            const rawAvatar = u.profile_pic_url_hd || u.profile_pic_url;
+            return NextResponse.json({
+              success: true,
+              account: {
+                username: u.username || cleanUsername,
+                displayName: u.full_name || u.username || cleanUsername,
+                profileUrl: `https://instagram.com/${u.username || cleanUsername}`,
+                avatarUrl: rawAvatar
+                  ? `/api/proxy-image?url=${encodeURIComponent(rawAvatar)}`
+                  : `https://ui-avatars.com/api/?name=${encodeURIComponent(cleanUsername)}&background=7c3aed&color=fff&size=160`,
+                followers: u.follower_count != null ? Number(u.follower_count).toLocaleString() : null,
+                postsCount: u.media_count != null ? Number(u.media_count).toLocaleString() : null,
+                bio: u.biography || null,
+                isVerified: !!u.is_verified,
+              },
+            });
+          }
+        }
+      } catch {
+        // Fallback to next strategy
+      }
+    }
     try {
       const ogRes = await fetch(`https://oginstagram.com/${cleanUsername}`, {
         headers: {

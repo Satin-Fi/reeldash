@@ -255,7 +255,41 @@ async function handleReelExtraction(url: string) {
     creatorUsername = userMatch[1];
   }
 
-  // 2. Official Instagram oEmbed & OpenGraph metadata extraction
+  // 2. High-Performance InstagAPI & Instagram oEmbed / OpenGraph metadata extraction
+  const instagapiKey = process.env.INSTAGAPI_KEY;
+  if (instagapiKey && (shortcode || url)) {
+    try {
+      const endpoint = shortcode
+        ? `https://api.instagapi.com/api/v1/media/by/code?code=${shortcode}`
+        : `https://api.instagapi.com/api/v1/media/by/url?url=${encodeURIComponent(url)}`;
+      const res = await fetch(endpoint, {
+        headers: { "X-Api-Key": instagapiKey },
+        cache: "no-store",
+      });
+      if (res.ok) {
+        const d = await res.json();
+        if (d) {
+          if (d.user?.username) creatorUsername = d.user.username;
+          if (d.user?.full_name) creatorFullName = d.user.full_name;
+          if (d.caption?.text) caption = d.caption.text;
+          else if (typeof d.caption === "string") caption = d.caption;
+          if (d.like_count != null) likes = Number(d.like_count).toLocaleString();
+          if (d.comment_count != null) commentsCount = Number(d.comment_count).toLocaleString();
+          if (d.thumbnail_url) thumbnailUrl = d.thumbnail_url;
+          if (d.video_url) mediaUrl = d.video_url;
+          if (Array.isArray(d.carousel_media) && d.carousel_media.length > 0) {
+            isCarousel = true;
+            carouselImages = d.carousel_media
+              .map((c: any) => c.image_versions2?.candidates?.[0]?.url || c.thumbnail_url || "")
+              .filter(Boolean);
+          }
+        }
+      }
+    } catch {
+      // Fallback
+    }
+  }
+
   if (shortcode || url) {
     // Strategy 0: Official Instagram oEmbed
     try {

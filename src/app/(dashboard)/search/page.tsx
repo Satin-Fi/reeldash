@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import { useReels } from "@/context/ReelContext";
 import { ReelGrid } from "@/components/reels/ReelGrid";
 import { ReelPlayerModal } from "@/components/reels/ReelPlayerModal";
@@ -16,7 +16,7 @@ import {
   ArrowRight,
   User,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { extractInstagramUsername } from "@/lib/instagram";
 
 interface AccountResult {
@@ -30,8 +30,11 @@ interface AccountResult {
   isVerified?: boolean;
 }
 
-export default function SearchPage() {
+function SearchContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const initialQ = searchParams.get("q") || "";
+
   const { reels, searchQuery, setSearchQuery, viewMode, smartCategories } = useReels();
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedCollection, setSelectedCollection] = useState<string | null>(null);
@@ -40,6 +43,13 @@ export default function SearchPage() {
   const [searchedAccount, setSearchedAccount] = useState<AccountResult | null>(null);
   const [isSearchingAccount, setIsSearchingAccount] = useState(false);
   const [activeModalReel, setActiveModalReel] = useState<Reel | null>(null);
+
+  // Sync initial query parameter
+  useEffect(() => {
+    if (initialQ && initialQ !== searchQuery) {
+      setSearchQuery(initialQ);
+    }
+  }, [initialQ, setSearchQuery]);
 
   // Debounced Instagram account search
   useEffect(() => {
@@ -280,5 +290,13 @@ export default function SearchPage() {
         />
       )}
     </div>
+  );
+}
+
+export default function SearchPage() {
+  return (
+    <Suspense fallback={<div className="p-6 text-xs text-mutedText-light">Loading search…</div>}>
+      <SearchContent />
+    </Suspense>
   );
 }

@@ -21,6 +21,9 @@ export interface CreatorReelItem {
   rawThumbnailUrl?: string;
   caption: string;
   isVideo: boolean;
+  isCarousel?: boolean;
+  carouselImages?: string[];
+  mediaType?: "reel" | "post" | "audio" | "story";
   likes: string | null;
   commentsCount: string | null;
   duration?: string;
@@ -47,13 +50,18 @@ function CreatorReelTile({ item, creatorUsername }: { item: CreatorReelItem; cre
     creatorAvatar: "",
     thumbnailUrl: imgSrc,
     mediaUrl: "",
+    mediaType: item.mediaType || (item.isVideo ? "reel" : "post"),
+    isCarousel: !!item.isCarousel,
+    carouselImages: item.carouselImages && item.carouselImages.length > 0 ? item.carouselImages : [imgSrc],
     caption: item.caption,
     category: "General",
     subcategories: [],
     collections: [],
     hashtags: [],
+    likes: item.likes || undefined,
+    commentsCount: item.commentsCount || undefined,
     isFavorite: false,
-    duration: item.duration || "0:30",
+    duration: item.duration || (item.isVideo ? "0:30" : "Post"),
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   });
@@ -63,8 +71,12 @@ function CreatorReelTile({ item, creatorUsername }: { item: CreatorReelItem; cre
     if (alreadySaved) return;
     setSaving(true);
     try {
-      await saveReel(item.instagramUrl);
-      showToast("Saved to ReelDash");
+      await saveReel(item.instagramUrl, {
+        creator: creatorUsername,
+        caption: item.caption,
+        mediaType: item.mediaType || (item.isVideo ? "reel" : "post"),
+      });
+      showToast(item.isCarousel ? "Saved Carousel to ReelDash" : "Saved to ReelDash");
     } catch {
       showToast("Could not save Reel");
     } finally {
@@ -81,7 +93,7 @@ function CreatorReelTile({ item, creatorUsername }: { item: CreatorReelItem; cre
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={imgSrc}
-          alt={item.caption || "Instagram Reel"}
+          alt={item.caption || "Instagram Media"}
           referrerPolicy="no-referrer"
           onError={() => {
             if (item.shortcode) {
@@ -92,10 +104,19 @@ function CreatorReelTile({ item, creatorUsername }: { item: CreatorReelItem; cre
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/30 opacity-70 group-hover:opacity-90 transition-opacity" />
 
-        {item.isVideo && (
-          <div className="absolute top-2 left-2 px-1.5 py-0.5 rounded-rd-sm bg-black/60 backdrop-blur-md text-white text-[10px] font-medium flex items-center space-x-1">
+        {/* Media Type Badge */}
+        {item.isCarousel ? (
+          <div className="absolute top-2 left-2 px-1.5 py-0.5 rounded-rd-sm bg-blue-600/80 backdrop-blur-md text-white text-[10px] font-semibold flex items-center space-x-1">
+            <span>📸 Carousel</span>
+          </div>
+        ) : item.isVideo ? (
+          <div className="absolute top-2 left-2 px-1.5 py-0.5 rounded-rd-sm bg-purple-600/80 backdrop-blur-md text-white text-[10px] font-semibold flex items-center space-x-1">
             <Play className="w-2.5 h-2.5 fill-white" />
             <span>Reel</span>
+          </div>
+        ) : (
+          <div className="absolute top-2 left-2 px-1.5 py-0.5 rounded-rd-sm bg-black/60 backdrop-blur-md text-white text-[10px] font-medium flex items-center space-x-1">
+            <span>📸 Post</span>
           </div>
         )}
 

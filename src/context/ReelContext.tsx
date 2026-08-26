@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { Reel, Collection, SmartCategory, SortOption, ViewMode, MediaType, MediaTypeFilter } from "@/types/reel";
+import { INITIAL_REELS, INITIAL_COLLECTIONS } from "@/lib/mockData";
 import { useAuth } from "@/context/AuthContext";
 
 export interface ToastMessage {
@@ -98,17 +99,15 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
       const savedReels = localStorage.getItem(userReelsKey);
       const savedCols = localStorage.getItem(userColsKey);
 
-      let parsedReels: Reel[] = savedReels ? JSON.parse(savedReels) : [];
-      // Clean out any legacy mock items seeded previously
-      parsedReels = parsedReels.filter(
-        (r) =>
-          !r.id.match(/^reel-[1-9]$|^reel-1[0-2]$/) &&
-          !r.thumbnailUrl?.includes("unsplash.com") &&
-          r.userId !== "demo_user"
-      );
+      let parsedReels: Reel[] = savedReels ? JSON.parse(savedReels) : INITIAL_REELS;
+      if (!parsedReels || parsedReels.length === 0) {
+        parsedReels = INITIAL_REELS;
+      }
 
-      let parsedCols: Collection[] = savedCols ? JSON.parse(savedCols) : [];
-      parsedCols = parsedCols.filter((c) => !c.id.match(/^col-[1-4]$/));
+      let parsedCols: Collection[] = savedCols ? JSON.parse(savedCols) : INITIAL_COLLECTIONS;
+      if (!parsedCols || parsedCols.length === 0) {
+        parsedCols = INITIAL_COLLECTIONS;
+      }
 
       // Clean out any sample oceans video or invalid mediaUrl from existing saved reels
       parsedReels = parsedReels.map((r) => {
@@ -127,8 +126,8 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
       setReels(parsedReels);
       setCollections(parsedCols);
     } else {
-      setReels([]);
-      setCollections([]);
+      setReels(INITIAL_REELS);
+      setCollections(INITIAL_COLLECTIONS);
     }
   }, [user?.id]);
 
@@ -328,6 +327,8 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
       mediaType?: MediaType;
       audioTitle?: string;
       audioArtist?: string;
+      isCarousel?: boolean;
+      carouselImages?: string[];
     }
   ) => {
     try {
@@ -347,7 +348,12 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
       const thumbnailUrl = data.thumbnailUrl || (data.shortcode ? `/api/proxy-image?shortcode=${data.shortcode}` : "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80");
       const embedUrl = data.embedUrl || (data.shortcode ? `https://www.instagram.com/p/${data.shortcode}/embed/` : null);
 
-      const typeLabel = mediaType === "audio" ? "Song / Audio" : mediaType === "post" ? "Post" : mediaType === "story" ? "Story" : "Reel";
+      const typeLabel = mediaType === "audio" ? "Song / Audio" : mediaType === "post" ? (customDetails?.isCarousel || data.isCarousel ? "Carousel" : "Post") : mediaType === "story" ? "Story" : "Reel";
+
+      const isCarousel = customDetails?.isCarousel !== undefined ? customDetails.isCarousel : (data.isCarousel || false);
+      const carouselImages = customDetails?.carouselImages && customDetails.carouselImages.length > 0
+        ? customDetails.carouselImages
+        : data.carouselImages || (mediaType === "post" ? [thumbnailUrl] : undefined);
 
       const newReel: Reel = {
         id: `${mediaType}-` + Math.random().toString(36).substr(2, 9),
@@ -369,12 +375,12 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
         likes: data.likes || "",
         commentsCount: data.commentsCount || "",
         isFavorite: false,
-        duration: data.duration || (mediaType === "audio" ? "2:14" : mediaType === "story" ? "Story (24h)" : mediaType === "post" ? "Photo Post" : "0:30"),
+        duration: data.duration || (mediaType === "audio" ? "2:14" : mediaType === "story" ? "Story (24h)" : isCarousel ? `Carousel (${carouselImages?.length || 3})` : "Photo Post"),
         audioTitle: customDetails?.audioTitle || data.audioTitle || (mediaType === "audio" ? `${creatorFullName}'s Sound` : undefined),
         audioArtist: customDetails?.audioArtist || data.audioArtist || (mediaType === "audio" ? `${creatorFullName} • Original Audio` : undefined),
         audioUrl: data.audioUrl || (mediaType === "audio" ? "https://commondatastorage.googleapis.com/codeskulptor-demos/DDR_assets/Sevish_-__nbsp_.mp3" : undefined),
-        isCarousel: data.isCarousel || false,
-        carouselImages: data.carouselImages || (mediaType === "post" ? [thumbnailUrl] : undefined),
+        isCarousel,
+        carouselImages,
         storyExpiresAt: mediaType === "story" ? new Date(Date.now() + 24 * 3600 * 1000).toISOString() : undefined,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
