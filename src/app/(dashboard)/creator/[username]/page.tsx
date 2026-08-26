@@ -386,6 +386,31 @@ function CreatorProfileContent() {
               </div>
             )}
 
+            {!discovering && discoveredReels.length === 0 && creatorReels.length === 0 && (
+              <div className="p-10 text-center bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-xl space-y-3">
+                <div className="w-12 h-12 rounded-full bg-brand-500/10 text-brand-500 flex items-center justify-center mx-auto">
+                  <Film className="w-6 h-6" />
+                </div>
+                <h3 className="text-sm font-bold text-primaryText-light dark:text-primaryText-dark">
+                  No Saved Reels from @{username} Yet
+                </h3>
+                <p className="text-xs text-secondaryText-light dark:text-secondaryText-dark max-w-md mx-auto">
+                  Paste any direct Reel link from @{username} in the save box above to extract and save it to your ReelDash library with full video playback and analytics.
+                </p>
+                <div className="pt-2">
+                  <a
+                    href={`https://instagram.com/${username}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center space-x-1.5 px-4 py-2 rounded-rd-lg bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark hover:bg-brand-500 hover:text-white text-xs font-semibold transition-colors"
+                  >
+                    <Instagram className="w-3.5 h-3.5" />
+                    <span>View @{username} on Instagram</span>
+                  </a>
+                </div>
+              </div>
+            )}
+
             {discoveredReels.length > 0 && (
               <CreatorReelGrid items={discoveredReels} username={username} />
             )}
