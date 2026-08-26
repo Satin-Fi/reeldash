@@ -35,7 +35,15 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
   const [imageError, setImageError] = useState(false);
   const [isPlayerModalOpen, setIsPlayerModalOpen] = useState(false);
 
-  const mediaType = reel.mediaType || (reel.instagramUrl?.includes("/audio/") ? "audio" : reel.instagramUrl?.includes("/stories/") ? "story" : reel.instagramUrl?.includes("/p/") ? "post" : "reel");
+  const mediaType =
+    reel.mediaType ||
+    (reel.instagramUrl?.includes("/audio/")
+      ? "audio"
+      : reel.instagramUrl?.includes("/stories/")
+      ? "story"
+      : (reel.instagramUrl?.includes("/p/") || reel.isCarousel || (reel.carouselImages && reel.carouselImages.length > 0))
+      ? "post"
+      : "reel");
 
   // Shortcode extraction
   const shortcodeMatch = reel.instagramUrl.match(/(?:reel|reels|p|audio|stories)\/([A-Za-z0-9_-]+)/);

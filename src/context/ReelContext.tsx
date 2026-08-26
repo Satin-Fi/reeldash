@@ -99,17 +99,22 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
       const savedReels = localStorage.getItem(userReelsKey);
       const savedCols = localStorage.getItem(userColsKey);
 
-      let parsedReels: Reel[] = savedReels ? JSON.parse(savedReels) : INITIAL_REELS;
-      if (!parsedReels || parsedReels.length === 0) {
-        parsedReels = INITIAL_REELS;
+      let parsedReels: Reel[] = savedReels ? JSON.parse(savedReels) : [];
+      if (!Array.isArray(parsedReels)) {
+        parsedReels = [];
       }
 
       let parsedCols: Collection[] = savedCols ? JSON.parse(savedCols) : INITIAL_COLLECTIONS;
-      if (!parsedCols || parsedCols.length === 0) {
+      if (!Array.isArray(parsedCols) || parsedCols.length === 0) {
         parsedCols = INITIAL_COLLECTIONS;
       }
 
-      // Clean out any sample oceans video or invalid mediaUrl from existing saved reels
+      // Purge any legacy mock or demo items completely
+      parsedReels = parsedReels.filter(
+        (r) => r && r.userId !== "usr-demo" && !r.id?.startsWith("mock-") && !r.id?.startsWith("sample-")
+      );
+
+      // Clean out any invalid mediaUrl from existing saved reels
       parsedReels = parsedReels.map((r) => {
         if (r.mediaUrl && (r.mediaUrl.includes("zencdn.net") || r.mediaUrl.includes("googleapis.com/gtv-videos-bucket"))) {
           return { ...r, mediaUrl: "" };
@@ -117,7 +122,7 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
         if (!r.mediaType) {
           if (r.instagramUrl?.includes("/audio/")) r.mediaType = "audio";
           else if (r.instagramUrl?.includes("/stories/")) r.mediaType = "story";
-          else if (r.instagramUrl?.includes("/p/")) r.mediaType = "post";
+          else if (r.instagramUrl?.includes("/p/") || r.isCarousel || (r.carouselImages && r.carouselImages.length > 0)) r.mediaType = "post";
           else r.mediaType = "reel";
         }
         return r;
@@ -126,7 +131,7 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
       setReels(parsedReels);
       setCollections(parsedCols);
     } else {
-      setReels(INITIAL_REELS);
+      setReels([]);
       setCollections(INITIAL_COLLECTIONS);
     }
   }, [user?.id]);

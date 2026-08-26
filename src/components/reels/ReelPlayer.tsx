@@ -585,7 +585,15 @@ export function ReelPlayer({
   const [isMuted, setIsMuted] = useState(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
-  const mediaType = reel.mediaType || (reel.instagramUrl?.includes("/audio/") ? "audio" : reel.instagramUrl?.includes("/stories/") ? "story" : reel.instagramUrl?.includes("/p/") ? "post" : "reel");
+  const mediaType =
+    reel.mediaType ||
+    (reel.instagramUrl?.includes("/audio/")
+      ? "audio"
+      : reel.instagramUrl?.includes("/stories/")
+      ? "story"
+      : (reel.instagramUrl?.includes("/p/") || reel.isCarousel || (reel.carouselImages && reel.carouselImages.length > 0))
+      ? "post"
+      : "reel");
 
   const shortcodeMatch = reel.instagramUrl.match(/(?:reel|reels|p|audio|stories)\/([A-Za-z0-9_-]+)/);
   const shortcode = shortcodeMatch ? shortcodeMatch[1] : reel.id.replace(/^reel-/, "");
@@ -600,7 +608,7 @@ export function ReelPlayer({
       ? `/api/proxy-image?shortcode=${shortcode}`
       : "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80";
 
-  // Dispatch to dedicated players if audio, post, or story
+  // 1. AUDIO TRACKS & SONGS: Audio Studio Player
   if (mediaType === "audio") {
     return (
       <div className={`relative aspect-reel w-full overflow-hidden bg-black select-none ${className}`}>
@@ -609,6 +617,7 @@ export function ReelPlayer({
     );
   }
 
+  // 2. 24H STORIES: Timed Segment Story Viewer
   if (mediaType === "story") {
     return (
       <div className={`relative aspect-reel w-full overflow-hidden bg-black select-none ${className}`}>
@@ -617,12 +626,14 @@ export function ReelPlayer({
     );
   }
 
+  // 3. PHOTOS & CAROUSELS: Multi-Slide Photo/Carousel Viewer (Never play images through <video>)
   if (
     mediaType === "post" ||
-    (mediaType !== "reel" &&
-      (reel.isCarousel ||
-        (reel.carouselSlides && reel.carouselSlides.length > 0) ||
-        (reel.carouselImages && reel.carouselImages.length > 1)))
+    reel.isCarousel ||
+    (reel.carouselSlides && reel.carouselSlides.length > 0) ||
+    (reel.carouselImages && reel.carouselImages.length > 0) ||
+    reel.instagramUrl?.includes("/p/") ||
+    (!reel.mediaUrl?.includes(".mp4") && mediaType !== "reel")
   ) {
     return (
       <div className={`relative aspect-reel w-full overflow-hidden bg-black select-none ${className}`}>
