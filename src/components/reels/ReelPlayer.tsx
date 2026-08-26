@@ -269,74 +269,214 @@ function AudioSongPlayer({ reel, coverImageSrc }: { reel: Reel; coverImageSrc: s
 }
 
 /**
- * 2. DEDICATED POST / CAROUSEL PHOTO VIEWER
+ * 2. DEDICATED MULTI-MEDIA POST & CAROUSEL VIEWER (Photos + Video Slides)
  */
-function PostCarouselViewer({ reel, coverImageSrc }: { reel: Reel; coverImageSrc: string }) {
-  const images = (reel.carouselImages && reel.carouselImages.length > 0)
-    ? reel.carouselImages
-    : [coverImageSrc];
+function MultiMediaPostViewer({ reel, coverImageSrc }: { reel: Reel; coverImageSrc: string }) {
+  // Normalize all slides
+  const rawSlides: Array<{ id: string; type: "image" | "video"; url: string }> = [];
 
+  if (reel.carouselSlides && reel.carouselSlides.length > 0) {
+    reel.carouselSlides.forEach((s, idx) => {
+      rawSlides.push({
+        id: s.id || `slide-${idx}`,
+        type: s.type || (s.url.includes(".mp4") ? "video" : "image"),
+        url: s.url,
+      });
+    });
+  } else if (reel.carouselImages && reel.carouselImages.length > 0) {
+    reel.carouselImages.forEach((imgUrl, idx) => {
+      rawSlides.push({
+        id: `slide-${idx}`,
+        type: imgUrl.includes(".mp4") ? "video" : "image",
+        url: imgUrl,
+      });
+    });
+  } else {
+    // Single media post item
+    const isVid = reel.mediaUrl?.includes(".mp4") || reel.mediaType === "reel";
+    rawSlides.push({
+      id: "slide-0",
+      type: isVid ? "video" : "image",
+      url: (isVid && reel.mediaUrl) ? reel.mediaUrl : coverImageSrc,
+    });
+  }
+
+  // Filter modes: 'all' | 'image' | 'video'
+  const [filter, setFilter] = useState<"all" | "image" | "video">("all");
   const [activeIdx, setActiveIdx] = useState(0);
+  const [isSlideMuted, setIsSlideMuted] = useState(false);
+  const slideVideoRef = useRef<HTMLVideoElement | null>(null);
 
-  const nextSlide = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setActiveIdx((prev) => (prev + 1) % images.length);
+  const filteredSlides = rawSlides.filter((s) => {
+    if (filter === "image") return s.type === "image";
+    if (filter === "video") return s.type === "video";
+    return true;
+  });
+
+  const activeSlide = filteredSlides[activeIdx] || filteredSlides[0] || rawSlides[0];
+
+  const imageCount = rawSlides.filter((s) => s.type === "image").length;
+  const videoCount = rawSlides.filter((s) => s.type === "video").length;
+  const hasMixedMedia = imageCount > 0 && videoCount > 0;
+
+  const nextSlide = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setActiveIdx((prev) => (prev + 1) % filteredSlides.length);
   };
 
-  const prevSlide = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setActiveIdx((prev) => (prev - 1 + images.length) % images.length);
+  const prevSlide = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setActiveIdx((prev) => (prev - 1 + filteredSlides.length) % filteredSlides.length);
+  };
+
+  const toggleSlideMute = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    if (slideVideoRef.current) {
+      const nextMute = !slideVideoRef.current.muted;
+      slideVideoRef.current.muted = nextMute;
+      slideVideoRef.current.volume = 1.0;
+      setIsSlideMuted(nextMute);
+    }
   };
 
   return (
-    <div className="relative w-full h-full flex flex-col bg-black select-none overflow-hidden justify-center items-center">
-      {/* Top Slide Counter */}
-      {images.length > 1 && (
-        <div className="absolute top-3 right-3 z-20 px-2.5 py-1 rounded-full bg-black/70 backdrop-blur-md text-white text-[11px] font-semibold border border-white/10">
-          {activeIdx + 1} / {images.length}
-        </div>
-      )}
+    <div className="relative w-full h-full flex flex-col bg-black select-none overflow-hidden justify-between items-center">
+      {/* Top Media Filter Pills (Photos vs Videos separation) */}
+      <div className="absolute top-3 inset-x-3 z-30 flex items-center justify-between pointer-events-none">
+        {hasMixedMedia ? (
+          <div className="flex items-center space-x-1 p-1 rounded-full bg-black/80 backdrop-blur-md border border-white/10 pointer-events-auto shadow-lg">
+            <button
+              onClick={() => {
+                setFilter("all");
+                setActiveIdx(0);
+              }}
+              className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold transition-colors cursor-pointer ${
+                filter === "all" ? "bg-brand-500 text-white" : "text-zinc-400 hover:text-white"
+              }`}
+            >
+              All ({rawSlides.length})
+            </button>
+            <button
+              onClick={() => {
+                setFilter("image");
+                setActiveIdx(0);
+              }}
+              className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold transition-colors cursor-pointer ${
+                filter === "image" ? "bg-brand-500 text-white" : "text-zinc-400 hover:text-white"
+              }`}
+            >
+              📸 Photos ({imageCount})
+            </button>
+            <button
+              onClick={() => {
+                setFilter("video");
+                setActiveIdx(0);
+              }}
+              className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold transition-colors cursor-pointer ${
+                filter === "video" ? "bg-brand-500 text-white" : "text-zinc-400 hover:text-white"
+              }`}
+            >
+              🎬 Videos ({videoCount})
+            </button>
+          </div>
+        ) : (
+          <div className="px-2.5 py-1 rounded-full bg-black/70 backdrop-blur-md text-white text-[10px] font-semibold border border-white/10 flex items-center space-x-1">
+            <span>{activeSlide.type === "video" ? "🎬 Video Slide" : "📸 Photo Slide"}</span>
+          </div>
+        )}
 
-      {/* Main Image Display */}
-      <div className="relative w-full h-full flex items-center justify-center p-2 bg-black">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          key={activeIdx}
-          src={images[activeIdx]}
-          alt={reel.caption || "Post photo"}
-          referrerPolicy="no-referrer"
-          className="w-full h-full max-h-[640px] object-contain rounded-sm"
-        />
+        {/* Counter Badge */}
+        {filteredSlides.length > 1 && (
+          <div className="px-2.5 py-1 rounded-full bg-black/70 backdrop-blur-md text-white text-[11px] font-semibold border border-white/10 pointer-events-auto">
+            {activeIdx + 1} / {filteredSlides.length}
+          </div>
+        )}
+      </div>
+
+      {/* Main Slide Content (Image vs Video) */}
+      <div className="relative w-full h-full flex items-center justify-center p-0 bg-black overflow-hidden">
+        {activeSlide.type === "video" ? (
+          /* Native HTML5 Video Slide */
+          <div className="relative w-full h-full flex items-center justify-center bg-black">
+            <video
+              ref={slideVideoRef}
+              key={activeSlide.url}
+              src={activeSlide.url}
+              poster={coverImageSrc}
+              controls
+              autoPlay
+              playsInline
+              muted={isSlideMuted}
+              className="w-full h-full object-contain cursor-pointer"
+              onClick={() => toggleSlideMute()}
+            />
+
+            {/* Video Slide Unmute Pill */}
+            {isSlideMuted && (
+              <button
+                onClick={toggleSlideMute}
+                className="absolute top-12 left-4 z-20 px-3 py-1.5 rounded-full bg-black/85 hover:bg-black text-white text-xs font-semibold flex items-center space-x-1.5 backdrop-blur-md border border-white/20 shadow-xl cursor-pointer animate-pulse"
+              >
+                <VolumeX className="w-4 h-4 text-pink-400" />
+                <span>Tap to Unmute</span>
+              </button>
+            )}
+
+            {/* Video Sound Toggle */}
+            <button
+              onClick={toggleSlideMute}
+              className="absolute bottom-4 right-4 z-20 w-9 h-9 rounded-full bg-black/80 hover:bg-black text-white flex items-center justify-center backdrop-blur-md transition-transform hover:scale-105 cursor-pointer shadow-xl border border-white/20"
+              title={isSlideMuted ? "Unmute" : "Mute"}
+            >
+              {isSlideMuted ? <VolumeX className="w-4 h-4 text-pink-400" /> : <Volume2 className="w-4 h-4 text-emerald-400" />}
+            </button>
+          </div>
+        ) : (
+          /* High-Res Photo Slide */
+          <div className="relative w-full h-full flex items-center justify-center p-2 bg-black">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              key={activeSlide.url}
+              src={activeSlide.url}
+              alt={reel.caption || "Post media"}
+              referrerPolicy="no-referrer"
+              className="w-full h-full max-h-[640px] object-contain rounded-sm"
+            />
+          </div>
+        )}
       </div>
 
       {/* Navigation Arrows */}
-      {images.length > 1 && (
+      {filteredSlides.length > 1 && (
         <>
           <button
             onClick={prevSlide}
-            className="absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/60 hover:bg-black text-white flex items-center justify-center backdrop-blur-md transition-all cursor-pointer z-20 border border-white/10"
+            className="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-black/70 hover:bg-black text-white flex items-center justify-center backdrop-blur-md transition-all cursor-pointer z-30 border border-white/20 shadow-lg"
           >
             <ChevronLeft className="w-5 h-5" />
           </button>
           <button
             onClick={nextSlide}
-            className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/60 hover:bg-black text-white flex items-center justify-center backdrop-blur-md transition-all cursor-pointer z-20 border border-white/10"
+            className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-black/70 hover:bg-black text-white flex items-center justify-center backdrop-blur-md transition-all cursor-pointer z-30 border border-white/20 shadow-lg"
           >
             <ChevronRight className="w-5 h-5" />
           </button>
 
-          {/* Dots Indicator */}
-          <div className="absolute bottom-4 flex items-center space-x-1.5 z-20">
-            {images.map((_, i) => (
+          {/* Dots & Thumbnails Indicator */}
+          <div className="absolute bottom-3 inset-x-0 flex items-center justify-center space-x-1.5 z-30 pointer-events-auto">
+            {filteredSlides.map((s, i) => (
               <button
-                key={i}
+                key={s.id}
                 onClick={(e) => {
                   e.stopPropagation();
                   setActiveIdx(i);
                 }}
-                className={`h-1.5 rounded-full transition-all cursor-pointer ${
-                  activeIdx === i ? "w-5 bg-white" : "w-1.5 bg-white/40"
+                className={`h-2 rounded-full transition-all cursor-pointer flex items-center justify-center ${
+                  activeIdx === i
+                    ? "w-6 bg-white shadow-md"
+                    : "w-2 bg-white/40 hover:bg-white/70"
                 }`}
+                title={`Slide ${i + 1} (${s.type})`}
               />
             ))}
           </div>
@@ -465,10 +605,10 @@ export function ReelPlayer({
     );
   }
 
-  if (mediaType === "post" && !useIframe) {
+  if (mediaType === "post" || reel.isCarousel || (reel.carouselSlides && reel.carouselSlides.length > 0) || (reel.carouselImages && reel.carouselImages.length > 1)) {
     return (
       <div className={`relative aspect-reel w-full overflow-hidden bg-black select-none ${className}`}>
-        <PostCarouselViewer reel={reel} coverImageSrc={coverImageSrc} />
+        <MultiMediaPostViewer reel={reel} coverImageSrc={coverImageSrc} />
       </div>
     );
   }

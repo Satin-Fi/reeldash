@@ -1,5 +1,12 @@
 export type MediaType = "reel" | "post" | "audio" | "story";
 
+export interface CarouselSlide {
+  id?: string;
+  type: "image" | "video";
+  url: string;
+  thumbnailUrl?: string;
+}
+
 export interface Reel {
   id: string;
   userId: string;
@@ -33,6 +40,7 @@ export interface Reel {
   audioArtist?: string;
   audioUrl?: string;
   carouselImages?: string[];
+  carouselSlides?: CarouselSlide[];
   isCarousel?: boolean;
   storyExpiresAt?: string;
 }
