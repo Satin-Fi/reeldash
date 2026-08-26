@@ -600,13 +600,13 @@ export function ReelPlayer({
 
   // Safe thumbnail resolution
   const coverImageSrc =
-    !imageError && thumbnailUrl && !thumbnailUrl.includes("unsplash.com")
+    !imageError && thumbnailUrl
       ? thumbnailUrl
-      : !imageError && reel.thumbnailUrl && !reel.thumbnailUrl.includes("unsplash.com")
+      : !imageError && reel.thumbnailUrl
       ? reel.thumbnailUrl
       : shortcode
       ? `/api/proxy-image?shortcode=${shortcode}`
-      : "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80";
+      : "";
 
   // 1. AUDIO TRACKS & SONGS: Audio Studio Player
   if (mediaType === "audio") {

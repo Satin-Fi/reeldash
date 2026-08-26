@@ -450,7 +450,7 @@ async function handleReelExtraction(url: string) {
     audioArtist = `${creatorFullName || creatorUsername} • Original Audio`;
     audioUrl = mediaUrl || "https://commondatastorage.googleapis.com/codeskulptor-demos/DDR_assets/Sevish_-__nbsp_.mp3";
     if (!thumbnailUrl) {
-      thumbnailUrl = "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=600&q=80";
+      thumbnailUrl = shortcode ? `/api/proxy-image?shortcode=${shortcode}` : "";
     }
     if (!caption) {
       caption = `Original Instagram Audio track (${shortcode || "viral"}) by @${creatorUsername}. Saved for reference and background music.`;

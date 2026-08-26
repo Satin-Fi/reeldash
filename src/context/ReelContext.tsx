@@ -350,7 +350,7 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
       const creatorFullName = data.creatorFullName || creator;
       const category = customDetails?.category || data.category || (mediaType === "audio" ? "Music & Audio" : mediaType === "story" ? "Stories & Updates" : "General");
       const caption = customDetails?.caption || data.caption || `Instagram ${mediaType.toUpperCase()}: ${url}`;
-      const thumbnailUrl = data.thumbnailUrl || (data.shortcode ? `/api/proxy-image?shortcode=${data.shortcode}` : "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80");
+      const thumbnailUrl = data.thumbnailUrl || (data.shortcode ? `/api/proxy-image?shortcode=${data.shortcode}` : "");
       const embedUrl = data.embedUrl || (data.shortcode ? `https://www.instagram.com/p/${data.shortcode}/embed/` : null);
 
       const typeLabel = mediaType === "audio" ? "Song / Audio" : mediaType === "post" ? (customDetails?.isCarousel || data.isCarousel ? "Carousel" : "Post") : mediaType === "story" ? "Story" : "Reel";
@@ -411,7 +411,7 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
         instagramUrl: url,
         creatorUsername: customDetails?.creator || (shortcode ? `ig_${shortcode.substring(0, 6)}` : "instagram_creator"),
         creatorProfileUrl: "https://instagram.com",
-        thumbnailUrl: shortcode ? `/api/proxy-image?shortcode=${shortcode}` : "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80",
+        thumbnailUrl: shortcode ? `/api/proxy-image?shortcode=${shortcode}` : "",
         mediaUrl: "",
         caption: customDetails?.caption || `Saved ${mediaType.toUpperCase()}: ${url}`,
         category: customDetails?.category || (mediaType === "audio" ? "Music & Audio" : "General"),

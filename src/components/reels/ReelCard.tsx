@@ -51,11 +51,11 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
 
   // Clean thumbnail image source via our proxy endpoint
   const imageSrc =
-    !imageError && reel.thumbnailUrl && !reel.thumbnailUrl.includes("unsplash.com")
+    !imageError && reel.thumbnailUrl
       ? reel.thumbnailUrl
       : shortcode
       ? `/api/proxy-image?shortcode=${shortcode}`
-      : "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80";
+      : "";
 
   const displayCreator =
     reel.creatorFullName || reel.creatorUsername || (shortcode ? `ig_${shortcode.substring(0, 6)}` : "creator");
