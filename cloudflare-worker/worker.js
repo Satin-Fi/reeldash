@@ -122,19 +122,42 @@ export default {
         if (!username) return json({ error: "Missing ?username" }, 400);
         const target = `https://www.instagram.com/api/v1/users/web_profile_info/?username=${encodeURIComponent(username)}`;
         const igRes = await fetch(target, { headers: IG_HEADERS });
-        if (!igRes.ok) return json({ error: "Instagram upstream " + igRes.status, upstream: igRes.status }, igRes.status);
-        const data = await igRes.json();
-        const user = data?.data?.user;
-        if (!user) return json({ error: "No user returned", raw: data }, 502);
-        return json({
-          username,
-          displayName: user.full_name,
-          bio: user.biography || null,
-          followers: user.edge_followed_by?.count ?? null,
-          postsCount: user.edge_owner_to_timeline_media?.count ?? null,
-          avatarUrl: user.profile_pic_url_hd || user.profile_pic_url || null,
-          isVerified: !!user.is_verified,
-        });
+        if (igRes.ok) {
+          const data = await igRes.json();
+          const user = data?.data?.user;
+          if (user) {
+            return json({
+              username,
+              displayName: user.full_name,
+              bio: user.biography || null,
+              followers: user.edge_followed_by?.count ?? null,
+              postsCount: user.edge_owner_to_timeline_media?.count ?? null,
+              avatarUrl: user.profile_pic_url_hd || user.profile_pic_url || null,
+              isVerified: !!user.is_verified,
+            });
+          }
+        }
+        // Fallback: Facebook oembed (works from any IP, no login) — author only
+        try {
+          const emb = await fetch(
+            `https://graph.facebook.com/v12.0/instagram_oembed?url=${encodeURIComponent("https://www.instagram.com/" + username + "/")}&fields=author_name,thumbnail_url,permalink`,
+            { headers: { "User-Agent": IG_HEADERS["User-Agent"] } }
+          );
+          if (emb.ok) {
+            const o = await emb.json();
+            return json({
+              username,
+              displayName: o.author_name || username,
+              bio: null,
+              followers: null,
+              postsCount: null,
+              avatarUrl: o.thumbnail_url || null,
+              isVerified: false,
+              partial: true,
+            });
+          }
+        } catch {}
+        return json({ error: "Instagram blocked this request (401) from edge IP", upstream: igRes.status }, 502);
       }
 
       return json({ error: "Unknown route", routes: ["/ig", "/reels", "/reel", "/profile"] }, 404);
