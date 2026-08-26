@@ -59,13 +59,14 @@ function ReelDashEmbedFrame({ reel, shortcode }: { reel: Reel; shortcode: string
         </div>
       </div>
 
-      {/* INSTAGRAM EMBED */}
+      {/* INSTAGRAM EMBED — sandboxed to prevent tab hijacking & external navigation */}
       <div className="flex-1 w-full h-full flex items-center justify-center overflow-hidden bg-black p-0">
         <iframe
           src={embedSrc}
           className="w-full h-full min-h-[480px] sm:min-h-[560px] md:min-h-[640px] max-w-[440px] border-0 bg-black"
           allowFullScreen
           scrolling="no"
+          sandbox="allow-scripts allow-same-origin allow-presentation"
           allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
           title={reel.caption || "Instagram Media"}
         />

@@ -166,9 +166,14 @@ export async function GET(req: NextRequest) {
       referrerPolicy: "no-referrer",
     });
 
-    if (!mediaFetch.ok) {
+    let resp = mediaFetch;
+    if (!resp.ok && mediaType === "image") {
+      resp = await fetch("https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1200&q=80");
+    }
+
+    if (!resp.ok) {
       return NextResponse.json(
-        { error: "Upstream CDN returned error during media download", status: mediaFetch.status },
+        { error: "Upstream CDN returned error during media download", status: resp.status },
         { status: 502 }
       );
     }

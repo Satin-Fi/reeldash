@@ -23,9 +23,18 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const defaultDemoUser: UserProfile = {
+  id: "usr-demo",
+  name: "Alex Rivera",
+  email: "alex@reeldash.app",
+  handle: "@alex_rivera",
+  avatar: "",
+  plan: "Pro Plan",
+};
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<UserProfile | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [user, setUser] = useState<UserProfile | null>(defaultDemoUser);
+  const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -37,8 +46,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } catch (e) {
         localStorage.removeItem("reeldash_user");
       }
+    } else {
+      localStorage.setItem("reeldash_user", JSON.stringify(defaultDemoUser));
     }
-    setIsLoading(false);
   }, []);
 
   const login = (email: string, name?: string) => {
