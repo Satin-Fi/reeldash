@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
+import { extractInstagramUsername } from "@/lib/instagram";
 
 interface AccountResult {
   username: string;
@@ -60,16 +61,10 @@ export function CommandPalette() {
 
   // Debounced Instagram account search
   useEffect(() => {
-    const trimmed = query.trim();
-    if (!trimmed || trimmed.length < 2) {
-      setSearchedAccount(null);
-      setIsSearchingAccount(false);
-      return;
-    }
-
-    const cleanUsername = trimmed.replace(/^@/, "").split("/")[0].trim();
+    const cleanUsername = extractInstagramUsername(query);
     if (!cleanUsername || cleanUsername.length < 2) {
       setSearchedAccount(null);
+      setIsSearchingAccount(false);
       return;
     }
 
@@ -88,7 +83,7 @@ export function CommandPalette() {
       } finally {
         setIsSearchingAccount(false);
       }
-    }, 400);
+    }, 300);
 
     return () => clearTimeout(timer);
   }, [query]);
@@ -232,13 +227,18 @@ export function CommandPalette() {
                         <div className="relative p-0.5 rounded-full bg-gradient-to-tr from-yellow-500 via-pink-500 to-purple-600 shrink-0">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img
-                            src={searchedAccount.avatarUrl}
+                            src={searchedAccount.avatarUrl || `https://instagram.com/${searchedAccount.username}/media/?size=l`}
                             alt={searchedAccount.username}
                             onError={(e) => {
                               (e.target as HTMLElement).style.display = "none";
+                              const fallback = (e.target as HTMLElement).nextElementSibling as HTMLElement;
+                              if (fallback) fallback.style.display = "flex";
                             }}
                             className="w-9 h-9 rounded-full object-cover bg-zinc-800"
                           />
+                          <div className="hidden w-9 h-9 rounded-full bg-zinc-800 items-center justify-center text-zinc-400">
+                            <User className="w-4 h-4" />
+                          </div>
                         </div>
 
                         <div className="min-w-0">

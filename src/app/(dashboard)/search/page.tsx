@@ -14,7 +14,10 @@ import {
   BadgeCheck,
   Loader2,
   ArrowRight,
+  User,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { extractInstagramUsername } from "@/lib/instagram";
 
 interface AccountResult {
   username: string;
@@ -28,6 +31,7 @@ interface AccountResult {
 }
 
 export default function SearchPage() {
+  const router = useRouter();
   const { reels, searchQuery, setSearchQuery, viewMode, smartCategories } = useReels();
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedCollection, setSelectedCollection] = useState<string | null>(null);
@@ -39,16 +43,10 @@ export default function SearchPage() {
 
   // Debounced Instagram account search
   useEffect(() => {
-    const trimmed = searchQuery.trim();
-    if (!trimmed || trimmed.length < 2) {
-      setSearchedAccount(null);
-      setIsSearchingAccount(false);
-      return;
-    }
-
-    const cleanUsername = trimmed.replace(/^@/, "").split("/")[0].trim();
+    const cleanUsername = extractInstagramUsername(searchQuery);
     if (!cleanUsername || cleanUsername.length < 2) {
       setSearchedAccount(null);
+      setIsSearchingAccount(false);
       return;
     }
 
@@ -67,7 +65,7 @@ export default function SearchPage() {
       } finally {
         setIsSearchingAccount(false);
       }
-    }, 350);
+    }, 300);
 
     return () => clearTimeout(timer);
   }, [searchQuery]);
@@ -113,6 +111,12 @@ export default function SearchPage() {
           placeholder="Search captions, categories, notes, or any Instagram account (@username)..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              const handle = extractInstagramUsername(searchQuery);
+              if (handle) router.push(`/creator/${handle}`);
+            }
+          }}
           autoFocus
           className="w-full pl-12 pr-10 py-3.5 bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-lg text-sm text-primaryText-light dark:text-primaryText-dark focus:outline-none focus:border-brand-500 shadow-rd-subtle transition-all"
         />
@@ -155,10 +159,18 @@ export default function SearchPage() {
               <div className="relative p-0.5 rounded-full bg-gradient-to-tr from-yellow-500 via-pink-500 to-purple-600 shrink-0">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={searchedAccount.avatarUrl}
+                  src={searchedAccount.avatarUrl || `https://instagram.com/${searchedAccount.username}/media/?size=l`}
                   alt={searchedAccount.username}
+                  onError={(e) => {
+                    (e.target as HTMLElement).style.display = "none";
+                    const fallback = (e.target as HTMLElement).nextElementSibling as HTMLElement;
+                    if (fallback) fallback.style.display = "flex";
+                  }}
                   className="w-12 h-12 rounded-full object-cover bg-zinc-800"
                 />
+                <div className="hidden w-12 h-12 rounded-full bg-zinc-800 items-center justify-center text-zinc-400">
+                  <User className="w-6 h-6" />
+                </div>
               </div>
 
               <div className="space-y-0.5 min-w-0">

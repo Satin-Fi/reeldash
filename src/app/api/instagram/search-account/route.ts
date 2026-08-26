@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { extractInstagramUsername } from "@/lib/instagram";
 
 export const dynamic = "force-dynamic";
 
@@ -28,7 +29,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const query = searchParams.get("query") || searchParams.get("username") || "";
 
-    const cleanUsername = query.trim().replace(/^@/, "").toLowerCase();
+    const cleanUsername = extractInstagramUsername(query).toLowerCase();
 
     if (!cleanUsername || cleanUsername.length < 2) {
       return NextResponse.json(
