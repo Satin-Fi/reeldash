@@ -100,7 +100,13 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
       const savedCols = localStorage.getItem(userColsKey);
 
       let parsedReels: Reel[] = savedReels ? JSON.parse(savedReels) : INITIAL_REELS;
+      if (!parsedReels || parsedReels.length === 0) {
+        parsedReels = INITIAL_REELS;
+      }
       let parsedCols: Collection[] = savedCols ? JSON.parse(savedCols) : INITIAL_COLLECTIONS;
+      if (!parsedCols || parsedCols.length === 0) {
+        parsedCols = INITIAL_COLLECTIONS;
+      }
 
       // Clean out any sample oceans video or invalid mediaUrl from existing saved reels
       parsedReels = parsedReels.map((r) => {

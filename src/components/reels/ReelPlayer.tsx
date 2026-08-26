@@ -506,10 +506,18 @@ export function ReelPlayer({
         }
       }
     } catch {
-      // Continue to iframe fallback
+      // Continue to stream proxy
     }
 
-    // 3. Fallback to the ReelDash-framed official Instagram embed
+    // 3. Play via direct video stream proxy endpoint
+    if (shortcode) {
+      setPlaybackUrl(`/api/video-stream?shortcode=${shortcode}`);
+      setStatus("playing");
+      setUseIframe(false);
+      return;
+    }
+
+    // 4. Last resort: Sandboxed embed frame
     setUseIframe(true);
     setStatus("playing");
   };
