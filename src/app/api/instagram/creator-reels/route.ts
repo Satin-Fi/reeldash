@@ -180,150 +180,6 @@ export async function GET(request: NextRequest) {
 
   let normalized = items.map(normalize).filter((n) => n.shortcode);
 
-  const isRomana = username.toLowerCase() === "lifeof.romana";
-
-  // Real Highlights
-  const highlights = isRomana
-    ? [
-        { title: "Routine 🧘‍♀️", coverUrl: "/creators/lifeof_romana/highlight_routine.jpg" },
-        { title: "Eraya 🧿", coverUrl: "/creators/lifeof_romana/highlight_eraya.jpg" },
-        { title: "Parvati 🏔️", coverUrl: "/creators/lifeof_romana/highlight_parvati.jpg" },
-        { title: "Flowstar ✨", coverUrl: "/creators/lifeof_romana/highlight_flowstar.jpg" },
-        { title: "Himachal ☁️", coverUrl: "/creators/lifeof_romana/highlight_himachal.jpg" },
-        { title: "Pookie 🌙", coverUrl: "/creators/lifeof_romana/highlight_pookie.jpg" },
-        { title: "Vibez 💋", coverUrl: "/creators/lifeof_romana/highlight_vibez.jpg" },
-        { title: "Dump 🤭", coverUrl: "/creators/lifeof_romana/highlight_dump.jpg" },
-        { title: "Affirm ☁️", coverUrl: "/creators/lifeof_romana/highlight_affirm.jpg" },
-      ]
-    : [];
-
-  // Real Stories
-  const stories = isRomana
-    ? [
-        {
-          id: "story-romana-1",
-          username: "lifeof.romana",
-          mediaUrl: "/creators/lifeof_romana/story_1.jpg",
-          thumbnailUrl: "/creators/lifeof_romana/story_1.jpg",
-          caption: "Pet care & sweet moments with the guinea pig 🐹🤍",
-          timestamp: "3h ago",
-        },
-        {
-          id: "story-romana-2",
-          username: "lifeof.romana",
-          mediaUrl: "/creators/lifeof_romana/story_2.jpg",
-          thumbnailUrl: "/creators/lifeof_romana/story_2.jpg",
-          caption: "Night monuments walk @lifeof.romana 🏛️✨ New!",
-          timestamp: "6h ago",
-        },
-      ]
-    : [];
-
-  if (normalized.length === 0 && isRomana) {
-    normalized = [
-      // REEL 1: Delhi Night Reel
-      {
-        id: "ig-romana-reel-1",
-        shortcode: "C_romana_civic_01",
-        instagramUrl: "https://www.instagram.com/reel/C_romana_civic_01/",
-        thumbnailUrl: "/creators/lifeof_romana/reel_1.jpg",
-        rawThumbnailUrl: "/creators/lifeof_romana/reel_1.jpg",
-        caption: "Bilkul civic sense nahi hai jahan bhi jati hu slay krdeti hu 🫣✨ . . . #delhi #fyp #reels",
-        isVideo: true,
-        isCarousel: false,
-        carouselImages: [],
-        mediaType: "reel" as const,
-        likes: "1,420",
-        commentsCount: "58",
-        duration: "0:21",
-      },
-      // REEL 2: Sunset Mountains
-      {
-        id: "ig-romana-reel-2",
-        shortcode: "C_romana_sunset_02",
-        instagramUrl: "https://www.instagram.com/reel/C_romana_sunset_02/",
-        thumbnailUrl: "/creators/lifeof_romana/reel_2.jpg",
-        rawThumbnailUrl: "/creators/lifeof_romana/reel_2.jpg",
-        caption: "Woh silsiley, woh shauq 🌅 ... #reels #sunset #fyp #explore",
-        isVideo: true,
-        isCarousel: false,
-        carouselImages: [],
-        mediaType: "reel" as const,
-        likes: "2,180",
-        commentsCount: "84",
-        duration: "0:16",
-      },
-      // REEL 3: Mountain Rodents
-      {
-        id: "ig-romana-reel-3",
-        shortcode: "C_romana_rodents_03",
-        instagramUrl: "https://www.instagram.com/reel/C_romana_rodents_03/",
-        thumbnailUrl: "/creators/lifeof_romana/reel_3.jpg",
-        rawThumbnailUrl: "/creators/lifeof_romana/reel_3.jpg",
-        caption: "Rolls Royce of rodents, first trip 🏔️ 🤍 . #mountains #himachal #cute",
-        isVideo: true,
-        isCarousel: false,
-        carouselImages: [],
-        mediaType: "reel" as const,
-        likes: "3,890",
-        commentsCount: "142",
-        duration: "0:28",
-      },
-      // POST 1: Lamp post night photo
-      {
-        id: "ig-romana-post-1",
-        shortcode: "C_romana_post_01",
-        instagramUrl: "https://www.instagram.com/p/C_romana_post_01/",
-        thumbnailUrl: "/creators/lifeof_romana/post_1.jpg",
-        rawThumbnailUrl: "/creators/lifeof_romana/post_1.jpg",
-        caption: "Bilkul civic sense nahi hai jahan bhi jati hu slay krdeti hu 🫣 . . . #delhi #fyp",
-        isVideo: false,
-        isCarousel: true,
-        carouselImages: [
-          "/creators/lifeof_romana/post_1.jpg",
-          "/creators/lifeof_romana/post_2.jpg",
-          "/creators/lifeof_romana/post_3.jpg",
-        ],
-        mediaType: "post" as const,
-        likes: "956",
-        commentsCount: "37",
-        duration: "Carousel (3)",
-      },
-      // POST 2: Monument tomb night photo
-      {
-        id: "ig-romana-post-2",
-        shortcode: "C_romana_post_02",
-        instagramUrl: "https://www.instagram.com/p/C_romana_post_02/",
-        thumbnailUrl: "/creators/lifeof_romana/post_2.jpg",
-        rawThumbnailUrl: "/creators/lifeof_romana/post_2.jpg",
-        caption: "Bilkul civic sense nahi hai jahan bhi jati hu slay krdeti hu 🫣 . . . #delhi #fyp (Slide 2: Heritage tomb)",
-        isVideo: false,
-        isCarousel: false,
-        carouselImages: [],
-        mediaType: "post" as const,
-        likes: "1,104",
-        commentsCount: "41",
-        duration: "Post",
-      },
-      // POST 3: Night selfie with flower
-      {
-        id: "ig-romana-post-3",
-        shortcode: "C_romana_post_03",
-        instagramUrl: "https://www.instagram.com/p/C_romana_post_03/",
-        thumbnailUrl: "/creators/lifeof_romana/post_3.jpg",
-        rawThumbnailUrl: "/creators/lifeof_romana/post_3.jpg",
-        caption: "Bilkul civic sense nahi hai jahan bhi jati hu slay krdeti hu 🫣 . . . #delhi #fyp (Slide 3: Night portrait with flower 🌸)",
-        isVideo: false,
-        isCarousel: false,
-        carouselImages: [],
-        mediaType: "post" as const,
-        likes: "1,320",
-        commentsCount: "63",
-        duration: "Post",
-      },
-    ];
-  }
-
   // Cache successful responses if any
   if (normalized.length > 0) {
     cache.set(username.toLowerCase(), { items: normalized, ts: Date.now() });
@@ -333,16 +189,16 @@ export async function GET(request: NextRequest) {
     {
       username,
       items: normalized,
-      highlights,
-      stories,
       count: normalized.length,
+      isLiveScraped: normalized.length > 0,
+      reason: normalized.length === 0 ? "Instagram unauthenticated rate limit" : null,
     },
     { status: 200 }
   );
 
   response.headers.set(
     "Cache-Control",
-    "public, s-maxage=1800, stale-while-revalidate=86400"
+    "public, s-maxage=300, stale-while-revalidate=600"
   );
 
   return response;
