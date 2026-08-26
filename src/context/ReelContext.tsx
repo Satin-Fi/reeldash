@@ -3,7 +3,6 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { Reel, Collection, SmartCategory, SortOption, ViewMode, MediaType, MediaTypeFilter } from "@/types/reel";
 import { useAuth } from "@/context/AuthContext";
-import { INITIAL_REELS, INITIAL_COLLECTIONS } from "@/lib/mockData";
 
 export interface ToastMessage {
   id: string;
@@ -99,14 +98,17 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
       const savedReels = localStorage.getItem(userReelsKey);
       const savedCols = localStorage.getItem(userColsKey);
 
-      let parsedReels: Reel[] = savedReels ? JSON.parse(savedReels) : INITIAL_REELS;
-      if (!parsedReels || parsedReels.length === 0) {
-        parsedReels = INITIAL_REELS;
-      }
-      let parsedCols: Collection[] = savedCols ? JSON.parse(savedCols) : INITIAL_COLLECTIONS;
-      if (!parsedCols || parsedCols.length === 0) {
-        parsedCols = INITIAL_COLLECTIONS;
-      }
+      let parsedReels: Reel[] = savedReels ? JSON.parse(savedReels) : [];
+      // Clean out any legacy mock items seeded previously
+      parsedReels = parsedReels.filter(
+        (r) =>
+          !r.id.match(/^reel-[1-9]$|^reel-1[0-2]$/) &&
+          !r.thumbnailUrl?.includes("unsplash.com") &&
+          r.userId !== "demo_user"
+      );
+
+      let parsedCols: Collection[] = savedCols ? JSON.parse(savedCols) : [];
+      parsedCols = parsedCols.filter((c) => !c.id.match(/^col-[1-4]$/));
 
       // Clean out any sample oceans video or invalid mediaUrl from existing saved reels
       parsedReels = parsedReels.map((r) => {
@@ -125,8 +127,8 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
       setReels(parsedReels);
       setCollections(parsedCols);
     } else {
-      setReels(INITIAL_REELS);
-      setCollections(INITIAL_COLLECTIONS);
+      setReels([]);
+      setCollections([]);
     }
   }, [user?.id]);
 
