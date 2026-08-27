@@ -27,65 +27,146 @@ function cleanCode(code: string): string {
 }
 
 async function fetchAllMedia(username: string): Promise<any[]> {
-  // Strategy 0: RSS Bridge (rss-bridge.org) - proven to return real posts from any public account
+  // Strategy 0: Hybrid Profile Scraper (Direct Instagram Profile HTML Shortcodes + RSS Bridge)
   try {
-    const rssBridgeUrls = [
-      `https://rss-bridge.org/bridge01/?action=display&bridge=InstagramBridge&u=${encodeURIComponent(username)}&format=Json`,
-      `https://rss.rss-bridge.org/bridge01/?action=display&bridge=InstagramBridge&u=${encodeURIComponent(username)}&format=Json`,
-    ];
-    for (const bridgeUrl of rssBridgeUrls) {
-      try {
-        const res = await fetch(bridgeUrl, {
-          headers: {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-            "Accept": "application/json",
-          },
-          cache: "no-store",
-          signal: AbortSignal.timeout(8000),
-        });
-        if (res.ok) {
-          const json = await res.json();
-          const items: any[] = json.items || [];
-          if (items.length > 0) {
-            // Parse RSS Bridge items into normalized nodes
-            const nodes = items.map((item: any) => {
+    const nodeMap = new Map<string, any>();
+
+    // 1. Direct Instagram Profile HTML: Extract all 12 preloaded shortcodes and CDN images
+    try {
+      const igRes = await fetch(`https://www.instagram.com/${encodeURIComponent(username)}/`, {
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
+          "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+          "Accept-Language": "en-US,en;q=0.9",
+          "Sec-Fetch-Dest": "document",
+          "Sec-Fetch-Mode": "navigate",
+          "Sec-Fetch-Site": "none",
+          "Sec-Fetch-User": "?1",
+          "Upgrade-Insecure-Requests": "1",
+        },
+        cache: "no-store",
+        signal: AbortSignal.timeout(6000),
+      });
+
+      if (igRes.ok) {
+        const html = await igRes.text();
+
+        // Extract preloaded CDN images
+        const preloadImgRegex = /<link rel="preload" as="image" href="([^"]+)"/gi;
+        const preloadImages: string[] = [];
+        let m: RegExpExecArray | null;
+        while ((m = preloadImgRegex.exec(html)) !== null) {
+          const rawUrl = m[1].replace(/&amp;/g, "&");
+          if (rawUrl.includes("cdninstagram") || rawUrl.includes("fbcdn")) {
+            preloadImages.push(rawUrl);
+          }
+        }
+
+        // Extract shortcodes
+        const shortcodeRegex = /\/(p|reel)\/([A-Za-z0-9_-]{9,13})/g;
+        let imgIdx = 0;
+        while ((m = shortcodeRegex.exec(html)) !== null) {
+          const type = m[1];
+          const code = m[2];
+          if (!nodeMap.has(code)) {
+            const displayUrl = preloadImages[imgIdx] || "";
+            const isVideo = type === "reel";
+            nodeMap.set(code, {
+              shortcode: code,
+              display_url: displayUrl,
+              video_url: "",
+              is_video: isVideo,
+              isReel: isVideo,
+              __typename: isVideo ? "GraphVideo" : "GraphImage",
+              edge_media_to_caption: { edges: [] },
+              edge_media_preview_like: { count: null },
+              edge_media_to_comment: { count: null },
+            });
+            imgIdx++;
+          }
+        }
+      }
+    } catch {
+      // Continue to RSS Bridge
+    }
+
+    // 2. RSS Bridge: Enrich with captions, titles, and additional items
+    try {
+      const rssBridgeUrls = [
+        `https://rss-bridge.org/bridge01/?action=display&bridge=InstagramBridge&u=${encodeURIComponent(username)}&format=Json`,
+        `https://rss.rss-bridge.org/bridge01/?action=display&bridge=InstagramBridge&u=${encodeURIComponent(username)}&format=Json`,
+      ];
+      for (const bridgeUrl of rssBridgeUrls) {
+        try {
+          const res = await fetch(bridgeUrl, {
+            headers: {
+              "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+              "Accept": "application/json",
+            },
+            cache: "no-store",
+            signal: AbortSignal.timeout(6000),
+          });
+          if (res.ok) {
+            const json = await res.json();
+            const items: any[] = json.items || [];
+            for (const item of items) {
               const url = item.url || "";
               const shortcodeMatch = url.match(/\/(reel|p)\/([A-Za-z0-9_-]+)/);
               const shortcode = shortcodeMatch?.[2] || "";
+              if (!shortcode) continue;
+
               const isVideo = item.title?.startsWith("▶") || url.includes("/reel/");
               const isReel = url.includes("/reel/");
-
-              // Extract image from content_html
               const content = item.content_html || "";
               const imgMatch = content.match(/src="(https:\/\/[^"]+\.jpg[^"]*)"/);
               const videoMatch = content.match(/src="(https:\/\/[^"]+\.mp4[^"]*)"/);
               const displayUrl = imgMatch?.[1] || "";
-
-              // Extract caption
               const caption = item.title?.replace(/^▶\s*/, "") || "";
 
-              return {
-                shortcode,
-                display_url: displayUrl,
-                video_url: videoMatch?.[1] || "",
-                is_video: isVideo,
-                isReel,
-                __typename: isVideo ? "GraphVideo" : "GraphImage",
-                edge_media_to_caption: { edges: [{ node: { text: caption } }] },
-                edge_media_preview_like: { count: null },
-                edge_media_to_comment: { count: null },
-              };
-            }).filter((n: any) => n.shortcode);
-
-            if (nodes.length > 0) {
-              console.log(`[RSS Bridge] Fetched ${nodes.length} items for @${username}`);
-              return dedup(nodes);
+              if (nodeMap.has(shortcode)) {
+                const existing = nodeMap.get(shortcode);
+                if (caption && (!existing.edge_media_to_caption.edges.length || !existing.edge_media_to_caption.edges[0]?.node?.text)) {
+                  existing.edge_media_to_caption = { edges: [{ node: { text: caption } }] };
+                }
+                if (displayUrl && !existing.display_url) {
+                  existing.display_url = displayUrl;
+                }
+                if (videoMatch?.[1]) {
+                  existing.video_url = videoMatch[1];
+                }
+                if (isVideo) {
+                  existing.is_video = true;
+                  existing.isReel = isReel;
+                  existing.__typename = "GraphVideo";
+                }
+              } else {
+                nodeMap.set(shortcode, {
+                  shortcode,
+                  display_url: displayUrl,
+                  video_url: videoMatch?.[1] || "",
+                  is_video: isVideo,
+                  isReel,
+                  __typename: isVideo ? "GraphVideo" : "GraphImage",
+                  edge_media_to_caption: { edges: caption ? [{ node: { text: caption } }] : [] },
+                  edge_media_preview_like: { count: null },
+                  edge_media_to_comment: { count: null },
+                });
+              }
             }
+            if (items.length > 0) break;
           }
+        } catch {
+          // try next bridge URL
         }
-      } catch {
-        // try next bridge URL
       }
+    } catch {
+      // Continue with what we have in nodeMap
+    }
+
+    if (nodeMap.size > 0) {
+      const combinedNodes = Array.from(nodeMap.values());
+      console.log(`[Hybrid Scraper] Fetched ${combinedNodes.length} items for @${username}`);
+      return dedup(combinedNodes);
     }
   } catch {
     // Fall through to SnapSave
