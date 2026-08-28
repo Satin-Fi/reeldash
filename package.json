@@ -11,8 +11,11 @@
     "cf:local": "cd cloudflare-worker && npx wrangler dev"
   },
   "dependencies": {
+    "@supabase/ssr": "^0.12.5",
+    "@supabase/supabase-js": "^2.112.4",
     "clsx": "^2.1.1",
     "framer-motion": "^11.11.17",
+    "geist": "^1.7.2",
     "lucide-react": "^0.460.0",
     "next": "^14.2.18",
     "react": "^18.3.1",

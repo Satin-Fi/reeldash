@@ -1,153 +1,169 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useReels } from "@/context/ReelContext";
-import { Search, Plus, Bell, Sun, Moon, User, Check, Sparkles } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
+import { Search, Plus, Bell, Sun, Moon, Settings, LogOut, Zap } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 
+const dropdownVariants = {
+  hidden: { opacity: 0, scale: 0.96, y: -4 },
+  visible: { opacity: 1, scale: 1, y: 0, transition: { duration: 0.18, ease: [0.32, 0.72, 0, 1] } },
+  exit:    { opacity: 0, scale: 0.96, y: -4, transition: { duration: 0.14 } },
+};
+
 export function TopBar() {
-  const {
-    setIsSaveModalOpen,
-    setIsCommandPaletteOpen,
-    theme,
-    toggleTheme,
-  } = useReels();
+  const { setIsSaveModalOpen, setIsCommandPaletteOpen, theme, toggleTheme } = useReels();
+  const { user, logout } = useAuth();
+  const [notifOpen, setNotifOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const notifRef = useRef<HTMLDivElement>(null);
+  const profileRef = useRef<HTMLDivElement>(null);
 
-  const [isNotificationOpen, setIsNotificationOpen] = useState(false);
-  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  // Close on outside click
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (notifRef.current && !notifRef.current.contains(e.target as Node)) setNotifOpen(false);
+      if (profileRef.current && !profileRef.current.contains(e.target as Node)) setProfileOpen(false);
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
 
-  const notifications = [
-    { id: "1", title: "Import completed", desc: "6 Reels indexed and organized.", time: "10m ago" },
-    { id: "2", title: "AI categorization", desc: "Assigned 2 new Reels to Health & Fitness.", time: "1h ago" },
-  ];
+  const initials = user?.name
+    ? user.name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()
+    : "RD";
 
   return (
-    <header className="h-16 sticky top-0 z-30 bg-surface-light/80 dark:bg-surface-dark/80 backdrop-blur-md border-b border-borderSubtle-light dark:border-borderSubtle-dark px-4 md:px-6 flex items-center justify-between">
-      {/* Search Input Trigger */}
-      <div className="flex-1 max-w-md mr-4">
-        <button
-          onClick={() => setIsCommandPaletteOpen(true)}
-          className="w-full flex items-center justify-between px-3.5 py-2 bg-background-light dark:bg-background-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-md text-xs text-mutedText-light dark:text-mutedText-dark hover:border-brand-500/40 transition-all cursor-pointer shadow-rd-subtle"
-        >
-          <div className="flex items-center space-x-2.5">
-            <Search className="w-4 h-4 text-secondaryText-light dark:text-secondaryText-dark" />
-            <span>Search your Reels...</span>
-          </div>
-          <kbd className="hidden sm:inline-block px-2 py-0.5 text-[10px] font-mono text-secondaryText-light dark:text-secondaryText-dark bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-sm">
-            ⌘ K
-          </kbd>
-        </button>
-      </div>
+    <header className="h-14 sticky top-0 z-30 bg-surface-dark/90 backdrop-blur-md border-b border-borderSubtle-dark px-4 flex items-center justify-between shrink-0">
 
-      {/* Right Controls */}
-      <div className="flex items-center space-x-3">
-        {/* + Save Reel Primary CTA */}
+      {/* Search trigger */}
+      <button
+        onClick={() => setIsCommandPaletteOpen(true)}
+        className="flex items-center gap-2.5 px-3 py-2 bg-surfaceSecondary-dark border border-borderSubtle-dark hover:border-borderDefault-dark rounded-rd-lg text-[13px] text-mutedText-dark hover:text-secondaryText-dark transition-all duration-200 cursor-pointer max-w-64 w-full"
+      >
+        <Search className="w-3.5 h-3.5 shrink-0" strokeWidth={1.75} />
+        <span className="flex-1 text-left text-[12px]">Search your Reels...</span>
+        <kbd className="hidden sm:flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-mono bg-surfaceTertiary-dark border border-borderSubtle-dark rounded text-mutedText-dark">
+          ⌘K
+        </kbd>
+      </button>
+
+      {/* Right controls */}
+      <div className="flex items-center gap-2 ml-4">
+
+        {/* Save Reel CTA */}
         <button
           onClick={() => setIsSaveModalOpen(true)}
-          className="flex items-center space-x-1.5 px-3.5 py-2 bg-brand-500 hover:bg-brand-600 active:scale-95 text-white rounded-rd-md text-xs font-semibold shadow-rd-subtle transition-all cursor-pointer"
+          className="flex items-center gap-1.5 px-3 py-2 bg-brand-500 hover:bg-brand-600 active:scale-[0.97] text-white text-[12px] font-semibold rounded-rd-lg transition-all duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] cursor-pointer shadow-rd-glow"
         >
-          <Plus className="w-4 h-4" />
+          <Plus className="w-3.5 h-3.5" strokeWidth={2.5} />
           <span className="hidden sm:inline">Save Reel</span>
         </button>
 
-        {/* Theme Toggle Button */}
+        {/* Theme toggle */}
         <button
           onClick={toggleTheme}
-          className="p-2 text-secondaryText-light dark:text-secondaryText-dark hover:bg-surfaceSecondary-light dark:hover:bg-surfaceSecondary-dark rounded-rd-md transition-colors cursor-pointer"
-          title="Toggle Dark / Light Mode"
+          className="w-8 h-8 flex items-center justify-center rounded-rd-md text-mutedText-dark hover:text-secondaryText-dark hover:bg-surfaceSecondary-dark transition-all duration-200 cursor-pointer"
+          title="Toggle theme"
         >
-          {theme === "dark" ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4" />}
+          {theme === "dark"
+            ? <Sun className="w-4 h-4 text-amber-400" strokeWidth={1.75} />
+            : <Moon className="w-4 h-4" strokeWidth={1.75} />
+          }
         </button>
 
-        {/* Notification Bell */}
-        <div className="relative">
+        {/* Notifications */}
+        <div className="relative" ref={notifRef}>
           <button
-            onClick={() => setIsNotificationOpen(!isNotificationOpen)}
-            className="relative p-2 text-secondaryText-light dark:text-secondaryText-dark hover:bg-surfaceSecondary-light dark:hover:bg-surfaceSecondary-dark rounded-rd-md transition-colors cursor-pointer"
+            onClick={() => { setNotifOpen((v) => !v); setProfileOpen(false); }}
+            className="relative w-8 h-8 flex items-center justify-center rounded-rd-md text-mutedText-dark hover:text-secondaryText-dark hover:bg-surfaceSecondary-dark transition-all duration-200 cursor-pointer"
           >
-            <Bell className="w-4 h-4" />
-            <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-brand-500" />
+            <Bell className="w-4 h-4" strokeWidth={1.75} />
+            <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-brand-500 ring-2 ring-surface-dark" />
           </button>
 
           <AnimatePresence>
-            {isNotificationOpen && (
+            {notifOpen && (
               <motion.div
-                initial={{ opacity: 0, scale: 0.95, y: 5 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95, y: 5 }}
-                className="absolute right-0 mt-2 w-72 bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-md shadow-rd-modal p-3 z-40 text-xs text-primaryText-light dark:text-primaryText-dark"
+                variants={dropdownVariants}
+                initial="hidden"
+                animate="visible"
+                exit="exit"
+                className="absolute right-0 top-full mt-2 w-72 bg-surface-dark border border-borderSubtle-dark rounded-rd-xl shadow-rd-dark p-1 z-50 origin-top-right"
               >
-                <div className="flex items-center justify-between border-b border-borderSubtle-light dark:border-borderSubtle-dark pb-2 mb-2">
-                  <span className="font-semibold text-xs">Notifications</span>
-                  <Sparkles className="w-3.5 h-3.5 text-brand-500" />
+                <div className="px-3 py-2.5 flex items-center justify-between border-b border-borderSubtle-dark mb-1">
+                  <span className="text-[12px] font-semibold text-primaryText-dark">Notifications</span>
+                  <span className="px-1.5 py-0.5 text-[10px] font-mono bg-brand-500 text-white rounded-full">2</span>
                 </div>
-                <div className="space-y-2">
-                  {notifications.map((n) => (
-                    <div key={n.id} className="p-2 bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark rounded-rd-sm space-y-0.5">
-                      <div className="flex items-center justify-between">
-                        <span className="font-medium text-xs">{n.title}</span>
-                        <span className="text-[10px] text-mutedText-light dark:text-mutedText-dark">{n.time}</span>
+                {[
+                  { title: "Import completed", desc: "6 Reels indexed and organized.", time: "10m ago", dot: "bg-brand-400" },
+                  { title: "AI categorization", desc: "2 new Reels added to Health & Fitness.", time: "1h ago", dot: "bg-emerald-400" },
+                ].map((n, i) => (
+                  <div key={i} className="flex items-start gap-3 px-3 py-2.5 rounded-rd-md hover:bg-surfaceSecondary-dark transition-colors cursor-pointer">
+                    <div className={`w-1.5 h-1.5 rounded-full ${n.dot} mt-1.5 shrink-0`} />
+                    <div className="min-w-0 space-y-0.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-[12px] font-medium text-primaryText-dark">{n.title}</span>
+                        <span className="text-[10px] text-mutedText-dark shrink-0">{n.time}</span>
                       </div>
-                      <p className="text-[11px] text-secondaryText-light dark:text-secondaryText-dark leading-snug">{n.desc}</p>
+                      <p className="text-[11px] text-secondaryText-dark leading-snug">{n.desc}</p>
                     </div>
-                  ))}
-                </div>
+                  </div>
+                ))}
               </motion.div>
             )}
           </AnimatePresence>
         </div>
 
-        {/* User Profile Avatar Dropdown */}
-        <div className="relative">
+        {/* Profile */}
+        <div className="relative" ref={profileRef}>
           <button
-            onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
-            className="w-8 h-8 rounded-full bg-brand-500/20 text-brand-500 font-bold text-xs flex items-center justify-center cursor-pointer border border-brand-500/30"
+            onClick={() => { setProfileOpen((v) => !v); setNotifOpen(false); }}
+            className="w-8 h-8 rounded-full bg-brand-500/15 border border-brand-500/25 hover:border-brand-500/50 text-brand-400 font-bold text-[11px] flex items-center justify-center transition-all duration-200 cursor-pointer"
           >
-            PK
+            {initials}
           </button>
 
           <AnimatePresence>
-            {isProfileMenuOpen && (
+            {profileOpen && (
               <motion.div
-                initial={{ opacity: 0, scale: 0.95, y: 5 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95, y: 5 }}
-                className="absolute right-0 mt-2 w-52 bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-md shadow-rd-modal p-1.5 z-40 text-xs text-primaryText-light dark:text-primaryText-dark space-y-1"
+                variants={dropdownVariants}
+                initial="hidden"
+                animate="visible"
+                exit="exit"
+                className="absolute right-0 top-full mt-2 w-52 bg-surface-dark border border-borderSubtle-dark rounded-rd-xl shadow-rd-dark p-1 z-50 origin-top-right"
               >
-                <div className="px-3 py-2 border-b border-borderSubtle-light dark:border-borderSubtle-dark">
-                  <p className="font-semibold">Piyush Kumar</p>
-                  <p className="text-[11px] text-secondaryText-light dark:text-secondaryText-dark">Free Plan</p>
+                <div className="px-3 py-2.5 border-b border-borderSubtle-dark mb-1">
+                  <p className="text-[13px] font-semibold text-primaryText-dark leading-tight">{user?.name || "User"}</p>
+                  <p className="text-[11px] text-mutedText-dark mt-0.5">{user?.plan || "Free plan"}</p>
                 </div>
+
                 <Link
                   href="/settings"
-                  onClick={() => setIsProfileMenuOpen(false)}
-                  className="block px-3 py-1.5 rounded-rd-sm hover:bg-surfaceSecondary-light dark:hover:bg-surfaceSecondary-dark transition-colors"
+                  onClick={() => setProfileOpen(false)}
+                  className="flex items-center gap-2.5 px-3 py-2 rounded-rd-md text-[12px] text-secondaryText-dark hover:bg-surfaceSecondary-dark hover:text-primaryText-dark transition-colors"
                 >
-                  Account Settings
-                </Link>
-                <Link
-                  href="/settings"
-                  onClick={() => setIsProfileMenuOpen(false)}
-                  className="block px-3 py-1.5 rounded-rd-sm hover:bg-surfaceSecondary-light dark:hover:bg-surfaceSecondary-dark transition-colors"
-                >
-                  Billing & Usage
+                  <Settings className="w-3.5 h-3.5" strokeWidth={1.75} />
+                  Settings
                 </Link>
                 <button
-                  onClick={() => {
-                    setIsProfileMenuOpen(false);
-                    setIsCommandPaletteOpen(true);
-                  }}
-                  className="w-full text-left px-3 py-1.5 rounded-rd-sm hover:bg-surfaceSecondary-light dark:hover:bg-surfaceSecondary-dark transition-colors"
+                  onClick={() => { setProfileOpen(false); setIsCommandPaletteOpen(true); }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-rd-md text-[12px] text-secondaryText-dark hover:bg-surfaceSecondary-dark hover:text-primaryText-dark transition-colors"
                 >
-                  Keyboard Shortcuts
+                  <Zap className="w-3.5 h-3.5" strokeWidth={1.75} />
+                  Keyboard shortcuts
                 </button>
-                <div className="border-t border-borderSubtle-light dark:border-borderSubtle-dark my-1" />
+
+                <div className="h-px bg-borderSubtle-dark mx-1 my-1" />
+
                 <button
-                  onClick={() => setIsProfileMenuOpen(false)}
-                  className="w-full text-left px-3 py-1.5 rounded-rd-sm hover:bg-rose-500/10 text-rose-500 font-medium transition-colors"
+                  onClick={() => { setProfileOpen(false); logout(); }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-rd-md text-[12px] text-rose-400 hover:bg-rose-500/10 transition-colors"
                 >
-                  Log Out
+                  <LogOut className="w-3.5 h-3.5" strokeWidth={1.75} />
+                  Log out
                 </button>
               </motion.div>
             )}

@@ -27,12 +27,14 @@ export default function DashboardLayout({
 
   if (isLoading) {
     return (
-      <div className="flex h-screen items-center justify-center bg-background-light dark:bg-background-dark text-primaryText-light dark:text-primaryText-dark">
-        <div className="flex flex-col items-center space-y-3">
-          <div className="w-8 h-8 rounded-rd-md bg-brand-500 flex items-center justify-center text-white font-bold animate-pulse">
-            ⚡
+      <div className="flex h-screen items-center justify-center bg-background-dark text-primaryText-dark">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-9 h-9 rounded-[10px] bg-brand-500 flex items-center justify-center shadow-rd-glow animate-pulse-soft">
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-4.5 h-4.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="m13 2-9 13h8l-1 7 9-13h-8l1-7Z" />
+            </svg>
           </div>
-          <span className="text-xs text-secondaryText-light">Loading your Reel memory...</span>
+          <span className="text-[12px] text-mutedText-dark">Loading your library...</span>
         </div>
       </div>
     );

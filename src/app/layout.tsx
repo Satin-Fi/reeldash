@@ -1,27 +1,31 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { GeistSans } from "geist/font/sans";
+import { GeistMono } from "geist/font/mono";
 import "./globals.css";
-import { AuthProvider } from "@/context/AuthContext";
-import { ReelProvider } from "@/context/ReelContext";
-
-const inter = Inter({ subsets: ["latin"] });
+import { Providers } from "./providers";
 
 export const metadata: Metadata = {
-  title: "ReelDash — Personal Visual Memory System for Instagram Reels",
-  description: "Organize, search, and revisit saved Instagram Reels automatically with AI intelligence.",
+  title: "ReelDash — Your Instagram Reels Library",
+  description: "Save, organize, and search your Instagram Reels. DM any reel to @ReelDash_app and it's instantly in your library.",
+  metadataBase: new URL("https://reeldash-nine.vercel.app"),
+  openGraph: {
+    title: "ReelDash",
+    description: "Your Instagram Reels, organized automatically.",
+    type: "website",
+  },
 };
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
   return (
-    <html lang="en" className="h-full">
-      <body className={`${inter.className} min-h-full flex flex-col`}>
-        <AuthProvider>
-          <ReelProvider>{children}</ReelProvider>
-        </AuthProvider>
+    <html lang="en" suppressHydrationWarning>
+      <body
+        className={`${GeistSans.variable} ${GeistMono.variable} font-sans antialiased`}
+      >
+        <Providers>{children}</Providers>
       </body>
     </html>
   );
