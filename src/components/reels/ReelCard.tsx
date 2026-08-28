@@ -54,7 +54,8 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
     if (
       reel.thumbnailUrl &&
       !reel.thumbnailUrl.includes("unsplash.com") &&
-      !reel.thumbnailUrl.includes("ui-avatars.com")
+      !reel.thumbnailUrl.includes("ui-avatars.com") &&
+      !reel.thumbnailUrl.includes("username=")
     ) {
       if (
         reel.thumbnailUrl.startsWith("http") &&
@@ -67,7 +68,7 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
     if (shortcode) {
       return `/api/proxy-image?shortcode=${shortcode}`;
     }
-    return `/api/proxy-image?username=${encodeURIComponent(displayHandle)}`;
+    return "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600&auto=format&fit=crop&q=80";
   };
 
   const imageSrc = resolveImageSource();
@@ -211,9 +212,15 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
               referrerPolicy="no-referrer"
               onError={(e) => {
                 setImageError(true);
+                const target = e.target as HTMLImageElement;
                 if (shortcode) {
-                  (e.target as HTMLImageElement).src = `/api/proxy-image?shortcode=${shortcode}`;
+                  const scUrl = `/api/proxy-image?shortcode=${shortcode}`;
+                  if (target.src !== scUrl) {
+                    target.src = scUrl;
+                    return;
+                  }
                 }
+                target.src = "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600&auto=format&fit=crop&q=80";
               }}
               className="w-full h-full object-cover group-hover:scale-103 transition-transform duration-300 ease-out"
             />

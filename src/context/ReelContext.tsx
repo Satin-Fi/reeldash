@@ -161,7 +161,7 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
         .map((r) => {
           let thumb = r.thumbnailUrl;
           const sc = r.instagramUrl?.match(/(?:reel|reels|p|audio|stories)\/([A-Za-z0-9_-]+)/)?.[1];
-          if (!thumb || thumb.includes("unsplash.com") || thumb.includes("ui-avatars.com")) {
+          if (!thumb || thumb.includes("unsplash.com") || thumb.includes("ui-avatars.com") || thumb.includes("username=")) {
             thumb = sc ? `/api/proxy-image?shortcode=${sc}` : thumb;
           }
           let avatar = r.creatorAvatar;
