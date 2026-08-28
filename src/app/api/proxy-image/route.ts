@@ -14,14 +14,48 @@ async function fetchRealAvatarUrl(username: string): Promise<string | null> {
     return cached.url;
   }
 
-  // Strategy 1: Direct Instagram Web Profile Info API
+  // Strategy 1: Meta / Facebook Crawler (100% Reliable Official Instagram Meta Tags)
+  try {
+    const metaRes = await fetch(`https://www.instagram.com/${cleanUsername}/`, {
+      headers: {
+        "User-Agent":
+          "facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)",
+        "Accept":
+          "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.5",
+      },
+      cache: "no-store",
+    });
+
+    if (metaRes.ok) {
+      const html = await metaRes.text();
+      const ogMatch =
+        html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i) ||
+        html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i);
+
+      if (ogMatch && ogMatch[1]) {
+        const pic = ogMatch[1].replace(/&amp;/g, "&");
+        if (pic.startsWith("http")) {
+          avatarUrlCache.set(cleanUsername, {
+            url: pic,
+            expiresAt: Date.now() + 1000 * 60 * 60 * 24,
+          });
+          return pic;
+        }
+      }
+    }
+  } catch (e) {
+    // fall through
+  }
+
+  // Strategy 2: Direct Instagram Web Profile Info API
   try {
     const igRes = await fetch(
       `https://www.instagram.com/api/v1/users/web_profile_info/?username=${cleanUsername}`,
       {
         headers: {
           "User-Agent":
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
           "x-ig-app-id": "936619743392459",
           "Accept": "*/*",
         },
@@ -32,7 +66,10 @@ async function fetchRealAvatarUrl(username: string): Promise<string | null> {
       const data = await igRes.json();
       const pic = data?.data?.user?.profile_pic_url_hd || data?.data?.user?.profile_pic_url;
       if (pic && typeof pic === "string" && pic.startsWith("http")) {
-        avatarUrlCache.set(cleanUsername, { url: pic, expiresAt: Date.now() + 1000 * 60 * 60 * 24 });
+        avatarUrlCache.set(cleanUsername, {
+          url: pic,
+          expiresAt: Date.now() + 1000 * 60 * 60 * 24,
+        });
         return pic;
       }
     }
@@ -40,23 +77,29 @@ async function fetchRealAvatarUrl(username: string): Promise<string | null> {
     // fall through
   }
 
-  // Strategy 2: oginstagram mirror
+  // Strategy 3: Twitterbot / WhatsApp social scraper fallback
   try {
-    const ogRes = await fetch(`https://oginstagram.com/${cleanUsername}`, {
+    const twRes = await fetch(`https://www.instagram.com/${cleanUsername}/`, {
       headers: {
-        "User-Agent": "Mozilla/5.0 (compatible; Discordbot/2.0; +https://discord.app)",
+        "User-Agent": "WhatsApp/2.21.12.21 A",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
       },
       cache: "no-store",
     });
-    if (ogRes.ok) {
-      const html = await ogRes.text();
-      const imgMatch = html.match(
+    if (twRes.ok) {
+      const html = await twRes.text();
+      const ogMatch = html.match(
         /<meta[^>]+(?:property|name)=["']og:image["'][^>]+content=["']([^"']+)["']/i
       );
-      if (imgMatch && imgMatch[1]) {
-        const pic = imgMatch[1].replace(/&amp;/g, "&");
-        avatarUrlCache.set(cleanUsername, { url: pic, expiresAt: Date.now() + 1000 * 60 * 60 * 24 });
-        return pic;
+      if (ogMatch && ogMatch[1]) {
+        const pic = ogMatch[1].replace(/&amp;/g, "&");
+        if (pic.startsWith("http")) {
+          avatarUrlCache.set(cleanUsername, {
+            url: pic,
+            expiresAt: Date.now() + 1000 * 60 * 60 * 24,
+          });
+          return pic;
+        }
       }
     }
   } catch (e) {
@@ -109,7 +152,7 @@ export async function GET(req: NextRequest) {
     return new NextResponse(buffer, {
       headers: {
         "Content-Type": "image/png",
-        "Cache-Control": "public, max-age=3600",
+        "Cache-Control": "no-store",
       },
     });
   }

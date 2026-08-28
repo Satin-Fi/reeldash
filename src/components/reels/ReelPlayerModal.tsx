@@ -129,17 +129,18 @@ export function ReelPlayerModal({ reel, isOpen, onClose }: ReelPlayerModalProps)
                 {/* Clean Real Creator Avatar (No fake story ring) */}
                 <div className="w-9 h-9 rounded-full overflow-hidden bg-zinc-900 border border-zinc-700/80 shrink-0 flex items-center justify-center">
                   <img
-                    src={avatarSrc}
+                    src={`/api/proxy-image?username=${encodeURIComponent(creatorHandle)}`}
                     alt={creatorHandle}
-                    onError={() => {
-                      setAvatarSrc(
-                        `https://ui-avatars.com/api/?name=${encodeURIComponent(
-                          creatorHandle
-                        )}&background=27272a&color=fff`
-                      );
-                    }}
                     className="w-full h-full object-cover"
+                    onError={(e) => {
+                      (e.target as HTMLElement).style.display = "none";
+                      const fallback = (e.target as HTMLElement).nextElementSibling as HTMLElement;
+                      if (fallback) fallback.style.display = "flex";
+                    }}
                   />
+                  <div className="hidden w-full h-full bg-zinc-800 items-center justify-center text-zinc-400 font-bold text-xs">
+                    {creatorHandle[0]?.toUpperCase()}
+                  </div>
                 </div>
 
                 <div className="flex flex-col min-w-0">
@@ -279,7 +280,7 @@ export function ReelPlayerModal({ reel, isOpen, onClose }: ReelPlayerModalProps)
               </div>
 
               {/* AI Key Insights (Rendered only when valid takeaways exist or requested) */}
-              {reel.aiSummary ? (
+              {reel.aiSummary && !reel.aiSummary.includes("discussing General") && !reel.aiSummary.startsWith("Summary:") ? (
                 <div className="p-3 bg-zinc-900/90 border border-zinc-800 rounded-lg space-y-2">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-1.5 text-brand-400 font-semibold text-[11px]">

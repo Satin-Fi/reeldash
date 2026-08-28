@@ -170,17 +170,18 @@ export default function ReelDetailPage() {
               {/* Creator Avatar with clean border */}
               <div className="w-9 h-9 rounded-full overflow-hidden bg-zinc-900 border border-zinc-700/80 shrink-0 flex items-center justify-center">
                 <img
-                  src={
-                    reel.creatorAvatar?.startsWith("http")
-                      ? `/api/proxy-image?url=${encodeURIComponent(reel.creatorAvatar)}`
-                      : reel.creatorAvatar ||
-                        `https://ui-avatars.com/api/?name=${encodeURIComponent(
-                          creatorHandle
-                        )}&background=27272a&color=fff`
-                  }
+                  src={`/api/proxy-image?username=${encodeURIComponent(creatorHandle)}`}
                   alt={creatorHandle}
                   className="w-full h-full object-cover"
+                  onError={(e) => {
+                    (e.target as HTMLElement).style.display = "none";
+                    const fallback = (e.target as HTMLElement).nextElementSibling as HTMLElement;
+                    if (fallback) fallback.style.display = "flex";
+                  }}
                 />
+                <div className="hidden w-full h-full bg-zinc-800 items-center justify-center text-zinc-400 font-bold text-xs">
+                  {creatorHandle[0]?.toUpperCase()}
+                </div>
               </div>
 
               <div className="flex flex-col min-w-0">
