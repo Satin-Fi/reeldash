@@ -26,79 +26,42 @@ function cleanCode(code: string): string {
   return code.replace(/[^\w-]/g, "");
 }
 
-async function fetchAllMedia(username: string, sessionId?: string | null): Promise<any[]> {
-  // Strategy -1: GraphQL Cursor Pagination (fetches 50 to 100+ posts if session cookie is configured)
-  const activeSessionId = sessionId || process.env.INSTAGRAM_SESSION_ID;
-  if (activeSessionId) {
+async function fetchAllMedia(username: string): Promise<any[]> {
+  const workerUrl = process.env.REELDASH_CF_WORKER_URL;
+
+  // Strategy 1: Option B - Cloudflare Edge Worker Proxy (Zero login, 300+ edge IPs)
+  if (workerUrl) {
     try {
-      const allNodes: any[] = [];
-      let cursor: string | null = null;
-      let hasNextPage = true;
-      let pageCount = 0;
-      const MAX_PAGES = 3; // 3 pages of 35 = ~100+ posts
-
-      while (hasNextPage && pageCount < MAX_PAGES) {
-        pageCount++;
-        const variables: Record<string, any> = {
-          data: { count: 35 },
-          username: username,
-        };
-        if (cursor) {
-          variables.data.after = cursor;
+      const res = await fetch(
+        `${workerUrl.replace(/\/$/, "")}/reels?username=${encodeURIComponent(username)}`,
+        { cache: "no-store", signal: AbortSignal.timeout(8000) }
+      );
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data.items) && data.items.length > 0) {
+          console.log(`[Cloudflare Edge Worker] Fetched ${data.items.length} items for @${username}`);
+          return data.items.map((it: any) => ({
+            shortcode: it.shortcode,
+            display_url: it.thumbnail,
+            is_video: it.isVideo,
+            edge_media_to_caption: it.caption
+              ? { edges: [{ node: { text: it.caption } }] }
+              : { edges: [] },
+            edge_media_preview_like: { count: it.likes },
+            edge_media_to_comment: { count: it.comments },
+          }));
         }
-
-        const body = new URLSearchParams();
-        body.append("doc_id", "7122176461159987");
-        body.append("variables", JSON.stringify(variables));
-
-        const res = await fetch("https://www.instagram.com/api/graphql", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/x-www-form-urlencoded",
-            "X-IG-App-ID": "936619743392459",
-            "X-FB-Friendly-Name": "PolarisProfilePostsTabQuery",
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
-            "Origin": "https://www.instagram.com",
-            "Referer": `https://www.instagram.com/${encodeURIComponent(username)}/`,
-            "Cookie": `sessionid=${activeSessionId};`,
-          },
-          cache: "no-store",
-          signal: AbortSignal.timeout(8000),
-        });
-
-        if (!res.ok) break;
-        const json = await res.json();
-        const timeline = json?.data?.xdt_api__v1__feed__user_timeline_graphql_connection;
-        const edges = timeline?.edges || [];
-        if (!edges.length) break;
-
-        for (const edge of edges) {
-          if (edge?.node) {
-            allNodes.push(edge.node);
-          }
-        }
-
-        const pageInfo = timeline?.page_info;
-        hasNextPage = !!pageInfo?.has_next_page;
-        cursor = pageInfo?.end_cursor || null;
-
-        if (!cursor) break;
-      }
-
-      if (allNodes.length > 0) {
-        console.log(`[GraphQL Paginator] Fetched ${allNodes.length} posts across ${pageCount} pages for @${username}`);
-        return dedup(allNodes);
       }
     } catch {
-      // Fall through to public Hybrid Scraper
+      // fall through to Hybrid Scraper
     }
   }
 
-  // Strategy 0: Hybrid Profile Scraper (Direct Instagram Profile HTML Shortcodes + RSS Bridge)
+  // Strategy 2: Hybrid Profile Scraper (Direct Instagram Profile HTML Shortcodes + RSS Bridge)
   try {
     const nodeMap = new Map<string, any>();
 
-    // 1. Direct Instagram Profile HTML: Extract all 12 preloaded shortcodes and CDN images
+    // 1. Direct Instagram Profile HTML: Extract preloaded shortcodes and CDN images
     try {
       const igRes = await fetch(`https://www.instagram.com/${encodeURIComponent(username)}/`, {
         headers: {
@@ -239,7 +202,7 @@ async function fetchAllMedia(username: string, sessionId?: string | null): Promi
     // Fall through to SnapSave
   }
 
-  // Strategy 1: SnapSave Profile Scraper (Bypasses Cloud 429/401 rate-limits, zero credentials)
+  // Strategy 3: SnapSave Profile Scraper
   try {
     const snapItems = await resolveProfileViaSnapSave(username);
     if (Array.isArray(snapItems) && snapItems.length > 0) {
@@ -249,36 +212,7 @@ async function fetchAllMedia(username: string, sessionId?: string | null): Promi
     // Fall through to next strategy
   }
 
-  const workerUrl = process.env.REELDASH_CF_WORKER_URL;
-
-  // Strategy 2: Proxy through Cloudflare Worker edge (free, no login).
-  if (workerUrl) {
-    try {
-      const res = await fetch(
-        `${workerUrl.replace(/\/$/, "")}/reels?username=${encodeURIComponent(username)}`,
-        { cache: "no-store" }
-      );
-      if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data.items) && data.items.length > 0) {
-          return data.items.map((it: any) => ({
-            shortcode: it.shortcode,
-            display_url: it.thumbnail,
-            is_video: it.isVideo,
-            edge_media_to_caption: it.caption
-              ? { edges: [{ node: { text: it.caption } }] }
-              : { edges: [] },
-            edge_media_preview_like: { count: it.likes },
-            edge_media_to_comment: { count: it.comments },
-          }));
-        }
-      }
-    } catch {
-      // fall through to direct fetch
-    }
-  }
-
-  // Strategy 3: Direct unauthenticated fetch from this server (Vercel).
+  // Strategy 4: Direct unauthenticated fetch
   try {
     const res = await fetch(
       `https://www.instagram.com/api/v1/users/web_profile_info/?username=${encodeURIComponent(username)}`,
@@ -382,15 +316,10 @@ export async function GET(request: NextRequest) {
   }
 
   let items: any[] = [];
-  const sessionId =
-    searchParams.get("sessionId") ||
-    request.headers.get("x-instagram-session-id") ||
-    request.cookies.get("sessionid")?.value ||
-    null;
 
-  // Unauthenticated or session-paginated scrape of public media
+  // Scrape public account media (Option B Cloudflare Edge Worker -> Hybrid Scraper -> SnapSave)
   try {
-    items = await fetchAllMedia(username, sessionId);
+    items = await fetchAllMedia(username);
   } catch {
     // continue
   }
