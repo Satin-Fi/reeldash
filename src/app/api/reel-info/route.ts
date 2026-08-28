@@ -240,7 +240,7 @@ export async function POST(req: NextRequest) {
       mediaType,
       creatorUsername,
       creatorFullName,
-      creatorAvatar: `/api/instagram/avatar/${encodeURIComponent(creatorUsername)}`,
+      creatorAvatar: `/api/proxy-image?username=${encodeURIComponent(creatorUsername)}`,
       thumbnailUrl,
       mediaUrl,
       embedUrl: `https://www.instagram.com/p/${shortcode}/embed/`,

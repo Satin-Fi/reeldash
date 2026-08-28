@@ -225,7 +225,7 @@ function SearchContent() {
               <div className="w-12 h-12 rounded-full overflow-hidden bg-zinc-900 border border-zinc-700/80 shrink-0 flex items-center justify-center">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={searchedAccount.avatarUrl || `/api/instagram/avatar/${encodeURIComponent(searchedAccount.username)}`}
+                  src={`/api/proxy-image?username=${encodeURIComponent(searchedAccount.username)}`}
                   alt={searchedAccount.username}
                   onError={(e) => {
                     (e.target as HTMLElement).style.display = "none";

@@ -373,7 +373,7 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
               <div className="flex items-center space-x-2 min-w-0">
                 <div className="w-5 h-5 rounded-full overflow-hidden bg-zinc-800 border border-zinc-700/60 shrink-0 flex items-center justify-center">
                   <img
-                    src={`/api/instagram/avatar/${encodeURIComponent(displayHandle)}`}
+                    src={`/api/proxy-image?username=${encodeURIComponent(displayHandle)}`}
                     alt={displayHandle}
                     className="w-full h-full object-cover"
                     onError={(e) => {

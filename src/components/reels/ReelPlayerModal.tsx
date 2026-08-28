@@ -49,15 +49,7 @@ export function ReelPlayerModal({ reel, isOpen, onClose }: ReelPlayerModalProps)
     if (reel) {
       setNoteContent(reel.notes || "");
       const username = reel.creatorUsername || "creator";
-      if (reel.creatorAvatar && !reel.creatorAvatar.includes("ui-avatars.com")) {
-        setAvatarSrc(
-          reel.creatorAvatar.startsWith("http")
-            ? `/api/proxy-image?url=${encodeURIComponent(reel.creatorAvatar)}`
-            : reel.creatorAvatar
-        );
-      } else {
-        setAvatarSrc(`/api/instagram/avatar/${encodeURIComponent(username)}`);
-      }
+      setAvatarSrc(`/api/proxy-image?username=${encodeURIComponent(username)}`);
     }
   }, [reel]);
 

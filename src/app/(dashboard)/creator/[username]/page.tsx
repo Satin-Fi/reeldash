@@ -214,7 +214,7 @@ function CreatorProfileContent() {
             <div className="w-16 h-16 rounded-full overflow-hidden bg-zinc-900 border border-zinc-700 shrink-0 flex items-center justify-center shadow-md">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={account?.avatarUrl || `/api/instagram/avatar/${encodeURIComponent(username)}`}
+                src={`/api/proxy-image?username=${encodeURIComponent(username)}`}
                 alt={username}
                 className="w-full h-full object-cover"
                 onError={(e) => {
