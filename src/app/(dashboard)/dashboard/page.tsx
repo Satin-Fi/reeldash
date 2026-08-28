@@ -14,13 +14,48 @@ import {
   MessageCircle,
   Plus,
   Loader2,
-  CheckCircle2,
-  Search,
+  Link2,
+  X,
+  Layers,
 } from "lucide-react";
 import Link from "next/link";
 
+type DashboardCounts = {
+  reels: number;
+  posts: number;
+  audio: number;
+  favorites: number;
+};
+
+const metricItems = [
+  {
+    label: "Reels",
+    href: "/reels?type=reel",
+    icon: Film,
+    getValue: (counts: DashboardCounts) => counts.reels,
+  },
+  {
+    label: "Posts",
+    href: "/reels?type=post",
+    icon: Bookmark,
+    getValue: (counts: DashboardCounts) => counts.posts,
+  },
+  {
+    label: "Audio",
+    href: "/reels?type=audio",
+    icon: Music2,
+    getValue: (counts: DashboardCounts) => counts.audio,
+  },
+  {
+    label: "Favorites",
+    href: "/favorites",
+    icon: Heart,
+    getValue: (counts: DashboardCounts) => counts.favorites,
+  },
+];
+
 export default function DashboardPage() {
-  const { reels, favorites, saveReel, isSaveModalOpen, setIsSaveModalOpen } = useReels();
+  const { reels, favorites, saveReel, collections } = useReels();
   const { user } = useAuth();
 
   const [inputUrl, setInputUrl] = useState("");
@@ -47,214 +82,264 @@ export default function DashboardPage() {
   const postsCount = reels.filter((r) => r.mediaType === "post").length;
   const audioCount = reels.filter((r) => r.mediaType === "audio").length;
   const favsCount = favorites.length;
+  const totalItems = reels.length;
 
   const recentlySaved = [...reels].sort(
     (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
   );
+  const latestItem = recentlySaved[0];
+  const counts: DashboardCounts = {
+    reels: reelsCount,
+    posts: postsCount,
+    audio: audioCount,
+    favorites: favsCount,
+  };
 
   return (
-    <div className="space-y-8 max-w-6xl mx-auto">
-      
-      {/* ─── Hero Header & Quick Save Bar ─── */}
-      <div className="p-6 md:p-8 bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-lg shadow-rd-subtle space-y-6 transition-colors duration-200">
-        
-        {/* Welcome Text */}
-        <div className="space-y-1">
-          <div className="flex items-center space-x-2 text-xs font-semibold text-brand-600 dark:text-brand-400 uppercase tracking-wider">
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>Visual Reel Library</span>
+    <div className="mx-auto flex w-full max-w-7xl flex-col gap-6">
+      <section className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
+        <div className="relative overflow-hidden rounded-rd-xl border border-borderSubtle-light bg-surface-light p-5 shadow-rd-card transition-colors duration-200 dark:border-borderSubtle-dark dark:bg-surface-dark md:p-7">
+          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-brand-400/70 to-transparent" />
+          <div className="pointer-events-none absolute -right-16 -top-28 h-56 w-56 rounded-full bg-brand-500/10 blur-3xl" />
+
+          <div className="relative flex flex-col gap-6">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div className="space-y-2">
+                <div className="inline-flex items-center gap-2 rounded-rd-sm bg-brand-500/10 px-2.5 py-1 text-[11px] font-semibold text-brand-600 dark:text-brand-400">
+                  <Sparkles className="h-3.5 w-3.5" />
+                  <span>Creator library</span>
+                </div>
+                <div>
+                  <h1 className="text-balance text-2xl font-semibold tracking-tight text-primaryText-light dark:text-primaryText-dark md:text-4xl">
+                    {greeting}, {displayName}
+                  </h1>
+                  <p className="mt-2 max-w-2xl text-pretty text-sm leading-6 text-secondaryText-light dark:text-secondaryText-dark">
+                    Capture Instagram posts before they disappear into saved folders, then sort them into a library you can actually use.
+                  </p>
+                </div>
+              </div>
+
+              <Link
+                href="/integrations/instagram"
+                className="inline-flex shrink-0 items-center justify-center gap-2 rounded-rd-md border border-borderSubtle-light bg-surfaceSecondary-light px-3.5 py-2 text-xs font-semibold text-primaryText-light transition-all hover:border-brand-500/40 hover:text-brand-600 active:translate-y-px dark:border-borderSubtle-dark dark:bg-surfaceSecondary-dark dark:text-primaryText-dark dark:hover:text-brand-400"
+              >
+                <MessageCircle className="h-3.5 w-3.5" />
+                <span>Connect DM sync</span>
+              </Link>
+            </div>
+
+            <form onSubmit={handleQuickSave} className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto]">
+              <label className="group relative block">
+                <span className="sr-only">Instagram URL</span>
+                <Link2 className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-mutedText-light transition-colors group-focus-within:text-brand-500 dark:text-mutedText-dark" />
+                <input
+                  type="url"
+                  value={inputUrl}
+                  onChange={(e) => setInputUrl(e.target.value)}
+                  placeholder="Paste an Instagram reel, post, story, or audio link"
+                  className="h-12 w-full rounded-rd-md border border-borderSubtle-light bg-background-light pl-11 pr-11 text-sm text-primaryText-light shadow-rd-inset transition-all placeholder:text-mutedText-light focus:border-brand-500 focus:outline-none focus:ring-4 focus:ring-brand-500/10 dark:border-borderSubtle-dark dark:bg-background-dark dark:text-primaryText-dark dark:placeholder:text-mutedText-dark"
+                />
+                {inputUrl && (
+                  <button
+                    type="button"
+                    onClick={() => setInputUrl("")}
+                    className="absolute right-3 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-rd-sm text-mutedText-light transition-colors hover:bg-surfaceSecondary-light hover:text-primaryText-light active:translate-y-[calc(-50%+1px)] dark:text-mutedText-dark dark:hover:bg-surfaceSecondary-dark dark:hover:text-primaryText-dark"
+                    aria-label="Clear Instagram URL"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </label>
+
+              <button
+                type="submit"
+                disabled={!inputUrl.trim() || isSubmitting}
+                className="inline-flex h-12 items-center justify-center gap-2 rounded-rd-md bg-brand-500 px-5 text-sm font-semibold text-white shadow-rd-glow transition-all hover:bg-brand-600 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span>Saving</span>
+                  </>
+                ) : (
+                  <>
+                    <Plus className="h-4 w-4" strokeWidth={2.5} />
+                    <span>Save to library</span>
+                  </>
+                )}
+              </button>
+            </form>
           </div>
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-primaryText-light dark:text-primaryText-dark">
-            {greeting}, {displayName}
-          </h1>
-          <p className="text-xs sm:text-sm text-secondaryText-light dark:text-secondaryText-dark max-w-xl">
-            Save Instagram Reels, Posts, and Audio effortlessly. Paste any URL below or send directly via Instagram DM.
-          </p>
         </div>
 
-        {/* In-Dashboard Quick-Save Input Bar */}
-        <form onSubmit={handleQuickSave} className="flex flex-col sm:flex-row gap-2.5">
-          <div className="relative flex-1">
-            <input
-              type="text"
-              value={inputUrl}
-              onChange={(e) => setInputUrl(e.target.value)}
-              placeholder="Paste Instagram Reel or Post link (e.g. https://www.instagram.com/reel/...)"
-              className="w-full pl-4 pr-10 py-3 bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-md text-xs sm:text-sm text-primaryText-light dark:text-primaryText-dark placeholder:text-mutedText-light dark:placeholder:text-mutedText-dark focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500/30 transition-all"
-            />
-            {inputUrl && (
-              <button
-                type="button"
-                onClick={() => setInputUrl("")}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-mutedText-light dark:text-mutedText-dark hover:text-primaryText-light dark:hover:text-primaryText-dark text-xs"
+        <aside className="rounded-rd-xl border border-borderSubtle-light bg-surface-light p-5 shadow-rd-subtle dark:border-borderSubtle-dark dark:bg-surface-dark">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-medium text-secondaryText-light dark:text-secondaryText-dark">At a glance</p>
+              <p className="mt-1 text-3xl font-semibold tabular-nums tracking-tight text-primaryText-light dark:text-primaryText-dark">
+                {totalItems}
+              </p>
+            </div>
+            <div className="flex h-10 w-10 items-center justify-center rounded-rd-md bg-brand-500/10 text-brand-600 dark:text-brand-400">
+              <Layers className="h-5 w-5" />
+            </div>
+          </div>
+
+          <div className="mt-5 space-y-3 border-t border-borderSubtle-light pt-4 dark:border-borderSubtle-dark">
+            <div className="flex items-center justify-between gap-3 text-sm">
+              <span className="text-secondaryText-light dark:text-secondaryText-dark">Collections</span>
+              <span className="font-mono font-semibold text-primaryText-light dark:text-primaryText-dark">{collections.length}</span>
+            </div>
+            <div className="flex items-center justify-between gap-3 text-sm">
+              <span className="text-secondaryText-light dark:text-secondaryText-dark">Last save</span>
+              <span className="max-w-40 truncate text-right text-xs font-semibold text-primaryText-light dark:text-primaryText-dark">
+                {latestItem ? `@${latestItem.creatorUsername || "creator"}` : "No saves yet"}
+              </span>
+            </div>
+            <div className="flex items-center justify-between gap-3 text-sm">
+              <span className="text-secondaryText-light dark:text-secondaryText-dark">DM sync</span>
+              <Link
+                href="/integrations/instagram"
+                className="text-xs font-semibold text-brand-600 hover:underline dark:text-brand-400"
               >
-                ✕
-              </button>
-            )}
+                Set up
+              </Link>
+            </div>
           </div>
-          <button
-            type="submit"
-            disabled={!inputUrl.trim() || isSubmitting}
-            className="flex items-center justify-center space-x-2 px-6 py-3 bg-brand-500 hover:bg-brand-600 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold text-xs sm:text-sm rounded-rd-md shadow-rd-glow transition-all shrink-0 cursor-pointer"
-          >
-            {isSubmitting ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Saving...</span>
-              </>
-            ) : (
-              <>
-                <Plus className="w-4 h-4" strokeWidth={2.5} />
-                <span>Save to Library</span>
-              </>
-            )}
-          </button>
-        </form>
-      </div>
+        </aside>
+      </section>
 
-      {/* ─── Metric Stat Cards ─── */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-        
-        {/* Reels */}
-        <Link
-          href="/reels?type=reel"
-          className="p-4 bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark hover:border-brand-500/40 rounded-rd-md shadow-rd-subtle flex items-center space-x-3.5 transition-all group cursor-pointer"
-        >
-          <div className="p-2.5 rounded-rd-sm bg-purple-500/10 text-purple-600 dark:text-purple-400 group-hover:scale-105 transition-transform shrink-0">
-            <Film className="w-5 h-5" />
-          </div>
-          <div className="min-w-0">
-            <p className="text-[11px] font-medium text-secondaryText-light dark:text-secondaryText-dark uppercase tracking-wider">
-              Reels
-            </p>
-            <p className="text-xl font-bold font-mono text-primaryText-light dark:text-primaryText-dark">
-              {reelsCount}
-            </p>
-          </div>
-        </Link>
+      <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {metricItems.map((item) => {
+          const Icon = item.icon;
 
-        {/* Posts & Photos */}
-        <Link
-          href="/reels?type=post"
-          className="p-4 bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark hover:border-brand-500/40 rounded-rd-md shadow-rd-subtle flex items-center space-x-3.5 transition-all group cursor-pointer"
-        >
-          <div className="p-2.5 rounded-rd-sm bg-blue-500/10 text-blue-600 dark:text-blue-400 group-hover:scale-105 transition-transform shrink-0">
-            <Bookmark className="w-5 h-5" />
-          </div>
-          <div className="min-w-0">
-            <p className="text-[11px] font-medium text-secondaryText-light dark:text-secondaryText-dark uppercase tracking-wider">
-              Posts
-            </p>
-            <p className="text-xl font-bold font-mono text-primaryText-light dark:text-primaryText-dark">
-              {postsCount}
-            </p>
-          </div>
-        </Link>
+          return (
+            <Link
+              key={item.label}
+              href={item.href}
+              className="group rounded-rd-lg border border-borderSubtle-light bg-surface-light p-4 shadow-rd-subtle transition-all hover:-translate-y-0.5 hover:border-brand-500/40 hover:shadow-rd-card active:translate-y-px dark:border-borderSubtle-dark dark:bg-surface-dark"
+            >
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-rd-md bg-brand-500/10 text-brand-600 transition-transform group-hover:scale-105 dark:text-brand-400">
+                  <Icon className="h-4.5 w-4.5" />
+                </div>
+                <ArrowRight className="h-4 w-4 text-mutedText-light opacity-0 transition-all group-hover:translate-x-0.5 group-hover:opacity-100 dark:text-mutedText-dark" />
+              </div>
+              <p className="mt-4 text-2xl font-semibold tabular-nums tracking-tight text-primaryText-light dark:text-primaryText-dark">
+                {item.getValue(counts)}
+              </p>
+              <p className="mt-1 text-xs font-medium text-secondaryText-light dark:text-secondaryText-dark">
+                {item.label}
+              </p>
+            </Link>
+          );
+        })}
+      </section>
 
-        {/* Audio */}
-        <Link
-          href="/reels?type=audio"
-          className="p-4 bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark hover:border-brand-500/40 rounded-rd-md shadow-rd-subtle flex items-center space-x-3.5 transition-all group cursor-pointer"
-        >
-          <div className="p-2.5 rounded-rd-sm bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 group-hover:scale-105 transition-transform shrink-0">
-            <Music2 className="w-5 h-5" />
-          </div>
-          <div className="min-w-0">
-            <p className="text-[11px] font-medium text-secondaryText-light dark:text-secondaryText-dark uppercase tracking-wider">
-              Audio
-            </p>
-            <p className="text-xl font-bold font-mono text-primaryText-light dark:text-primaryText-dark">
-              {audioCount}
-            </p>
-          </div>
-        </Link>
-
-        {/* Favorites */}
-        <Link
-          href="/favorites"
-          className="p-4 bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark hover:border-brand-500/40 rounded-rd-md shadow-rd-subtle flex items-center space-x-3.5 transition-all group cursor-pointer"
-        >
-          <div className="p-2.5 rounded-rd-sm bg-rose-500/10 text-rose-600 dark:text-rose-400 group-hover:scale-105 transition-transform shrink-0">
-            <Heart className="w-5 h-5" />
-          </div>
-          <div className="min-w-0">
-            <p className="text-[11px] font-medium text-secondaryText-light dark:text-secondaryText-dark uppercase tracking-wider">
-              Favorites
-            </p>
-            <p className="text-xl font-bold font-mono text-primaryText-light dark:text-primaryText-dark">
-              {favsCount}
-            </p>
-          </div>
-        </Link>
-      </div>
-
-      {/* ─── Content: Recently Saved or Actionable Empty State ─── */}
-      <div className="space-y-4">
+      <section className="space-y-4">
         {reels.length > 0 ? (
           <>
-            <div className="flex items-center justify-between">
-              <h2 className="text-base font-bold text-primaryText-light dark:text-primaryText-dark tracking-tight">
-                Recently Saved
-              </h2>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <p className="text-xs font-medium text-secondaryText-light dark:text-secondaryText-dark">
+                  Latest captures
+                </p>
+                <h2 className="mt-1 text-xl font-semibold tracking-tight text-primaryText-light dark:text-primaryText-dark">
+                  Recently saved
+                </h2>
+              </div>
               <Link
                 href="/reels"
-                className="flex items-center space-x-1 text-xs font-semibold text-brand-600 dark:text-brand-400 hover:underline"
+                className="inline-flex items-center gap-1.5 text-sm font-semibold text-brand-600 transition-colors hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300"
               >
-                <span>View all library</span>
-                <ArrowRight className="w-3.5 h-3.5" />
+                <span>Open full library</span>
+                <ArrowRight className="h-4 w-4" />
               </Link>
             </div>
             <ReelGrid reels={recentlySaved} />
           </>
         ) : (
-          /* ─── Clean, Actionable Empty State (Zero Mock Data) ─── */
-          <div className="p-8 sm:p-12 text-center bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-lg shadow-rd-subtle space-y-6">
-            <div className="w-12 h-12 rounded-full bg-brand-500/10 text-brand-500 mx-auto flex items-center justify-center">
-              <Film className="w-6 h-6" />
-            </div>
-
-            <div className="space-y-1.5 max-w-md mx-auto">
-              <h3 className="text-lg font-bold text-primaryText-light dark:text-primaryText-dark">
-                Your Reel library is ready
-              </h3>
-              <p className="text-xs text-secondaryText-light dark:text-secondaryText-dark leading-relaxed">
-                Save your first Instagram Reel or Post using the box above, or link your Instagram account to save reels seamlessly via DM.
-              </p>
-            </div>
-
-            {/* Two clean onboarding action cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-lg mx-auto pt-2 text-left">
-              
-              <div className="p-4 bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-md space-y-2">
-                <div className="flex items-center space-x-2 text-brand-600 dark:text-brand-400 font-semibold text-xs">
-                  <Plus className="w-4 h-4" />
-                  <span>Option 1: Paste Link</span>
+          <div className="overflow-hidden rounded-rd-xl border border-borderSubtle-light bg-surface-light shadow-rd-card dark:border-borderSubtle-dark dark:bg-surface-dark">
+            <div className="grid gap-0 lg:grid-cols-[minmax(0,0.95fr)_minmax(20rem,1fr)]">
+              <div className="flex flex-col justify-between gap-10 p-6 md:p-8">
+                <div className="space-y-3">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-rd-md bg-brand-500 text-white shadow-rd-glow">
+                    <Film className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-2xl font-semibold tracking-tight text-primaryText-light dark:text-primaryText-dark">
+                      Build your first useful save.
+                    </h3>
+                    <p className="mt-2 max-w-md text-sm leading-6 text-secondaryText-light dark:text-secondaryText-dark">
+                      Start with one Instagram URL. ReelDash will keep the source link, creator, thumbnail, category, and notes together.
+                    </p>
+                  </div>
                 </div>
-                <p className="text-xs text-secondaryText-light dark:text-secondaryText-dark">
-                  Copy any Instagram reel URL and paste it in the box at the top of your dashboard.
-                </p>
+
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <button
+                    onClick={() => document.querySelector<HTMLInputElement>('input[type="url"]')?.focus()}
+                    className="inline-flex items-center justify-center gap-2 rounded-rd-md bg-brand-500 px-4 py-2.5 text-sm font-semibold text-white shadow-rd-glow transition-all hover:bg-brand-600 active:translate-y-px"
+                  >
+                    <Plus className="h-4 w-4" />
+                    <span>Paste a link</span>
+                  </button>
+                  <Link
+                    href="/integrations/instagram"
+                    className="inline-flex items-center justify-center gap-2 rounded-rd-md border border-borderSubtle-light bg-surfaceSecondary-light px-4 py-2.5 text-sm font-semibold text-primaryText-light transition-all hover:border-brand-500/40 hover:text-brand-600 active:translate-y-px dark:border-borderSubtle-dark dark:bg-surfaceSecondary-dark dark:text-primaryText-dark dark:hover:text-brand-400"
+                  >
+                    <MessageCircle className="h-4 w-4" />
+                    <span>Use DM sync</span>
+                  </Link>
+                </div>
               </div>
 
-              <Link
-                href="/integrations/instagram"
-                className="p-4 bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark border border-borderSubtle-light dark:border-borderSubtle-dark hover:border-brand-500/40 rounded-rd-md space-y-2 group transition-colors block"
-              >
-                <div className="flex items-center justify-between text-violet-600 dark:text-violet-400 font-semibold text-xs">
-                  <div className="flex items-center space-x-2">
-                    <MessageCircle className="w-4 h-4" />
-                    <span>Option 2: Instagram DM</span>
-                  </div>
-                  <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
-                </div>
-                <p className="text-xs text-secondaryText-light dark:text-secondaryText-dark">
-                  Link your @handle to DM reels to @ReelDash_app and auto-sync to your gallery.
-                </p>
-              </Link>
+              <div className="border-t border-borderSubtle-light bg-background-light/80 p-5 dark:border-borderSubtle-dark dark:bg-background-dark/60 lg:border-l lg:border-t-0">
+                <div className="grid h-full gap-3 sm:grid-cols-3 lg:grid-cols-1">
+                  {[
+                    {
+                      title: "Paste",
+                      body: "Drop a reel, post, story, or audio link into the save bar.",
+                      icon: Link2,
+                    },
+                    {
+                      title: "Enrich",
+                      body: "Metadata fills in while your item appears instantly.",
+                      icon: Sparkles,
+                    },
+                    {
+                      title: "Organize",
+                      body: "Mark favorites, create collections, and return to ideas faster.",
+                      icon: Bookmark,
+                    },
+                  ].map((step) => {
+                    const StepIcon = step.icon;
 
+                    return (
+                      <div
+                        key={step.title}
+                        className="rounded-rd-lg border border-borderSubtle-light bg-surface-light p-4 dark:border-borderSubtle-dark dark:bg-surface-dark"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-8 w-8 items-center justify-center rounded-rd-sm bg-brand-500/10 text-brand-600 dark:text-brand-400">
+                            <StepIcon className="h-4 w-4" />
+                          </div>
+                          <h4 className="text-sm font-semibold text-primaryText-light dark:text-primaryText-dark">
+                            {step.title}
+                          </h4>
+                        </div>
+                        <p className="mt-3 text-xs leading-5 text-secondaryText-light dark:text-secondaryText-dark">
+                          {step.body}
+                        </p>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
           </div>
         )}
-      </div>
+      </section>
     </div>
   );
 }

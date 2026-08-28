@@ -267,15 +267,6 @@ export default function ReelDetailPage() {
                     </span>
                   )}
                 </div>
-                <a
-                  href={reel.instagramUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-[11px] text-[#0095F6] hover:underline flex items-center space-x-1"
-                >
-                  <span>View on Instagram</span>
-                  <ExternalLink className="w-3 h-3" />
-                </a>
               </div>
 
               {/* Hashtags list */}
@@ -480,17 +471,15 @@ export default function ReelDetailPage() {
               </p>
             </div>
 
-            {/* Row 3: Open on Instagram Button */}
-            <div className="pt-2 flex items-center">
-              <a
-                href={reel.instagramUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="w-full py-2 px-4 bg-zinc-900 hover:bg-zinc-800 text-zinc-200 rounded-md text-xs font-medium flex items-center justify-center space-x-1.5 border border-zinc-800 transition-colors"
+            {/* Row 3: Add to Collection Primary Action */}
+            <div className="pt-2 flex items-center gap-2">
+              <button
+                onClick={() => setIsCollectionPickerOpen(true)}
+                className="w-full py-2.5 px-4 bg-brand-500 hover:bg-brand-600 active:scale-98 text-white rounded-md text-xs font-semibold flex items-center justify-center space-x-1.5 transition-all shadow-sm cursor-pointer"
               >
-                <span>Open on Instagram</span>
-                <ExternalLink className="w-3.5 h-3.5" />
-              </a>
+                <FolderPlus className="w-4 h-4" />
+                <span>Add to Collection</span>
+              </button>
             </div>
           </div>
         </div>
