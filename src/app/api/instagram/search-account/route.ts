@@ -59,19 +59,18 @@ export async function GET(request: NextRequest) {
 
       if (embedRes.ok) {
         const embedHtml = await embedRes.text();
+        const unescaped = embedHtml
+          .replace(/\\u0026/gi, "&")
+          .replace(/\\u00253D/gi, "%3D")
+          .replace(/\\\//g, "/")
+          .replace(/\\/g, "");
+
         const scontentMatches =
-          embedHtml.match(
-            /https:[\\\/]+[a-zA-Z0-9.\-_]*scontent[a-zA-Z0-9.\-_]*\.cdninstagram\.com[\\\/][^"'\s<>]+/g
+          unescaped.match(
+            /https:\/\/[a-zA-Z0-9.\-_]*scontent[a-zA-Z0-9.\-_]*\.cdninstagram\.com\/[^\s"'<>]+/g
           ) || [];
 
-        for (const rawUrl of scontentMatches) {
-          const decoded = rawUrl
-            .replace(/\\\//g, "/")
-            .replace(/\\u00253D/gi, "%3D")
-            .replace(/\\u0026/gi, "&")
-            .replace(/&amp;/g, "&")
-            .replace(/\\+$/, "");
-
+        for (const decoded of scontentMatches) {
           if (
             decoded.includes("t51.82787-19") ||
             decoded.includes("t51.2885-19") ||
