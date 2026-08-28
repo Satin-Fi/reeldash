@@ -228,7 +228,9 @@ function normalize(node: any) {
     instagramUrl: isVideo
       ? `https://www.instagram.com/reel/${shortcode}/`
       : `https://www.instagram.com/p/${shortcode}/`,
-    thumbnailUrl: displayUrl || "",
+    thumbnailUrl: displayUrl
+      ? `/api/proxy-image?url=${encodeURIComponent(displayUrl)}`
+      : "",
     rawThumbnailUrl: displayUrl || "",
     caption,
     isVideo,
