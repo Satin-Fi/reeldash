@@ -6,6 +6,8 @@ import { useReels } from "@/context/ReelContext";
 import { ReelGrid } from "@/components/reels/ReelGrid";
 import { ReelPlayerModal } from "@/components/reels/ReelPlayerModal";
 import { CreatorReelGrid, CreatorReelItem } from "@/components/reels/CreatorReelGrid";
+import { AnimatedTabs } from "@/components/ui/AnimatedTabs";
+import { SpotlightCard } from "@/components/ui/SpotlightCard";
 import { Reel } from "@/types/reel";
 import {
   Instagram,
@@ -218,8 +220,8 @@ function CreatorProfileContent() {
         <span>Back to search</span>
       </button>
 
-      {/* ─── CREATOR PROFILE CARD ─── */}
-      <div className="p-6 bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-lg shadow-rd-subtle space-y-6">
+      {/* ─── CREATOR PROFILE CARD (21st.dev Spotlight Card) ─── */}
+      <SpotlightCard className="p-6 space-y-6">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center space-x-4 min-w-0">
             
@@ -232,14 +234,9 @@ function CreatorProfileContent() {
                 referrerPolicy="no-referrer"
                 className="w-full h-full object-cover"
                 onError={(e) => {
-                  (e.target as HTMLElement).style.display = "none";
-                  const fallback = (e.target as HTMLElement).nextElementSibling as HTMLElement;
-                  if (fallback) fallback.style.display = "flex";
+                  (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(username)}&background=6366F1&color=fff&size=200&bold=true`;
                 }}
               />
-              <div className="hidden w-full h-full bg-zinc-800 items-center justify-center text-zinc-400 font-bold text-lg">
-                {username[0]?.toUpperCase()}
-              </div>
             </div>
 
             {/* Handle & Name */}
@@ -356,69 +353,20 @@ function CreatorProfileContent() {
             <span>Save to Library</span>
           </button>
         </form>
-      </div>
+      </SpotlightCard>
 
-      {/* ─── MEDIA TYPE TABS (Clean High-Contrast Tabs) ─── */}
-      <div className="flex items-center space-x-2 border-b border-borderSubtle-light dark:border-borderSubtle-dark pb-2 overflow-x-auto text-xs">
-        <button
-          onClick={() => setActiveTab("reels")}
-          className={`flex items-center space-x-2 px-3.5 py-2 rounded-rd-md font-semibold transition-all cursor-pointer shrink-0 ${
-            activeTab === "reels"
-              ? "bg-brand-500/10 text-brand-600 dark:text-brand-400 border border-brand-500/25"
-              : "text-secondaryText-light dark:text-secondaryText-dark hover:bg-surfaceSecondary-light dark:hover:bg-surfaceSecondary-dark hover:text-primaryText-light dark:hover:text-primaryText-dark"
-          }`}
-        >
-          <Film className="w-4 h-4" />
-          <span>Reels</span>
-          <span className="px-1.5 py-0.5 rounded-full text-[10px] font-mono bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark text-secondaryText-light dark:text-secondaryText-dark">
-            {totalReelsCount}
-          </span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab("posts")}
-          className={`flex items-center space-x-2 px-3.5 py-2 rounded-rd-md font-semibold transition-all cursor-pointer shrink-0 ${
-            activeTab === "posts"
-              ? "bg-brand-500/10 text-brand-600 dark:text-brand-400 border border-brand-500/25"
-              : "text-secondaryText-light dark:text-secondaryText-dark hover:bg-surfaceSecondary-light dark:hover:bg-surfaceSecondary-dark hover:text-primaryText-light dark:hover:text-primaryText-dark"
-          }`}
-        >
-          <Grid className="w-4 h-4" />
-          <span>Posts & Carousels</span>
-          <span className="px-1.5 py-0.5 rounded-full text-[10px] font-mono bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark text-secondaryText-light dark:text-secondaryText-dark">
-            {totalPostsCount}
-          </span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab("stories")}
-          className={`flex items-center space-x-2 px-3.5 py-2 rounded-rd-md font-semibold transition-all cursor-pointer shrink-0 ${
-            activeTab === "stories"
-              ? "bg-brand-500/10 text-brand-600 dark:text-brand-400 border border-brand-500/25"
-              : "text-secondaryText-light dark:text-secondaryText-dark hover:bg-surfaceSecondary-light dark:hover:bg-surfaceSecondary-dark hover:text-primaryText-light dark:hover:text-primaryText-dark"
-          }`}
-        >
-          <CircleDashed className="w-4 h-4" />
-          <span>Stories</span>
-          <span className="px-1.5 py-0.5 rounded-full text-[10px] font-mono bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark text-secondaryText-light dark:text-secondaryText-dark">
-            {totalStoriesCount}
-          </span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab("audio")}
-          className={`flex items-center space-x-2 px-3.5 py-2 rounded-rd-md font-semibold transition-all cursor-pointer shrink-0 ${
-            activeTab === "audio"
-              ? "bg-brand-500/10 text-brand-600 dark:text-brand-400 border border-brand-500/25"
-              : "text-secondaryText-light dark:text-secondaryText-dark hover:bg-surfaceSecondary-light dark:hover:bg-surfaceSecondary-dark hover:text-primaryText-light dark:hover:text-primaryText-dark"
-          }`}
-        >
-          <Music2 className="w-4 h-4" />
-          <span>Audio</span>
-          <span className="px-1.5 py-0.5 rounded-full text-[10px] font-mono bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark text-secondaryText-light dark:text-secondaryText-dark">
-            {totalAudioCount}
-          </span>
-        </button>
+      {/* ─── MEDIA TYPE TABS (21st.dev Animated Tabs) ─── */}
+      <div className="pb-2 overflow-x-auto">
+        <AnimatedTabs<"reels" | "posts" | "stories" | "audio">
+          tabs={[
+            { id: "reels", label: "Reels", count: totalReelsCount, icon: <Film className="w-3.5 h-3.5" /> },
+            { id: "posts", label: "Posts & Carousels", count: totalPostsCount, icon: <Grid className="w-3.5 h-3.5" /> },
+            { id: "stories", label: "Stories", count: totalStoriesCount, icon: <CircleDashed className="w-3.5 h-3.5" /> },
+            { id: "audio", label: "Audio", count: totalAudioCount, icon: <Music2 className="w-3.5 h-3.5" /> },
+          ]}
+          activeTab={activeTab}
+          onChange={(tab) => setActiveTab(tab)}
+        />
       </div>
 
       {/* ─── TAB CONTENT ─── */}

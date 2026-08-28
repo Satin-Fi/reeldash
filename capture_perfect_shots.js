@@ -24,13 +24,13 @@ async function run() {
   // 1. Marvel Creator Page
   console.log("1. Capturing Marvel Creator Page...");
   await page.goto('https://reeldash-nine.vercel.app/creator/marvel', { waitUntil: 'networkidle2' });
-  await new Promise(r => setTimeout(r, 4000));
+  await new Promise(r => setTimeout(r, 6000));
   await page.screenshot({ path: path.join(artifactDir, 'screenshot_live_creator_marvel_final.png') });
 
   // 2. Romana Creator Page
   console.log("2. Capturing Romana Creator Page...");
   await page.goto('https://reeldash-nine.vercel.app/creator/lifeof.romana', { waitUntil: 'networkidle2' });
-  await new Promise(r => setTimeout(r, 4000));
+  await new Promise(r => setTimeout(r, 6000));
   await page.screenshot({ path: path.join(artifactDir, 'screenshot_live_creator_romana_final.png') });
 
   // 3. Search Page

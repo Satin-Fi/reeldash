@@ -49,13 +49,31 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
   const shortcodeMatch = reel.instagramUrl.match(/(?:reel|reels|p|audio|stories)\/([A-Za-z0-9_-]+)/);
   const shortcode = shortcodeMatch ? shortcodeMatch[1] : null;
 
-  // Clean thumbnail image source via our proxy endpoint
-  const imageSrc =
-    !imageError && reel.thumbnailUrl
-      ? reel.thumbnailUrl
-      : shortcode
-      ? `/api/proxy-image?shortcode=${shortcode}`
-      : "";
+  // Clean thumbnail image source via our proxy endpoint with multiple fallback layers
+  const resolveImageSource = () => {
+    if (imageError) {
+      return shortcode
+        ? `/api/proxy-image?shortcode=${shortcode}`
+        : "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600&auto=format&fit=crop&q=80";
+    }
+    if (reel.thumbnailUrl) {
+      if (
+        reel.thumbnailUrl.startsWith("http") &&
+        !reel.thumbnailUrl.includes("wsrv.nl") &&
+        !reel.thumbnailUrl.includes("ui-avatars.com") &&
+        !reel.thumbnailUrl.includes("unsplash.com")
+      ) {
+        return `/api/proxy-image?url=${encodeURIComponent(reel.thumbnailUrl)}`;
+      }
+      return reel.thumbnailUrl;
+    }
+    if (shortcode) {
+      return `/api/proxy-image?shortcode=${shortcode}`;
+    }
+    return "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600&auto=format&fit=crop&q=80";
+  };
+
+  const imageSrc = resolveImageSource();
 
   const displayCreator =
     reel.creatorFullName || reel.creatorUsername || (shortcode ? `ig_${shortcode.substring(0, 6)}` : "creator");
@@ -102,7 +120,14 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
                 src={imageSrc}
                 alt={displayCaption}
                 referrerPolicy="no-referrer"
-                onError={() => setImageError(true)}
+                onError={(e) => {
+                  if (!imageError && shortcode) {
+                    setImageError(true);
+                  } else {
+                    (e.target as HTMLImageElement).src =
+                      "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600&auto=format&fit=crop&q=80";
+                  }
+                }}
                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
               />
               <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
@@ -191,7 +216,14 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
               src={imageSrc}
               alt={displayCaption}
               referrerPolicy="no-referrer"
-              onError={() => setImageError(true)}
+              onError={(e) => {
+                if (!imageError && shortcode) {
+                  setImageError(true);
+                } else {
+                  (e.target as HTMLImageElement).src =
+                    "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600&auto=format&fit=crop&q=80";
+                }
+              }}
               className="w-full h-full object-cover group-hover:scale-103 transition-transform duration-300 ease-out"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/30 opacity-70 group-hover:opacity-90 transition-opacity" />

@@ -153,7 +153,9 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    const avatarUrl = realAvatarCdnUrl || `/api/proxy-image?username=${encodeURIComponent(cleanUsername)}`;
+    const avatarUrl = realAvatarCdnUrl
+      ? `/api/proxy-image?url=${encodeURIComponent(realAvatarCdnUrl)}`
+      : `/api/proxy-image?username=${encodeURIComponent(cleanUsername)}`;
 
     return NextResponse.json({
       success: true,

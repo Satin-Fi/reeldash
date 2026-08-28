@@ -94,7 +94,20 @@ function CreatorReelTile({ item, creatorUsername }: { item: CreatorReelItem; cre
     }
   };
 
-  const currentImg = item.thumbnailUrl || item.rawThumbnailUrl || imgSrc;
+  const resolveCurrentImg = () => {
+    const raw = item.thumbnailUrl || item.rawThumbnailUrl || imgSrc;
+    if (!raw) {
+      return item.shortcode
+        ? `/api/proxy-image?shortcode=${item.shortcode}`
+        : "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600&auto=format&fit=crop&q=80";
+    }
+    if (raw.startsWith("http") && !raw.includes("wsrv.nl") && !raw.includes("unsplash.com") && !raw.includes("ui-avatars.com")) {
+      return `/api/proxy-image?url=${encodeURIComponent(raw)}`;
+    }
+    return raw;
+  };
+
+  const currentImg = resolveCurrentImg();
 
   return (
     <>
@@ -108,6 +121,14 @@ function CreatorReelTile({ item, creatorUsername }: { item: CreatorReelItem; cre
           src={currentImg}
           alt={item.caption || "Instagram Media"}
           referrerPolicy="no-referrer"
+          onError={(e) => {
+            if (item.shortcode) {
+              (e.target as HTMLImageElement).src = `/api/proxy-image?shortcode=${item.shortcode}`;
+            } else {
+              (e.target as HTMLImageElement).src =
+                "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600&auto=format&fit=crop&q=80";
+            }
+          }}
           className="w-full h-full object-cover group-hover:scale-103 transition-transform duration-300 ease-out"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/30 opacity-70 group-hover:opacity-90 transition-opacity" />

@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 import { useReels } from "@/context/ReelContext";
 import { ReelGrid } from "@/components/reels/ReelGrid";
+import { Spline3DHero } from "@/components/ui/Spline3DHero";
+import { BentoGrid, BentoCard } from "@/components/ui/BentoGrid";
 import {
   ArrowRight,
   ArrowUpRight,
@@ -73,17 +75,101 @@ export default function DashboardPage() {
   return (
     <div className="mx-auto grid w-full max-w-7xl gap-5 xl:grid-cols-[minmax(0,1fr)_19rem]">
       <main className="min-w-0 space-y-6">
+        {/* Spline 3D Interactive Media Engine Studio */}
+        <Spline3DHero className="mb-6" />
+
+        {/* 21st.dev Bento Grid: Core Media Capabilities */}
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wider text-brand-600 dark:text-brand-400">
+                PRO MEDIA WORKSPACES
+              </p>
+              <h2 className="text-lg font-bold tracking-tight text-primaryText-light dark:text-primaryText-dark mt-0.5">
+                Organize, Stream & Extract
+              </h2>
+            </div>
+            <span className="text-xs text-zinc-400">Press ⌘K for Quick Actions</span>
+          </div>
+
+          <BentoGrid>
+            <BentoCard
+              title="🎬 Reels & Direct Video Stream"
+              subtitle="Native HTML5 video playback with 1-tap unmute, persistent volume controls, and background buffer."
+              badge="Active"
+              actionText="Open Reels"
+              onAction={() => window.location.assign("/reels?type=reel")}
+              colSpan="md:col-span-1"
+            >
+              <div className="h-16 rounded-xl bg-gradient-to-r from-brand-500/10 to-purple-500/10 border border-brand-500/20 p-3 flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <Film className="w-5 h-5 text-brand-500" />
+                  <span className="text-xs font-semibold text-zinc-900 dark:text-white">
+                    {counts.reels} Saved Reels
+                  </span>
+                </div>
+                <span className="text-[10px] font-mono font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full">
+                  100% Native
+                </span>
+              </div>
+            </BentoCard>
+
+            <BentoCard
+              title="📸 Multi-Media Posts & Carousels"
+              subtitle="Separated photo and video slides with individual media filter tabs (All, Photos, Videos) so HTML5 never crashes."
+              badge="New Engine"
+              actionText="View Posts"
+              onAction={() => window.location.assign("/reels?type=post")}
+              colSpan="md:col-span-1"
+            >
+              <div className="h-16 rounded-xl bg-gradient-to-r from-pink-500/10 to-rose-500/10 border border-pink-500/20 p-3 flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <ImageIcon className="w-5 h-5 text-pink-500" />
+                  <span className="text-xs font-semibold text-zinc-900 dark:text-white">
+                    {counts.posts} Saved Posts
+                  </span>
+                </div>
+                <span className="text-[10px] font-mono font-bold text-brand-400 bg-brand-500/10 px-2 py-0.5 rounded-full">
+                  Slide Isolated
+                </span>
+              </div>
+            </BentoCard>
+
+            <BentoCard
+              title="🎵 Audio & Music Tracks"
+              subtitle="Original audio track isolation, waveforms, and 1-click MP3 download without personal account credentials."
+              badge="Extractor"
+              actionText="Listen"
+              onAction={() => window.location.assign("/reels?type=audio")}
+              colSpan="md:col-span-1"
+            >
+              <div className="h-16 rounded-xl bg-gradient-to-r from-purple-500/10 to-indigo-500/10 border border-purple-500/20 p-3 flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <Music2 className="w-5 h-5 text-purple-500" />
+                  <span className="text-xs font-semibold text-zinc-900 dark:text-white">
+                    {counts.audio} Audio Tracks
+                  </span>
+                </div>
+                <span className="text-[10px] font-mono font-bold text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded-full">
+                  MP3 Ready
+                </span>
+              </div>
+            </BentoCard>
+          </BentoGrid>
+        </div>
+
+        {/* Quick Ingest & Overview Bar */}
         <section className="overflow-hidden rounded-rd-xl border border-borderSubtle-light bg-surface-light shadow-rd-card dark:border-borderSubtle-dark dark:bg-surface-dark">
-          <div className="grid min-h-[23rem] lg:grid-cols-[minmax(0,1fr)_19rem]">
+          <div className="grid min-h-[20rem] lg:grid-cols-[minmax(0,1fr)_19rem]">
             <div className="flex min-w-0 flex-col p-5 sm:p-7">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <p className="text-xs font-semibold tracking-[0.08em] text-brand-600 dark:text-brand-400">REELDASH LIBRARY</p>
-                  <h1 className="mt-3 max-w-xl text-3xl font-semibold leading-tight tracking-tight text-primaryText-light dark:text-primaryText-dark sm:text-4xl">
+                  <p className="text-xs font-semibold tracking-[0.08em] text-brand-600 dark:text-brand-400">REELDASH CAPTURE DOCK</p>
+                  <h1 className="mt-2 max-w-xl text-2xl font-bold leading-tight tracking-tight text-primaryText-light dark:text-primaryText-dark sm:text-3xl">
                     {greeting}, {displayName}.
                   </h1>
-                  <p className="mt-3 max-w-xl text-sm leading-6 text-secondaryText-light dark:text-secondaryText-dark">
-                    Keep the ideas you want to return to close at hand. Save a link, then give it a home when you are ready.
+                  <p className="mt-2 max-w-xl text-xs leading-relaxed text-secondaryText-light dark:text-secondaryText-dark">
+                    Paste any Instagram link or press <kbd className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-white/[0.08] text-[10px] font-mono">⌘K</kbd> to search and capture.
                   </p>
                 </div>
                 <Link href="/integrations/instagram" className="hidden shrink-0 items-center gap-2 text-xs font-semibold text-brand-600 transition-colors hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300 sm:inline-flex">
@@ -92,7 +178,7 @@ export default function DashboardPage() {
                 </Link>
               </div>
 
-              <form onSubmit={handleQuickSave} className="mt-8 grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
+              <form onSubmit={handleQuickSave} className="mt-6 grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
                 <label className="group relative block">
                   <span className="sr-only">Instagram URL</span>
                   <Link2 className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-mutedText-light group-focus-within:text-brand-500 dark:text-mutedText-dark" />
@@ -109,16 +195,16 @@ export default function DashboardPage() {
                     </button>
                   )}
                 </label>
-                <button type="submit" disabled={!inputUrl.trim() || isSubmitting} className="inline-flex h-12 items-center justify-center gap-2 rounded-rd-md bg-brand-600 px-5 text-sm font-semibold text-white transition-colors hover:bg-brand-700 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-50">
+                <button type="submit" disabled={!inputUrl.trim() || isSubmitting} className="inline-flex h-12 items-center justify-center gap-2 rounded-rd-md bg-brand-600 px-5 text-sm font-semibold text-white transition-colors hover:bg-brand-700 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-50 shadow-rd-glow">
                   {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" strokeWidth={2.5} />}
                   <span>{isSubmitting ? "Saving" : "Save to library"}</span>
                 </button>
               </form>
 
-              <div className="mt-auto grid grid-cols-3 divide-x divide-borderSubtle-light pt-8 dark:divide-borderSubtle-dark">
-                <div className="pr-4"><p className="font-mono text-2xl font-semibold tabular-nums text-primaryText-light dark:text-primaryText-dark">{reels.length}</p><p className="mt-1 text-xs text-secondaryText-light dark:text-secondaryText-dark">saved items</p></div>
-                <div className="px-4"><p className="font-mono text-2xl font-semibold tabular-nums text-primaryText-light dark:text-primaryText-dark">{thisWeekCount}</p><p className="mt-1 text-xs text-secondaryText-light dark:text-secondaryText-dark">saved this week</p></div>
-                <div className="pl-4"><p className="font-mono text-2xl font-semibold tabular-nums text-primaryText-light dark:text-primaryText-dark">{collections.length}</p><p className="mt-1 text-xs text-secondaryText-light dark:text-secondaryText-dark">collections</p></div>
+              <div className="mt-auto grid grid-cols-3 divide-x divide-borderSubtle-light pt-6 dark:divide-borderSubtle-dark">
+                <div className="pr-4"><p className="font-mono text-2xl font-semibold tabular-nums text-primaryText-light dark:text-primaryText-dark">{reels.length}</p><p className="mt-0.5 text-xs text-secondaryText-light dark:text-secondaryText-dark">saved items</p></div>
+                <div className="px-4"><p className="font-mono text-2xl font-semibold tabular-nums text-primaryText-light dark:text-primaryText-dark">{thisWeekCount}</p><p className="mt-0.5 text-xs text-secondaryText-light dark:text-secondaryText-dark">saved this week</p></div>
+                <div className="pl-4"><p className="font-mono text-2xl font-semibold tabular-nums text-primaryText-light dark:text-primaryText-dark">{collections.length}</p><p className="mt-0.5 text-xs text-secondaryText-light dark:text-secondaryText-dark">collections</p></div>
               </div>
             </div>
 

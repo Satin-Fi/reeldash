@@ -2,14 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
 
-// In-memory avatar cache for instant responses
-const avatarUrlCache = new Map<string, { url: string; expiresAt: number }>();
+// In-memory cache for instant responses
+const avatarCache = new Map<string, { url: string; expiresAt: number }>();
+const thumbCache = new Map<string, { url: string; expiresAt: number }>();
 
 async function fetchRealAvatarUrl(username: string): Promise<string | null> {
   const cleanUsername = username.replace(/^@/, "").trim().toLowerCase();
   if (!cleanUsername) return null;
 
-  const cached = avatarUrlCache.get(cleanUsername);
+  const cached = avatarCache.get(cleanUsername);
   if (cached && cached.expiresAt > Date.now()) {
     return cached.url;
   }
@@ -59,10 +60,7 @@ async function fetchRealAvatarUrl(username: string): Promise<string | null> {
           .replace(/\\/g, "")
           .replace(/&amp;/g, "&");
 
-        const matches =
-          unescaped.match(
-            /https:\/\/[a-zA-Z0-9.\-_]*scontent[a-zA-Z0-9.\-_]*\.cdninstagram\.com\/[^\s"'<>]+/g
-          ) || [];
+        const matches = unescaped.match(/https:\/\/[^"'\s<>\\]+/g) || [];
 
         for (const m of matches) {
           if (
@@ -72,7 +70,7 @@ async function fetchRealAvatarUrl(username: string): Promise<string | null> {
             m.includes("s100x100") ||
             m.includes("profile_pic")
           ) {
-            avatarUrlCache.set(cleanUsername, {
+            avatarCache.set(cleanUsername, {
               url: m,
               expiresAt: Date.now() + 1000 * 60 * 60 * 24,
             });
@@ -107,10 +105,7 @@ async function fetchRealAvatarUrl(username: string): Promise<string | null> {
         .replace(/\\/g, "")
         .replace(/&amp;/g, "&");
 
-      const scontentMatches =
-        unescaped.match(
-          /https:\/\/[a-zA-Z0-9.\-_]*scontent[a-zA-Z0-9.\-_]*\.cdninstagram\.com\/[^\s"'<>]+/g
-        ) || [];
+      const scontentMatches = unescaped.match(/https:\/\/[^"'\s<>\\]+/g) || [];
 
       for (const decoded of scontentMatches) {
         if (
@@ -120,7 +115,7 @@ async function fetchRealAvatarUrl(username: string): Promise<string | null> {
           decoded.includes("s100x100") ||
           decoded.includes("profile_pic")
         ) {
-          avatarUrlCache.set(cleanUsername, {
+          avatarCache.set(cleanUsername, {
             url: decoded,
             expiresAt: Date.now() + 1000 * 60 * 60 * 24,
           });
@@ -135,9 +130,65 @@ async function fetchRealAvatarUrl(username: string): Promise<string | null> {
   return null;
 }
 
+async function fetchRealPostThumbnail(shortcode: string): Promise<string | null> {
+  const cleanCode = shortcode.trim();
+  if (!cleanCode) return null;
+
+  const cached = thumbCache.get(cleanCode);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.url;
+  }
+
+  try {
+    const embedRes = await fetch(`https://www.instagram.com/p/${cleanCode}/embed/captioned/`, {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
+        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+      },
+      cache: "no-store",
+      signal: AbortSignal.timeout(3500),
+    });
+
+    if (embedRes.ok) {
+      const html = await embedRes.text();
+      const unescaped = html
+        .replace(/\\u0026/gi, "&")
+        .replace(/\\u00253D/gi, "%3D")
+        .replace(/\\\//g, "/")
+        .replace(/\\/g, "")
+        .replace(/&amp;/g, "&");
+
+      const matches = unescaped.match(/https:\/\/[^"'\s<>\\]+/g) || [];
+
+      for (const u of matches) {
+        if (
+          u.includes("t51.82787-15") ||
+          u.includes("CLIPS") ||
+          u.includes("CAROUSEL_ITEM") ||
+          u.includes("video_default_cover") ||
+          u.includes("dst-jpegr") ||
+          u.includes("dst-jpg")
+        ) {
+          thumbCache.set(cleanCode, {
+            url: u,
+            expiresAt: Date.now() + 1000 * 60 * 60 * 24,
+          });
+          return u;
+        }
+      }
+    }
+  } catch {
+    // Continue
+  }
+
+  return null;
+}
+
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const username = searchParams.get("username");
+  const shortcode = searchParams.get("shortcode");
   const directUrl = searchParams.get("url");
 
   // 1. AVATAR PROXY BY USERNAME
@@ -157,11 +208,52 @@ export async function GET(req: NextRequest) {
       // Continue to fallback
     }
 
-    return new NextResponse(null, { status: 404 });
+    // High quality fallback avatar — NEVER return 404 or broken image
+    const fallbackAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(username)}&background=6366F1&color=fff&size=200&bold=true`;
+    return NextResponse.redirect(fallbackAvatar, {
+      status: 307,
+      headers: {
+        "Cache-Control": "public, max-age=86400, s-maxage=86400",
+      },
+    });
   }
 
-  // 2. DIRECT IMAGE PROXY BY URL
+  // 2. POST THUMBNAIL BY SHORTCODE
+  if (shortcode) {
+    try {
+      const realThumbUrl = await fetchRealPostThumbnail(shortcode);
+      if (realThumbUrl) {
+        const proxied = `https://wsrv.nl/?url=${encodeURIComponent(realThumbUrl)}&default=1`;
+        return NextResponse.redirect(proxied, {
+          status: 307,
+          headers: {
+            "Cache-Control": "public, max-age=86400, s-maxage=86400",
+          },
+        });
+      }
+    } catch {
+      // Continue
+    }
+
+    // Direct SVG placeholder thumbnail fallback — NEVER return 400
+    const fallbackSvg = `https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600&auto=format&fit=crop&q=80`;
+    return NextResponse.redirect(fallbackSvg, {
+      status: 307,
+      headers: {
+        "Cache-Control": "public, max-age=86400, s-maxage=86400",
+      },
+    });
+  }
+
+  // 3. DIRECT IMAGE PROXY BY URL
   if (directUrl) {
+    if (directUrl.startsWith("https://ui-avatars.com") || directUrl.startsWith("https://images.unsplash.com")) {
+      return NextResponse.redirect(directUrl, {
+        status: 307,
+        headers: { "Cache-Control": "public, max-age=86400, s-maxage=86400" },
+      });
+    }
+
     const proxied = `https://wsrv.nl/?url=${encodeURIComponent(directUrl)}&default=1`;
     return NextResponse.redirect(proxied, {
       status: 307,

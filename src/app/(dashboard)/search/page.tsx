@@ -229,15 +229,10 @@ function SearchContent() {
                   alt={searchedAccount.username}
                   referrerPolicy="no-referrer"
                   onError={(e) => {
-                    (e.target as HTMLElement).style.display = "none";
-                    const fallback = (e.target as HTMLElement).nextElementSibling as HTMLElement;
-                    if (fallback) fallback.style.display = "flex";
+                    (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(searchedAccount.username)}&background=6366F1&color=fff&size=200&bold=true`;
                   }}
                   className="w-full h-full object-cover"
                 />
-                <div className="hidden w-full h-full bg-zinc-800 items-center justify-center text-zinc-400">
-                  <User className="w-6 h-6" />
-                </div>
               </div>
 
               <div className="space-y-0.5 min-w-0">
