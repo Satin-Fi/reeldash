@@ -120,12 +120,18 @@ const config: Config = {
           "0%, 100%": { opacity: "1" },
           "50%":       { opacity: "0.6" },
         },
+        "border-beam": {
+          "100%": {
+            "offset-distance": "100%",
+          },
+        },
       },
       animation: {
         "slide-down": "slide-down 0.25s cubic-bezier(0.32, 0.72, 0, 1) forwards",
         "fade-in":    "fade-in 0.2s ease forwards",
         "shimmer":    "shimmer 2s linear infinite",
         "pulse-soft": "pulse-soft 2s ease-in-out infinite",
+        "border-beam": "border-beam calc(var(--duration)*1s) infinite linear",
       },
     },
   },
