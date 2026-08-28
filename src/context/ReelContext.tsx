@@ -501,13 +501,33 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
     const target = reels.find((r) => r.id === reelId);
     if (!target) return;
 
-    showToast("Generating summary...");
+    showToast("Extracting key takeaways...");
     setTimeout(() => {
-      const summary = `Key Takeaways: Insights from @${target.creatorUsername}'s ${target.mediaType || "content"} in ${target.category}.`;
+      const cleanCaption = (target.caption || "")
+        .replace(/#[a-zA-Z0-9_]+/g, "")
+        .replace(/@[a-zA-Z0-9_.]+/g, "")
+        .trim();
+
+      let summary = "";
+      if (cleanCaption && cleanCaption.length > 20) {
+        const sentences = cleanCaption
+          .split(/[.\n]/)
+          .map((s) => s.trim())
+          .filter((s) => s.length > 8);
+
+        if (sentences.length > 0) {
+          summary = sentences.slice(0, 3).map((s) => `• ${s}`).join("\n");
+        } else {
+          summary = `• ${cleanCaption}`;
+        }
+      } else {
+        summary = `• ${target.category || "General"} content by @${target.creatorUsername}`;
+      }
+
       const updated = reels.map((r) => (r.id === reelId ? { ...r, aiSummary: summary } : r));
       saveUserReels(updated);
-      showToast("Summary ready");
-    }, 800);
+      showToast("Takeaways generated");
+    }, 600);
   };
 
   return (

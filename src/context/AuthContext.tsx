@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useLayoutEffect } from "react";
 import { useRouter } from "next/navigation";
 
 export interface UserProfile {
@@ -30,7 +30,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     try {
       const storedUser = localStorage.getItem("reeldash_user");
       if (storedUser) {

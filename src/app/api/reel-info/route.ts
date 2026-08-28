@@ -252,7 +252,7 @@ export async function POST(req: NextRequest) {
       duration,
       audioTitle: audioTitle || undefined,
       audioArtist: audioArtist || undefined,
-      aiSummary: caption.length > 20 ? `AI Summary: Insights from @${creatorUsername} covering ${category}.` : undefined,
+      aiSummary: undefined,
       elapsedMs: Date.now() - startTime,
     };
 

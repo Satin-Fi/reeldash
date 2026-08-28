@@ -1,17 +1,14 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Reel } from "@/types/reel";
 import { useReels } from "@/context/ReelContext";
 import { ReelPlayer } from "./ReelPlayer";
 import {
   X,
   Heart,
-  MessageCircle,
-  Send,
   Bookmark,
   MoreHorizontal,
-  BadgeCheck,
   Music2,
   ExternalLink,
   Sparkles,
@@ -19,8 +16,11 @@ import {
   Trash2,
   FolderPlus,
   ThumbsUp,
+  MessageSquare,
+  Calendar,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import Link from "next/link";
 
 interface ReelPlayerModalProps {
   reel: Reel | null;
@@ -39,18 +39,39 @@ export function ReelPlayerModal({ reel, isOpen, onClose }: ReelPlayerModalProps)
     showToast,
   } = useReels();
 
-  const [isLiked, setIsLiked] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isCollectionPickerOpen, setIsCollectionPickerOpen] = useState(false);
   const [isEditingNote, setIsEditingNote] = useState(false);
-  const [noteContent, setNoteContent] = useState(reel?.notes || "");
-  const [likedComments, setLikedComments] = useState<Record<number, boolean>>({});
+  const [noteContent, setNoteContent] = useState("");
+  const [avatarSrc, setAvatarSrc] = useState<string>("");
+
+  useEffect(() => {
+    if (reel) {
+      setNoteContent(reel.notes || "");
+      if (reel.creatorAvatar) {
+        if (reel.creatorAvatar.startsWith("http")) {
+          setAvatarSrc(`/api/proxy-image?url=${encodeURIComponent(reel.creatorAvatar)}`);
+        } else {
+          setAvatarSrc(reel.creatorAvatar);
+        }
+      } else {
+        setAvatarSrc(
+          `https://ui-avatars.com/api/?name=${encodeURIComponent(
+            reel.creatorFullName || reel.creatorUsername || "U"
+          )}&background=27272a&color=fff`
+        );
+      }
+    }
+  }, [reel]);
 
   if (!isOpen || !reel) return null;
 
-  const shortcodeMatch = reel.instagramUrl.match(/(?:reel|p)\/([A-Za-z0-9_-]+)/);
-  const shortcode = shortcodeMatch ? shortcodeMatch[1] : reel.id.replace(/^reel-/, "");
-  const creatorHandle = reel.creatorUsername || "instagram_user";
+  const creatorHandle = reel.creatorUsername || "creator";
+  const formattedDate = new Date(reel.createdAt).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
 
   const handleCopyLink = () => {
     navigator.clipboard.writeText(reel.instagramUrl);
@@ -64,18 +85,14 @@ export function ReelPlayerModal({ reel, isOpen, onClose }: ReelPlayerModalProps)
     showToast("Personal note saved");
   };
 
-  // Clean likes display string
-  const cleanLikes = reel.likes
-    ? reel.likes.replace(/likes/gi, "").trim()
-    : "17K";
-
-  // Helper to format text with hashtags and mentions in blue
+  // Helper to format text with hashtags and mentions in subtle brand color
   const formatCaption = (text: string) => {
+    if (!text) return "";
     const parts = text.split(/(#[a-zA-Z0-9_]+|@[a-zA-Z0-9_.]+)/g);
     return parts.map((part, i) => {
       if (part.startsWith("#") || part.startsWith("@")) {
         return (
-          <span key={i} className="text-[#0095F6] hover:underline cursor-pointer">
+          <span key={i} className="text-brand-400 font-medium">
             {part}
           </span>
         );
@@ -90,13 +107,13 @@ export function ReelPlayerModal({ reel, isOpen, onClose }: ReelPlayerModalProps)
         {/* Backdrop Close */}
         <div className="absolute inset-0" onClick={onClose} />
 
-        {/* Modal Window: Unified Pure Dark Split Instagram Layout */}
+        {/* Modal Window: Split Video Player & Personal Library Inspector */}
         <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
+          initial={{ opacity: 0, scale: 0.96 }}
           animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.95 }}
+          exit={{ opacity: 0, scale: 0.96 }}
           transition={{ duration: 0.2 }}
-          className="relative w-full max-w-5xl h-[92vh] max-h-[750px] bg-black text-white rounded-xl overflow-hidden shadow-2xl border border-zinc-800 flex flex-col md:flex-row z-10"
+          className="relative w-full max-w-5xl h-[92vh] max-h-[750px] bg-zinc-950 text-white rounded-xl overflow-hidden shadow-2xl border border-zinc-800 flex flex-col md:flex-row z-10"
         >
           {/* Close Button on Mobile */}
           <button
@@ -106,7 +123,7 @@ export function ReelPlayerModal({ reel, isOpen, onClose }: ReelPlayerModalProps)
             <X className="w-5 h-5" />
           </button>
 
-          {/* LEFT COLUMN: Pure Dark 9:16 Vertical Video Player */}
+          {/* LEFT COLUMN: Clean 9:16 Vertical Video Player */}
           <div className="w-full md:w-[48%] lg:w-[50%] h-[55vh] md:h-full min-h-[380px] bg-black flex items-center justify-center relative overflow-hidden border-b md:border-b-0 md:border-r border-zinc-800 shrink-0">
             <ReelPlayer
               reel={reel}
@@ -115,36 +132,40 @@ export function ReelPlayerModal({ reel, isOpen, onClose }: ReelPlayerModalProps)
             />
           </div>
 
-          {/* RIGHT COLUMN: Pure Dark Instagram Post Social & Management Sidebar */}
-          <div className="w-full md:w-[52%] lg:w-[50%] flex-1 md:h-full flex flex-col bg-black text-zinc-100 min-w-0 border-l border-zinc-800/60 overflow-y-auto">
+          {/* RIGHT COLUMN: Pure Dark Inspector & Library Details */}
+          <div className="w-full md:w-[52%] lg:w-[50%] flex-1 md:h-full flex flex-col bg-zinc-950 text-zinc-100 min-w-0 border-l border-zinc-800/60 overflow-y-auto">
             {/* 1. TOP CREATOR HEADER */}
-            <div className="p-3.5 px-4 flex items-center justify-between border-b border-zinc-800/80 shrink-0 bg-black">
+            <div className="p-3.5 px-4 flex items-center justify-between border-b border-zinc-800/80 shrink-0 bg-zinc-950">
               <div className="flex items-center space-x-3 min-w-0">
-                {/* Creator Avatar with Instagram gradient border ring */}
-                <div className="relative p-0.5 rounded-full bg-gradient-to-tr from-yellow-500 via-pink-500 to-purple-600 shrink-0">
-                  <div className="w-9 h-9 rounded-full bg-zinc-900 border-2 border-black flex items-center justify-center font-bold text-xs text-white">
-                    {creatorHandle[0]?.toUpperCase()}
-                  </div>
+                {/* Clean Real Creator Avatar (No fake story ring) */}
+                <div className="w-9 h-9 rounded-full overflow-hidden bg-zinc-900 border border-zinc-700/80 shrink-0 flex items-center justify-center">
+                  <img
+                    src={avatarSrc}
+                    alt={creatorHandle}
+                    onError={() => {
+                      setAvatarSrc(
+                        `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                          creatorHandle
+                        )}&background=27272a&color=fff`
+                      );
+                    }}
+                    className="w-full h-full object-cover"
+                  />
                 </div>
 
-                <div className="flex items-center space-x-1.5 min-w-0">
-                  <a
-                    href={reel.creatorProfileUrl || `https://instagram.com/${creatorHandle}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-xs font-bold hover:opacity-80 truncate text-white"
-                  >
-                    {creatorHandle}
-                  </a>
-                  <span className="text-zinc-500 text-xs">•</span>
-                  <a
-                    href={reel.creatorProfileUrl || `https://instagram.com/${creatorHandle}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-xs font-semibold text-[#0095F6] hover:text-blue-400 transition-colors shrink-0"
-                  >
-                    Follow
-                  </a>
+                <div className="flex flex-col min-w-0">
+                  <div className="flex items-center space-x-1.5 min-w-0">
+                    <Link
+                      href={`/creator/${creatorHandle}`}
+                      onClick={onClose}
+                      className="text-xs font-bold hover:text-brand-400 truncate text-white transition-colors"
+                    >
+                      @{creatorHandle}
+                    </Link>
+                  </div>
+                  <span className="text-[10px] text-zinc-500 font-mono">
+                    {reel.mediaType ? reel.mediaType.toUpperCase() : "REEL"}
+                  </span>
                 </div>
               </div>
 
@@ -161,7 +182,7 @@ export function ReelPlayerModal({ reel, isOpen, onClose }: ReelPlayerModalProps)
 
                   {/* Dropdown Menu */}
                   {isMenuOpen && (
-                    <div className="absolute right-0 top-full mt-1 w-44 bg-zinc-900 border border-zinc-800 rounded-lg shadow-xl py-1 z-30 text-xs">
+                    <div className="absolute right-0 top-full mt-1 w-48 bg-zinc-900 border border-zinc-800 rounded-lg shadow-xl py-1 z-30 text-xs">
                       <button
                         onClick={handleCopyLink}
                         className="w-full px-3 py-2 text-left text-zinc-200 hover:bg-zinc-800 flex items-center space-x-2"
@@ -186,7 +207,7 @@ export function ReelPlayerModal({ reel, isOpen, onClose }: ReelPlayerModalProps)
                         className="w-full px-3 py-2 text-left text-zinc-200 hover:bg-zinc-800 flex items-center space-x-2"
                       >
                         <ExternalLink className="w-3.5 h-3.5" />
-                        <span>Open in Instagram</span>
+                        <span>Open on Instagram</span>
                       </a>
                       <div className="my-1 border-t border-zinc-800" />
                       <button
@@ -197,7 +218,7 @@ export function ReelPlayerModal({ reel, isOpen, onClose }: ReelPlayerModalProps)
                         className="w-full px-3 py-2 text-left text-red-400 hover:bg-red-500/10 flex items-center space-x-2"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
-                        <span>Delete Reel</span>
+                        <span>Delete Item</span>
                       </button>
                     </div>
                   )}
@@ -213,58 +234,23 @@ export function ReelPlayerModal({ reel, isOpen, onClose }: ReelPlayerModalProps)
               </div>
             </div>
 
-            {/* 2. MIDDLE SCROLLABLE FEED: Caption, Comments, AI Summary, Notes */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4 text-xs font-normal leading-relaxed custom-scrollbar bg-black">
-              {/* Creator Caption Post */}
-              <div className="flex items-start space-x-3">
-                <div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center font-bold text-xs text-white shrink-0 mt-0.5">
-                  {creatorHandle[0]?.toUpperCase()}
-                </div>
-                <div className="flex-1 space-y-1.5 min-w-0">
-                  <div className="flex items-center space-x-1.5">
-                    <span className="font-bold text-xs text-white">{creatorHandle}</span>
-                    <span className="text-zinc-500 text-[11px]">
-                      {reel.mediaType === "audio" ? "• Audio Track" : reel.mediaType === "story" ? "• 24h Story" : reel.mediaType === "post" ? "• Photo Post" : "• 8h"}
+            {/* 2. MIDDLE SCROLLABLE FEED: Clean Caption, Real Audio, Tags, Notes */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-4 text-xs font-normal leading-relaxed custom-scrollbar bg-zinc-950">
+              {/* Caption Content */}
+              <div className="space-y-2">
+                <p className="text-xs text-zinc-200 whitespace-pre-line leading-relaxed">
+                  {formatCaption(reel.caption || "No caption provided.")}
+                </p>
+
+                {/* Audio Track Tag (if present) */}
+                {reel.audioTitle && (
+                  <div className="inline-flex items-center space-x-1.5 px-2.5 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-md text-[11px] text-emerald-400">
+                    <Music2 className="w-3 h-3 text-emerald-400 shrink-0" />
+                    <span className="font-semibold truncate">
+                      {reel.audioTitle} {reel.audioArtist ? `• ${reel.audioArtist}` : ""}
                     </span>
                   </div>
-
-                  {reel.audioTitle && (
-                    <div className="p-2 bg-emerald-500/10 border border-emerald-500/20 rounded-md">
-                      <p className="text-xs font-semibold text-emerald-400">🎵 {reel.audioTitle}</p>
-                      <p className="text-[11px] text-zinc-400">{reel.audioArtist}</p>
-                    </div>
-                  )}
-
-                  <p className="text-xs text-zinc-200 whitespace-pre-line leading-relaxed">
-                    {formatCaption(reel.caption)}
-                  </p>
-
-                  {/* Audio Tag / Category */}
-                  <div className="pt-1.5 flex items-center space-x-1.5 text-[11px] text-zinc-400 hover:text-zinc-200 cursor-pointer">
-                    <Music2 className="w-3 h-3 text-brand-400" />
-                    <span>{reel.audioArtist || `Original Audio • ${creatorHandle}`}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Engagement & Metadata Breakdown */}
-              <div className="pt-3 border-t border-zinc-800/60 space-y-3">
-                <div className="flex items-center justify-between text-xs text-zinc-400">
-                  <div className="flex items-center space-x-3">
-                    {reel.likes && (
-                      <span className="flex items-center space-x-1 text-zinc-300 font-semibold">
-                        <ThumbsUp className="w-3.5 h-3.5 text-zinc-400" />
-                        <span>{reel.likes}</span>
-                      </span>
-                    )}
-                    {reel.commentsCount && (
-                      <span className="flex items-center space-x-1 text-zinc-300">
-                        <MessageCircle className="w-3.5 h-3.5 text-zinc-400" />
-                        <span>{reel.commentsCount} comments</span>
-                      </span>
-                    )}
-                  </div>
-                </div>
+                )}
 
                 {/* Hashtags list */}
                 {reel.hashtags && reel.hashtags.length > 0 && (
@@ -281,27 +267,59 @@ export function ReelPlayerModal({ reel, isOpen, onClose }: ReelPlayerModalProps)
                 )}
               </div>
 
-              {/* AI Key Insights Card */}
-              <div className="p-3 bg-zinc-900/80 border border-zinc-800/80 rounded-lg space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-1.5 text-brand-400 font-semibold text-[11px]">
-                    <Sparkles className="w-3.5 h-3.5" />
-                    <span>AI Key Takeaways</span>
-                  </div>
-                  <button
-                    onClick={() => generateAiSummary(reel.id)}
-                    className="text-[10px] text-zinc-400 hover:text-brand-400 cursor-pointer"
-                  >
-                    {reel.aiSummary ? "Regenerate" : "Extract"}
-                  </button>
+              {/* Real Instagram Engagement & Save Metadata */}
+              <div className="pt-3 border-t border-zinc-800/60 space-y-2 text-xs text-zinc-400">
+                <div className="flex flex-wrap items-center gap-4 text-zinc-400">
+                  {reel.likes && (
+                    <span className="flex items-center space-x-1 font-semibold text-zinc-300">
+                      <ThumbsUp className="w-3.5 h-3.5 text-zinc-500" />
+                      <span>{reel.likes}</span>
+                    </span>
+                  )}
+                  {reel.commentsCount && (
+                    <span className="flex items-center space-x-1 text-zinc-300">
+                      <MessageSquare className="w-3.5 h-3.5 text-zinc-500" />
+                      <span>{reel.commentsCount} comments</span>
+                    </span>
+                  )}
+                  <span className="flex items-center space-x-1 text-zinc-500 text-[11px]">
+                    <Calendar className="w-3 h-3 text-zinc-500" />
+                    <span>Saved {formattedDate}</span>
+                  </span>
                 </div>
-                <p className="text-xs text-zinc-300 leading-relaxed">
-                  {reel.aiSummary || "Click extract to summarize key insights, workout steps, or recipe notes."}
-                </p>
               </div>
 
+              {/* AI Key Insights (Rendered only when valid takeaways exist or requested) */}
+              {reel.aiSummary ? (
+                <div className="p-3 bg-zinc-900/90 border border-zinc-800 rounded-lg space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-1.5 text-brand-400 font-semibold text-[11px]">
+                      <Sparkles className="w-3.5 h-3.5" />
+                      <span>AI Key Insights</span>
+                    </div>
+                    <button
+                      onClick={() => generateAiSummary(reel.id)}
+                      className="text-[10px] text-zinc-400 hover:text-brand-400 cursor-pointer"
+                    >
+                      Regenerate
+                    </button>
+                  </div>
+                  <p className="text-xs text-zinc-300 whitespace-pre-line leading-relaxed">
+                    {reel.aiSummary}
+                  </p>
+                </div>
+              ) : (
+                <button
+                  onClick={() => generateAiSummary(reel.id)}
+                  className="w-full p-2.5 rounded-lg border border-dashed border-zinc-800 hover:border-brand-500/40 bg-zinc-900/30 hover:bg-zinc-900 text-[11px] text-zinc-400 hover:text-brand-400 flex items-center justify-center space-x-1.5 transition-all cursor-pointer"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-brand-400" />
+                  <span>Extract Key Takeaways with AI</span>
+                </button>
+              )}
+
               {/* Personal Notes */}
-              <div className="p-3 bg-zinc-900/40 border border-zinc-800/80 rounded-lg space-y-2">
+              <div className="p-3 bg-zinc-900/50 border border-zinc-800/80 rounded-lg space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">
                     My Notes
@@ -332,75 +350,35 @@ export function ReelPlayerModal({ reel, isOpen, onClose }: ReelPlayerModalProps)
                   </div>
                 ) : (
                   <p className="text-xs text-zinc-300">
-                    {reel.notes || <span className="italic text-zinc-500">No notes yet. Click edit to add your thoughts.</span>}
+                    {reel.notes || (
+                      <span className="italic text-zinc-500">
+                        No notes yet. Click edit to add your thoughts.
+                      </span>
+                    )}
                   </p>
                 )}
               </div>
             </div>
 
-            {/* 3. BOTTOM ENGAGEMENT & ACTIONS BAR */}
-            <div className="p-3.5 px-4 border-t border-zinc-800/80 bg-black shrink-0 space-y-2">
-              {/* Row 1: Action Icons (Like, Comment, Share, Bookmark) */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-4">
-                  {/* Like Button */}
-                  <button
-                    onClick={() => {
-                      setIsLiked(!isLiked);
-                      toggleFavorite(reel.id);
-                    }}
-                    className={`transition-transform hover:scale-110 cursor-pointer ${
-                      isLiked || reel.isFavorite ? "text-red-500" : "text-zinc-200 hover:text-white"
-                    }`}
-                    title="Like Reel"
-                  >
-                    <Heart
-                      className={`w-5 h-5 ${isLiked || reel.isFavorite ? "fill-red-500" : ""}`}
-                    />
-                  </button>
-
-                  {/* Comment Button */}
-                  <button
-                    className="text-zinc-200 hover:text-white transition-transform hover:scale-110 cursor-pointer"
-                    title="Comment"
-                  >
-                    <MessageCircle className="w-5 h-5" />
-                  </button>
-
-                  {/* Share / Copy Link Button */}
-                  <button
-                    onClick={handleCopyLink}
-                    className="text-zinc-200 hover:text-white transition-transform hover:scale-110 cursor-pointer"
-                    title="Share Reel"
-                  >
-                    <Send className="w-5 h-5" />
-                  </button>
-                </div>
-
-                {/* Bookmark / Collection Button */}
+            {/* 3. BOTTOM CLEAN LIBRARY ACTION BAR (Zero fake social buttons) */}
+            <div className="p-3.5 px-4 border-t border-zinc-800/80 bg-zinc-950 shrink-0 space-y-2">
+              <div className="flex items-center gap-2">
+                {/* Favorite Toggle Button */}
                 <button
-                  onClick={() => setIsCollectionPickerOpen(!isCollectionPickerOpen)}
-                  className={`transition-transform hover:scale-110 cursor-pointer ${
-                    reel.isFavorite ? "text-brand-500" : "text-zinc-200 hover:text-white"
+                  onClick={() => toggleFavorite(reel.id)}
+                  className={`p-2.5 rounded-md border transition-all cursor-pointer flex items-center justify-center ${
+                    reel.isFavorite
+                      ? "border-rose-500/40 bg-rose-500/10 text-rose-400"
+                      : "border-zinc-800 bg-zinc-900 text-zinc-400 hover:text-white"
                   }`}
-                  title="Add to Collection"
+                  title={reel.isFavorite ? "Remove from favorites" : "Add to favorites"}
                 >
-                  <Bookmark className={`w-5 h-5 ${reel.isFavorite ? "fill-brand-500" : ""}`} />
+                  <Heart
+                    className={`w-4 h-4 ${reel.isFavorite ? "fill-rose-500 text-rose-500" : ""}`}
+                  />
                 </button>
-              </div>
 
-              {/* Row 2: Metrics and Date */}
-              <div className="space-y-0.5">
-                <p className="text-xs font-bold text-white">
-                  {cleanLikes} likes
-                </p>
-                <p className="text-[10px] text-zinc-500 uppercase tracking-wide">
-                  8 hours ago
-                </p>
-              </div>
-
-              {/* Row 3: ReelDash Collection Action */}
-              <div className="pt-1.5 flex items-center gap-2">
+                {/* Primary Add to Collection Action */}
                 <button
                   onClick={() => setIsCollectionPickerOpen(true)}
                   className="flex-1 py-2 px-3 bg-brand-500 hover:bg-brand-600 active:scale-98 text-white rounded-md text-xs font-semibold flex items-center justify-center space-x-1.5 transition-all shadow-sm cursor-pointer"
@@ -408,7 +386,53 @@ export function ReelPlayerModal({ reel, isOpen, onClose }: ReelPlayerModalProps)
                   <FolderPlus className="w-3.5 h-3.5" />
                   <span>Add to Collection</span>
                 </button>
+
+                {/* Copy Link Button */}
+                <button
+                  onClick={handleCopyLink}
+                  className="p-2.5 rounded-md border border-zinc-800 bg-zinc-900 text-zinc-400 hover:text-white transition-all cursor-pointer"
+                  title="Copy Instagram URL"
+                >
+                  <Copy className="w-4 h-4" />
+                </button>
               </div>
+
+              {/* Collection Picker Dropdown Modal Overlay */}
+              {isCollectionPickerOpen && (
+                <div className="p-3 bg-zinc-900 border border-zinc-800 rounded-lg space-y-2 animate-in fade-in">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-semibold text-white">Save to Collection:</span>
+                    <button
+                      onClick={() => setIsCollectionPickerOpen(false)}
+                      className="text-zinc-400 hover:text-white text-[11px]"
+                    >
+                      Done
+                    </button>
+                  </div>
+                  <div className="max-h-28 overflow-y-auto space-y-1 custom-scrollbar">
+                    {collections.length > 0 ? (
+                      collections.map((col) => (
+                        <button
+                          key={col.id}
+                          onClick={() => {
+                            addReelToCollection(reel.id, col.id);
+                            showToast("Added to collection", col.name);
+                            setIsCollectionPickerOpen(false);
+                          }}
+                          className="w-full text-left px-2.5 py-1.5 rounded hover:bg-zinc-800 text-xs text-zinc-300 flex items-center space-x-2 cursor-pointer"
+                        >
+                          <Bookmark className="w-3 h-3 text-brand-400" />
+                          <span className="truncate">{col.name}</span>
+                        </button>
+                      ))
+                    ) : (
+                      <p className="text-[11px] text-zinc-500">
+                        No collections created yet. Create one in Collections page.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </motion.div>
