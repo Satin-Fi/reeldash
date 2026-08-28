@@ -206,6 +206,42 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Task D: Instagram Captioned Embed Scraper for Real Avatar & High-Res Cover
+    if (shortcode) {
+      extractionTasks.push(
+        (async () => {
+          try {
+            const embedRes = await fetch(`https://www.instagram.com/p/${shortcode}/embed/captioned/`, {
+              headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" },
+              cache: "no-store",
+              signal: controller.signal,
+            });
+            if (embedRes.ok) {
+              const html = await embedRes.text();
+              const unescaped = html
+                .replace(/\\u0026/gi, "&")
+                .replace(/\\u00253D/gi, "%3D")
+                .replace(/\\\//g, "/")
+                .replace(/\\/g, "")
+                .replace(/&amp;/g, "&");
+
+              const matches = unescaped.match(/https:\/\/[^"'\s<>\\]+/g) || [];
+              for (const m of matches) {
+                if (m.includes("t51.82787-19") || m.includes("profile_pic")) {
+                  creatorAvatar = `/api/proxy-image?url=${encodeURIComponent(m)}`;
+                }
+                if ((!thumbnailUrl || thumbnailUrl.includes("/api/proxy-image")) && (m.includes("t51.82787-15") || m.includes("CLIPS") || m.includes("CAROUSEL_ITEM") || m.includes("dst-jpg") || m.includes("dst-jpegr"))) {
+                  thumbnailUrl = `/api/proxy-image?url=${encodeURIComponent(m)}`;
+                }
+              }
+            }
+          } catch {
+            // Continue
+          }
+        })()
+      );
+    }
+
     // Wait for parallel tasks or timeout
     await Promise.allSettled(extractionTasks);
     clearTimeout(timeoutId);

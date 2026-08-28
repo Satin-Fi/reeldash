@@ -170,7 +170,7 @@ export default function ReelDetailPage() {
               {/* Creator Avatar with clean border */}
               <div className="w-9 h-9 rounded-full overflow-hidden bg-zinc-900 border border-zinc-700/80 shrink-0 flex items-center justify-center">
                 <img
-                  src={`/api/proxy-image?username=${encodeURIComponent(creatorHandle)}`}
+                  src={reel.creatorAvatar || `/api/proxy-image?username=${encodeURIComponent(creatorHandle)}`}
                   alt={creatorHandle}
                   className="w-full h-full object-cover"
                   onError={(e) => {

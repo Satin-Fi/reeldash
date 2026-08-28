@@ -168,6 +168,79 @@ async function fetchRealAvatarUrl(username: string): Promise<string | null> {
         }
       }
     }
+  // Strategy 2: Direct Instagram Profile Embed Scraper
+  try {
+    const embedRes = await fetch(`https://www.instagram.com/${cleanUsername}/embed/`, {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
+        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+      },
+      redirect: "follow",
+      cache: "no-store",
+      signal: AbortSignal.timeout(2500),
+    });
+
+    if (embedRes.ok) {
+      const embedHtml = await embedRes.text();
+      const unescaped = embedHtml
+        .replace(/\\u0026/gi, "&")
+        .replace(/\\u00253D/gi, "%3D")
+        .replace(/\\\//g, "/")
+        .replace(/\\/g, "")
+        .replace(/&amp;/g, "&");
+
+      const scontentMatches = unescaped.match(/https:\/\/[^"'\s<>\\]+/g) || [];
+      for (const decoded of scontentMatches) {
+        if (
+          decoded.includes("t51.82787-19") ||
+          decoded.includes("t51.2885-19") ||
+          decoded.includes("s150x150") ||
+          decoded.includes("s100x100") ||
+          decoded.includes("profile_pic")
+        ) {
+          avatarCache.set(cleanUsername, {
+            url: decoded,
+            expiresAt: Date.now() + 1000 * 60 * 60 * 24,
+          });
+          return decoded;
+        }
+      }
+    }
+  } catch {
+    // Continue
+  }
+
+  // Strategy 3: Bot Crawler OpenGraph Avatar
+  try {
+    const metaRes = await fetch(`https://www.instagram.com/${cleanUsername}/`, {
+      headers: {
+        "User-Agent": "WhatsApp/2.21.12.21 A",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+      },
+      redirect: "follow",
+      cache: "no-store",
+      signal: AbortSignal.timeout(2500),
+    });
+
+    if (metaRes.ok) {
+      const metaHtml = await metaRes.text();
+      const ogImgMatch =
+        metaHtml.match(/<meta\s+(?:property|name)="og:image"\s+content="([^"]*)"/i) ||
+        metaHtml.match(/content="([^"]*)"\s+(?:property|name)="og:image"/i);
+
+      if (ogImgMatch && ogImgMatch[1]) {
+        const rawPic = ogImgMatch[1].replace(/&amp;/g, "&");
+        if (rawPic && !rawPic.includes("instagram_profile.png") && !rawPic.includes("rsrc.php")) {
+          avatarCache.set(cleanUsername, {
+            url: rawPic,
+            expiresAt: Date.now() + 1000 * 60 * 60 * 24,
+          });
+          return rawPic;
+        }
+      }
+    }
   } catch {
     // Continue
   }
