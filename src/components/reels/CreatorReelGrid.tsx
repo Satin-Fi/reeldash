@@ -57,8 +57,8 @@ function CreatorReelTile({ item, creatorUsername }: { item: CreatorReelItem; cre
     creatorUsername: creatorUsername || "instagram",
     creatorFullName: creatorUsername ? creatorUsername.charAt(0).toUpperCase() + creatorUsername.slice(1) : "",
     creatorProfileUrl: `https://instagram.com/${creatorUsername || ""}`,
-    creatorAvatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(creatorUsername || "IG")}&background=6366F1&color=fff`,
-    thumbnailUrl: imgSrc,
+    creatorAvatar: `/api/proxy-image?username=${encodeURIComponent(creatorUsername || "")}`,
+    thumbnailUrl: imgSrc || item.thumbnailUrl,
     mediaUrl: isVideo && item.shortcode ? `/api/video-stream?shortcode=${item.shortcode}` : "",
     mediaType,
     isCarousel: !isVideo && !!item.isCarousel,
@@ -94,12 +94,12 @@ function CreatorReelTile({ item, creatorUsername }: { item: CreatorReelItem; cre
     }
   };
 
+  const defaultCover = "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600&auto=format&fit=crop&q=80";
+
   const resolveCurrentImg = () => {
     const raw = item.thumbnailUrl || item.rawThumbnailUrl || imgSrc;
-    if (!raw || raw.includes("unsplash.com")) {
-      return `/api/proxy-image?username=${encodeURIComponent(creatorUsername || "creator")}`;
-    }
-    if (raw.startsWith("http") && !raw.includes("wsrv.nl") && !raw.includes("unsplash.com") && !raw.includes("ui-avatars.com")) {
+    if (!raw) return defaultCover;
+    if (raw.startsWith("http") && !raw.includes("wsrv.nl") && !raw.includes("unsplash.com")) {
       return `/api/proxy-image?url=${encodeURIComponent(raw)}`;
     }
     return raw;
@@ -120,7 +120,7 @@ function CreatorReelTile({ item, creatorUsername }: { item: CreatorReelItem; cre
           alt={item.caption || "Instagram Media"}
           referrerPolicy="no-referrer"
           onError={(e) => {
-            (e.target as HTMLImageElement).src = `/api/proxy-image?username=${encodeURIComponent(creatorUsername || "creator")}`;
+            (e.target as HTMLImageElement).src = defaultCover;
           }}
           className="w-full h-full object-cover group-hover:scale-103 transition-transform duration-300 ease-out"
         />
