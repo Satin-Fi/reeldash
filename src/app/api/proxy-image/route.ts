@@ -6,6 +6,50 @@ export const dynamic = "force-dynamic";
 const avatarCache = new Map<string, { url: string; expiresAt: number }>();
 const thumbCache = new Map<string, { url: string; expiresAt: number }>();
 
+async function serveImageBinary(imageUrl: string, fallbackUrl?: string): Promise<NextResponse> {
+  try {
+    const wsrvUrl = `https://wsrv.nl/?url=${encodeURIComponent(imageUrl)}`;
+    const imgRes = await fetch(wsrvUrl, {
+      signal: AbortSignal.timeout(4500),
+    });
+    if (imgRes.ok) {
+      const buffer = await imgRes.arrayBuffer();
+      const contentType = imgRes.headers.get("content-type") || "image/jpeg";
+      return new NextResponse(Buffer.from(buffer), {
+        status: 200,
+        headers: {
+          "Content-Type": contentType,
+          "Cache-Control": "public, max-age=86400, s-maxage=86400, stale-while-revalidate=86400",
+        },
+      });
+    }
+  } catch {
+    // Continue
+  }
+
+  if (fallbackUrl) {
+    try {
+      const fbRes = await fetch(fallbackUrl, { signal: AbortSignal.timeout(3000) });
+      if (fbRes.ok) {
+        const buffer = await fbRes.arrayBuffer();
+        const contentType = fbRes.headers.get("content-type") || "image/png";
+        return new NextResponse(Buffer.from(buffer), {
+          status: 200,
+          headers: {
+            "Content-Type": contentType,
+            "Cache-Control": "public, max-age=86400, s-maxage=86400",
+          },
+        });
+      }
+    } catch {
+      // Continue
+    }
+    return NextResponse.redirect(fallbackUrl, { status: 307 });
+  }
+
+  return new NextResponse(null, { status: 404 });
+}
+
 async function fetchRealAvatarUrl(username: string): Promise<string | null> {
   const cleanUsername = username.replace(/^@/, "").trim().toLowerCase();
   if (!cleanUsername) return null;
@@ -193,74 +237,38 @@ export async function GET(req: NextRequest) {
 
   // 1. AVATAR PROXY BY USERNAME
   if (username) {
+    const fallbackAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(username)}&background=6366F1&color=fff&size=200&bold=true`;
     try {
       const realAvatarUrl = await fetchRealAvatarUrl(username);
       if (realAvatarUrl) {
-        const proxied = `https://wsrv.nl/?url=${encodeURIComponent(realAvatarUrl)}&default=1`;
-        return NextResponse.redirect(proxied, {
-          status: 307,
-          headers: {
-            "Cache-Control": "public, max-age=86400, s-maxage=86400",
-          },
-        });
+        return await serveImageBinary(realAvatarUrl, fallbackAvatar);
       }
     } catch {
       // Continue to fallback
     }
 
-    // High quality fallback avatar — NEVER return 404 or broken image
-    const fallbackAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(username)}&background=6366F1&color=fff&size=200&bold=true`;
-    return NextResponse.redirect(fallbackAvatar, {
-      status: 307,
-      headers: {
-        "Cache-Control": "public, max-age=86400, s-maxage=86400",
-      },
-    });
+    return await serveImageBinary(fallbackAvatar);
   }
 
   // 2. POST THUMBNAIL BY SHORTCODE
   if (shortcode) {
+    const fallbackThumb = `https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600&auto=format&fit=crop&q=80`;
     try {
       const realThumbUrl = await fetchRealPostThumbnail(shortcode);
       if (realThumbUrl) {
-        const proxied = `https://wsrv.nl/?url=${encodeURIComponent(realThumbUrl)}&default=1`;
-        return NextResponse.redirect(proxied, {
-          status: 307,
-          headers: {
-            "Cache-Control": "public, max-age=86400, s-maxage=86400",
-          },
-        });
+        return await serveImageBinary(realThumbUrl, fallbackThumb);
       }
     } catch {
       // Continue
     }
 
-    // Direct SVG placeholder thumbnail fallback — NEVER return 400
-    const fallbackSvg = `https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600&auto=format&fit=crop&q=80`;
-    return NextResponse.redirect(fallbackSvg, {
-      status: 307,
-      headers: {
-        "Cache-Control": "public, max-age=86400, s-maxage=86400",
-      },
-    });
+    return await serveImageBinary(fallbackThumb);
   }
 
   // 3. DIRECT IMAGE PROXY BY URL
   if (directUrl) {
-    if (directUrl.startsWith("https://ui-avatars.com") || directUrl.startsWith("https://images.unsplash.com")) {
-      return NextResponse.redirect(directUrl, {
-        status: 307,
-        headers: { "Cache-Control": "public, max-age=86400, s-maxage=86400" },
-      });
-    }
-
-    const proxied = `https://wsrv.nl/?url=${encodeURIComponent(directUrl)}&default=1`;
-    return NextResponse.redirect(proxied, {
-      status: 307,
-      headers: {
-        "Cache-Control": "public, max-age=86400, s-maxage=86400",
-      },
-    });
+    const fallbackThumb = `https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600&auto=format&fit=crop&q=80`;
+    return await serveImageBinary(directUrl, fallbackThumb);
   }
 
   return new NextResponse(null, { status: 400 });
