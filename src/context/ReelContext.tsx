@@ -153,14 +153,20 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
       parsedReels = parsedReels
         .filter((r) => r && r.userId !== "usr-demo" && !r.id?.startsWith("mock-") && !r.id?.startsWith("sample-"))
         .map((r) => {
-          if (r.thumbnailUrl && r.thumbnailUrl.includes("unsplash.com")) {
+          let thumb = r.thumbnailUrl;
+          if (thumb && (thumb.includes("unsplash.com") || thumb.includes("ui-avatars.com"))) {
             const sc = r.instagramUrl?.match(/(?:reel|reels|p|audio|stories)\/([A-Za-z0-9_-]+)/)?.[1];
-            return {
-              ...r,
-              thumbnailUrl: sc ? `/api/proxy-image?shortcode=${sc}` : "",
-            };
+            thumb = sc ? `/api/proxy-image?shortcode=${sc}` : thumb;
           }
-          return r;
+          let avatar = r.creatorAvatar;
+          if (!avatar || avatar.includes("ui-avatars.com")) {
+            avatar = `/api/proxy-image?username=${encodeURIComponent(r.creatorUsername || "creator")}`;
+          }
+          return {
+            ...r,
+            thumbnailUrl: thumb,
+            creatorAvatar: avatar,
+          };
         });
 
       setReels(parsedReels);
@@ -431,7 +437,7 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
       creatorUsername: initialCreator,
       creatorFullName: initialCreator.charAt(0).toUpperCase() + initialCreator.slice(1),
       creatorProfileUrl: `https://instagram.com/${initialCreator}`,
-      creatorAvatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(initialCreator)}&background=6366F1&color=fff`,
+      creatorAvatar: `/api/proxy-image?username=${encodeURIComponent(initialCreator)}`,
       thumbnailUrl: shortcode ? `/api/proxy-image?shortcode=${shortcode}` : "",
       mediaUrl: "",
       embedUrl: `https://www.instagram.com/p/${shortcode}/embed/`,
