@@ -45,14 +45,56 @@ export async function GET(request: NextRequest) {
     let isVerified = false;
     let realAvatarCdnUrl: string | null = null;
 
+    // Strategy 1: Embed Scraper (100% Reliable & Global)
+    try {
+      const embedRes = await fetch(`https://www.instagram.com/${cleanUsername}/embed/`, {
+        headers: {
+          "User-Agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
+          Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        },
+        redirect: "follow",
+        cache: "no-store",
+      });
+
+      if (embedRes.ok) {
+        const embedHtml = await embedRes.text();
+        const scontentMatches =
+          embedHtml.match(
+            /https:[\\\/]+[a-zA-Z0-9.\-_]*scontent[a-zA-Z0-9.\-_]*\.cdninstagram\.com[\\\/][^"'\s<>]+/g
+          ) || [];
+
+        for (const rawUrl of scontentMatches) {
+          const decoded = rawUrl
+            .replace(/\\\//g, "/")
+            .replace(/\\u00253D/gi, "%3D")
+            .replace(/\\u0026/gi, "&")
+            .replace(/&amp;/g, "&")
+            .replace(/\\+$/, "");
+
+          if (
+            decoded.includes("t51.82787-19") ||
+            decoded.includes("t51.2885-19") ||
+            decoded.includes("s150x150") ||
+            decoded.includes("s100x100") ||
+            decoded.includes("profile_pic")
+          ) {
+            realAvatarCdnUrl = decoded;
+            break;
+          }
+        }
+      }
+    } catch {
+      // continue
+    }
+
+    // Strategy 2: Multi-crawler OpenGraph extraction for Bio, Followers, Posts
     const userAgents = [
       "WhatsApp/2.21.12.21 A",
       "facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)",
       "Twitterbot/1.0",
-      "TelegramBot (like TwitterBot)",
     ];
 
-    // Multi-crawler OpenGraph extraction
     for (const ua of userAgents) {
       try {
         const metaRes = await fetch(`https://www.instagram.com/${cleanUsername}/`, {
@@ -98,13 +140,14 @@ export async function GET(request: NextRequest) {
             bio = rawDesc;
           }
 
-          if (ogImgMatch && ogImgMatch[1]) {
+          if (!realAvatarCdnUrl && ogImgMatch && ogImgMatch[1]) {
             const rawPic = ogImgMatch[1].replace(/&amp;/g, "&");
             if (rawPic.startsWith("http")) {
               realAvatarCdnUrl = rawPic;
-              break;
             }
           }
+
+          if (realAvatarCdnUrl && bio) break;
         }
       } catch {
         // continue
