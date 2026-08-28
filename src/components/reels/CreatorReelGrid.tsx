@@ -46,20 +46,24 @@ function CreatorReelTile({ item, creatorUsername }: { item: CreatorReelItem; cre
       (item.shortcode && r.instagramUrl.includes(item.shortcode))
   );
 
+  const isVideo = item.isVideo || item.mediaType === "reel" || item.instagramUrl.includes("/reel/");
+  const mediaType = item.mediaType || (isVideo ? "reel" : item.isCarousel ? "post" : "post");
+
   const toReel = (): Reel => ({
     id: item.id,
     userId: "preview",
+    shortcode: item.shortcode,
     instagramUrl: item.instagramUrl,
     creatorUsername: creatorUsername || "instagram",
-    creatorFullName: "",
+    creatorFullName: creatorUsername ? creatorUsername.charAt(0).toUpperCase() + creatorUsername.slice(1) : "",
     creatorProfileUrl: `https://instagram.com/${creatorUsername || ""}`,
-    creatorAvatar: "",
+    creatorAvatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(creatorUsername || "IG")}&background=6366F1&color=fff`,
     thumbnailUrl: imgSrc,
-    mediaUrl: "",
-    mediaType: item.mediaType || (item.isVideo ? "reel" : "post"),
-    isCarousel: !!item.isCarousel,
-    carouselImages: item.carouselImages && item.carouselImages.length > 0 ? item.carouselImages : [imgSrc],
-    caption: item.caption,
+    mediaUrl: isVideo && item.shortcode ? `/api/video-stream?shortcode=${item.shortcode}` : "",
+    mediaType,
+    isCarousel: !isVideo && !!item.isCarousel,
+    carouselImages: !isVideo && item.isCarousel && item.carouselImages && item.carouselImages.length > 0 ? item.carouselImages : undefined,
+    caption: item.caption || `Instagram ${mediaType.toUpperCase()} by @${creatorUsername || "creator"}`,
     category: "General",
     subcategories: [],
     collections: [],
@@ -67,7 +71,7 @@ function CreatorReelTile({ item, creatorUsername }: { item: CreatorReelItem; cre
     likes: item.likes || undefined,
     commentsCount: item.commentsCount || undefined,
     isFavorite: false,
-    duration: item.duration || (item.isVideo ? "0:30" : "Post"),
+    duration: item.duration || (isVideo ? "0:30" : "Post"),
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   });
@@ -80,7 +84,7 @@ function CreatorReelTile({ item, creatorUsername }: { item: CreatorReelItem; cre
       await saveReel(item.instagramUrl, {
         creator: creatorUsername,
         caption: item.caption,
-        mediaType: item.mediaType || (item.isVideo ? "reel" : "post"),
+        mediaType,
       });
       showToast(item.isCarousel ? "Saved Carousel to Library" : "Saved to Library");
     } catch {
@@ -96,6 +100,7 @@ function CreatorReelTile({ item, creatorUsername }: { item: CreatorReelItem; cre
         onClick={() => setOpen(true)}
         className="group relative aspect-reel w-full overflow-hidden rounded-rd-card bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark border border-borderSubtle-light dark:border-borderSubtle-dark shadow-rd-subtle hover:-translate-y-0.5 hover:border-brand-500/40 transition-all duration-200 cursor-pointer"
       >
+        {/* Thumbnail Image */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={imgSrc}
@@ -110,14 +115,14 @@ function CreatorReelTile({ item, creatorUsername }: { item: CreatorReelItem; cre
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/30 opacity-70 group-hover:opacity-90 transition-opacity" />
 
-        {/* Media Type Badge */}
+        {/* Media Type Badge (Top Left) */}
         <div className="absolute top-2.5 left-2.5 z-10">
           {item.isCarousel ? (
             <span className="px-2 py-0.5 rounded-full bg-blue-950/80 text-blue-300 border border-blue-500/30 text-[10px] font-bold backdrop-blur-md flex items-center space-x-1">
               <Layers className="w-2.5 h-2.5" />
               <span>Carousel</span>
             </span>
-          ) : item.isVideo ? (
+          ) : isVideo ? (
             <span className="px-2 py-0.5 rounded-full bg-purple-950/80 text-purple-300 border border-purple-500/30 text-[10px] font-bold backdrop-blur-md flex items-center space-x-1">
               <Play className="w-2.5 h-2.5 fill-current" />
               <span>Reel</span>
@@ -150,13 +155,13 @@ function CreatorReelTile({ item, creatorUsername }: { item: CreatorReelItem; cre
           <span>{alreadySaved ? "Saved" : "Save"}</span>
         </button>
 
-        {/* Center Hover Action Icon (Hidden by default, shown on hover) */}
+        {/* Center Hover Play Icon */}
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-0 group-hover:opacity-100 transition-all duration-200 z-10">
-          <div className="w-11 h-11 rounded-full bg-black/60 backdrop-blur-md text-white flex items-center justify-center shadow-lg transform scale-90 group-hover:scale-100 transition-transform border border-white/20">
+          <div className="w-12 h-12 rounded-full bg-brand-500/90 text-white flex items-center justify-center shadow-rd-modal transform scale-90 group-hover:scale-100 transition-transform">
             {item.isCarousel ? (
-              <Layers className="w-5 h-5 text-blue-400" />
-            ) : !item.isVideo ? (
-              <ImageIcon className="w-5 h-5 text-blue-400" />
+              <Layers className="w-5 h-5 text-white" />
+            ) : !isVideo ? (
+              <ImageIcon className="w-5 h-5 text-white" />
             ) : (
               <Play className="w-5 h-5 fill-white ml-0.5" />
             )}

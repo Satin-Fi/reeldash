@@ -626,15 +626,24 @@ export function ReelPlayer({
     );
   }
 
-  // 3. PHOTOS & CAROUSELS: Multi-Slide Photo/Carousel Viewer (Never play images through <video>)
-  if (
-    mediaType === "post" ||
-    reel.isCarousel ||
-    (reel.carouselSlides && reel.carouselSlides.length > 0) ||
-    (reel.carouselImages && reel.carouselImages.length > 0) ||
-    reel.instagramUrl?.includes("/p/") ||
-    (!reel.mediaUrl?.includes(".mp4") && mediaType !== "reel")
-  ) {
+  // 3. PHOTOS & CAROUSELS: Multi-Slide Photo/Carousel Viewer (ONLY for actual photo posts/carousels)
+  const isReelOrVideo =
+    mediaType === "reel" ||
+    reel.instagramUrl?.includes("/reel/") ||
+    reel.instagramUrl?.includes("/reels/") ||
+    (reel.mediaUrl && (reel.mediaUrl.includes(".mp4") || reel.mediaUrl.includes("video-stream")));
+
+  const isExplicitCarousel =
+    !isReelOrVideo &&
+    (reel.isCarousel ||
+      (reel.carouselSlides && reel.carouselSlides.length > 1) ||
+      (reel.carouselImages && reel.carouselImages.length > 1));
+
+  const isPhotoPost =
+    !isReelOrVideo &&
+    (mediaType === "post" || (reel.instagramUrl?.includes("/p/") && !reel.mediaUrl?.includes(".mp4")));
+
+  if (isExplicitCarousel || isPhotoPost) {
     return (
       <div className={`relative aspect-reel w-full overflow-hidden bg-black select-none ${className}`}>
         <MultiMediaPostViewer reel={reel} coverImageSrc={coverImageSrc} />
