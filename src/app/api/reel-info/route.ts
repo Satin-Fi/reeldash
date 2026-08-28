@@ -137,9 +137,9 @@ export async function POST(req: NextRequest) {
       creatorUsername = userMatch[1];
     }
 
-    // 2. High-speed parallel metadata extraction with 2.2-second hard timeout
+    // 2. High-speed parallel metadata extraction with 4-second timeout
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 2200);
+    const timeoutId = setTimeout(() => controller.abort(), 4000);
 
     const extractionTasks: Promise<void>[] = [];
 
@@ -207,7 +207,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Task D: Instagram Captioned Embed Scraper for Real Avatar & High-Res Cover
+    // Task D: Instagram Captioned Embed Scraper for Real Avatar, Username, Caption & High-Res Cover
     if (shortcode) {
       extractionTasks.push(
         (async () => {
@@ -219,6 +219,23 @@ export async function POST(req: NextRequest) {
             });
             if (embedRes.ok) {
               const html = await embedRes.text();
+
+              // Extract username
+              const userMatch =
+                html.match(/class="[^"]*Username[^"]*"[^>]*>([^<]+)<\/a>/i) ||
+                html.match(/instagram\.com\/([a-zA-Z0-9_.]+)\/\?utm_source/i);
+              if (userMatch && userMatch[1] && (!creatorUsername || creatorUsername.startsWith("ig_"))) {
+                creatorUsername = userMatch[1].trim();
+              }
+
+              // Extract caption
+              const capMatch = html.match(/class="Caption"[^>]*>([\s\S]*?)<\/div>/i);
+              if (capMatch && !caption) {
+                const rawText = capMatch[1].replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+                const cleanedCap = creatorUsername ? rawText.replace(new RegExp(`^${creatorUsername}\\s*`, "i"), "").trim() : rawText;
+                if (cleanedCap) caption = cleanedCap;
+              }
+
               const unescaped = html
                 .replace(/\\u0026/gi, "&")
                 .replace(/\\u00253D/gi, "%3D")
@@ -229,9 +246,18 @@ export async function POST(req: NextRequest) {
               const matches = unescaped.match(/https:\/\/[^"'\s<>\\]+/g) || [];
               for (const m of matches) {
                 if (m.includes("t51.82787-19") || m.includes("profile_pic")) {
-                  creatorAvatar = `/api/proxy-image?url=${encodeURIComponent(m)}`;
+                  if (!creatorAvatar) {
+                    creatorAvatar = `/api/proxy-image?url=${encodeURIComponent(m)}`;
+                  }
                 }
-                if ((!thumbnailUrl || thumbnailUrl.includes("/api/proxy-image")) && (m.includes("t51.82787-15") || m.includes("CLIPS") || m.includes("CAROUSEL_ITEM") || m.includes("dst-jpg") || m.includes("dst-jpegr"))) {
+                if (
+                  (!thumbnailUrl || thumbnailUrl.includes("/api/proxy-image?shortcode")) &&
+                  (m.includes("t51.82787-15") ||
+                    m.includes("CLIPS") ||
+                    m.includes("CAROUSEL_ITEM") ||
+                    m.includes("dst-jpg") ||
+                    m.includes("dst-jpegr"))
+                ) {
                   thumbnailUrl = `/api/proxy-image?url=${encodeURIComponent(m)}`;
                 }
               }

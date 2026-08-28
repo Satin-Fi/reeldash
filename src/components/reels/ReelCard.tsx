@@ -51,11 +51,14 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
 
   // Clean thumbnail image source via our proxy endpoint with multiple fallback layers
   const resolveImageSource = () => {
-    if (reel.thumbnailUrl && !reel.thumbnailUrl.includes("unsplash.com")) {
+    if (
+      reel.thumbnailUrl &&
+      !reel.thumbnailUrl.includes("unsplash.com") &&
+      !reel.thumbnailUrl.includes("ui-avatars.com")
+    ) {
       if (
         reel.thumbnailUrl.startsWith("http") &&
-        !reel.thumbnailUrl.includes("wsrv.nl") &&
-        !reel.thumbnailUrl.includes("ui-avatars.com")
+        !reel.thumbnailUrl.includes("wsrv.nl")
       ) {
         return `/api/proxy-image?url=${encodeURIComponent(reel.thumbnailUrl)}`;
       }
@@ -208,7 +211,9 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
               referrerPolicy="no-referrer"
               onError={(e) => {
                 setImageError(true);
-                (e.target as HTMLImageElement).src = `/api/proxy-image?username=${encodeURIComponent(displayHandle)}`;
+                if (shortcode) {
+                  (e.target as HTMLImageElement).src = `/api/proxy-image?shortcode=${shortcode}`;
+                }
               }}
               className="w-full h-full object-cover group-hover:scale-103 transition-transform duration-300 ease-out"
             />
@@ -255,9 +260,9 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
             </div>
 
             {/* Bottom Metrics (Clean minimal counters only, NO ugly Photo Post pill) */}
-            {(reel.duration || reel.likes) && (
+            {(reel.duration && reel.duration !== "Photo Post" && reel.duration !== "Post" || reel.likes) && (
               <div className="absolute bottom-2.5 left-2.5 flex items-center space-x-1.5 z-10">
-                {reel.duration && (
+                {reel.duration && reel.duration !== "Photo Post" && reel.duration !== "Post" && (
                   <span className="px-1.5 py-0.5 rounded-full bg-black/60 backdrop-blur-md font-mono text-[9px] text-white">
                     {reel.duration}
                   </span>
@@ -371,12 +376,19 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
               <div className="flex items-center space-x-2 min-w-0">
                 <div className="w-5 h-5 rounded-full overflow-hidden bg-zinc-800 border border-zinc-700/60 shrink-0 flex items-center justify-center">
                   <img
-                    src={reel.creatorAvatar || `/api/proxy-image?username=${encodeURIComponent(displayHandle)}`}
+                    src={
+                      reel.creatorAvatar && !reel.creatorAvatar.includes("ui-avatars.com")
+                        ? reel.creatorAvatar
+                        : `/api/proxy-image?username=${encodeURIComponent(displayHandle)}`
+                    }
                     alt={displayHandle}
                     referrerPolicy="no-referrer"
                     className="w-full h-full object-cover"
                     onError={(e) => {
-                      (e.target as HTMLElement).style.display = "none";
+                      const fallback = `/api/proxy-image?username=${encodeURIComponent(displayHandle)}`;
+                      if ((e.target as HTMLImageElement).src !== fallback) {
+                        (e.target as HTMLImageElement).src = fallback;
+                      }
                     }}
                   />
                 </div>

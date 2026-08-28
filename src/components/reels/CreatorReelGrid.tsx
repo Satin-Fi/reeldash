@@ -83,8 +83,16 @@ function CreatorReelTile({ item, creatorUsername }: { item: CreatorReelItem; cre
     try {
       await saveReel(item.instagramUrl, {
         creator: creatorUsername,
+        creatorFullName: creatorUsername ? creatorUsername.charAt(0).toUpperCase() + creatorUsername.slice(1) : undefined,
+        creatorAvatar: `/api/proxy-image?username=${encodeURIComponent(creatorUsername || "")}`,
+        thumbnailUrl: item.thumbnailUrl || (item.shortcode ? `/api/proxy-image?shortcode=${item.shortcode}` : undefined),
         caption: item.caption,
         mediaType,
+        isCarousel: item.isCarousel,
+        carouselImages: item.carouselImages,
+        likes: item.likes || undefined,
+        commentsCount: item.commentsCount || undefined,
+        duration: item.duration,
       });
       showToast(item.isCarousel ? "Saved Carousel to Library" : "Saved to Library");
     } catch {

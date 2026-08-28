@@ -48,6 +48,9 @@ interface ReelContextType {
     url: string,
     customDetails?: {
       creator?: string;
+      creatorFullName?: string;
+      creatorAvatar?: string;
+      thumbnailUrl?: string;
       caption?: string;
       category?: string;
       mediaType?: MediaType;
@@ -55,6 +58,9 @@ interface ReelContextType {
       audioArtist?: string;
       isCarousel?: boolean;
       carouselImages?: string[];
+      likes?: string;
+      commentsCount?: string;
+      duration?: string;
     }
   ) => Promise<void>;
   toggleFavorite: (id: string) => void;
@@ -154,8 +160,8 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
         .filter((r) => r && r.userId !== "usr-demo" && !r.id?.startsWith("mock-") && !r.id?.startsWith("sample-"))
         .map((r) => {
           let thumb = r.thumbnailUrl;
-          if (thumb && (thumb.includes("unsplash.com") || thumb.includes("ui-avatars.com"))) {
-            const sc = r.instagramUrl?.match(/(?:reel|reels|p|audio|stories)\/([A-Za-z0-9_-]+)/)?.[1];
+          const sc = r.instagramUrl?.match(/(?:reel|reels|p|audio|stories)\/([A-Za-z0-9_-]+)/)?.[1];
+          if (!thumb || thumb.includes("unsplash.com") || thumb.includes("ui-avatars.com")) {
             thumb = sc ? `/api/proxy-image?shortcode=${sc}` : thumb;
           }
           let avatar = r.creatorAvatar;
@@ -389,6 +395,9 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
     url: string,
     customDetails?: {
       creator?: string;
+      creatorFullName?: string;
+      creatorAvatar?: string;
+      thumbnailUrl?: string;
       caption?: string;
       category?: string;
       mediaType?: MediaType;
@@ -396,6 +405,9 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
       audioArtist?: string;
       isCarousel?: boolean;
       carouselImages?: string[];
+      likes?: string;
+      commentsCount?: string;
+      duration?: string;
     }
   ) => {
     const cleanUrl = url.trim();
@@ -427,6 +439,10 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
     const tempId = `${mediaType}-${Date.now()}`;
     const initialCreator = customDetails?.creator || (shortcode ? `ig_${shortcode.substring(0, 6)}` : "creator");
     const initialCategory = customDetails?.category || (mediaType === "audio" ? "Music & Audio" : "General");
+    const initialAvatar =
+      customDetails?.creatorAvatar || `/api/proxy-image?username=${encodeURIComponent(initialCreator)}`;
+    const initialThumbnail =
+      customDetails?.thumbnailUrl || (shortcode ? `/api/proxy-image?shortcode=${shortcode}` : "");
 
     // 1. Optimistic Instant UI Update (0ms)
     const optimisticReel: Reel = {
@@ -435,10 +451,10 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
       mediaType,
       instagramUrl: cleanUrl,
       creatorUsername: initialCreator,
-      creatorFullName: initialCreator.charAt(0).toUpperCase() + initialCreator.slice(1),
+      creatorFullName: customDetails?.creatorFullName || initialCreator.charAt(0).toUpperCase() + initialCreator.slice(1),
       creatorProfileUrl: `https://instagram.com/${initialCreator}`,
-      creatorAvatar: `/api/proxy-image?username=${encodeURIComponent(initialCreator)}`,
-      thumbnailUrl: shortcode ? `/api/proxy-image?shortcode=${shortcode}` : "",
+      creatorAvatar: initialAvatar,
+      thumbnailUrl: initialThumbnail,
       mediaUrl: "",
       embedUrl: `https://www.instagram.com/p/${shortcode}/embed/`,
       caption: customDetails?.caption || `Instagram ${mediaType.toUpperCase()}: ${cleanUrl}`,
@@ -447,11 +463,13 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
       collections: [],
       hashtags: [],
       isFavorite: false,
-      duration: mediaType === "audio" ? "Audio" : "0:30",
+      duration: customDetails?.duration || (mediaType === "audio" ? "Audio" : customDetails?.isCarousel ? `Carousel (${customDetails?.carouselImages?.length || 1})` : "0:30"),
       audioTitle: customDetails?.audioTitle,
       audioArtist: customDetails?.audioArtist,
       isCarousel: customDetails?.isCarousel,
       carouselImages: customDetails?.carouselImages,
+      likes: customDetails?.likes,
+      commentsCount: customDetails?.commentsCount,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       lastViewedAt: new Date().toISOString(),
@@ -473,8 +491,11 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
 
       if (res.ok) {
         const data = await res.json();
-        const finalCreator = customDetails?.creator || data.creatorUsername || initialCreator;
-        const finalFullName = data.creatorFullName || finalCreator;
+        const finalCreator =
+          (data.creatorUsername && !data.creatorUsername.startsWith("ig_"))
+            ? data.creatorUsername
+            : customDetails?.creator || initialCreator;
+        const finalFullName = data.creatorFullName || customDetails?.creatorFullName || finalCreator;
         const finalCategory = customDetails?.category || data.category || initialCategory;
 
         setReels((prev) => {
