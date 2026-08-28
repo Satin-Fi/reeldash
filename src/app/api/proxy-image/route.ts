@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { resolveRealInstagramAvatar } from "@/lib/instagramAvatar";
 
 export const dynamic = "force-dynamic";
-
-// In-memory cache for instant responses
-const avatarCache = new Map<string, { url: string; expiresAt: number }>();
 
 function serveCleanPlaceholderSvg() {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 600" width="100%" height="100%">
@@ -39,7 +37,7 @@ async function serveImageBinary(imageUrl: string, fallbackAvatarUrl?: string): P
     try {
       const wsrvUrl = `https://wsrv.nl/?url=${encodeURIComponent(imageUrl)}&output=jpg&q=85`;
       const imgRes = await fetch(wsrvUrl, {
-        signal: AbortSignal.timeout(3500),
+        signal: AbortSignal.timeout(4000),
       });
       if (imgRes.ok) {
         const buffer = await imgRes.arrayBuffer();
@@ -65,7 +63,7 @@ async function serveImageBinary(imageUrl: string, fallbackAvatarUrl?: string): P
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
         "Referer": "https://www.instagram.com/",
       },
-      signal: AbortSignal.timeout(2500),
+      signal: AbortSignal.timeout(3000),
     });
     if (directRes.ok) {
       const buffer = await directRes.arrayBuffer();
@@ -87,7 +85,7 @@ async function serveImageBinary(imageUrl: string, fallbackAvatarUrl?: string): P
   // 3. Fallback avatar if supplied
   if (fallbackAvatarUrl) {
     try {
-      const fbRes = await fetch(fallbackAvatarUrl, { signal: AbortSignal.timeout(2500) });
+      const fbRes = await fetch(fallbackAvatarUrl, { signal: AbortSignal.timeout(3000) });
       if (fbRes.ok) {
         const buffer = await fbRes.arrayBuffer();
         const contentType = fbRes.headers.get("content-type") || "image/svg+xml";
@@ -107,149 +105,6 @@ async function serveImageBinary(imageUrl: string, fallbackAvatarUrl?: string): P
   return serveCleanPlaceholderSvg();
 }
 
-async function fetchRealAvatarUrl(username: string): Promise<string | null> {
-  const cleanUsername = username.replace(/^@/, "").trim().toLowerCase();
-  if (!cleanUsername) return null;
-
-  const cached = avatarCache.get(cleanUsername);
-  if (cached && cached.expiresAt > Date.now()) {
-    return cached.url;
-  }
-
-  // Strategy 1: RSS-Bridge to recent post embed
-  try {
-    const bridgeUrls = [
-      `https://rss.trom.tf/?action=display&bridge=InstagramBridge&u=${encodeURIComponent(cleanUsername)}&format=Json`,
-      `https://rss-bridge.org/bridge01/?action=display&bridge=InstagramBridge&u=${encodeURIComponent(cleanUsername)}&format=Json`,
-      `https://rss.bloat.cat/?action=display&bridge=InstagramBridge&u=${encodeURIComponent(cleanUsername)}&format=Json`,
-    ];
-
-    const data = await Promise.any(
-      bridgeUrls.map(async (url) => {
-        const res = await fetch(url, {
-          headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" },
-          cache: "no-store",
-          signal: AbortSignal.timeout(2500),
-        });
-        if (!res.ok) throw new Error("bridge fail");
-        const j = await res.json();
-        if (!j.items || j.items.length === 0) throw new Error("no items");
-        return j;
-      })
-    );
-
-    const firstUrl = data.items[0]?.url;
-    const shortcode = firstUrl?.match(/\/(reel|p)\/([A-Za-z0-9_-]+)/)?.[2];
-
-    if (shortcode) {
-      const embedRes = await fetch(`https://www.instagram.com/p/${shortcode}/embed/captioned/`, {
-        headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" },
-        cache: "no-store",
-        signal: AbortSignal.timeout(2500),
-      });
-
-      if (embedRes.ok) {
-        const html = await embedRes.text();
-        const unescaped = html
-          .replace(/\\u0026/gi, "&")
-          .replace(/\\u00253D/gi, "%3D")
-          .replace(/\\\//g, "/")
-          .replace(/\\/g, "")
-          .replace(/&amp;/g, "&");
-
-        const scontentMatches = unescaped.match(/https:\/\/[^"'\s<>\\]+/g) || [];
-
-        for (const decoded of scontentMatches) {
-          if (
-            decoded.includes("t51.82787-19") ||
-            decoded.includes("t51.2885-19") ||
-            decoded.includes("s150x150") ||
-            decoded.includes("s100x100") ||
-            decoded.includes("profile_pic")
-          ) {
-            avatarCache.set(cleanUsername, {
-              url: decoded,
-              expiresAt: Date.now() + 1000 * 60 * 60 * 24,
-            });
-            return decoded;
-          }
-        }
-      }
-    }
-  } catch {
-    // Continue
-  }
-
-  // Strategy 2: Instagram Topsearch API
-  try {
-    const searchRes = await fetch(
-      `https://www.instagram.com/web/search/topsearch/?context=blended&query=${encodeURIComponent(cleanUsername)}&include_reel=false`,
-      {
-        headers: {
-          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-          "X-Requested-With": "XMLHttpRequest",
-          "Accept": "*/*",
-        },
-        signal: AbortSignal.timeout(2500),
-      }
-    );
-    if (searchRes.ok) {
-      const data = await searchRes.json();
-      const userObj = data.users?.find((u: { user: { username: string; profile_pic_url?: string } }) => u.user.username.toLowerCase() === cleanUsername)?.user;
-      if (userObj?.profile_pic_url) {
-        avatarCache.set(cleanUsername, {
-          url: userObj.profile_pic_url,
-          expiresAt: Date.now() + 1000 * 60 * 60 * 24,
-        });
-        return userObj.profile_pic_url;
-      }
-    }
-  } catch {
-    // Continue
-  }
-
-  // Strategy 3: Direct Instagram Profile Embed
-  try {
-    const embedRes = await fetch(`https://www.instagram.com/${cleanUsername}/embed/`, {
-      headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" },
-      redirect: "follow",
-      cache: "no-store",
-      signal: AbortSignal.timeout(2500),
-    });
-
-    if (embedRes.ok) {
-      const embedHtml = await embedRes.text();
-      const unescaped = embedHtml
-        .replace(/\\u0026/gi, "&")
-        .replace(/\\u00253D/gi, "%3D")
-        .replace(/\\\//g, "/")
-        .replace(/\\/g, "")
-        .replace(/&amp;/g, "&");
-
-      const scontentMatches = unescaped.match(/https:\/\/[^"'\s<>\\]+/g) || [];
-      for (const decoded of scontentMatches) {
-        if (
-          decoded.includes("t51.82787-19") ||
-          decoded.includes("t51.2885-19") ||
-          decoded.includes("s150x150") ||
-          decoded.includes("s100x100") ||
-          decoded.includes("profile_pic")
-        ) {
-          avatarCache.set(cleanUsername, {
-            url: decoded,
-            expiresAt: Date.now() + 1000 * 60 * 60 * 24,
-          });
-          return decoded;
-        }
-      }
-    }
-  } catch {
-    // Continue
-  }
-
-  return null;
-}
-
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const username = searchParams.get("username");
@@ -259,7 +114,7 @@ export async function GET(req: NextRequest) {
   if (username) {
     const fallbackAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(username)}&background=6366F1&color=fff&size=200&bold=true`;
     try {
-      const realAvatarUrl = await fetchRealAvatarUrl(username);
+      const realAvatarUrl = await resolveRealInstagramAvatar(username);
       if (realAvatarUrl) {
         return await serveImageBinary(realAvatarUrl, fallbackAvatar);
       }
