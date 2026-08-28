@@ -1,240 +1,260 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { useReels } from "@/context/ReelContext";
 import { useAuth } from "@/context/AuthContext";
 import { ReelGrid } from "@/components/reels/ReelGrid";
-import { Plus, Film, Heart, Zap, ArrowRight, MessageCircle, Search, Layers } from "lucide-react";
+import {
+  Film,
+  Heart,
+  Bookmark,
+  Music2,
+  Sparkles,
+  ArrowRight,
+  MessageCircle,
+  Plus,
+  Loader2,
+  CheckCircle2,
+  Search,
+} from "lucide-react";
 import Link from "next/link";
-import { motion } from "framer-motion";
-
-const ease = [0.32, 0.72, 0, 1];
-
-const statCards = [
-  { label: "Reels", key: "reel",  color: "text-violet-400", bg: "bg-violet-500/10", border: "hover:border-violet-500/30", href: "/reels?type=reel",  icon: Film },
-  { label: "Posts",  key: "post",  color: "text-sky-400",    bg: "bg-sky-500/10",    border: "hover:border-sky-500/30",    href: "/reels?type=post",  icon: Layers },
-  { label: "Favs",   key: "favs",  color: "text-rose-400",   bg: "bg-rose-500/10",   border: "hover:border-rose-500/30",   href: "/favorites",        icon: Heart },
-  { label: "Total",  key: "all",   color: "text-brand-400",  bg: "bg-brand-500/10",  border: "hover:border-brand-500/30",  href: "/reels?type=all",   icon: Layers },
-];
 
 export default function DashboardPage() {
-  const { reels, favorites, collections, setIsSaveModalOpen } = useReels();
+  const { reels, favorites, saveReel, isSaveModalOpen, setIsSaveModalOpen } = useReels();
   const { user } = useAuth();
 
+  const [inputUrl, setInputUrl] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const hour = new Date().getHours();
-  const greeting = hour < 5 ? "Still up?" : hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
+  const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
+  const displayName = user?.name ? user.name.split(" ")[0] : "there";
 
-  const recentlySaved = [...reels]
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-    .slice(0, 12);
+  const handleQuickSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inputUrl.trim() || isSubmitting) return;
 
-  const counts: Record<string, number> = {
-    reel: reels.filter((r) => !r.mediaType || r.mediaType === "reel").length,
-    post: reels.filter((r) => r.mediaType === "post").length,
-    favs: favorites.length,
-    all:  reels.length,
+    setIsSubmitting(true);
+    try {
+      await saveReel(inputUrl.trim());
+      setInputUrl("");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
+  const reelsCount = reels.filter((r) => !r.mediaType || r.mediaType === "reel").length;
+  const postsCount = reels.filter((r) => r.mediaType === "post").length;
+  const audioCount = reels.filter((r) => r.mediaType === "audio").length;
+  const favsCount = favorites.length;
+
+  const recentlySaved = [...reels].sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  );
+
   return (
-    <div className="space-y-8 pb-8">
-
-      {/* ─── Greeting header ─── */}
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, ease }}
-        className="flex flex-col sm:flex-row sm:items-end justify-between gap-4"
-      >
-        <div>
-          <p className="text-[12px] text-mutedText-dark font-medium uppercase tracking-[0.1em] mb-1">
-            {new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
-          </p>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-[-0.025em] text-primaryText-dark">
-            {greeting}, {user?.name?.split(" ")[0] || "there"}
-          </h1>
-        </div>
-        <button
-          onClick={() => setIsSaveModalOpen(true)}
-          className="group flex items-center gap-2 px-4 py-2.5 bg-brand-500 hover:bg-brand-600 active:scale-[0.97] text-white text-[13px] font-semibold rounded-rd-lg transition-all duration-250 ease-[cubic-bezier(0.32,0.72,0,1)] cursor-pointer shadow-rd-glow shrink-0"
-        >
-          <Plus className="w-4 h-4" strokeWidth={2.5} />
-          Save Reel
-        </button>
-      </motion.div>
-
-      {/* ─── Stats row ─── */}
-      <motion.div
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, delay: 0.06, ease }}
-        className="grid grid-cols-2 sm:grid-cols-4 gap-3"
-      >
-        {statCards.map((card) => {
-          const Icon = card.icon;
-          return (
-            <Link
-              key={card.key}
-              href={card.href}
-              className={`group p-4 bg-surface-dark border border-borderSubtle-dark ${card.border} rounded-rd-xl shadow-rd-subtle hover:shadow-rd-card transition-all duration-250 ease-[cubic-bezier(0.32,0.72,0,1)]`}
-            >
-              <div className="flex items-center justify-between mb-3">
-                <div className={`w-8 h-8 rounded-rd-md ${card.bg} flex items-center justify-center group-hover:scale-110 transition-transform duration-250`}>
-                  <Icon className={`w-4 h-4 ${card.color}`} strokeWidth={1.75} />
-                </div>
-                <ArrowRight className={`w-3.5 h-3.5 ${card.color} opacity-0 group-hover:opacity-100 -translate-x-1 group-hover:translate-x-0 transition-all duration-200`} />
-              </div>
-              <p className="text-2xl font-bold font-mono tracking-tight text-primaryText-dark">
-                {counts[card.key]}
-              </p>
-              <p className="text-[11px] text-mutedText-dark mt-0.5">{card.label}</p>
-            </Link>
-          );
-        })}
-      </motion.div>
-
-      {/* ─── Content: Recently saved OR empty state ─── */}
-      {reels.length > 0 ? (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.4, delay: 0.12, ease }}
-          className="space-y-4"
-        >
-          <div className="flex items-center justify-between">
-            <h2 className="text-[15px] font-semibold text-primaryText-dark tracking-tight">Recently saved</h2>
-            <Link
-              href="/reels"
-              className="flex items-center gap-1 text-[12px] font-medium text-brand-400 hover:text-brand-300 transition-colors"
-            >
-              View all
-              <ArrowRight className="w-3.5 h-3.5" />
-            </Link>
+    <div className="space-y-8 max-w-6xl mx-auto">
+      
+      {/* ─── Hero Header & Quick Save Bar ─── */}
+      <div className="p-6 md:p-8 bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-lg shadow-rd-subtle space-y-6 transition-colors duration-200">
+        
+        {/* Welcome Text */}
+        <div className="space-y-1">
+          <div className="flex items-center space-x-2 text-xs font-semibold text-brand-600 dark:text-brand-400 uppercase tracking-wider">
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>Visual Reel Library</span>
           </div>
-          <ReelGrid reels={recentlySaved} />
-        </motion.div>
-      ) : (
-        /* ─── Zero-data empty state ─── */
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.1, ease }}
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-primaryText-light dark:text-primaryText-dark">
+            {greeting}, {displayName}
+          </h1>
+          <p className="text-xs sm:text-sm text-secondaryText-light dark:text-secondaryText-dark max-w-xl">
+            Save Instagram Reels, Posts, and Audio effortlessly. Paste any URL below or send directly via Instagram DM.
+          </p>
+        </div>
+
+        {/* In-Dashboard Quick-Save Input Bar */}
+        <form onSubmit={handleQuickSave} className="flex flex-col sm:flex-row gap-2.5">
+          <div className="relative flex-1">
+            <input
+              type="text"
+              value={inputUrl}
+              onChange={(e) => setInputUrl(e.target.value)}
+              placeholder="Paste Instagram Reel or Post link (e.g. https://www.instagram.com/reel/...)"
+              className="w-full pl-4 pr-10 py-3 bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-md text-xs sm:text-sm text-primaryText-light dark:text-primaryText-dark placeholder:text-mutedText-light dark:placeholder:text-mutedText-dark focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500/30 transition-all"
+            />
+            {inputUrl && (
+              <button
+                type="button"
+                onClick={() => setInputUrl("")}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-mutedText-light dark:text-mutedText-dark hover:text-primaryText-light dark:hover:text-primaryText-dark text-xs"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+          <button
+            type="submit"
+            disabled={!inputUrl.trim() || isSubmitting}
+            className="flex items-center justify-center space-x-2 px-6 py-3 bg-brand-500 hover:bg-brand-600 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold text-xs sm:text-sm rounded-rd-md shadow-rd-glow transition-all shrink-0 cursor-pointer"
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>Saving...</span>
+              </>
+            ) : (
+              <>
+                <Plus className="w-4 h-4" strokeWidth={2.5} />
+                <span>Save to Library</span>
+              </>
+            )}
+          </button>
+        </form>
+      </div>
+
+      {/* ─── Metric Stat Cards ─── */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+        
+        {/* Reels */}
+        <Link
+          href="/reels?type=reel"
+          className="p-4 bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark hover:border-brand-500/40 rounded-rd-md shadow-rd-subtle flex items-center space-x-3.5 transition-all group cursor-pointer"
         >
-          {/* Double bezel empty state */}
-          <div className="p-[5px] rounded-[22px] bg-brand-500/5 border border-brand-500/15">
-            <div className="p-10 md:p-16 rounded-[18px] bg-surface-dark border border-borderSubtle-dark text-center space-y-8 relative overflow-hidden">
-              <div className="absolute inset-0 bg-gradient-to-br from-brand-500/4 via-transparent to-transparent pointer-events-none" />
+          <div className="p-2.5 rounded-rd-sm bg-purple-500/10 text-purple-600 dark:text-purple-400 group-hover:scale-105 transition-transform shrink-0">
+            <Film className="w-5 h-5" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-[11px] font-medium text-secondaryText-light dark:text-secondaryText-dark uppercase tracking-wider">
+              Reels
+            </p>
+            <p className="text-xl font-bold font-mono text-primaryText-light dark:text-primaryText-dark">
+              {reelsCount}
+            </p>
+          </div>
+        </Link>
 
-              {/* Icon */}
-              <div className="relative z-10 flex justify-center">
-                <div className="w-16 h-16 rounded-[20px] bg-brand-500/10 border border-brand-500/20 flex items-center justify-center">
-                  <Film className="w-7 h-7 text-brand-400" strokeWidth={1.5} />
+        {/* Posts & Photos */}
+        <Link
+          href="/reels?type=post"
+          className="p-4 bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark hover:border-brand-500/40 rounded-rd-md shadow-rd-subtle flex items-center space-x-3.5 transition-all group cursor-pointer"
+        >
+          <div className="p-2.5 rounded-rd-sm bg-blue-500/10 text-blue-600 dark:text-blue-400 group-hover:scale-105 transition-transform shrink-0">
+            <Bookmark className="w-5 h-5" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-[11px] font-medium text-secondaryText-light dark:text-secondaryText-dark uppercase tracking-wider">
+              Posts
+            </p>
+            <p className="text-xl font-bold font-mono text-primaryText-light dark:text-primaryText-dark">
+              {postsCount}
+            </p>
+          </div>
+        </Link>
+
+        {/* Audio */}
+        <Link
+          href="/reels?type=audio"
+          className="p-4 bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark hover:border-brand-500/40 rounded-rd-md shadow-rd-subtle flex items-center space-x-3.5 transition-all group cursor-pointer"
+        >
+          <div className="p-2.5 rounded-rd-sm bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 group-hover:scale-105 transition-transform shrink-0">
+            <Music2 className="w-5 h-5" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-[11px] font-medium text-secondaryText-light dark:text-secondaryText-dark uppercase tracking-wider">
+              Audio
+            </p>
+            <p className="text-xl font-bold font-mono text-primaryText-light dark:text-primaryText-dark">
+              {audioCount}
+            </p>
+          </div>
+        </Link>
+
+        {/* Favorites */}
+        <Link
+          href="/favorites"
+          className="p-4 bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark hover:border-brand-500/40 rounded-rd-md shadow-rd-subtle flex items-center space-x-3.5 transition-all group cursor-pointer"
+        >
+          <div className="p-2.5 rounded-rd-sm bg-rose-500/10 text-rose-600 dark:text-rose-400 group-hover:scale-105 transition-transform shrink-0">
+            <Heart className="w-5 h-5" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-[11px] font-medium text-secondaryText-light dark:text-secondaryText-dark uppercase tracking-wider">
+              Favorites
+            </p>
+            <p className="text-xl font-bold font-mono text-primaryText-light dark:text-primaryText-dark">
+              {favsCount}
+            </p>
+          </div>
+        </Link>
+      </div>
+
+      {/* ─── Content: Recently Saved or Actionable Empty State ─── */}
+      <div className="space-y-4">
+        {reels.length > 0 ? (
+          <>
+            <div className="flex items-center justify-between">
+              <h2 className="text-base font-bold text-primaryText-light dark:text-primaryText-dark tracking-tight">
+                Recently Saved
+              </h2>
+              <Link
+                href="/reels"
+                className="flex items-center space-x-1 text-xs font-semibold text-brand-600 dark:text-brand-400 hover:underline"
+              >
+                <span>View all library</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
+            </div>
+            <ReelGrid reels={recentlySaved} />
+          </>
+        ) : (
+          /* ─── Clean, Actionable Empty State (Zero Mock Data) ─── */
+          <div className="p-8 sm:p-12 text-center bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-lg shadow-rd-subtle space-y-6">
+            <div className="w-12 h-12 rounded-full bg-brand-500/10 text-brand-500 mx-auto flex items-center justify-center">
+              <Film className="w-6 h-6" />
+            </div>
+
+            <div className="space-y-1.5 max-w-md mx-auto">
+              <h3 className="text-lg font-bold text-primaryText-light dark:text-primaryText-dark">
+                Your Reel library is ready
+              </h3>
+              <p className="text-xs text-secondaryText-light dark:text-secondaryText-dark leading-relaxed">
+                Save your first Instagram Reel or Post using the box above, or link your Instagram account to save reels seamlessly via DM.
+              </p>
+            </div>
+
+            {/* Two clean onboarding action cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-lg mx-auto pt-2 text-left">
+              
+              <div className="p-4 bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-md space-y-2">
+                <div className="flex items-center space-x-2 text-brand-600 dark:text-brand-400 font-semibold text-xs">
+                  <Plus className="w-4 h-4" />
+                  <span>Option 1: Paste Link</span>
                 </div>
-              </div>
-
-              <div className="relative z-10 space-y-2">
-                <h3 className="text-xl font-bold tracking-tight text-primaryText-dark">
-                  Your Reel library starts here
-                </h3>
-                <p className="text-[14px] text-secondaryText-dark max-w-sm mx-auto leading-relaxed">
-                  Paste an Instagram Reel link, or DM any Reel to{" "}
-                  <span className="text-brand-400 font-medium">@ReelDash_app</span> on Instagram.
+                <p className="text-xs text-secondaryText-light dark:text-secondaryText-dark">
+                  Copy any Instagram reel URL and paste it in the box at the top of your dashboard.
                 </p>
               </div>
 
-              {/* Quick actions grid */}
-              <div className="relative z-10 grid sm:grid-cols-3 gap-3 max-w-xl mx-auto">
-                {[
-                  {
-                    icon: Plus,
-                    label: "Paste a link",
-                    desc: "Add any Instagram reel URL",
-                    action: () => setIsSaveModalOpen(true),
-                    color: "text-brand-400",
-                    bg: "bg-brand-500/10",
-                  },
-                  {
-                    icon: MessageCircle,
-                    label: "DM to save",
-                    desc: "Send reels via @ReelDash_app",
-                    href: "/integrations/instagram",
-                    color: "text-violet-400",
-                    bg: "bg-violet-500/10",
-                  },
-                  {
-                    icon: Search,
-                    label: "Browse creator",
-                    desc: "Search any Instagram account",
-                    href: "/search",
-                    color: "text-emerald-400",
-                    bg: "bg-emerald-500/10",
-                  },
-                ].map((item, i) => {
-                  const Icon = item.icon;
-                  const inner = (
-                    <div className="p-4 rounded-rd-xl bg-surfaceSecondary-dark border border-borderSubtle-dark hover:border-borderDefault-dark transition-all duration-200 text-left space-y-2 cursor-pointer group">
-                      <div className={`w-8 h-8 rounded-rd-md ${item.bg} flex items-center justify-center group-hover:scale-110 transition-transform`}>
-                        <Icon className={`w-4 h-4 ${item.color}`} strokeWidth={1.75} />
-                      </div>
-                      <div>
-                        <p className="text-[12px] font-semibold text-primaryText-dark">{item.label}</p>
-                        <p className="text-[11px] text-mutedText-dark mt-0.5">{item.desc}</p>
-                      </div>
-                    </div>
-                  );
+              <Link
+                href="/integrations/instagram"
+                className="p-4 bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark border border-borderSubtle-light dark:border-borderSubtle-dark hover:border-brand-500/40 rounded-rd-md space-y-2 group transition-colors block"
+              >
+                <div className="flex items-center justify-between text-violet-600 dark:text-violet-400 font-semibold text-xs">
+                  <div className="flex items-center space-x-2">
+                    <MessageCircle className="w-4 h-4" />
+                    <span>Option 2: Instagram DM</span>
+                  </div>
+                  <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+                </div>
+                <p className="text-xs text-secondaryText-light dark:text-secondaryText-dark">
+                  Link your @handle to DM reels to @ReelDash_app and auto-sync to your gallery.
+                </p>
+              </Link>
 
-                  return item.href ? (
-                    <Link key={i} href={item.href}>{inner}</Link>
-                  ) : (
-                    <button key={i} onClick={item.action} className="text-left">{inner}</button>
-                  );
-                })}
-              </div>
-
-              <div className="relative z-10">
-                <Link
-                  href="/demo"
-                  className="inline-flex items-center gap-1.5 text-[12px] text-mutedText-dark hover:text-secondaryText-dark transition-colors"
-                >
-                  <Zap className="w-3.5 h-3.5" />
-                  Or explore demo mode first
-                </Link>
-              </div>
             </div>
           </div>
-        </motion.div>
-      )}
-
-      {/* ─── Collections shortcut (only if user has some) ─── */}
-      {collections.length > 0 && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.3, delay: 0.2, ease }}
-          className="space-y-3"
-        >
-          <div className="flex items-center justify-between">
-            <h2 className="text-[15px] font-semibold text-primaryText-dark tracking-tight">Collections</h2>
-            <Link href="/collections" className="flex items-center gap-1 text-[12px] font-medium text-brand-400 hover:text-brand-300 transition-colors">
-              View all <ArrowRight className="w-3.5 h-3.5" />
-            </Link>
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-            {collections.slice(0, 4).map((col) => (
-              <Link
-                key={col.id}
-                href="/collections"
-                className="flex items-center gap-3 p-3 bg-surface-dark border border-borderSubtle-dark hover:border-borderDefault-dark rounded-rd-xl transition-all duration-200 group"
-              >
-                <span className="text-xl">{col.icon || "📁"}</span>
-                <div className="min-w-0">
-                  <p className="text-[12px] font-medium text-primaryText-dark truncate">{col.name}</p>
-                  <p className="text-[10px] text-mutedText-dark">{col.reelCount} reels</p>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </motion.div>
-      )}
+        )}
+      </div>
     </div>
   );
 }

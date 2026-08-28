@@ -2,19 +2,36 @@
 
 import React, { useState } from "react";
 import { useReels } from "@/context/ReelContext";
-import { User, Sun, Moon, Bell, Download, ShieldCheck, HardDrive, ExternalLink } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
+import { User, Sun, Moon, Bell, Download, ShieldCheck, MessageCircle } from "lucide-react";
+import Link from "next/link";
 
 export default function SettingsPage() {
   const { theme, toggleTheme, reels, showToast } = useReels();
+  const { user, updateUser } = useAuth();
   const [activeTab, setActiveTab] = useState<"account" | "appearance" | "notifications" | "export">("account");
+
+  const [name, setName] = useState(user?.name || "");
+  const [email, setEmail] = useState(user?.email || "");
+  const [igHandle, setIgHandle] = useState(user?.instagramUsername || "");
+
+  const handleSaveProfile = (e: React.FormEvent) => {
+    e.preventDefault();
+    updateUser({
+      name: name.trim() || user?.name,
+      email: email.trim() || user?.email,
+      instagramUsername: igHandle.replace("@", "").trim(),
+    });
+    showToast("Profile settings saved");
+  };
 
   const handleExportCSV = () => {
     const headers = ["ID", "Creator", "Caption", "Category", "Instagram URL", "Date Saved"];
     const rows = reels.map((r) => [
       r.id,
       `@${r.creatorUsername}`,
-      `"${r.caption.replace(/"/g, '""')}"`,
-      r.category,
+      `"${(r.caption || "").replace(/"/g, '""')}"`,
+      r.category || "General",
       r.instagramUrl,
       r.createdAt,
     ]);
@@ -26,7 +43,7 @@ export default function SettingsPage() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    showToast("✓ CSV library exported");
+    showToast("CSV library exported");
   };
 
   const handleExportJSON = () => {
@@ -37,17 +54,17 @@ export default function SettingsPage() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    showToast("✓ JSON library exported");
+    showToast("JSON library exported");
   };
 
   return (
-    <div className="space-y-6 max-w-4xl">
+    <div className="space-y-6 max-w-4xl mx-auto">
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-primaryText-light dark:text-primaryText-dark">
           Settings & Preferences
         </h1>
         <p className="text-xs text-secondaryText-light dark:text-secondaryText-dark mt-0.5">
-          Manage your account, appearance, notifications, and library exports.
+          Manage your profile, connected Instagram account, theme, and data export.
         </p>
       </div>
 
@@ -57,7 +74,9 @@ export default function SettingsPage() {
           <button
             onClick={() => setActiveTab("account")}
             className={`w-full flex items-center space-x-2.5 px-3 py-2 rounded-rd-sm text-xs font-medium transition-colors cursor-pointer text-left ${
-              activeTab === "account" ? "bg-brand-500/10 text-brand-500 font-semibold" : "text-secondaryText-light"
+              activeTab === "account"
+                ? "bg-brand-500/10 text-brand-600 dark:text-brand-400 font-semibold"
+                : "text-secondaryText-light dark:text-secondaryText-dark hover:bg-surfaceSecondary-light dark:hover:bg-surfaceSecondary-dark"
             }`}
           >
             <User className="w-4 h-4" />
@@ -66,7 +85,9 @@ export default function SettingsPage() {
           <button
             onClick={() => setActiveTab("appearance")}
             className={`w-full flex items-center space-x-2.5 px-3 py-2 rounded-rd-sm text-xs font-medium transition-colors cursor-pointer text-left ${
-              activeTab === "appearance" ? "bg-brand-500/10 text-brand-500 font-semibold" : "text-secondaryText-light"
+              activeTab === "appearance"
+                ? "bg-brand-500/10 text-brand-600 dark:text-brand-400 font-semibold"
+                : "text-secondaryText-light dark:text-secondaryText-dark hover:bg-surfaceSecondary-light dark:hover:bg-surfaceSecondary-dark"
             }`}
           >
             <Sun className="w-4 h-4" />
@@ -75,7 +96,9 @@ export default function SettingsPage() {
           <button
             onClick={() => setActiveTab("notifications")}
             className={`w-full flex items-center space-x-2.5 px-3 py-2 rounded-rd-sm text-xs font-medium transition-colors cursor-pointer text-left ${
-              activeTab === "notifications" ? "bg-brand-500/10 text-brand-500 font-semibold" : "text-secondaryText-light"
+              activeTab === "notifications"
+                ? "bg-brand-500/10 text-brand-600 dark:text-brand-400 font-semibold"
+                : "text-secondaryText-light dark:text-secondaryText-dark hover:bg-surfaceSecondary-light dark:hover:bg-surfaceSecondary-dark"
             }`}
           >
             <Bell className="w-4 h-4" />
@@ -84,7 +107,9 @@ export default function SettingsPage() {
           <button
             onClick={() => setActiveTab("export")}
             className={`w-full flex items-center space-x-2.5 px-3 py-2 rounded-rd-sm text-xs font-medium transition-colors cursor-pointer text-left ${
-              activeTab === "export" ? "bg-brand-500/10 text-brand-500 font-semibold" : "text-secondaryText-light"
+              activeTab === "export"
+                ? "bg-brand-500/10 text-brand-600 dark:text-brand-400 font-semibold"
+                : "text-secondaryText-light dark:text-secondaryText-dark hover:bg-surfaceSecondary-light dark:hover:bg-surfaceSecondary-dark"
             }`}
           >
             <Download className="w-4 h-4" />
@@ -95,36 +120,73 @@ export default function SettingsPage() {
         {/* Tab Content Panel */}
         <div className="md:col-span-9 p-6 bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-lg shadow-rd-subtle space-y-6">
           {activeTab === "account" && (
-            <div className="space-y-4 text-xs">
+            <form onSubmit={handleSaveProfile} className="space-y-4 text-xs">
               <h3 className="text-sm font-bold text-primaryText-light dark:text-primaryText-dark">
                 Account Information
               </h3>
+              
               <div className="space-y-3 max-w-md">
                 <div>
-                  <label className="block font-medium text-secondaryText-light mb-1">Full Name</label>
+                  <label className="block font-medium text-secondaryText-light dark:text-secondaryText-dark mb-1">
+                    Display Name
+                  </label>
                   <input
                     type="text"
-                    defaultValue="Piyush Kumar"
-                    className="w-full p-2 bg-background-light dark:bg-background-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-sm text-xs"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="Your Name"
+                    className="w-full p-2 bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-sm text-xs text-primaryText-light dark:text-primaryText-dark focus:outline-none focus:border-brand-500"
                   />
                 </div>
+
                 <div>
-                  <label className="block font-medium text-secondaryText-light mb-1">Email Address</label>
+                  <label className="block font-medium text-secondaryText-light dark:text-secondaryText-dark mb-1">
+                    Email Address
+                  </label>
                   <input
                     type="email"
-                    defaultValue="piyush@example.com"
-                    className="w-full p-2 bg-background-light dark:bg-background-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-sm text-xs"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="you@example.com"
+                    className="w-full p-2 bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-sm text-xs text-primaryText-light dark:text-primaryText-dark focus:outline-none focus:border-brand-500"
                   />
                 </div>
+
                 <div>
-                  <label className="block font-medium text-secondaryText-light mb-1">Connected Instagram Handle</label>
-                  <div className="flex items-center space-x-2 p-2 bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark rounded-rd-sm font-mono text-xs">
-                    <span>@piyush_kumar</span>
-                    <ShieldCheck className="w-4 h-4 text-emerald-500 ml-auto" />
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="font-medium text-secondaryText-light dark:text-secondaryText-dark">
+                      Instagram DM Handle
+                    </label>
+                    <Link
+                      href="/integrations/instagram"
+                      className="text-brand-600 dark:text-brand-400 hover:underline flex items-center space-x-1"
+                    >
+                      <MessageCircle className="w-3 h-3" />
+                      <span>Setup guide</span>
+                    </Link>
+                  </div>
+                  <div className="relative">
+                    <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-secondaryText-light dark:text-secondaryText-dark">
+                      @
+                    </span>
+                    <input
+                      type="text"
+                      value={igHandle}
+                      onChange={(e) => setIgHandle(e.target.value.replace("@", ""))}
+                      placeholder="your_handle"
+                      className="w-full pl-6 pr-3 py-2 bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-sm text-xs text-primaryText-light dark:text-primaryText-dark font-mono focus:outline-none focus:border-brand-500"
+                    />
                   </div>
                 </div>
+
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-brand-500 hover:bg-brand-600 active:scale-95 text-white font-semibold rounded-rd-md shadow-rd-subtle transition-all cursor-pointer"
+                >
+                  Save Profile
+                </button>
               </div>
-            </div>
+            </form>
           )}
 
           {activeTab === "appearance" && (
@@ -141,8 +203,8 @@ export default function SettingsPage() {
                   onClick={() => theme === "dark" && toggleTheme()}
                   className={`p-4 border rounded-rd-md flex flex-col items-center space-y-2 cursor-pointer transition-all ${
                     theme === "light"
-                      ? "border-brand-500 bg-brand-500/5 font-semibold text-brand-500"
-                      : "border-borderSubtle-light dark:border-borderSubtle-dark text-secondaryText-light"
+                      ? "border-brand-500 bg-brand-500/5 font-semibold text-brand-600 dark:text-brand-400"
+                      : "border-borderSubtle-light dark:border-borderSubtle-dark text-secondaryText-light dark:text-secondaryText-dark hover:border-brand-500/30"
                   }`}
                 >
                   <Sun className="w-6 h-6" />
@@ -153,8 +215,8 @@ export default function SettingsPage() {
                   onClick={() => theme === "light" && toggleTheme()}
                   className={`p-4 border rounded-rd-md flex flex-col items-center space-y-2 cursor-pointer transition-all ${
                     theme === "dark"
-                      ? "border-brand-500 bg-brand-500/5 font-semibold text-brand-500"
-                      : "border-borderSubtle-light dark:border-borderSubtle-dark text-secondaryText-light"
+                      ? "border-brand-500 bg-brand-500/10 font-semibold text-brand-400"
+                      : "border-borderSubtle-light dark:border-borderSubtle-dark text-secondaryText-light dark:text-secondaryText-dark hover:border-brand-500/30"
                   }`}
                 >
                   <Moon className="w-6 h-6" />
@@ -170,16 +232,12 @@ export default function SettingsPage() {
                 Notification Preferences
               </h3>
               <div className="space-y-3 max-w-md">
-                <label className="flex items-center justify-between p-3 bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark rounded-rd-sm cursor-pointer">
-                  <span>Save notifications</span>
+                <label className="flex items-center justify-between p-3 bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-sm cursor-pointer">
+                  <span className="text-primaryText-light dark:text-primaryText-dark">Save confirmation toasts</span>
                   <input type="checkbox" defaultChecked className="accent-brand-500" />
                 </label>
-                <label className="flex items-center justify-between p-3 bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark rounded-rd-sm cursor-pointer">
-                  <span>AI categorization toasts</span>
-                  <input type="checkbox" defaultChecked className="accent-brand-500" />
-                </label>
-                <label className="flex items-center justify-between p-3 bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark rounded-rd-sm cursor-pointer">
-                  <span>Weekly library summary digest</span>
+                <label className="flex items-center justify-between p-3 bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-sm cursor-pointer">
+                  <span className="text-primaryText-light dark:text-primaryText-dark">Instagram DM sync alerts</span>
                   <input type="checkbox" defaultChecked className="accent-brand-500" />
                 </label>
               </div>
@@ -192,23 +250,23 @@ export default function SettingsPage() {
                 Data Export & Ownership
               </h3>
               <p className="text-secondaryText-light dark:text-secondaryText-dark">
-                Export your saved Reel library metadata at any time. Your library belongs to you.
+                Export your saved Reel library metadata at any time in open standard formats.
               </p>
 
               <div className="flex flex-wrap gap-3 pt-2">
                 <button
                   onClick={handleExportCSV}
-                  className="flex items-center space-x-2 px-4 py-2.5 bg-brand-500 hover:bg-brand-600 text-white font-medium rounded-rd-md shadow-rd-subtle transition-all cursor-pointer"
+                  className="flex items-center space-x-2 px-4 py-2.5 bg-brand-500 hover:bg-brand-600 active:scale-95 text-white font-medium rounded-rd-md shadow-rd-subtle transition-all cursor-pointer"
                 >
                   <Download className="w-4 h-4" />
-                  <span>Export as CSV</span>
+                  <span>Export CSV</span>
                 </button>
                 <button
                   onClick={handleExportJSON}
-                  className="flex items-center space-x-2 px-4 py-2.5 bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark border border-borderSubtle-light dark:border-borderSubtle-dark hover:border-brand-500 text-primaryText-light font-medium rounded-rd-md shadow-rd-subtle transition-all cursor-pointer"
+                  className="flex items-center space-x-2 px-4 py-2.5 bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark border border-borderSubtle-light dark:border-borderSubtle-dark hover:border-brand-500 text-primaryText-light dark:text-primaryText-dark font-medium rounded-rd-md shadow-rd-subtle transition-all cursor-pointer"
                 >
                   <Download className="w-4 h-4" />
-                  <span>Export as JSON</span>
+                  <span>Export JSON</span>
                 </button>
               </div>
             </div>

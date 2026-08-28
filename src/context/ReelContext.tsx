@@ -2,7 +2,6 @@
 
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { Reel, Collection, SmartCategory, SortOption, ViewMode, MediaType, MediaTypeFilter } from "@/types/reel";
-import { INITIAL_REELS, INITIAL_COLLECTIONS } from "@/lib/mockData";
 import { useAuth } from "@/context/AuthContext";
 
 export interface ToastMessage {
@@ -54,16 +53,19 @@ interface ReelContextType {
       mediaType?: MediaType;
       audioTitle?: string;
       audioArtist?: string;
+      isCarousel?: boolean;
+      carouselImages?: string[];
     }
   ) => Promise<void>;
-  saveSampleMedia: (type: MediaType) => Promise<void>;
   toggleFavorite: (id: string) => void;
   deleteReel: (id: string) => void;
   undoDelete: () => void;
   updateNote: (id: string, note: string) => void;
   updateCategory: (id: string, category: string) => void;
   createCollection: (name: string, description?: string, icon?: string) => void;
+  deleteCollection: (id: string) => void;
   addReelToCollection: (reelId: string, collectionId: string) => void;
+  removeReelFromCollection: (reelId: string, collectionId: string) => void;
   generateAiSummary: (reelId: string) => void;
   refreshReelMetadata: (id: string) => Promise<Reel | null>;
   showToast: (title: string, subtitle?: string, action?: { label: string; onClick: () => void }) => void;
@@ -83,14 +85,44 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [sortOption, setSortOption] = useState<SortOption>("newest");
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
-  const [theme, setTheme] = useState<"light" | "dark">("light");
+  const [theme, setTheme] = useState<"light" | "dark">("dark");
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [isCreateCollectionModalOpen, setIsCreateCollectionModalOpen] = useState(false);
   const [lastDeletedReel, setLastDeletedReel] = useState<Reel | null>(null);
 
-  // Load user-specific data from localStorage whenever user changes
+  // Initialize theme from system or storage
+  useEffect(() => {
+    const savedTheme = localStorage.getItem("reeldash_theme") as "light" | "dark" | null;
+    if (savedTheme) {
+      setTheme(savedTheme);
+      if (savedTheme === "dark") {
+        document.documentElement.classList.add("dark");
+      } else {
+        document.documentElement.classList.remove("dark");
+      }
+    } else {
+      // Default to dark mode
+      document.documentElement.classList.add("dark");
+      setTheme("dark");
+    }
+  }, []);
+
+  const toggleTheme = () => {
+    setTheme((prev) => {
+      const nextTheme = prev === "light" ? "dark" : "light";
+      localStorage.setItem("reeldash_theme", nextTheme);
+      if (nextTheme === "dark") {
+        document.documentElement.classList.add("dark");
+      } else {
+        document.documentElement.classList.remove("dark");
+      }
+      return nextTheme;
+    });
+  };
+
+  // Load user-specific data from localStorage or API
   useEffect(() => {
     if (user?.id) {
       const userReelsKey = `reeldash_reels_${user.id}`;
@@ -99,40 +131,36 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
       const savedReels = localStorage.getItem(userReelsKey);
       const savedCols = localStorage.getItem(userColsKey);
 
-      let parsedReels: Reel[] = savedReels ? JSON.parse(savedReels) : [];
-      if (!Array.isArray(parsedReels)) {
-        parsedReels = [];
+      let parsedReels: Reel[] = [];
+      if (savedReels) {
+        try {
+          parsedReels = JSON.parse(savedReels);
+          if (!Array.isArray(parsedReels)) parsedReels = [];
+        } catch {
+          parsedReels = [];
+        }
       }
 
-      let parsedCols: Collection[] = savedCols ? JSON.parse(savedCols) : INITIAL_COLLECTIONS;
-      if (!Array.isArray(parsedCols) || parsedCols.length === 0) {
-        parsedCols = INITIAL_COLLECTIONS;
+      let parsedCols: Collection[] = [];
+      if (savedCols) {
+        try {
+          parsedCols = JSON.parse(savedCols);
+          if (!Array.isArray(parsedCols)) parsedCols = [];
+        } catch {
+          parsedCols = [];
+        }
       }
 
-      // Purge any legacy mock or demo items completely
+      // Purge any legacy mock or demo items
       parsedReels = parsedReels.filter(
         (r) => r && r.userId !== "usr-demo" && !r.id?.startsWith("mock-") && !r.id?.startsWith("sample-")
       );
-
-      // Clean out any invalid mediaUrl from existing saved reels
-      parsedReels = parsedReels.map((r) => {
-        if (r.mediaUrl && (r.mediaUrl.includes("zencdn.net") || r.mediaUrl.includes("googleapis.com/gtv-videos-bucket"))) {
-          return { ...r, mediaUrl: "" };
-        }
-        if (!r.mediaType) {
-          if (r.instagramUrl?.includes("/audio/")) r.mediaType = "audio";
-          else if (r.instagramUrl?.includes("/stories/")) r.mediaType = "story";
-          else if (r.instagramUrl?.includes("/p/") || r.isCarousel || (r.carouselImages && r.carouselImages.length > 0)) r.mediaType = "post";
-          else r.mediaType = "reel";
-        }
-        return r;
-      });
 
       setReels(parsedReels);
       setCollections(parsedCols);
     } else {
       setReels([]);
-      setCollections(INITIAL_COLLECTIONS);
+      setCollections([]);
     }
   }, [user?.id]);
 
@@ -150,20 +178,8 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  useEffect(() => {
-    if (theme === "dark") {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-    }
-  }, [theme]);
-
-  const toggleTheme = () => {
-    setTheme((prev) => (prev === "light" ? "dark" : "light"));
-  };
-
   const showToast = (title: string, subtitle?: string, action?: { label: string; onClick: () => void }) => {
-    const id = "toast-" + Math.random().toString(36).substr(2, 9);
+    const id = "toast-" + Math.random().toString(36).substring(2, 9);
     setToasts((prev) => [...prev, { id, title, subtitle, action }]);
     setTimeout(() => {
       removeToast(id);
@@ -193,7 +209,7 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
       if (r.id === id) {
         const nextFav = !r.isFavorite;
         if (nextFav) {
-          showToast("♥ Added to Favorites");
+          showToast("Added to Favorites");
         }
         return { ...r, isFavorite: nextFav };
       }
@@ -239,13 +255,13 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
       r.id === id ? { ...r, category, updatedAt: new Date().toISOString() } : r
     );
     saveUserReels(updated);
-    showToast(`Updated to ${category}`);
+    showToast(`Updated category to ${category}`);
   };
 
   const createCollection = (name: string, description?: string, icon: string = "📁") => {
     const newCol: Collection = {
-      id: "col-" + Math.random().toString(36).substr(2, 9),
-      name,
+      id: "col-" + Math.random().toString(36).substring(2, 9),
+      name: name.trim(),
       description,
       icon,
       reelIds: [],
@@ -253,10 +269,19 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
       reelCount: 0,
     };
     saveUserCollections([newCol, ...collections]);
-    showToast(`✓ Added to ${name}`);
+    showToast(`Created collection "${name}"`);
+  };
+
+  const deleteCollection = (id: string) => {
+    const updatedCols = collections.filter((c) => c.id !== id);
+    saveUserCollections(updatedCols);
+    showToast("Collection deleted");
   };
 
   const addReelToCollection = (reelId: string, collectionId: string) => {
+    const targetCol = collections.find((c) => c.id === collectionId);
+    if (!targetCol) return;
+
     const updatedCols = collections.map((col) => {
       if (col.id === collectionId && !col.reelIds.includes(reelId)) {
         return {
@@ -268,18 +293,42 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
       }
       return col;
     });
+
     const updatedReels = reels.map((r) => {
-      if (r.id === reelId && !r.collections.includes(collectionId)) {
-        return { ...r, collections: [...r.collections, collectionId] };
+      if (r.id === reelId && !r.collections?.includes(collectionId)) {
+        return { ...r, collections: [...(r.collections || []), collectionId] };
       }
       return r;
     });
 
     saveUserCollections(updatedCols);
     saveUserReels(updatedReels);
+    showToast(`Added to ${targetCol.name}`);
+  };
 
-    const colName = collections.find((c) => c.id === collectionId)?.name || "Collection";
-    showToast(`✓ Added to ${colName}`);
+  const removeReelFromCollection = (reelId: string, collectionId: string) => {
+    const updatedCols = collections.map((col) => {
+      if (col.id === collectionId) {
+        return {
+          ...col,
+          reelIds: col.reelIds.filter((id) => id !== reelId),
+          reelCount: Math.max(0, col.reelCount - 1),
+          updatedAt: "Just now",
+        };
+      }
+      return col;
+    });
+
+    const updatedReels = reels.map((r) => {
+      if (r.id === reelId) {
+        return { ...r, collections: (r.collections || []).filter((id) => id !== collectionId) };
+      }
+      return r;
+    });
+
+    saveUserCollections(updatedCols);
+    saveUserReels(updatedReels);
+    showToast("Removed from collection");
   };
 
   const refreshReelMetadata = async (id: string): Promise<Reel | null> => {
@@ -313,7 +362,7 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
           return r;
         });
         saveUserReels(updated);
-        showToast("Metadata refreshed!");
+        showToast("Metadata updated");
         return updatedItem;
       }
     } catch (e) {
@@ -322,7 +371,6 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
     return null;
   };
 
-  // Multi-Media Instagram Metadata & Thumbnail Fetching
   const saveReel = async (
     url: string,
     customDetails?: {
@@ -336,11 +384,14 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
       carouselImages?: string[];
     }
   ) => {
+    const cleanUrl = url.trim();
+    if (!cleanUrl) return;
+
     try {
       const res = await fetch("/api/reel-info", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url }),
+        body: JSON.stringify({ url: cleanUrl }),
       });
 
       const data = await res.json();
@@ -349,22 +400,19 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
       const creator = customDetails?.creator || data.creatorUsername || "instagram_creator";
       const creatorFullName = data.creatorFullName || creator;
       const category = customDetails?.category || data.category || (mediaType === "audio" ? "Music & Audio" : mediaType === "story" ? "Stories & Updates" : "General");
-      const caption = customDetails?.caption || data.caption || `Instagram ${mediaType.toUpperCase()}: ${url}`;
+      const caption = customDetails?.caption || data.caption || `Instagram ${mediaType.toUpperCase()}: ${cleanUrl}`;
       const thumbnailUrl = data.thumbnailUrl || (data.shortcode ? `/api/proxy-image?shortcode=${data.shortcode}` : "");
       const embedUrl = data.embedUrl || (data.shortcode ? `https://www.instagram.com/p/${data.shortcode}/embed/` : null);
 
-      const typeLabel = mediaType === "audio" ? "Song / Audio" : mediaType === "post" ? (customDetails?.isCarousel || data.isCarousel ? "Carousel" : "Post") : mediaType === "story" ? "Story" : "Reel";
-
+      const typeLabel = mediaType === "audio" ? "Audio" : mediaType === "post" ? "Post" : mediaType === "story" ? "Story" : "Reel";
       const isCarousel = customDetails?.isCarousel !== undefined ? customDetails.isCarousel : (data.isCarousel || false);
-      const carouselImages = customDetails?.carouselImages && customDetails.carouselImages.length > 0
-        ? customDetails.carouselImages
-        : data.carouselImages || (mediaType === "post" ? [thumbnailUrl] : undefined);
+      const carouselImages = customDetails?.carouselImages || data.carouselImages;
 
       const newReel: Reel = {
-        id: `${mediaType}-` + Math.random().toString(36).substr(2, 9),
+        id: `${mediaType}-` + Math.random().toString(36).substring(2, 9),
         userId: user?.id || "user-1",
         mediaType,
-        instagramUrl: url,
+        instagramUrl: cleanUrl,
         creatorUsername: creator,
         creatorFullName,
         creatorProfileUrl: `https://instagram.com/${creator}`,
@@ -380,46 +428,44 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
         likes: data.likes || "",
         commentsCount: data.commentsCount || "",
         isFavorite: false,
-        duration: data.duration || (mediaType === "audio" ? "2:14" : mediaType === "story" ? "Story (24h)" : isCarousel ? `Carousel (${carouselImages?.length || 3})` : "Photo Post"),
-        audioTitle: customDetails?.audioTitle || data.audioTitle || (mediaType === "audio" ? `${creatorFullName}'s Sound` : undefined),
-        audioArtist: customDetails?.audioArtist || data.audioArtist || (mediaType === "audio" ? `${creatorFullName} • Original Audio` : undefined),
-        audioUrl: data.audioUrl || (mediaType === "audio" ? "https://commondatastorage.googleapis.com/codeskulptor-demos/DDR_assets/Sevish_-__nbsp_.mp3" : undefined),
+        duration: data.duration || (mediaType === "audio" ? "Audio" : mediaType === "story" ? "Story" : "0:30"),
+        audioTitle: customDetails?.audioTitle || data.audioTitle,
+        audioArtist: customDetails?.audioArtist || data.audioArtist,
         isCarousel,
         carouselImages,
-        storyExpiresAt: mediaType === "story" ? new Date(Date.now() + 24 * 3600 * 1000).toISOString() : undefined,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         lastViewedAt: new Date().toISOString(),
-        aiSummary: `AI Summary: ${typeLabel} from @${creator} covering key takeaways in ${category}.`,
+        aiSummary: data.caption ? `Summary: @${creator}'s ${typeLabel} discussing ${category}.` : undefined,
         aiKeywords: [category, creator, mediaType],
         viewCount: 1,
       };
 
       saveUserReels([newReel, ...reels]);
       setIsSaveModalOpen(false);
-
-      showToast(`✨ Saved @${creator}'s ${typeLabel}`, `Added to ${category}`);
+      showToast(`Saved @${creator}'s ${typeLabel}`, `Added to ${category}`);
     } catch (err) {
-      console.error("Failed to save item with metadata:", err);
-      const mediaType: MediaType = customDetails?.mediaType || (url.includes("/audio/") ? "audio" : url.includes("/stories/") ? "story" : url.includes("/p/") ? "post" : "reel");
-      const shortcodeMatch = url.match(/(?:reel|p|audio|stories)\/([A-Za-z0-9_-]+)/);
+      console.error("Failed to save reel with metadata:", err);
+      const shortcodeMatch = cleanUrl.match(/(?:reel|p|audio|stories)\/([A-Za-z0-9_-]+)/);
       const shortcode = shortcodeMatch ? shortcodeMatch[1] : "";
+      const mediaType: MediaType = cleanUrl.includes("/audio/") ? "audio" : cleanUrl.includes("/stories/") ? "story" : cleanUrl.includes("/p/") ? "post" : "reel";
+
       const fallbackItem: Reel = {
-        id: `${mediaType}-` + Math.random().toString(36).substr(2, 9),
+        id: `${mediaType}-` + Math.random().toString(36).substring(2, 9),
         userId: user?.id || "user-1",
         mediaType,
-        instagramUrl: url,
-        creatorUsername: customDetails?.creator || (shortcode ? `ig_${shortcode.substring(0, 6)}` : "instagram_creator"),
+        instagramUrl: cleanUrl,
+        creatorUsername: shortcode ? `ig_${shortcode.substring(0, 6)}` : "creator",
         creatorProfileUrl: "https://instagram.com",
         thumbnailUrl: shortcode ? `/api/proxy-image?shortcode=${shortcode}` : "",
         mediaUrl: "",
-        caption: customDetails?.caption || `Saved ${mediaType.toUpperCase()}: ${url}`,
-        category: customDetails?.category || (mediaType === "audio" ? "Music & Audio" : "General"),
+        caption: `Instagram ${mediaType.toUpperCase()}: ${cleanUrl}`,
+        category: "General",
         subcategories: [],
         collections: [],
-        hashtags: [`#${mediaType}`],
+        hashtags: [],
         isFavorite: false,
-        duration: mediaType === "audio" ? "2:00" : mediaType === "story" ? "Story (24h)" : "0:30",
+        duration: "0:30",
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         viewCount: 1,
@@ -430,51 +476,17 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const saveSampleMedia = async (type: MediaType) => {
-    if (type === "audio") {
-      await saveReel("https://instagram.com/reels/audio/8839201923/", {
-        creator: "neon_synth_records",
-        caption: "Electric Dusk • Ambient chillwave beat with mellow retro synths for nocturnal focus.",
-        category: "Music & Audio",
-        mediaType: "audio",
-        audioTitle: "Electric Dusk (Mellow Chillwave)",
-        audioArtist: "Neon Synth Records • 92K Reels Used",
-      });
-    } else if (type === "post") {
-      await saveReel("https://instagram.com/p/DF992810Xz/", {
-        creator: "minimalist_interiors",
-        caption: "Japandi Living Room Inspiration: Natural walnut wood, warm ambient paper lanterns, and tactile linen finishes. Swipe for floor plans. 🌿",
-        category: "Design",
-        mediaType: "post",
-      });
-    } else if (type === "story") {
-      await saveReel("https://instagram.com/stories/mkbhd/392019482/", {
-        creator: "mkbhd",
-        caption: "First look on the camera rig testing setup in the studio today! 📸",
-        category: "AI & Tech",
-        mediaType: "story",
-      });
-    } else {
-      await saveReel("https://instagram.com/reel/C89210382/", {
-        creator: "clever_programmer",
-        caption: "Top 3 React Server Components patterns every Next.js 14 developer should master in 2026.",
-        category: "AI & Tech",
-        mediaType: "reel",
-      });
-    }
-  };
-
   const generateAiSummary = (reelId: string) => {
     const target = reels.find((r) => r.id === reelId);
     if (!target) return;
 
-    showToast("✨ Generating AI Summary...");
+    showToast("Generating summary...");
     setTimeout(() => {
-      const summary = `Generated Summary: Detailed breakdown of @${target.creatorUsername}'s ${target.mediaType || "content"}. Highlights 3 core practical takeaways for ${target.category}.`;
+      const summary = `Key Takeaways: High-value insights from @${target.creatorUsername}'s ${target.mediaType || "content"} in ${target.category}.`;
       const updated = reels.map((r) => (r.id === reelId ? { ...r, aiSummary: summary } : r));
       saveUserReels(updated);
-      showToast("✓ AI Summary generated");
-    }, 1200);
+      showToast("Summary ready");
+    }, 1000);
   };
 
   return (
@@ -507,14 +519,15 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
         setIsCommandPaletteOpen,
         setIsCreateCollectionModalOpen,
         saveReel,
-        saveSampleMedia,
         toggleFavorite,
         deleteReel,
         undoDelete,
         updateNote,
         updateCategory,
         createCollection,
+        deleteCollection,
         addReelToCollection,
+        removeReelFromCollection,
         generateAiSummary,
         refreshReelMetadata,
         showToast,
@@ -533,4 +546,3 @@ export function useReels() {
   }
   return context;
 }
-
