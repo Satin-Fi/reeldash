@@ -228,9 +228,9 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
               />
             </motion.button>
 
-            {/* Center Action Hover Icon */}
-            <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
-              <div className={`w-12 h-12 rounded-full text-white flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform ${
+            {/* Center Action Hover Icon (Appears on Hover) */}
+            <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none opacity-0 group-hover:opacity-100 transition-all duration-200">
+              <div className={`w-12 h-12 rounded-full text-white flex items-center justify-center shadow-rd-modal transform scale-90 group-hover:scale-100 transition-transform ${
                 mediaType === "audio"
                   ? "bg-emerald-500/90"
                   : mediaType === "post"

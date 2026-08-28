@@ -21,6 +21,7 @@ import {
   Loader2,
   User,
   Sparkles,
+  CheckCircle2,
 } from "lucide-react";
 
 interface AccountData {
@@ -68,7 +69,7 @@ function CreatorProfileContent() {
   const [discovering, setDiscovering] = useState(false);
   const [discoverError, setDiscoverError] = useState<string | null>(null);
 
-  // 1. Fetch authentic Creator Info + their Instagram media
+  // 1. Fetch Creator Info + Instagram public media
   useEffect(() => {
     async function loadProfile() {
       setIsLoading(true);
@@ -120,30 +121,56 @@ function CreatorProfileContent() {
     }
   }, [username]);
 
-  // 2. Real saved items belonging to this creator
+  // 2. Real saved items belonging to this creator in library
   const creatorReels = reels.filter(
-    (r) => r.creatorUsername.toLowerCase() === username.toLowerCase() && (r.mediaType === "reel" || !r.mediaType)
+    (r) => r.creatorUsername?.toLowerCase() === username.toLowerCase() && (r.mediaType === "reel" || !r.mediaType)
   );
 
   const creatorPosts = reels.filter(
-    (r) => r.creatorUsername.toLowerCase() === username.toLowerCase() && r.mediaType === "post"
+    (r) => r.creatorUsername?.toLowerCase() === username.toLowerCase() && r.mediaType === "post"
   );
 
   const creatorStories = reels.filter(
-    (r) => r.creatorUsername.toLowerCase() === username.toLowerCase() && r.mediaType === "story"
+    (r) => r.creatorUsername?.toLowerCase() === username.toLowerCase() && r.mediaType === "story"
   );
 
   const creatorAudio = reels.filter(
-    (r) => r.creatorUsername.toLowerCase() === username.toLowerCase() && (r.mediaType === "audio" || !!r.audioTitle)
+    (r) => r.creatorUsername?.toLowerCase() === username.toLowerCase() && (r.mediaType === "audio" || !!r.audioTitle)
   );
 
-  const discoveredReels = discovered.filter(
+  // 3. Discovered items split by media type
+  const rawDiscoveredReels = discovered.filter(
     (d) => d.mediaType === "reel" || (d.isVideo && !d.isCarousel)
   );
 
-  const discoveredPosts = discovered.filter(
+  const rawDiscoveredPosts = discovered.filter(
     (d) => d.mediaType === "post" || d.isCarousel || !d.isVideo
   );
+
+  // 4. UN-SAVED discovered items (Prevents double counting and count inflation!)
+  const isSavedUrl = (url: string, shortcode?: string) => {
+    const cleanUrl = url.replace(/\/$/, "");
+    return reels.some(
+      (r) =>
+        r.instagramUrl.replace(/\/$/, "") === cleanUrl ||
+        (shortcode && r.shortcode === shortcode) ||
+        (shortcode && r.instagramUrl.includes(shortcode))
+    );
+  };
+
+  const unsavedDiscoveredReels = rawDiscoveredReels.filter(
+    (d) => !isSavedUrl(d.instagramUrl, d.shortcode)
+  );
+
+  const unsavedDiscoveredPosts = rawDiscoveredPosts.filter(
+    (d) => !isSavedUrl(d.instagramUrl, d.shortcode)
+  );
+
+  // Total unique counts (consistent and logically sound!)
+  const totalReelsCount = creatorReels.length + unsavedDiscoveredReels.length;
+  const totalPostsCount = creatorPosts.length + unsavedDiscoveredPosts.length;
+  const totalStoriesCount = creatorStories.length + discoveredStories.length;
+  const totalAudioCount = creatorAudio.length;
 
   const handleCopyProfile = () => {
     navigator.clipboard.writeText(`https://instagram.com/${username}`);
@@ -152,63 +179,54 @@ function CreatorProfileContent() {
 
   const handleQuickAdd = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!reelUrlInput.trim()) return;
+    if (!reelUrlInput.trim() || isSaving) return;
 
     setIsSaving(true);
     try {
       await saveReel(reelUrlInput.trim(), { creator: username });
       setReelUrlInput("");
-      showToast(`Saved Reel from @${username}`);
+      showToast(`Saved reel from @${username}`);
     } catch {
-      showToast("Could not save Reel. Please check the URL.");
+      showToast("Could not save reel");
     } finally {
       setIsSaving(false);
     }
   };
 
   return (
-    <div className="space-y-6 max-w-6xl mx-auto pb-16">
-      {/* Back Link */}
+    <div className="space-y-6 max-w-6xl mx-auto">
+      
+      {/* Back Button */}
       <button
         onClick={() => router.back()}
-        className="flex items-center space-x-1.5 text-xs font-semibold text-secondaryText-light dark:text-secondaryText-dark hover:text-primaryText-light transition-colors cursor-pointer"
+        className="inline-flex items-center space-x-1.5 text-xs font-semibold text-secondaryText-light dark:text-secondaryText-dark hover:text-primaryText-light dark:hover:text-primaryText-dark transition-colors cursor-pointer"
       >
         <ArrowLeft className="w-4 h-4" />
         <span>Back to search</span>
       </button>
 
-      {/* 1. CREATOR PROFILE HEADER */}
-      <div className="p-6 bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-xl shadow-rd-subtle space-y-6">
+      {/* ─── CREATOR PROFILE CARD ─── */}
+      <div className="p-6 bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-lg shadow-rd-subtle space-y-6">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center space-x-4 min-w-0">
+            
             {/* Avatar */}
-            <div className="relative p-1 rounded-full bg-gradient-to-tr from-yellow-500 via-pink-500 to-purple-600 shrink-0 shadow-md">
+            <div className="relative p-0.5 rounded-full bg-gradient-to-tr from-amber-500 via-rose-500 to-purple-600 shrink-0 shadow-rd-glow">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={
-                  account?.avatarUrl ||
-                  `https://ui-avatars.com/api/?name=${encodeURIComponent(
-                    username
-                  )}&background=7c3aed&color=fff&size=160`
-                }
+                src={account?.avatarUrl || `https://ui-avatars.com/api/?name=${username}&background=6366F1&color=fff`}
                 alt={username}
-                className="w-16 h-16 sm:w-20 sm:h-20 rounded-full object-cover bg-zinc-800"
+                className="w-16 h-16 rounded-full object-cover bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark border-2 border-surface-light dark:border-surface-dark"
                 onError={(e) => {
-                  (e.target as HTMLElement).style.display = "none";
-                  const fallback = (e.target as HTMLElement)
-                    .nextElementSibling as HTMLElement;
-                  if (fallback) fallback.style.display = "flex";
+                  (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${username}&background=6366F1&color=fff`;
                 }}
               />
-              <div className="hidden w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-zinc-800 items-center justify-center text-zinc-400">
-                <User className="w-8 h-8" />
-              </div>
             </div>
 
-            {/* Creator Names & Meta */}
+            {/* Handle & Name */}
             <div className="space-y-1 min-w-0">
-              <div className="flex items-center space-x-2">
-                <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-primaryText-light dark:text-primaryText-dark truncate">
+              <div className="flex items-center space-x-1.5 flex-wrap">
+                <h1 className="text-xl font-bold text-primaryText-light dark:text-primaryText-dark tracking-tight truncate">
                   @{username}
                 </h1>
                 {account?.isVerified && (
@@ -216,49 +234,39 @@ function CreatorProfileContent() {
                 )}
               </div>
 
-              <p className="text-xs sm:text-sm font-medium text-secondaryText-light dark:text-secondaryText-dark truncate">
-                {account?.displayName || username}
-              </p>
+              {account?.displayName && (
+                <p className="text-xs font-medium text-secondaryText-light dark:text-secondaryText-dark">
+                  {account.displayName}
+                </p>
+              )}
 
               {/* Stats */}
-              <div className="flex items-center space-x-4 text-xs pt-1">
+              <div className="flex items-center space-x-3 text-xs pt-0.5">
                 {account?.followers && (
-                  <span>
-                    <strong className="font-bold text-primaryText-light dark:text-primaryText-dark font-mono">
-                      {account.followers}
-                    </strong>{" "}
-                    <span className="text-mutedText-light dark:text-mutedText-dark">
-                      Followers
-                    </span>
+                  <span className="font-semibold text-primaryText-light dark:text-primaryText-dark">
+                    {account.followers}{" "}
+                    <span className="font-normal text-secondaryText-light dark:text-secondaryText-dark">followers</span>
                   </span>
                 )}
                 {account?.postsCount && (
-                  <span>
-                    <strong className="font-bold text-primaryText-light dark:text-primaryText-dark font-mono">
-                      {account.postsCount}
-                    </strong>{" "}
-                    <span className="text-mutedText-light dark:text-mutedText-dark">
-                      Posts
-                    </span>
+                  <span className="font-semibold text-primaryText-light dark:text-primaryText-dark">
+                    {account.postsCount}{" "}
+                    <span className="font-normal text-secondaryText-light dark:text-secondaryText-dark">posts</span>
                   </span>
                 )}
-                <span>
-                  <strong className="font-bold text-brand-500 font-mono">
-                    {creatorReels.length + creatorPosts.length + creatorStories.length + creatorAudio.length}
-                  </strong>{" "}
-                  <span className="text-mutedText-light dark:text-mutedText-dark">
-                    Saved in ReelDash
-                  </span>
+                <span className="font-semibold text-brand-600 dark:text-brand-400">
+                  {creatorReels.length + creatorPosts.length + creatorAudio.length}{" "}
+                  <span className="font-normal text-secondaryText-light dark:text-secondaryText-dark">saved in library</span>
                 </span>
               </div>
             </div>
           </div>
 
-          {/* Action buttons */}
+          {/* Action Buttons */}
           <div className="flex items-center space-x-2 shrink-0">
             <button
               onClick={handleCopyProfile}
-              className="p-2 bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark border border-borderSubtle-light dark:border-borderSubtle-dark hover:border-brand-500 text-secondaryText-light hover:text-primaryText-light rounded-rd-md transition-colors cursor-pointer"
+              className="p-2 bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark border border-borderSubtle-light dark:border-borderSubtle-dark hover:border-brand-500 text-secondaryText-light dark:text-secondaryText-dark hover:text-primaryText-light dark:hover:text-primaryText-dark rounded-rd-md transition-colors cursor-pointer"
               title="Copy Profile Link"
             >
               <Copy className="w-4 h-4" />
@@ -267,23 +275,23 @@ function CreatorProfileContent() {
               href={`https://instagram.com/${username}`}
               target="_blank"
               rel="noreferrer"
-              className="flex items-center space-x-1.5 px-3 py-2 bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark border border-borderSubtle-light dark:border-borderSubtle-dark hover:border-pink-500/50 text-secondaryText-light hover:text-pink-500 rounded-rd-md text-xs font-semibold transition-colors"
+              className="flex items-center space-x-1.5 px-3 py-2 bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark border border-borderSubtle-light dark:border-borderSubtle-dark hover:border-pink-500/50 text-secondaryText-light dark:text-secondaryText-dark hover:text-pink-500 rounded-rd-md text-xs font-semibold transition-colors"
             >
               <Instagram className="w-4 h-4 text-pink-500" />
-              <span>Instagram</span>
-              <ExternalLink className="w-3 h-3 text-mutedText-light" />
+              <span>Open on Instagram</span>
+              <ExternalLink className="w-3 h-3" />
             </a>
           </div>
         </div>
 
         {/* Bio */}
         {account?.bio && (
-          <p className="text-xs sm:text-sm text-secondaryText-light dark:text-secondaryText-dark border-t border-borderSubtle-light dark:border-borderSubtle-dark pt-3 leading-relaxed">
+          <p className="text-xs text-secondaryText-light dark:text-secondaryText-dark border-t border-borderSubtle-light dark:border-borderSubtle-dark pt-3 leading-relaxed">
             {account.bio}
           </p>
         )}
 
-        {/* HIGHLIGHTS BAR */}
+        {/* Highlights */}
         {highlights.length > 0 && (
           <div className="border-t border-borderSubtle-light dark:border-borderSubtle-dark pt-4">
             <div className="flex items-center space-x-1.5 mb-3 text-xs font-bold text-secondaryText-light dark:text-secondaryText-dark uppercase tracking-wider">
@@ -292,17 +300,10 @@ function CreatorProfileContent() {
             </div>
             <div className="flex items-center space-x-4 overflow-x-auto pb-2 scrollbar-none">
               {highlights.map((h, i) => (
-                <div
-                  key={i}
-                  className="flex flex-col items-center space-y-1.5 shrink-0 cursor-pointer group"
-                >
+                <div key={i} className="flex flex-col items-center space-y-1.5 shrink-0 cursor-pointer group">
                   <div className="p-0.5 rounded-full bg-gradient-to-tr from-amber-400 via-pink-500 to-purple-600 group-hover:scale-105 transition-transform shadow-sm">
                     <div className="w-14 h-14 rounded-full overflow-hidden border-2 border-surface-light dark:border-surface-dark bg-zinc-800 flex items-center justify-center">
-                      <img
-                        src={h.coverUrl}
-                        alt={h.title}
-                        className="w-full h-full object-cover"
-                      />
+                      <img src={h.coverUrl} alt={h.title} className="w-full h-full object-cover" />
                     </div>
                   </div>
                   <span className="text-[11px] font-semibold text-primaryText-light dark:text-primaryText-dark truncate max-w-[70px] text-center">
@@ -314,319 +315,239 @@ function CreatorProfileContent() {
           </div>
         )}
 
-        {/* Quick Save URL Box */}
-        <form onSubmit={handleQuickAdd} className="flex items-center gap-2 pt-2">
+        {/* Quick URL Input */}
+        <form onSubmit={handleQuickAdd} className="flex items-center gap-2 pt-2 border-t border-borderSubtle-light dark:border-borderSubtle-dark">
           <input
             type="url"
-            placeholder={`Paste any Reel link from @${username} (e.g. https://www.instagram.com/reel/...)`}
+            placeholder={`Paste any link from @${username} (e.g. https://www.instagram.com/reel/...)`}
             value={reelUrlInput}
             onChange={(e) => setReelUrlInput(e.target.value)}
-            className="flex-1 px-3.5 py-2 bg-background-light dark:bg-background-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-md text-xs sm:text-sm text-primaryText-light dark:text-primaryText-dark focus:outline-none focus:border-brand-500"
+            className="flex-1 px-3.5 py-2 bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-md text-xs text-primaryText-light dark:text-primaryText-dark focus:outline-none focus:border-brand-500"
           />
           <button
             type="submit"
             disabled={isSaving || !reelUrlInput.trim()}
-            className="px-4 py-2 bg-brand-500 hover:bg-brand-600 active:scale-95 text-white font-semibold text-xs rounded-rd-md shadow-sm transition-all disabled:opacity-50 flex items-center space-x-1.5 cursor-pointer shrink-0"
+            className="px-4 py-2 bg-brand-500 hover:bg-brand-600 active:scale-95 text-white font-semibold text-xs rounded-rd-md shadow-rd-subtle transition-all disabled:opacity-50 flex items-center space-x-1.5 cursor-pointer shrink-0"
           >
             {isSaving ? (
               <Loader2 className="w-3.5 h-3.5 animate-spin" />
             ) : (
               <Plus className="w-3.5 h-3.5" />
             )}
-            <span>Save to ReelDash</span>
+            <span>Save to Library</span>
           </button>
         </form>
       </div>
 
-      {/* 2. MEDIA TYPE TABS */}
-      <div className="flex items-center space-x-2 border-b border-borderSubtle-light dark:border-borderSubtle-dark pb-2 overflow-x-auto">
+      {/* ─── MEDIA TYPE TABS (Clean High-Contrast Tabs) ─── */}
+      <div className="flex items-center space-x-2 border-b border-borderSubtle-light dark:border-borderSubtle-dark pb-2 overflow-x-auto text-xs">
         <button
           onClick={() => setActiveTab("reels")}
-          className={`flex items-center space-x-2 px-4 py-2 rounded-rd-lg text-xs font-bold transition-colors cursor-pointer shrink-0 ${
+          className={`flex items-center space-x-2 px-3.5 py-2 rounded-rd-md font-semibold transition-all cursor-pointer shrink-0 ${
             activeTab === "reels"
-              ? "bg-brand-500 text-white shadow-sm"
-              : "text-secondaryText-light dark:text-secondaryText-dark hover:bg-surfaceSecondary-light dark:hover:bg-surfaceSecondary-dark"
+              ? "bg-brand-500/10 text-brand-600 dark:text-brand-400 border border-brand-500/25"
+              : "text-secondaryText-light dark:text-secondaryText-dark hover:bg-surfaceSecondary-light dark:hover:bg-surfaceSecondary-dark hover:text-primaryText-light dark:hover:text-primaryText-dark"
           }`}
         >
           <Film className="w-4 h-4" />
-          <span>Reels ({creatorReels.length + discoveredReels.length})</span>
+          <span>Reels</span>
+          <span className="px-1.5 py-0.5 rounded-full text-[10px] font-mono bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark text-secondaryText-light dark:text-secondaryText-dark">
+            {totalReelsCount}
+          </span>
         </button>
 
         <button
           onClick={() => setActiveTab("posts")}
-          className={`flex items-center space-x-2 px-4 py-2 rounded-rd-lg text-xs font-bold transition-colors cursor-pointer shrink-0 ${
+          className={`flex items-center space-x-2 px-3.5 py-2 rounded-rd-md font-semibold transition-all cursor-pointer shrink-0 ${
             activeTab === "posts"
-              ? "bg-brand-500 text-white shadow-sm"
-              : "text-secondaryText-light dark:text-secondaryText-dark hover:bg-surfaceSecondary-light dark:hover:bg-surfaceSecondary-dark"
+              ? "bg-brand-500/10 text-brand-600 dark:text-brand-400 border border-brand-500/25"
+              : "text-secondaryText-light dark:text-secondaryText-dark hover:bg-surfaceSecondary-light dark:hover:bg-surfaceSecondary-dark hover:text-primaryText-light dark:hover:text-primaryText-dark"
           }`}
         >
           <Grid className="w-4 h-4" />
-          <span>Posts & Carousels ({creatorPosts.length + discoveredPosts.length})</span>
+          <span>Posts & Carousels</span>
+          <span className="px-1.5 py-0.5 rounded-full text-[10px] font-mono bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark text-secondaryText-light dark:text-secondaryText-dark">
+            {totalPostsCount}
+          </span>
         </button>
 
         <button
           onClick={() => setActiveTab("stories")}
-          className={`flex items-center space-x-2 px-4 py-2 rounded-rd-lg text-xs font-bold transition-colors cursor-pointer shrink-0 ${
+          className={`flex items-center space-x-2 px-3.5 py-2 rounded-rd-md font-semibold transition-all cursor-pointer shrink-0 ${
             activeTab === "stories"
-              ? "bg-brand-500 text-white shadow-sm"
-              : "text-secondaryText-light dark:text-secondaryText-dark hover:bg-surfaceSecondary-light dark:hover:bg-surfaceSecondary-dark"
+              ? "bg-brand-500/10 text-brand-600 dark:text-brand-400 border border-brand-500/25"
+              : "text-secondaryText-light dark:text-secondaryText-dark hover:bg-surfaceSecondary-light dark:hover:bg-surfaceSecondary-dark hover:text-primaryText-light dark:hover:text-primaryText-dark"
           }`}
         >
           <CircleDashed className="w-4 h-4" />
-          <span>Stories ({creatorStories.length + discoveredStories.length})</span>
+          <span>Stories</span>
+          <span className="px-1.5 py-0.5 rounded-full text-[10px] font-mono bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark text-secondaryText-light dark:text-secondaryText-dark">
+            {totalStoriesCount}
+          </span>
         </button>
 
         <button
           onClick={() => setActiveTab("audio")}
-          className={`flex items-center space-x-2 px-4 py-2 rounded-rd-lg text-xs font-bold transition-colors cursor-pointer shrink-0 ${
+          className={`flex items-center space-x-2 px-3.5 py-2 rounded-rd-md font-semibold transition-all cursor-pointer shrink-0 ${
             activeTab === "audio"
-              ? "bg-brand-500 text-white shadow-sm"
-              : "text-secondaryText-light dark:text-secondaryText-dark hover:bg-surfaceSecondary-light dark:hover:bg-surfaceSecondary-dark"
+              ? "bg-brand-500/10 text-brand-600 dark:text-brand-400 border border-brand-500/25"
+              : "text-secondaryText-light dark:text-secondaryText-dark hover:bg-surfaceSecondary-light dark:hover:bg-surfaceSecondary-dark hover:text-primaryText-light dark:hover:text-primaryText-dark"
           }`}
         >
           <Music2 className="w-4 h-4" />
-          <span>Audio ({creatorAudio.length})</span>
+          <span>Audio</span>
+          <span className="px-1.5 py-0.5 rounded-full text-[10px] font-mono bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark text-secondaryText-light dark:text-secondaryText-dark">
+            {totalAudioCount}
+          </span>
         </button>
       </div>
 
-      {/* 3. TAB CONTENT */}
+      {/* ─── TAB CONTENT ─── */}
 
-      {/* TAB A: REELS */}
+      {/* TAB 1: REELS */}
       {activeTab === "reels" && (
         <div className="space-y-6">
           {/* Saved in ReelDash */}
           {creatorReels.length > 0 && (
             <div className="space-y-3">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-secondaryText-light dark:text-secondaryText-dark">
-                Saved in Your Library ({creatorReels.length})
-              </h3>
+              <div className="flex items-center space-x-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                <h3 className="text-xs font-bold uppercase tracking-wider text-primaryText-light dark:text-primaryText-dark">
+                  Saved in Your Library ({creatorReels.length})
+                </h3>
+              </div>
               <ReelGrid reels={creatorReels} viewMode={viewMode} />
             </div>
           )}
 
-          {/* Discover Feed */}
+          {/* Public Feed (Unsaved items) */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="text-xs font-bold uppercase tracking-wider text-secondaryText-light dark:text-secondaryText-dark">
-                Public Instagram Reels Feed (@{username})
+                Instagram Public Reels Feed (@{username})
               </h3>
               {discovering && (
-                <span className="flex items-center space-x-1.5 text-xs text-mutedText-light">
+                <span className="flex items-center space-x-1.5 text-xs text-mutedText-light dark:text-mutedText-dark">
                   <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  <span>Loading…</span>
+                  <span>Loading feed…</span>
                 </span>
               )}
             </div>
 
-            {discovering && discoveredReels.length === 0 && (
-              <div className="p-8 text-center bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-xl">
-                <Loader2 className="w-6 h-6 animate-spin text-brand-500 mx-auto" />
-                <p className="text-xs text-secondaryText-light dark:text-secondaryText-dark mt-3">
-                  Fetching @{username}&apos;s public Reels from Instagram…
+            {rawDiscoveredReels.length > 0 ? (
+              <CreatorReelGrid items={rawDiscoveredReels} creatorUsername={username} />
+            ) : discovering ? (
+              <div className="p-12 text-center bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-lg">
+                <Loader2 className="w-6 h-6 animate-spin text-brand-500 mx-auto mb-2" />
+                <p className="text-xs text-secondaryText-light dark:text-secondaryText-dark">Fetching @{username}&apos;s public reels…</p>
+              </div>
+            ) : (
+              <div className="p-8 text-center bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-lg space-y-2">
+                <p className="text-xs text-secondaryText-light dark:text-secondaryText-dark">
+                  {discoverError || `No public reels found for @${username}. Use the box above to save by link.`}
                 </p>
               </div>
-            )}
-
-            {!discovering && discoveredReels.length === 0 && creatorReels.length === 0 && (
-              <div className="p-10 text-center bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-xl space-y-3">
-                <div className="w-12 h-12 rounded-full bg-brand-500/10 text-brand-500 flex items-center justify-center mx-auto">
-                  <Film className="w-6 h-6" />
-                </div>
-                <h3 className="text-sm font-bold text-primaryText-light dark:text-primaryText-dark">
-                  No Saved Reels from @{username} Yet
-                </h3>
-                <p className="text-xs text-secondaryText-light dark:text-secondaryText-dark max-w-md mx-auto">
-                  Paste any direct Reel link from @{username} in the save box above to extract and save it to your ReelDash library with full video playback and analytics.
-                </p>
-                <div className="pt-2">
-                  <a
-                    href={`https://instagram.com/${username}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center space-x-1.5 px-4 py-2 rounded-rd-lg bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark hover:bg-brand-500 hover:text-white text-xs font-semibold transition-colors"
-                  >
-                    <Instagram className="w-3.5 h-3.5" />
-                    <span>View @{username} on Instagram</span>
-                  </a>
-                </div>
-              </div>
-            )}
-
-            {discoveredReels.length > 0 && (
-              <CreatorReelGrid items={discoveredReels} username={username} />
             )}
           </div>
         </div>
       )}
 
-      {/* TAB B: POSTS & CAROUSELS */}
+      {/* TAB 2: POSTS */}
       {activeTab === "posts" && (
         <div className="space-y-6">
           {creatorPosts.length > 0 && (
             <div className="space-y-3">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-secondaryText-light dark:text-secondaryText-dark">
-                Saved in Your Library ({creatorPosts.length})
-              </h3>
+              <div className="flex items-center space-x-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                <h3 className="text-xs font-bold uppercase tracking-wider text-primaryText-light dark:text-primaryText-dark">
+                  Saved in Your Library ({creatorPosts.length})
+                </h3>
+              </div>
               <ReelGrid reels={creatorPosts} viewMode={viewMode} />
             </div>
           )}
 
           <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-secondaryText-light dark:text-secondaryText-dark">
-                Public Instagram Posts & Sidecar Carousels (@{username})
-              </h3>
-            </div>
-
-            {discoveredPosts.length > 0 ? (
-              <CreatorReelGrid items={discoveredPosts} username={username} />
+            <h3 className="text-xs font-bold uppercase tracking-wider text-secondaryText-light dark:text-secondaryText-dark">
+              Instagram Public Posts (@{username})
+            </h3>
+            {rawDiscoveredPosts.length > 0 ? (
+              <CreatorReelGrid items={rawDiscoveredPosts} creatorUsername={username} />
+            ) : discovering ? (
+              <div className="p-12 text-center bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-lg">
+                <Loader2 className="w-6 h-6 animate-spin text-brand-500 mx-auto mb-2" />
+                <p className="text-xs text-secondaryText-light dark:text-secondaryText-dark">Fetching posts…</p>
+              </div>
             ) : (
-              <div className="p-12 text-center bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-xl space-y-3">
-                <div className="w-12 h-12 rounded-full bg-brand-500/10 text-brand-500 flex items-center justify-center mx-auto">
-                  <Grid className="w-6 h-6" />
-                </div>
-                <h3 className="text-sm font-bold text-primaryText-light dark:text-primaryText-dark">
-                  No Posts Discovered from @{username}
-                </h3>
+              <div className="p-8 text-center bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-lg">
+                <p className="text-xs text-secondaryText-light dark:text-secondaryText-dark">
+                  No public photo posts found. Paste any post link above to save.
+                </p>
               </div>
             )}
           </div>
         </div>
       )}
 
-      {/* TAB C: STORIES */}
+      {/* TAB 3: STORIES */}
       {activeTab === "stories" && (
         <div className="space-y-6">
           {creatorStories.length > 0 && (
             <div className="space-y-3">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-secondaryText-light dark:text-secondaryText-dark">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-primaryText-light dark:text-primaryText-dark">
                 Saved in Your Library ({creatorStories.length})
               </h3>
               <ReelGrid reels={creatorStories} viewMode={viewMode} />
             </div>
           )}
 
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
+          {discoveredStories.length > 0 ? (
+            <div className="space-y-3">
               <h3 className="text-xs font-bold uppercase tracking-wider text-secondaryText-light dark:text-secondaryText-dark">
-                Active 24h Instagram Stories (@{username})
+                Active 24h Stories (@{username})
               </h3>
-            </div>
-
-            {discoveredStories.length > 0 ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                {discoveredStories.map((story) => (
-                  <div
-                    key={story.id}
-                    className="group relative rounded-rd-card overflow-hidden bg-zinc-900 border border-borderSubtle-light dark:border-borderSubtle-dark aspect-reel shadow-rd-subtle hover:-translate-y-0.5 transition-all"
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={story.thumbnailUrl}
-                      alt={story.caption}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-black/40" />
-
-                    {/* Top bar with avatar & timestamp */}
-                    <div className="absolute top-2.5 inset-x-2.5 flex items-center justify-between z-10">
-                      <div className="flex items-center space-x-1.5">
-                        <div className="p-0.5 rounded-full bg-gradient-to-tr from-amber-400 to-pink-600">
-                          <div className="w-5 h-5 rounded-full overflow-hidden bg-zinc-800">
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img
-                              src={account?.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(username)}`}
-                              alt={username}
-                              className="w-full h-full object-cover"
-                            />
-                          </div>
-                        </div>
-                        <span className="text-[10px] font-bold text-white">@{username}</span>
-                      </div>
-                      <span className="text-[9px] font-medium text-amber-300 bg-black/60 px-1.5 py-0.5 rounded-full">
-                        {story.timestamp || "24h Active"}
-                      </span>
-                    </div>
-
-                    {/* Bottom Caption & Save Button */}
-                    <div className="absolute bottom-2.5 inset-x-2.5 space-y-2 z-10">
-                      <p className="text-[11px] text-white line-clamp-2 leading-snug">
-                        {story.caption}
-                      </p>
-                      <button
-                        onClick={async () => {
-                          try {
-                            await saveReel(`https://instagram.com/stories/${username}/`, {
-                              creator: username,
-                              caption: story.caption,
-                              mediaType: "story",
-                              category: "Productivity",
-                            });
-                            showToast(`Saved story from @${username}`);
-                          } catch {
-                            showToast("Could not save story");
-                          }
-                        }}
-                        className="w-full py-1.5 px-2.5 bg-brand-500 hover:bg-brand-600 active:scale-95 text-white font-semibold text-[11px] rounded-rd-sm transition-all flex items-center justify-center space-x-1 cursor-pointer"
-                      >
-                        <Plus className="w-3.5 h-3.5" />
-                        <span>Save Story</span>
-                      </button>
-                    </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {discoveredStories.map((s, i) => (
+                  <div key={i} className="aspect-[9/16] rounded-rd-md bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark border border-borderSubtle-light dark:border-borderSubtle-dark overflow-hidden relative group">
+                    <img src={s.mediaUrl || s.thumbnailUrl} alt="Story" className="w-full h-full object-cover" />
                   </div>
                 ))}
               </div>
-            ) : (
-              <div className="p-12 text-center bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-xl space-y-3">
-                <div className="w-12 h-12 rounded-full bg-brand-500/10 text-brand-500 flex items-center justify-center mx-auto">
-                  <CircleDashed className="w-6 h-6" />
-                </div>
-                <h3 className="text-sm font-bold text-primaryText-light dark:text-primaryText-dark">
-                  No Active 24h Stories from @{username}
-                </h3>
-                <p className="text-xs text-secondaryText-light dark:text-secondaryText-dark max-w-md mx-auto">
-                  Instagram stories expire after 24 hours. Saved stories will stay permanently in your library.
-                </p>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* TAB D: AUDIO & SOUNDS */}
-      {activeTab === "audio" && (
-        <div className="space-y-4">
-          {creatorAudio.length > 0 ? (
-            <ReelGrid reels={creatorAudio} viewMode={viewMode} />
+            </div>
           ) : (
-            <div className="p-12 text-center bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-xl space-y-3">
-              <div className="w-12 h-12 rounded-full bg-brand-500/10 text-brand-500 flex items-center justify-center mx-auto">
-                <Music2 className="w-6 h-6" />
-              </div>
-              <h3 className="text-sm font-bold text-primaryText-light dark:text-primaryText-dark">
-                No Audio Tracks Saved from @{username}
-              </h3>
-              <p className="text-xs text-secondaryText-light dark:text-secondaryText-dark max-w-md mx-auto">
-                Original audio tracks saved from @{username} will appear here.
+            <div className="p-8 text-center bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-lg">
+              <p className="text-xs text-secondaryText-light dark:text-secondaryText-dark">
+                No active 24h stories available right now for @{username}.
               </p>
             </div>
           )}
         </div>
       )}
 
-      {/* Reel Player Modal */}
-      {activeModalReel && (
-        <ReelPlayerModal
-          reel={activeModalReel}
-          isOpen={!!activeModalReel}
-          onClose={() => setActiveModalReel(null)}
-        />
+      {/* TAB 4: AUDIO */}
+      {activeTab === "audio" && (
+        <div className="space-y-4">
+          {creatorAudio.length > 0 ? (
+            <div className="space-y-3">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-primaryText-light dark:text-primaryText-dark">
+                Saved Audio Tracks ({creatorAudio.length})
+              </h3>
+              <ReelGrid reels={creatorAudio} viewMode={viewMode} />
+            </div>
+          ) : (
+            <div className="p-8 text-center bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-lg">
+              <p className="text-xs text-secondaryText-light dark:text-secondaryText-dark">
+                No audio tracks saved from @{username} yet.
+              </p>
+            </div>
+          )}
+        </div>
       )}
     </div>
   );
 }
 
-export default function CreatorProfilePage() {
+export default function CreatorPage() {
   return (
     <Suspense fallback={<div className="p-6 text-xs text-mutedText-light">Loading creator profile…</div>}>
       <CreatorProfileContent />

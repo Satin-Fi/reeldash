@@ -92,7 +92,7 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
   const [isCreateCollectionModalOpen, setIsCreateCollectionModalOpen] = useState(false);
   const [lastDeletedReel, setLastDeletedReel] = useState<Reel | null>(null);
 
-  // Initialize theme from system or storage
+  // Initialize theme
   useEffect(() => {
     const savedTheme = localStorage.getItem("reeldash_theme") as "light" | "dark" | null;
     if (savedTheme) {
@@ -103,7 +103,6 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
         document.documentElement.classList.remove("dark");
       }
     } else {
-      // Default to dark mode
       document.documentElement.classList.add("dark");
       setTheme("dark");
     }
@@ -122,7 +121,7 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
-  // Load user-specific data from localStorage or API
+  // Load user data
   useEffect(() => {
     if (user?.id) {
       const userReelsKey = `reeldash_reels_${user.id}`;
@@ -151,7 +150,6 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
         }
       }
 
-      // Purge any legacy mock or demo items
       parsedReels = parsedReels.filter(
         (r) => r && r.userId !== "usr-demo" && !r.id?.startsWith("mock-") && !r.id?.startsWith("sample-")
       );
@@ -183,7 +181,7 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
     setToasts((prev) => [...prev, { id, title, subtitle, action }]);
     setTimeout(() => {
       removeToast(id);
-    }, 4500);
+    }, 4000);
   };
 
   const removeToast = (id: string) => {
@@ -255,7 +253,7 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
       r.id === id ? { ...r, category, updatedAt: new Date().toISOString() } : r
     );
     saveUserReels(updated);
-    showToast(`Updated category to ${category}`);
+    showToast(`Updated to ${category}`);
   };
 
   const createCollection = (name: string, description?: string, icon: string = "📁") => {
@@ -362,7 +360,7 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
           return r;
         });
         saveUserReels(updated);
-        showToast("Metadata updated");
+        showToast("Metadata refreshed");
         return updatedItem;
       }
     } catch (e) {
@@ -371,6 +369,7 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
     return null;
   };
 
+  // ─── High-Speed Optimistic Save ────────────────────────────────────
   const saveReel = async (
     url: string,
     customDetails?: {
@@ -387,6 +386,69 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
     const cleanUrl = url.trim();
     if (!cleanUrl) return;
 
+    // Duplicate check
+    const cleanNormalized = cleanUrl.replace(/\/$/, "");
+    const alreadyExists = reels.find(
+      (r) => r.instagramUrl.replace(/\/$/, "") === cleanNormalized
+    );
+    if (alreadyExists) {
+      showToast("Already in your library", `@${alreadyExists.creatorUsername}'s Reel`);
+      setIsSaveModalOpen(false);
+      return;
+    }
+
+    const shortcodeMatch = cleanUrl.match(/(?:reel|p|audio|stories)\/([A-Za-z0-9_-]+)/);
+    const shortcode = shortcodeMatch ? shortcodeMatch[1] : `sc_${Date.now().toString(36)}`;
+    const mediaType: MediaType =
+      customDetails?.mediaType ||
+      (cleanUrl.includes("/audio/")
+        ? "audio"
+        : cleanUrl.includes("/stories/")
+        ? "story"
+        : cleanUrl.includes("/p/")
+        ? "post"
+        : "reel");
+
+    const tempId = `${mediaType}-${Date.now()}`;
+    const initialCreator = customDetails?.creator || (shortcode ? `ig_${shortcode.substring(0, 6)}` : "creator");
+    const initialCategory = customDetails?.category || (mediaType === "audio" ? "Music & Audio" : "General");
+
+    // 1. Optimistic Instant UI Update (0ms)
+    const optimisticReel: Reel = {
+      id: tempId,
+      userId: user?.id || "user-1",
+      mediaType,
+      instagramUrl: cleanUrl,
+      creatorUsername: initialCreator,
+      creatorFullName: initialCreator.charAt(0).toUpperCase() + initialCreator.slice(1),
+      creatorProfileUrl: `https://instagram.com/${initialCreator}`,
+      creatorAvatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(initialCreator)}&background=6366F1&color=fff`,
+      thumbnailUrl: shortcode ? `/api/proxy-image?shortcode=${shortcode}` : "",
+      mediaUrl: "",
+      embedUrl: `https://www.instagram.com/p/${shortcode}/embed/`,
+      caption: customDetails?.caption || `Instagram ${mediaType.toUpperCase()}: ${cleanUrl}`,
+      category: initialCategory,
+      subcategories: [initialCategory],
+      collections: [],
+      hashtags: [],
+      isFavorite: false,
+      duration: mediaType === "audio" ? "Audio" : "0:30",
+      audioTitle: customDetails?.audioTitle,
+      audioArtist: customDetails?.audioArtist,
+      isCarousel: customDetails?.isCarousel,
+      carouselImages: customDetails?.carouselImages,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      lastViewedAt: new Date().toISOString(),
+      viewCount: 1,
+    };
+
+    // Prepend immediately
+    saveUserReels([optimisticReel, ...reels]);
+    setIsSaveModalOpen(false);
+    showToast(`Saved to Library`, `@${initialCreator}'s ${mediaType}`);
+
+    // 2. Parallel Fast Metadata Enrichment (< 1s)
     try {
       const res = await fetch("/api/reel-info", {
         method: "POST",
@@ -394,85 +456,44 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
         body: JSON.stringify({ url: cleanUrl }),
       });
 
-      const data = await res.json();
+      if (res.ok) {
+        const data = await res.json();
+        const finalCreator = customDetails?.creator || data.creatorUsername || initialCreator;
+        const finalFullName = data.creatorFullName || finalCreator;
+        const finalCategory = customDetails?.category || data.category || initialCategory;
 
-      const mediaType: MediaType = customDetails?.mediaType || data.mediaType || "reel";
-      const creator = customDetails?.creator || data.creatorUsername || "instagram_creator";
-      const creatorFullName = data.creatorFullName || creator;
-      const category = customDetails?.category || data.category || (mediaType === "audio" ? "Music & Audio" : mediaType === "story" ? "Stories & Updates" : "General");
-      const caption = customDetails?.caption || data.caption || `Instagram ${mediaType.toUpperCase()}: ${cleanUrl}`;
-      const thumbnailUrl = data.thumbnailUrl || (data.shortcode ? `/api/proxy-image?shortcode=${data.shortcode}` : "");
-      const embedUrl = data.embedUrl || (data.shortcode ? `https://www.instagram.com/p/${data.shortcode}/embed/` : null);
-
-      const typeLabel = mediaType === "audio" ? "Audio" : mediaType === "post" ? "Post" : mediaType === "story" ? "Story" : "Reel";
-      const isCarousel = customDetails?.isCarousel !== undefined ? customDetails.isCarousel : (data.isCarousel || false);
-      const carouselImages = customDetails?.carouselImages || data.carouselImages;
-
-      const newReel: Reel = {
-        id: `${mediaType}-` + Math.random().toString(36).substring(2, 9),
-        userId: user?.id || "user-1",
-        mediaType,
-        instagramUrl: cleanUrl,
-        creatorUsername: creator,
-        creatorFullName,
-        creatorProfileUrl: `https://instagram.com/${creator}`,
-        creatorAvatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(creatorFullName || creator)}&background=6366F1&color=fff`,
-        thumbnailUrl,
-        mediaUrl: data.mediaUrl || "",
-        embedUrl: embedUrl || undefined,
-        caption,
-        category,
-        subcategories: [category],
-        collections: [],
-        hashtags: data.hashtags && data.hashtags.length > 0 ? data.hashtags : [`#${category.toLowerCase().replace(/\s+/g, "")}`],
-        likes: data.likes || "",
-        commentsCount: data.commentsCount || "",
-        isFavorite: false,
-        duration: data.duration || (mediaType === "audio" ? "Audio" : mediaType === "story" ? "Story" : "0:30"),
-        audioTitle: customDetails?.audioTitle || data.audioTitle,
-        audioArtist: customDetails?.audioArtist || data.audioArtist,
-        isCarousel,
-        carouselImages,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        lastViewedAt: new Date().toISOString(),
-        aiSummary: data.caption ? `Summary: @${creator}'s ${typeLabel} discussing ${category}.` : undefined,
-        aiKeywords: [category, creator, mediaType],
-        viewCount: 1,
-      };
-
-      saveUserReels([newReel, ...reels]);
-      setIsSaveModalOpen(false);
-      showToast(`Saved @${creator}'s ${typeLabel}`, `Added to ${category}`);
-    } catch (err) {
-      console.error("Failed to save reel with metadata:", err);
-      const shortcodeMatch = cleanUrl.match(/(?:reel|p|audio|stories)\/([A-Za-z0-9_-]+)/);
-      const shortcode = shortcodeMatch ? shortcodeMatch[1] : "";
-      const mediaType: MediaType = cleanUrl.includes("/audio/") ? "audio" : cleanUrl.includes("/stories/") ? "story" : cleanUrl.includes("/p/") ? "post" : "reel";
-
-      const fallbackItem: Reel = {
-        id: `${mediaType}-` + Math.random().toString(36).substring(2, 9),
-        userId: user?.id || "user-1",
-        mediaType,
-        instagramUrl: cleanUrl,
-        creatorUsername: shortcode ? `ig_${shortcode.substring(0, 6)}` : "creator",
-        creatorProfileUrl: "https://instagram.com",
-        thumbnailUrl: shortcode ? `/api/proxy-image?shortcode=${shortcode}` : "",
-        mediaUrl: "",
-        caption: `Instagram ${mediaType.toUpperCase()}: ${cleanUrl}`,
-        category: "General",
-        subcategories: [],
-        collections: [],
-        hashtags: [],
-        isFavorite: false,
-        duration: "0:30",
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        viewCount: 1,
-      };
-      saveUserReels([fallbackItem, ...reels]);
-      setIsSaveModalOpen(false);
-      showToast(`Saved ${mediaType} to library`);
+        setReels((prev) => {
+          const updated = prev.map((r) => {
+            if (r.id === tempId) {
+              return {
+                ...r,
+                creatorUsername: finalCreator,
+                creatorFullName: finalFullName,
+                creatorAvatar: data.creatorAvatar || r.creatorAvatar,
+                thumbnailUrl: data.thumbnailUrl || r.thumbnailUrl,
+                mediaUrl: data.mediaUrl || r.mediaUrl,
+                embedUrl: data.embedUrl || r.embedUrl,
+                caption: customDetails?.caption || data.caption || r.caption,
+                category: finalCategory,
+                likes: data.likes || r.likes,
+                commentsCount: data.commentsCount || r.commentsCount,
+                duration: data.duration || r.duration,
+                audioTitle: customDetails?.audioTitle || data.audioTitle,
+                audioArtist: customDetails?.audioArtist || data.audioArtist,
+                aiSummary: data.aiSummary || r.aiSummary,
+                hashtags: data.hashtags && data.hashtags.length > 0 ? data.hashtags : r.hashtags,
+              };
+            }
+            return r;
+          });
+          if (user?.id) {
+            localStorage.setItem(`reeldash_reels_${user.id}`, JSON.stringify(updated));
+          }
+          return updated;
+        });
+      }
+    } catch (e) {
+      console.warn("Background enrichment notice:", e);
     }
   };
 
@@ -482,11 +503,11 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
 
     showToast("Generating summary...");
     setTimeout(() => {
-      const summary = `Key Takeaways: High-value insights from @${target.creatorUsername}'s ${target.mediaType || "content"} in ${target.category}.`;
+      const summary = `Key Takeaways: Insights from @${target.creatorUsername}'s ${target.mediaType || "content"} in ${target.category}.`;
       const updated = reels.map((r) => (r.id === reelId ? { ...r, aiSummary: summary } : r));
       saveUserReels(updated);
       showToast("Summary ready");
-    }, 1000);
+    }, 800);
   };
 
   return (

@@ -10,6 +10,7 @@ export interface CarouselSlide {
 export interface Reel {
   id: string;
   userId: string;
+  shortcode?: string;
   instagramUrl: string;
   mediaType?: MediaType; // "reel" | "post" | "audio" | "story"
   creatorUsername: string;

@@ -1,6 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import youtubedl from "youtube-dl-exec";
-import { resolveViaSnapSave } from "@/lib/instagram";
 
 export const dynamic = "force-dynamic";
 
@@ -13,13 +11,6 @@ function decodeEntities(str: string): string {
     .replace(/&amp;/g, "&")
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
-    .replace(/&#x1f45f;/g, "👟")
-    .replace(/&#x1f3c3;/g, "🏃")
-    .replace(/&#x200d;/g, "")
-    .replace(/&#x2640;/g, "♀")
-    .replace(/&#xfe0f;/g, "")
-    .replace(/&#x1f37a;/g, "🍺")
-    .replace(/&#x1f3c1;/g, "🏁")
     .replace(/&#x([0-9a-fA-F]+);/g, (_, code) => {
       try {
         return String.fromCodePoint(parseInt(code, 16));
@@ -36,574 +27,247 @@ function decodeEntities(str: string): string {
     });
 }
 
-const verifiedStreams: Record<string, string> = {
-  DbZkDwZsHgd:
-    "https://instagram.fdel93-3.fna.fbcdn.net/o1/v/t2/f2/m86/AQO5sr46oFwvhkjok_OzO3zkfkkDY41GbsgCnSjO6ITukKb8QbWuW4P5cUMMNMZPs6bEkzfQD4VCT0KE813ooBfMIK8XflNKWDOZlwE.mp4?_nc_cat=108&_nc_oc=Adooy62tJAtkOmBOalLFNao_X8x73WZezeY4SCf9v61Qa0wO_vaUy6oppqPH6JF-vzAjK3kMbMNOjkCUJnaDRchH&_nc_sid=5e9851&_nc_ht=instagram.fdel93-3.fna.fbcdn.net&_nc_ohc=-RMcVrQoJ2YQ7kNvwFjHqk5&efg=eyJ2ZW5jb2RlX3RhZyI6Inhwdl9wcm9ncmVzc2l2ZS5JTlNUQUdSQU0uQ0xJUFMuQzMuNzIwLmRhc2hfYmFzZWxpbmVfMV92MSIsInhwdl9hc3NldF9pZCI6Mjc3ODc5OTY3ODc0OTQ1MjIsImFzc2V0X2FnZV9kYXlzIjoyNCwidmlfdXNlY2FzZV9pZCI6MTAwOTksImR1cmF0aW9uX3MiOjE3LCJ1cmxnZW5fc291cmNlIjoid3d3In0%3D&ccb=17-1&vs=df55e9a1cad98c85&_nc_vs=HBksFQIYUmlnX3hwdl9yZWVsc19wZXJtYW5lbnRfc3JfcHJvZC80OTRCQjJCQjA3ODMyNEZDRTY0Qjc3MzkwN0Q4RUY5OF92aWRlb19kYXNoaW5pdC5tcDQVAALIARIAFQIYUWlnX3hwdl9wbGFjZW1lbnRfcGVybWFuZW50X3YyL0ZBNDY1NkUxNUE0MDc1MTY2QjRDNzQxMUY5QTQ1REFDX2F1ZGlvX2Rhc2hpbml0Lm1wNBUCAsgBEgAoABgAGwKIB3VzZV9vaWwBMRJwcm9ncmVzc2l2ZV9yZWNpcGUBMRUAACb0uc7YpcLcYhUCKAJDMywXQDHu2RaHKwIYEmRhc2hfYmFzZWxpbmVfMV92MREAdf4HZeadAQA&_nc_gid=JOQnui_wjZiVVVLqCekrWg&_nc_ss=7b689&_nc_zt=28&oh=00_AQFmPf4JdC_0373zVCUix31z35-MxyJEGFweSxk_p59U4w&oe=6A8CE9F9",
-  DcWUzmfIDxH:
-    "https://instagram.fdel93-1.fna.fbcdn.net/o1/v/t2/f2/m86/AQMAc77LrKOoZAb7XKBRsiZiuYOoHXwkSwh2QiHdCRbzYE-rAJjnPisZccijlJWj-Mv0vfxobieeNRVmecBUjjOJdAbHYyuMZ6H8qJg.mp4?_nc_cat=110&_nc_sid=5e9851&_nc_ht=scontent.cdninstagram.com&_nc_ohc=dKiMqZp1XvQQ7kNvwHWU8PP&efg=eyJ2ZW5jb2RlX3RhZyI6Inhwdl9wcm9ncmVzc2l2ZS5JTlNUQUdSQU0uQ0xJUFMuQzMuNzIwLmRhc2hfYmFzZWxpbmVfMV92MSIsInhwdl9hc3NldF9pZCI6MTM3ODMxOTYwMTA4NDI4OSwiYXNzZXRfYWdlX2RheXMiOjAsInZpX3VzZWNhc2VfaWQiOjEwMDk5LCJkdXJhdGlvbl9zIjo0NSwidXJsZ2VuX3NvdXJjZSI6Ind3dyJ9&ccb=17-1&vs=1e4059b0e1bf36ae&_nc_vs=HBksFQIYUmlnX3hwdl9yZWVsc19wZXJtYW5lbnRfc3JfcHJvZC8wRTRGRjU1RDA1Q0MyNENBMDZCODgyNzE2MDkzN0ZCMF92aWRlb19kYXNoaW5pdC5tcDQVAALIARIAFQIYUWlnX3hwdl9wbGFjZW1lbnRfcGVybWFuZW50X3YyL0YwNDlGNDBDODdFMjUxMUM5NTk1NjkxNUNBRDYwQUE2X2F1ZGlvX2Rhc2hpbml0Lm1wNBUCAsgBEgAoABgAGwKIB3VzZV9vaWwBMRJwcm9ncmVzc2l2ZV9yZWNpcGUBMRUAACaCnq2j4eTyBBUCKAJDMywXQEarhR64UewYEmRhc2hfYmFzZWxpbmVfMV92MREAdf4HZeadAQA&_nc_gid=GSekv_ylbIze4D28qK6K3A&_nc_ss=70a8c&_nc_zt=28&oh=00_AQGKn-mzodzzTNivx4k58Xm6COyMH_eU1kQjGPUf8rCvVg&oe=6A8BC4E7",
-};
-
-async function resolveDirectVideoUrl(shortcode: string): Promise<string | null> {
-  if (verifiedStreams[shortcode]) {
-    return verifiedStreams[shortcode];
-  }
-
-  // Strategy: OGInstagram Direct Stream & Resolver
-  try {
-    const ogUrls = [
-      `https://d.oginstagram.com/reel/${shortcode}`,
-      `https://oginstagram.com/reel/${shortcode}`,
-    ];
-
-    for (const ogUrl of ogUrls) {
-      try {
-        const ogRes = await fetch(ogUrl, {
-          headers: {
-            "User-Agent":
-              "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
-            Accept: "text/html,application/xhtml+xml,video/mp4,*/*",
-          },
-          redirect: "manual",
-        });
-
-        const location = ogRes.headers.get("location");
-        if (location && (location.includes(".mp4") || location.includes("cdninstagram") || location.includes("fbcdn"))) {
-          return location;
-        }
-
-        if (ogRes.ok) {
-          const text = await ogRes.text();
-          const ogVideoMatch =
-            text.match(/<meta\s+property=["']og:video["']\s+content=["']([^"']+)["']/i) ||
-            text.match(/<meta\s+property=["']og:video:secure_url["']\s+content=["']([^"']+)["']/i) ||
-            text.match(/https:\/\/[^"'\s\\]+(?:cdninstagram|fbcdn)\.net[^"'\s\\]+\.mp4[^"'\s\\]*/i);
-
-          if (ogVideoMatch && ogVideoMatch[1]) {
-            return ogVideoMatch[1].replace(/&amp;/g, "&");
-          }
-        }
-      } catch {
-        // Fallback
-      }
-    }
-  } catch {
-    // Fallback
-  }
-
-  const metaToken =
-    process.env.INSTAGRAM_ACCESS_TOKEN ||
-    process.env.GRAPH_API_TOKEN ||
-    process.env.META_ACCESS_TOKEN;
-  const sessionId = process.env.INSTAGRAM_SESSION_ID;
-  const rapidApiKey = process.env.RAPIDAPI_KEY;
-
-  if (metaToken) {
-    try {
-      const graphRes = await fetch(
-        `https://graph.instagram.com/v19.0/${shortcode}?fields=id,media_type,media_url,thumbnail_url,caption&access_token=${metaToken}`
-      );
-      if (graphRes.ok) {
-        const graphData = await graphRes.json();
-        if (graphData?.media_url && graphData.media_url.startsWith("http")) {
-          return graphData.media_url;
-        }
-      }
-    } catch {
-      // Fallback
-    }
-  }
-
-  try {
-    const headers: HeadersInit = {
-      "User-Agent":
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
-      "X-IG-App-ID": "936619743392459",
-      "X-Requested-With": "XMLHttpRequest",
-      "Referer": `https://www.instagram.com/reel/${shortcode}/`,
-      "Accept": "*/*",
-    };
-
-    if (sessionId) {
-      headers["Cookie"] = `sessionid=${sessionId};`;
-    }
-
-    const gqlRes = await fetch(
-      `https://www.instagram.com/graphql/query/?doc_id=8845758582119845&variables=%7B%22shortcode%22%3A%22${shortcode}%22%7D`,
-      { headers }
-    );
-
-    if (gqlRes.ok) {
-      const gqlData = await gqlRes.json();
-      const item = gqlData?.data?.xdt_shortcode_media;
-      if (item?.is_video && item?.video_url) {
-        return item.video_url;
-      }
-    }
-  } catch {
-    // Fallback
-  }
-
-  if (rapidApiKey) {
-    try {
-      const rapidRes = await fetch(
-        `https://instagram-downloader-download-instagram-videos-stories1.p.rapidapi.com/get-info-shortcode?shortcode=${shortcode}`,
-        {
-          headers: {
-            "x-rapidapi-key": rapidApiKey,
-            "x-rapidapi-host": "instagram-downloader-download-instagram-videos-stories1.p.rapidapi.com",
-          },
-        }
-      );
-      if (rapidRes.ok) {
-        const rapidData = await rapidRes.json();
-        const videoUrl = rapidData?.video_url || rapidData?.url || rapidData?.download_url;
-        if (videoUrl && videoUrl.startsWith("http")) {
-          return videoUrl;
-        }
-      }
-    } catch {
-      // Fallback
-    }
-  }
-
-  try {
-    const fastdlRes = await fetch("https://fastdl.app/c/", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
-        "Referer": "https://fastdl.app/en",
-      },
-      body: new URLSearchParams({
-        url: `https://www.instagram.com/reel/${shortcode}/`,
-        lang_code: "en",
-      }),
-    });
-
-    if (fastdlRes.ok) {
-      const text = await fastdlRes.text();
-      const mp4Match =
-        text.match(/https:\/\/[^"'\s\\]+cdninstagram\.com[^"'\s\\]+\.mp4[^"'\s\\]*/i) ||
-        text.match(/https:\/\/media\.fastdl\.app\/get\?[^"'\s\\]+/i);
-      if (mp4Match) {
-        return mp4Match[0].replace(/&amp;/g, "&");
-      }
-    }
-  } catch {
-    // Fallback
-  }
-
-  return null;
+// ─── Fast concurrent metadata resolver ────────────────────────────────
+async function fetchInstagramOEmbed(url: string, signal: AbortSignal) {
+  const oembedUrl = `https://api.instagram.com/oembed/?url=${encodeURIComponent(url)}&omitscript=true`;
+  const res = await fetch(oembedUrl, {
+    signal,
+    headers: { "User-Agent": "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)" },
+  });
+  if (!res.ok) throw new Error(`oEmbed failed: ${res.status}`);
+  return await res.json();
 }
 
-async function handleReelExtraction(url: string) {
-  let mediaType: "reel" | "post" | "audio" | "story" = "reel";
-  let shortcode: string | null = null;
-  let creatorUsername = "";
-  let creatorFullName = "";
-  let caption = "";
-  let likes = "";
-  let commentsCount = "";
-  let hashtags: string[] = [];
-  let mediaUrl = "";
-  let thumbnailUrl = "";
-  let audioTitle = "";
-  let audioArtist = "";
-  let audioUrl = "";
-  let isCarousel = false;
-  let carouselImages: string[] = [];
-  let duration = "0:30";
+async function fetchOpenGraphMeta(shortcode: string, mediaType: string, signal: AbortSignal) {
+  const targetUrl = `https://oginstagram.com/${mediaType === "post" ? "p" : "reel"}/${shortcode}`;
+  const res = await fetch(targetUrl, {
+    signal,
+    headers: {
+      "User-Agent": "Mozilla/5.0 (compatible; Discordbot/2.0; +https://discord.app)",
+      "Accept": "text/html",
+    },
+  });
+  if (!res.ok) throw new Error(`OG fetch failed: ${res.status}`);
+  const html = await res.text();
 
-  const lowerUrl = url.toLowerCase();
-
-  // 1. Detect mediaType
-  if (lowerUrl.includes("/audio/") || lowerUrl.includes("/reels/audio/")) {
-    mediaType = "audio";
-    duration = "2:14";
-  } else if (lowerUrl.includes("/stories/")) {
-    mediaType = "story";
-    duration = "Story (24h)";
-  } else if (lowerUrl.includes("/p/")) {
-    mediaType = "post";
-    duration = "Post";
-  } else {
-    mediaType = "reel";
-    duration = "0:30";
-  }
-
-  // Extract ID / shortcode / audioID
-  const reelMatch = url.match(/(?:reel|reels|p)\/([A-Za-z0-9_-]+)/);
-  if (reelMatch) {
-    shortcode = reelMatch[1];
-  }
-
-  const audioMatch = url.match(/(?:audio|reels\/audio)\/([0-9A-Za-z_-]+)/);
-  if (audioMatch) {
-    shortcode = audioMatch[1];
-  }
-
-  const storyMatch = url.match(/stories\/([A-Za-z0-9_.]+)(?:\/([0-9A-Za-z_-]+))?/);
-  if (storyMatch) {
-    creatorUsername = storyMatch[1];
-    if (storyMatch[2]) {
-      shortcode = storyMatch[2];
-    }
-  }
-
-  const userMatch = url.match(/instagram\.com\/([A-Za-z0-9_.]+)\/(?:reel|reels|p)\//);
-  if (userMatch && userMatch[1] && userMatch[1] !== "reel" && userMatch[1] !== "p" && userMatch[1] !== "stories") {
-    creatorUsername = userMatch[1];
-  }
-
-  // 2. Free Open Scraper Engine for direct video resolution (Zero quota used)
-  try {
-    const snapUrl = await resolveViaSnapSave(url || shortcode || "");
-    if (snapUrl && snapUrl.startsWith("http")) {
-      mediaUrl = snapUrl;
-    }
-  } catch {
-    // Continue to next strategy
-  }
-
-  // 3. High-Performance InstagAPI & Instagram oEmbed / OpenGraph metadata extraction
-  const instagapiKey = process.env.INSTAGAPI_KEY;
-  if (instagapiKey && (shortcode || url)) {
-    try {
-      const endpoint = shortcode
-        ? `https://api.instagapi.com/api/v1/media/by/code?code=${shortcode}`
-        : `https://api.instagapi.com/api/v1/media/by/url?url=${encodeURIComponent(url)}`;
-      const res = await fetch(endpoint, {
-        headers: { "X-Api-Key": instagapiKey },
-        cache: "no-store",
-      });
-      if (res.ok) {
-        const d = await res.json();
-        if (d) {
-          if (d.user?.username) creatorUsername = d.user.username;
-          if (d.user?.full_name) creatorFullName = d.user.full_name;
-          if (d.caption?.text) caption = d.caption.text;
-          else if (typeof d.caption === "string") caption = d.caption;
-          if (d.like_count != null) likes = Number(d.like_count).toLocaleString();
-          if (d.comment_count != null) commentsCount = Number(d.comment_count).toLocaleString();
-          if (d.thumbnail_url) thumbnailUrl = d.thumbnail_url;
-          if (d.video_url) mediaUrl = d.video_url;
-          if (Array.isArray(d.carousel_media) && d.carousel_media.length > 0) {
-            isCarousel = true;
-            carouselImages = d.carousel_media
-              .map((c: any) => c.image_versions2?.candidates?.[0]?.url || c.thumbnail_url || "")
-              .filter(Boolean);
-          }
-        }
-      }
-    } catch {
-      // Fallback
-    }
-  }
-
-  if (shortcode || url) {
-    // Strategy 0: Official Instagram oEmbed
-    try {
-      const oembedRes = await fetch(
-        `https://api.instagram.com/oembed/?url=${encodeURIComponent(url)}&omitscript=true`,
-        { cache: "no-store" }
-      );
-      if (oembedRes.ok) {
-        const oeData = await oembedRes.json();
-        if (oeData.title && !caption) caption = oeData.title;
-        if (oeData.author_name && !creatorUsername) creatorUsername = oeData.author_name;
-        if (oeData.author_name && !creatorFullName) creatorFullName = oeData.author_name;
-        if (oeData.thumbnail_url && !thumbnailUrl) {
-          thumbnailUrl = `/api/proxy-image?url=${encodeURIComponent(oeData.thumbnail_url)}`;
-        }
-      }
-    } catch {
-      // Fall through to next strategy
-    }
-
-    const ogUrls = [
-      shortcode ? `https://oginstagram.com/${mediaType === "post" ? "p" : "reel"}/${shortcode}` : "",
-      shortcode ? `https://ddinstagram.com/${mediaType === "post" ? "p" : "reel"}/${shortcode}` : "",
-      shortcode ? `https://www.instagram.com/${mediaType === "post" ? "p" : "reel"}/${shortcode}/` : "",
-    ].filter(Boolean);
-
-    for (const ogUrl of ogUrls) {
-      try {
-        const ogRes = await fetch(ogUrl, {
-          headers: {
-            "User-Agent": "Mozilla/5.0 (compatible; Discordbot/2.0; +https://discord.app)",
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-            "Accept-Language": "en-US,en;q=0.9",
-          },
-          next: { revalidate: 3600 },
-        });
-
-        if (ogRes.ok) {
-          const html = await ogRes.text();
-
-          const ogTitleMatch =
-            html.match(/<meta\s+(?:property|name)="og:title"\s+content="([^"]*)"/i) ||
-            html.match(/content="([^"]*)"\s+property="og:title"/i);
-          const ogDescMatch =
-            html.match(/<meta\s+(?:property|name)="og:description"\s+content="([^"]*)"/i) ||
-            html.match(/content="([^"]*)"\s+property="og:description"/i);
-          const ogImageMatch =
-            html.match(/<meta\s+(?:property|name)="og:image"\s+content="([^"]*)"/i) ||
-            html.match(/content="([^"]*)"\s+property="og:image"/i);
-
-          const ogTitle = ogTitleMatch ? decodeEntities(ogTitleMatch[1]) : "";
-          const ogDesc = ogDescMatch ? decodeEntities(ogDescMatch[1]) : "";
-
-          if (ogTitle && !creatorFullName) {
-            const titleMatch = ogTitle.match(/^(.+?)\s+on\s+Instagram\s*:/i);
-            if (titleMatch) {
-              creatorFullName = titleMatch[1].trim();
-            }
-          }
-
-          if (ogDesc) {
-            const descStatsMatch = ogDesc.match(/^([0-9.,KMkm]+)\s+likes,\s+([0-9.,KMkm]+)\s+comments\s*-\s*([^\s@]+)?\s*(?:\(([^)]+)\))?\s*on\s+Instagram:\s*"([\s\S]*)"$/);
-
-            if (descStatsMatch) {
-              if (!likes) likes = descStatsMatch[1];
-              if (!commentsCount) commentsCount = descStatsMatch[2];
-              if (!creatorUsername && descStatsMatch[3]) creatorUsername = descStatsMatch[3];
-              if (!creatorFullName && descStatsMatch[4]) creatorFullName = descStatsMatch[4];
-              if (!caption && descStatsMatch[5]) caption = descStatsMatch[5].trim();
-            } else {
-              const simplerMatch = ogDesc.match(/^([0-9.,KMkm]+)\s+likes,\s+([0-9.,KMkm]+)\s+comments\s*-\s*([\s\S]*)$/);
-              if (simplerMatch) {
-                if (!likes) likes = simplerMatch[1];
-                if (!commentsCount) commentsCount = simplerMatch[2];
-                if (!caption) caption = simplerMatch[3].trim();
-              } else if (!caption) {
-                caption = ogDesc.replace(/^[0-9.,KMkm]+\s+likes,\s+[0-9.,KMkm]+\s+comments\s*-\s*/, "");
-              }
-            }
-          }
-
-          if (ogImageMatch && ogImageMatch[1] && !thumbnailUrl) {
-            thumbnailUrl = decodeEntities(ogImageMatch[1]);
-          }
-
-          if (caption || creatorUsername) {
-            break;
-          }
-        }
-      } catch {
-        // Fallback
-      }
-    }
-  }
-
-  // 3. Resolve direct media stream if Reel or Audio
-  if (shortcode && (mediaType === "reel" || mediaType === "story")) {
-    const directUrl = await resolveDirectVideoUrl(shortcode);
-    if (directUrl) {
-      mediaUrl = directUrl;
-    }
-  }
-
-  // 4. Fallback to yt-dlp if needed
-  if (!mediaUrl && url && (mediaType === "reel" || mediaType === "post")) {
-    try {
-      const ytdlPromise = youtubedl(url, {
-        dumpSingleJson: true,
-        noCheckCertificates: true,
-        noWarnings: true,
-        preferFreeFormats: true,
-        addHeader: [
-          "referer:instagram.com",
-          "user-agent:Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
-        ],
-      });
-
-      const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error("yt-dlp timeout")), 3500)
-      );
-
-      const info: any = await Promise.race([ytdlPromise, timeoutPromise]);
-
-      if (info) {
-        if (!caption && info.description) caption = info.description;
-        if (!caption && info.title) caption = info.title;
-        if (!creatorUsername && info.uploader_id) creatorUsername = info.uploader_id;
-        if (!creatorUsername && info.channel) creatorUsername = info.channel;
-        if (!creatorFullName && info.uploader) creatorFullName = info.uploader;
-        if (!likes && info.like_count) likes = String(info.like_count);
-        if (!commentsCount && info.comment_count) commentsCount = String(info.comment_count);
-        if (!thumbnailUrl && info.thumbnail) thumbnailUrl = info.thumbnail;
-        if (info.url && typeof info.url === "string" && info.url.startsWith("http")) {
-          mediaUrl = info.url;
-        }
-      }
-    } catch {
-      // Fallback
-    }
-  }
-
-  // Handle specific mediaType defaults & smart enrichments
-  if (mediaType === "audio") {
-    if (!creatorUsername) creatorUsername = "trending_audio";
-    if (!creatorFullName) creatorFullName = "Instagram Audio Original";
-    audioTitle = audioTitle || (caption ? caption.slice(0, 40) : `Trending Audio #${shortcode || "track"}`);
-    audioArtist = `${creatorFullName || creatorUsername} • Original Audio`;
-    audioUrl = mediaUrl || "https://commondatastorage.googleapis.com/codeskulptor-demos/DDR_assets/Sevish_-__nbsp_.mp3";
-    if (!thumbnailUrl) {
-      thumbnailUrl = shortcode ? `/api/proxy-image?shortcode=${shortcode}` : "";
-    }
-    if (!caption) {
-      caption = `Original Instagram Audio track (${shortcode || "viral"}) by @${creatorUsername}. Saved for reference and background music.`;
-    }
-  } else if (mediaType === "story") {
-    if (!creatorUsername) creatorUsername = "creator_story";
-    if (!creatorFullName) creatorFullName = creatorUsername;
-    duration = "Story (24h)";
-    if (!caption) {
-      caption = `Instagram Story from @${creatorUsername} (24h story archive)`;
-    }
-    if (!thumbnailUrl && creatorUsername) {
-      thumbnailUrl = `/api/proxy-image?url=${encodeURIComponent(`https://ui-avatars.com/api/?name=${encodeURIComponent(creatorUsername)}&background=f59e0b&color=fff&size=400`)}`;
-    }
-  } else if (mediaType === "post") {
-    if (!creatorUsername) creatorUsername = shortcode ? `post_${shortcode.slice(0, 5)}` : "instagram_post";
-    if (!creatorFullName) creatorFullName = creatorUsername;
-    if (!caption) {
-      caption = `Instagram Post (${shortcode || "saved"})`;
-    }
-    isCarousel = isCarousel || false;
-  }
-
-  // Extract hashtags from caption
-  if (caption) {
-    const matchedTags = caption.match(/#[a-zA-Z0-9_]+/g);
-    if (matchedTags) {
-      hashtags = Array.from(new Set(matchedTags.map((t) => t.replace("#", "").toLowerCase())));
-    }
-  }
-
-  // Fallback defaults
-  if (!creatorUsername) {
-    creatorUsername = shortcode ? `creator_${shortcode.slice(0, 5)}` : "instagram_creator";
-  }
-  if (!creatorFullName) {
-    creatorFullName = creatorUsername;
-  }
-  if (!caption) {
-    caption = `Instagram ${mediaType.toUpperCase()} (${shortcode || "saved"})`;
-  }
-
-  // Smart categorization
-  const lowerCaption = caption.toLowerCase();
-  let category = "General";
-
-  if (mediaType === "audio") {
-    category = "Music & Audio";
-  } else if (mediaType === "story") {
-    category = "Stories & Updates";
-  } else if (
-    lowerCaption.includes("fitness") ||
-    lowerCaption.includes("workout") ||
-    lowerCaption.includes("gym") ||
-    lowerCaption.includes("exercise") ||
-    lowerCaption.includes("health") ||
-    lowerCaption.includes("nutrition") ||
-    lowerCaption.includes("diet")
-  ) {
-    category = "Health & Fitness";
-  } else if (
-    lowerCaption.includes("recipe") ||
-    lowerCaption.includes("cook") ||
-    lowerCaption.includes("food") ||
-    lowerCaption.includes("bake") ||
-    lowerCaption.includes("kitchen") ||
-    lowerCaption.includes("chef")
-  ) {
-    category = "Food & Cooking";
-  } else if (
-    lowerCaption.includes("ai") ||
-    lowerCaption.includes("tech") ||
-    lowerCaption.includes("code") ||
-    lowerCaption.includes("developer") ||
-    lowerCaption.includes("software") ||
-    lowerCaption.includes("coding") ||
-    lowerCaption.includes("gpt") ||
-    lowerCaption.includes("app")
-  ) {
-    category = "AI & Tech";
-  } else if (
-    lowerCaption.includes("design") ||
-    lowerCaption.includes("ui") ||
-    lowerCaption.includes("figma") ||
-    lowerCaption.includes("ux") ||
-    lowerCaption.includes("spacing") ||
-    lowerCaption.includes("fits") ||
-    lowerCaption.includes("fashion") ||
-    lowerCaption.includes("style")
-  ) {
-    category = "Design";
-  } else if (
-    lowerCaption.includes("productivity") ||
-    lowerCaption.includes("system") ||
-    lowerCaption.includes("habit") ||
-    lowerCaption.includes("time") ||
-    lowerCaption.includes("notion") ||
-    lowerCaption.includes("focus") ||
-    lowerCaption.includes("motivation")
-  ) {
-    category = "Productivity";
-  }
+  const titleMatch = html.match(/<meta\s+(?:property|name)="og:title"\s+content="([^"]*)"/i);
+  const descMatch = html.match(/<meta\s+(?:property|name)="og:description"\s+content="([^"]*)"/i);
+  const imgMatch = html.match(/<meta\s+(?:property|name)="og:image"\s+content="([^"]*)"/i);
+  const videoMatch = html.match(/<meta\s+(?:property|name)="og:video"\s+content="([^"]*)"/i);
 
   return {
-    mediaType,
-    shortcode,
-    creatorUsername,
-    creatorFullName,
-    caption,
-    hashtags,
-    likes,
-    commentsCount,
-    thumbnailUrl: thumbnailUrl || (shortcode ? `/api/proxy-image?shortcode=${shortcode}` : ""),
-    mediaUrl,
-    audioTitle,
-    audioArtist,
-    audioUrl,
-    isCarousel,
-    carouselImages,
-    duration,
-    category,
+    title: titleMatch ? decodeEntities(titleMatch[1]) : "",
+    description: descMatch ? decodeEntities(descMatch[1]) : "",
+    image: imgMatch ? decodeEntities(imgMatch[1]) : "",
+    video: videoMatch ? decodeEntities(videoMatch[1]) : "",
   };
 }
 
-export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url);
-  const url = searchParams.get("url");
-
-  if (!url) {
-    return NextResponse.json({ error: "Missing ?url parameter" }, { status: 400 });
-  }
-
-  try {
-    const result = await handleReelExtraction(url);
-    return NextResponse.json(result);
-  } catch (error) {
-    console.error("Reel metadata GET error:", error);
-    return NextResponse.json({ error: "Failed to process Reel metadata" }, { status: 500 });
-  }
+async function fetchCloudflareWorkerMeta(shortcode: string, signal: AbortSignal) {
+  const workerProxy = `https://reeldash-ig-proxy.reeldash-ig-proxy.workers.dev/api/info?url=${encodeURIComponent(
+    `https://www.instagram.com/reel/${shortcode}/`
+  )}`;
+  const res = await fetch(workerProxy, { signal });
+  if (!res.ok) throw new Error(`Worker proxy failed: ${res.status}`);
+  return await res.json();
 }
 
+// ─── Categorization helper ────────────────────────────────────────────
+function inferCategory(caption: string, creator: string): string {
+  const text = `${caption} ${creator}`.toLowerCase();
+  if (/workout|fitness|gym|bodybuilding|muscle|exercise|training|diet|protein|running/i.test(text)) return "Fitness & Health";
+  if (/recipe|cooking|food|chef|baking|delicious|kitchen|meal|dinner/i.test(text)) return "Recipes & Food";
+  if (/code|coding|software|developer|programming|ai|tech|startup|python|react|javascript/i.test(text)) return "Tech & Dev";
+  if (/design|ui|ux|typography|architecture|art|interior|graphic/i.test(text)) return "Design & Art";
+  if (/travel|hotel|trip|vacation|nature|adventure|explore|flight/i.test(text)) return "Travel & Places";
+  if (/money|finance|crypto|stocks|investing|business|wealth|realestate/i.test(text)) return "Finance & Business";
+  if (/humor|meme|funny|comedy|lol|joke/i.test(text)) return "Entertainment";
+  return "General";
+}
+
+// ─── Main POST handler (High-Speed Extraction) ───────────────────────
 export async function POST(req: NextRequest) {
+  const startTime = Date.now();
   try {
     const { url } = await req.json();
 
     if (!url || typeof url !== "string") {
-      return NextResponse.json({ error: "Invalid URL" }, { status: 400 });
+      return NextResponse.json({ error: "Missing or invalid Instagram URL" }, { status: 400 });
     }
 
-    const result = await handleReelExtraction(url);
-    return NextResponse.json(result);
-  } catch (error) {
-    console.error("Reel metadata POST error:", error);
-    return NextResponse.json({ error: "Failed to process Reel metadata" }, { status: 500 });
+    const cleanUrl = url.trim();
+    const lowerUrl = cleanUrl.toLowerCase();
+
+    // 1. Instant regex classification (0ms)
+    let mediaType: "reel" | "post" | "audio" | "story" = "reel";
+    let duration = "0:30";
+
+    if (lowerUrl.includes("/audio/") || lowerUrl.includes("/reels/audio/")) {
+      mediaType = "audio";
+      duration = "2:14";
+    } else if (lowerUrl.includes("/stories/")) {
+      mediaType = "story";
+      duration = "Story (24h)";
+    } else if (lowerUrl.includes("/p/")) {
+      mediaType = "post";
+      duration = "Photo Post";
+    } else {
+      mediaType = "reel";
+      duration = "0:30";
+    }
+
+    const shortcodeMatch = cleanUrl.match(/(?:reel|reels|p|audio|stories)\/([A-Za-z0-9_-]+)/);
+    const shortcode = shortcodeMatch ? shortcodeMatch[1] : `sc_${Date.now().toString(36)}`;
+
+    let creatorUsername = "";
+    let creatorFullName = "";
+    let caption = "";
+    let likes = "";
+    let commentsCount = "";
+    let thumbnailUrl = shortcode ? `/api/proxy-image?shortcode=${shortcode}` : "";
+    let mediaUrl = "";
+    let audioTitle = "";
+    let audioArtist = "";
+    let hashtags: string[] = [];
+
+    // Extract creator from URL if formatted as instagram.com/username/reel/...
+    const userMatch = cleanUrl.match(/instagram\.com\/([A-Za-z0-9_.]+)\/(?:reel|reels|p)\//);
+    if (userMatch && userMatch[1] && !["reel", "p", "stories", "audio"].includes(userMatch[1])) {
+      creatorUsername = userMatch[1];
+    }
+
+    // 2. High-speed parallel metadata extraction with 2.2-second hard timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 2200);
+
+    const extractionTasks: Promise<void>[] = [];
+
+    // Task A: Instagram oEmbed
+    extractionTasks.push(
+      fetchInstagramOEmbed(cleanUrl, controller.signal)
+        .then((oe) => {
+          if (oe.author_name && !creatorUsername) creatorUsername = oe.author_name;
+          if (oe.author_name && !creatorFullName) creatorFullName = oe.author_name;
+          if (oe.title && !caption) caption = oe.title;
+          if (oe.thumbnail_url && (!thumbnailUrl || thumbnailUrl.includes("/api/proxy-image"))) {
+            thumbnailUrl = `/api/proxy-image?url=${encodeURIComponent(oe.thumbnail_url)}`;
+          }
+        })
+        .catch(() => {})
+    );
+
+    // Task B: OpenGraph
+    if (shortcode) {
+      extractionTasks.push(
+        fetchOpenGraphMeta(shortcode, mediaType, controller.signal)
+          .then((og) => {
+            if (og.title && !creatorFullName) {
+              const titleMatch = og.title.match(/^(.+?)\s+on\s+Instagram\s*:/i);
+              if (titleMatch) creatorFullName = titleMatch[1].trim();
+            }
+            if (og.description) {
+              const statsMatch = og.description.match(/^([0-9.,KMkm]+)\s+likes,\s+([0-9.,KMkm]+)\s+comments/i);
+              if (statsMatch) {
+                if (!likes) likes = statsMatch[1];
+                if (!commentsCount) commentsCount = statsMatch[2];
+              }
+              const descCreatorMatch = og.description.match(/on\s+Instagram:\s*"([\s\S]*)"$/i);
+              if (descCreatorMatch && !caption) {
+                caption = descCreatorMatch[1].trim();
+              } else if (!caption) {
+                caption = og.description.replace(/^[0-9.,KMkm]+\s+likes,\s+[0-9.,KMkm]+\s+comments\s*-\s*/, "").trim();
+              }
+            }
+            if (og.image && (!thumbnailUrl || thumbnailUrl.includes("/api/proxy-image"))) {
+              thumbnailUrl = og.image;
+            }
+            if (og.video && !mediaUrl) {
+              mediaUrl = og.video;
+            }
+          })
+          .catch(() => {})
+      );
+    }
+
+    // Task C: Cloudflare Edge Worker
+    if (shortcode) {
+      extractionTasks.push(
+        fetchCloudflareWorkerMeta(shortcode, controller.signal)
+          .then((workerData) => {
+            if (workerData.creatorUsername && !creatorUsername) creatorUsername = workerData.creatorUsername;
+            if (workerData.caption && !caption) caption = workerData.caption;
+            if (workerData.thumbnailUrl && (!thumbnailUrl || thumbnailUrl.includes("/api/proxy-image"))) {
+              thumbnailUrl = workerData.thumbnailUrl;
+            }
+            if (workerData.mediaUrl && !mediaUrl) mediaUrl = workerData.mediaUrl;
+            if (workerData.likes && !likes) likes = workerData.likes;
+          })
+          .catch(() => {})
+      );
+    }
+
+    // Wait for parallel tasks or timeout
+    await Promise.allSettled(extractionTasks);
+    clearTimeout(timeoutId);
+
+    // 3. Defaults & Sanitization
+    if (!creatorUsername) {
+      creatorUsername = shortcode ? `ig_${shortcode.substring(0, 6)}` : "creator";
+    }
+    if (!creatorFullName) {
+      creatorFullName = creatorUsername.charAt(0).toUpperCase() + creatorUsername.slice(1);
+    }
+    if (!caption) {
+      caption = `Instagram ${mediaType.toUpperCase()} by @${creatorUsername}`;
+    }
+
+    // Extract hashtags from caption
+    const tagMatches = caption.match(/#[A-Za-z0-9_]+/g);
+    if (tagMatches) {
+      hashtags = tagMatches.slice(0, 8);
+    }
+
+    const category = inferCategory(caption, creatorUsername);
+
+    if (mediaType === "audio") {
+      audioTitle = `${creatorFullName}'s Original Sound`;
+      audioArtist = `${creatorFullName} • Audio Track`;
+    }
+
+    const responsePayload = {
+      shortcode,
+      url: cleanUrl,
+      mediaType,
+      creatorUsername,
+      creatorFullName,
+      creatorAvatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(creatorFullName || creatorUsername)}&background=6366F1&color=fff`,
+      thumbnailUrl,
+      mediaUrl,
+      embedUrl: `https://www.instagram.com/p/${shortcode}/embed/`,
+      caption,
+      category,
+      hashtags,
+      likes,
+      commentsCount,
+      duration,
+      audioTitle: audioTitle || undefined,
+      audioArtist: audioArtist || undefined,
+      aiSummary: caption.length > 20 ? `AI Summary: Insights from @${creatorUsername} covering ${category}.` : undefined,
+      elapsedMs: Date.now() - startTime,
+    };
+
+    return NextResponse.json(responsePayload);
+  } catch (err: any) {
+    console.error("Fast metadata extraction error:", err);
+    return NextResponse.json(
+      {
+        error: "Failed to extract metadata",
+        details: err?.message,
+        mediaType: "reel",
+        caption: "Saved Instagram Reel",
+        category: "General",
+      },
+      { status: 200 }
+    );
   }
 }
