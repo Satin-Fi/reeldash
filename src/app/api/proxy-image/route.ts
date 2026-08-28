@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic";
 // In-memory avatar cache for instant responses
 const avatarUrlCache = new Map<string, { url: string; expiresAt: number }>();
 
-export async function fetchRealAvatarUrl(username: string): Promise<string | null> {
+async function fetchRealAvatarUrl(username: string): Promise<string | null> {
   const cleanUsername = username.replace(/^@/, "").trim().toLowerCase();
   if (!cleanUsername) return null;
 
