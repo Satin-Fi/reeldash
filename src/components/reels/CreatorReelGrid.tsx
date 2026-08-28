@@ -103,14 +103,9 @@ function CreatorReelTile({ item, creatorUsername }: { item: CreatorReelItem; cre
         {/* Thumbnail Image */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src={imgSrc}
+          src={imgSrc || item.rawThumbnailUrl || item.thumbnailUrl}
           alt={item.caption || "Instagram Media"}
           referrerPolicy="no-referrer"
-          onError={() => {
-            if (item.shortcode) {
-              setImgSrc(`/api/proxy-image?shortcode=${item.shortcode}`);
-            }
-          }}
           className="w-full h-full object-cover group-hover:scale-103 transition-transform duration-300 ease-out"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/30 opacity-70 group-hover:opacity-90 transition-opacity" />
