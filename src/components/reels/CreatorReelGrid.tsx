@@ -96,10 +96,8 @@ function CreatorReelTile({ item, creatorUsername }: { item: CreatorReelItem; cre
 
   const resolveCurrentImg = () => {
     const raw = item.thumbnailUrl || item.rawThumbnailUrl || imgSrc;
-    if (!raw) {
-      return item.shortcode
-        ? `/api/proxy-image?shortcode=${item.shortcode}`
-        : "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600&auto=format&fit=crop&q=80";
+    if (!raw || raw.includes("unsplash.com")) {
+      return `/api/proxy-image?username=${encodeURIComponent(creatorUsername || "creator")}`;
     }
     if (raw.startsWith("http") && !raw.includes("wsrv.nl") && !raw.includes("unsplash.com") && !raw.includes("ui-avatars.com")) {
       return `/api/proxy-image?url=${encodeURIComponent(raw)}`;
@@ -122,12 +120,7 @@ function CreatorReelTile({ item, creatorUsername }: { item: CreatorReelItem; cre
           alt={item.caption || "Instagram Media"}
           referrerPolicy="no-referrer"
           onError={(e) => {
-            if (item.shortcode) {
-              (e.target as HTMLImageElement).src = `/api/proxy-image?shortcode=${item.shortcode}`;
-            } else {
-              (e.target as HTMLImageElement).src =
-                "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600&auto=format&fit=crop&q=80";
-            }
+            (e.target as HTMLImageElement).src = `/api/proxy-image?username=${encodeURIComponent(creatorUsername || "creator")}`;
           }}
           className="w-full h-full object-cover group-hover:scale-103 transition-transform duration-300 ease-out"
         />

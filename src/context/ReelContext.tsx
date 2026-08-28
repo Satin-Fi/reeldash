@@ -150,9 +150,18 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
         }
       }
 
-      parsedReels = parsedReels.filter(
-        (r) => r && r.userId !== "usr-demo" && !r.id?.startsWith("mock-") && !r.id?.startsWith("sample-")
-      );
+      parsedReels = parsedReels
+        .filter((r) => r && r.userId !== "usr-demo" && !r.id?.startsWith("mock-") && !r.id?.startsWith("sample-"))
+        .map((r) => {
+          if (r.thumbnailUrl && r.thumbnailUrl.includes("unsplash.com")) {
+            const sc = r.instagramUrl?.match(/(?:reel|reels|p|audio|stories)\/([A-Za-z0-9_-]+)/)?.[1];
+            return {
+              ...r,
+              thumbnailUrl: sc ? `/api/proxy-image?shortcode=${sc}` : "",
+            };
+          }
+          return r;
+        });
 
       setReels(parsedReels);
       setCollections(parsedCols);

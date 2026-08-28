@@ -51,17 +51,11 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
 
   // Clean thumbnail image source via our proxy endpoint with multiple fallback layers
   const resolveImageSource = () => {
-    if (imageError) {
-      return shortcode
-        ? `/api/proxy-image?shortcode=${shortcode}`
-        : "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600&auto=format&fit=crop&q=80";
-    }
-    if (reel.thumbnailUrl) {
+    if (reel.thumbnailUrl && !reel.thumbnailUrl.includes("unsplash.com")) {
       if (
         reel.thumbnailUrl.startsWith("http") &&
         !reel.thumbnailUrl.includes("wsrv.nl") &&
-        !reel.thumbnailUrl.includes("ui-avatars.com") &&
-        !reel.thumbnailUrl.includes("unsplash.com")
+        !reel.thumbnailUrl.includes("ui-avatars.com")
       ) {
         return `/api/proxy-image?url=${encodeURIComponent(reel.thumbnailUrl)}`;
       }
@@ -70,7 +64,7 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
     if (shortcode) {
       return `/api/proxy-image?shortcode=${shortcode}`;
     }
-    return "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600&auto=format&fit=crop&q=80";
+    return `/api/proxy-image?username=${encodeURIComponent(displayHandle)}`;
   };
 
   const imageSrc = resolveImageSource();
@@ -121,12 +115,8 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
                 alt={displayCaption}
                 referrerPolicy="no-referrer"
                 onError={(e) => {
-                  if (!imageError && shortcode) {
-                    setImageError(true);
-                  } else {
-                    (e.target as HTMLImageElement).src =
-                      "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600&auto=format&fit=crop&q=80";
-                  }
+                  setImageError(true);
+                  (e.target as HTMLImageElement).src = `/api/proxy-image?username=${encodeURIComponent(displayHandle)}`;
                 }}
                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
               />
@@ -217,12 +207,8 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
               alt={displayCaption}
               referrerPolicy="no-referrer"
               onError={(e) => {
-                if (!imageError && shortcode) {
-                  setImageError(true);
-                } else {
-                  (e.target as HTMLImageElement).src =
-                    "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600&auto=format&fit=crop&q=80";
-                }
+                setImageError(true);
+                (e.target as HTMLImageElement).src = `/api/proxy-image?username=${encodeURIComponent(displayHandle)}`;
               }}
               className="w-full h-full object-cover group-hover:scale-103 transition-transform duration-300 ease-out"
             />

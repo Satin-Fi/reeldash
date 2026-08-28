@@ -6,7 +6,53 @@ export const dynamic = "force-dynamic";
 const avatarCache = new Map<string, { url: string; expiresAt: number }>();
 const thumbCache = new Map<string, { url: string; expiresAt: number }>();
 
-async function serveImageBinary(imageUrl: string, fallbackUrl?: string): Promise<NextResponse> {
+function serveCleanPlaceholderSvg(): NextResponse {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="400" height="711" viewBox="0 0 400 711" fill="none">
+    <rect width="400" height="711" fill="#111218"/>
+    <circle cx="200" cy="355" r="48" fill="#1a1c24" stroke="rgba(255,255,255,0.08)" stroke-width="1.5"/>
+    <path d="M192 340L216 355L192 370V340Z" fill="#71717A"/>
+  </svg>`;
+  return new NextResponse(svg, {
+    status: 200,
+    headers: {
+      "Content-Type": "image/svg+xml",
+      "Cache-Control": "public, max-age=86400, s-maxage=86400",
+    },
+  });
+}
+
+async function serveImageBinary(imageUrl: string, fallbackAvatarUrl?: string): Promise<NextResponse> {
+  if (!imageUrl || imageUrl.includes("unsplash.com")) {
+    return serveCleanPlaceholderSvg();
+  }
+
+  // 1. Try Direct Fetch with Instagram CDN headers
+  try {
+    const directRes = await fetch(imageUrl, {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        "Referer": "https://www.instagram.com/",
+        "Accept": "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
+      },
+      signal: AbortSignal.timeout(4000),
+    });
+    if (directRes.ok) {
+      const buffer = await directRes.arrayBuffer();
+      const contentType = directRes.headers.get("content-type") || "image/jpeg";
+      return new NextResponse(Buffer.from(buffer), {
+        status: 200,
+        headers: {
+          "Content-Type": contentType,
+          "Cache-Control": "public, max-age=86400, s-maxage=86400, stale-while-revalidate=86400",
+        },
+      });
+    }
+  } catch {
+    // Continue to proxy
+  }
+
+  // 2. Try wsrv.nl CDN Proxy
   try {
     const wsrvUrl = `https://wsrv.nl/?url=${encodeURIComponent(imageUrl)}`;
     const imgRes = await fetch(wsrvUrl, {
@@ -27,12 +73,13 @@ async function serveImageBinary(imageUrl: string, fallbackUrl?: string): Promise
     // Continue
   }
 
-  if (fallbackUrl) {
+  // 3. Try fallback avatar if provided (for profile pictures only)
+  if (fallbackAvatarUrl) {
     try {
-      const fbRes = await fetch(fallbackUrl, { signal: AbortSignal.timeout(3000) });
+      const fbRes = await fetch(fallbackAvatarUrl, { signal: AbortSignal.timeout(3000) });
       if (fbRes.ok) {
         const buffer = await fbRes.arrayBuffer();
-        const contentType = fbRes.headers.get("content-type") || "image/png";
+        const contentType = fbRes.headers.get("content-type") || "image/svg+xml";
         return new NextResponse(Buffer.from(buffer), {
           status: 200,
           headers: {
@@ -44,10 +91,9 @@ async function serveImageBinary(imageUrl: string, fallbackUrl?: string): Promise
     } catch {
       // Continue
     }
-    return NextResponse.redirect(fallbackUrl, { status: 307 });
   }
 
-  return new NextResponse(null, { status: 404 });
+  return serveCleanPlaceholderSvg();
 }
 
 async function fetchRealAvatarUrl(username: string): Promise<string | null> {
@@ -59,7 +105,6 @@ async function fetchRealAvatarUrl(username: string): Promise<string | null> {
     return cached.url;
   }
 
-  // Strategy 1: Post Embed Scraper from recent public media
   try {
     const bridgeUrls = [
       `https://rss.trom.tf/?action=display&bridge=InstagramBridge&u=${encodeURIComponent(cleanUsername)}&format=Json`,
@@ -104,121 +149,22 @@ async function fetchRealAvatarUrl(username: string): Promise<string | null> {
           .replace(/\\/g, "")
           .replace(/&amp;/g, "&");
 
-        const matches = unescaped.match(/https:\/\/[^"'\s<>\\]+/g) || [];
+        const scontentMatches = unescaped.match(/https:\/\/[^"'\s<>\\]+/g) || [];
 
-        for (const m of matches) {
+        for (const decoded of scontentMatches) {
           if (
-            m.includes("t51.82787-19") ||
-            m.includes("t51.2885-19") ||
-            m.includes("s150x150") ||
-            m.includes("s100x100") ||
-            m.includes("profile_pic")
+            decoded.includes("t51.82787-19") ||
+            decoded.includes("t51.2885-19") ||
+            decoded.includes("s150x150") ||
+            decoded.includes("s100x100") ||
+            decoded.includes("profile_pic")
           ) {
             avatarCache.set(cleanUsername, {
-              url: m,
+              url: decoded,
               expiresAt: Date.now() + 1000 * 60 * 60 * 24,
             });
-            return m;
+            return decoded;
           }
-        }
-      }
-    }
-  } catch {
-    // Continue
-  }
-
-  // Strategy 2: Direct Instagram Profile Embed Engine
-  try {
-    const embedRes = await fetch(`https://www.instagram.com/${cleanUsername}/embed/`, {
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
-        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-      },
-      redirect: "follow",
-      cache: "no-store",
-      signal: AbortSignal.timeout(3000),
-    });
-
-    if (embedRes.ok) {
-      const embedHtml = await embedRes.text();
-      const unescaped = embedHtml
-        .replace(/\\u0026/gi, "&")
-        .replace(/\\u00253D/gi, "%3D")
-        .replace(/\\\//g, "/")
-        .replace(/\\/g, "")
-        .replace(/&amp;/g, "&");
-
-      const scontentMatches = unescaped.match(/https:\/\/[^"'\s<>\\]+/g) || [];
-
-      for (const decoded of scontentMatches) {
-        if (
-          decoded.includes("t51.82787-19") ||
-          decoded.includes("t51.2885-19") ||
-          decoded.includes("s150x150") ||
-          decoded.includes("s100x100") ||
-          decoded.includes("profile_pic")
-        ) {
-          avatarCache.set(cleanUsername, {
-            url: decoded,
-            expiresAt: Date.now() + 1000 * 60 * 60 * 24,
-          });
-          return decoded;
-        }
-      }
-    }
-  } catch {
-    // Continue
-  }
-
-  return null;
-}
-
-async function fetchRealPostThumbnail(shortcode: string): Promise<string | null> {
-  const cleanCode = shortcode.trim();
-  if (!cleanCode) return null;
-
-  const cached = thumbCache.get(cleanCode);
-  if (cached && cached.expiresAt > Date.now()) {
-    return cached.url;
-  }
-
-  try {
-    const embedRes = await fetch(`https://www.instagram.com/p/${cleanCode}/embed/captioned/`, {
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
-        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-      },
-      cache: "no-store",
-      signal: AbortSignal.timeout(3500),
-    });
-
-    if (embedRes.ok) {
-      const html = await embedRes.text();
-      const unescaped = html
-        .replace(/\\u0026/gi, "&")
-        .replace(/\\u00253D/gi, "%3D")
-        .replace(/\\\//g, "/")
-        .replace(/\\/g, "")
-        .replace(/&amp;/g, "&");
-
-      const matches = unescaped.match(/https:\/\/[^"'\s<>\\]+/g) || [];
-
-      for (const u of matches) {
-        if (
-          u.includes("t51.82787-15") ||
-          u.includes("CLIPS") ||
-          u.includes("CAROUSEL_ITEM") ||
-          u.includes("video_default_cover") ||
-          u.includes("dst-jpegr") ||
-          u.includes("dst-jpg")
-        ) {
-          thumbCache.set(cleanCode, {
-            url: u,
-            expiresAt: Date.now() + 1000 * 60 * 60 * 24,
-          });
-          return u;
         }
       }
     }
@@ -232,7 +178,6 @@ async function fetchRealPostThumbnail(shortcode: string): Promise<string | null>
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const username = searchParams.get("username");
-  const shortcode = searchParams.get("shortcode");
   const directUrl = searchParams.get("url");
 
   // 1. AVATAR PROXY BY USERNAME
@@ -250,26 +195,10 @@ export async function GET(req: NextRequest) {
     return await serveImageBinary(fallbackAvatar);
   }
 
-  // 2. POST THUMBNAIL BY SHORTCODE
-  if (shortcode) {
-    const fallbackThumb = `https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600&auto=format&fit=crop&q=80`;
-    try {
-      const realThumbUrl = await fetchRealPostThumbnail(shortcode);
-      if (realThumbUrl) {
-        return await serveImageBinary(realThumbUrl, fallbackThumb);
-      }
-    } catch {
-      // Continue
-    }
-
-    return await serveImageBinary(fallbackThumb);
-  }
-
-  // 3. DIRECT IMAGE PROXY BY URL
+  // 2. DIRECT IMAGE PROXY BY URL
   if (directUrl) {
-    const fallbackThumb = `https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600&auto=format&fit=crop&q=80`;
-    return await serveImageBinary(directUrl, fallbackThumb);
+    return await serveImageBinary(directUrl);
   }
 
-  return new NextResponse(null, { status: 400 });
+  return serveCleanPlaceholderSvg();
 }
