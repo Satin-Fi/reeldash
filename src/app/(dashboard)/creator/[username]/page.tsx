@@ -153,11 +153,11 @@ function CreatorProfileContent() {
 
   // 3. Discovered items split by media type
   const rawDiscoveredReels = discovered.filter(
-    (d) => d.mediaType === "reel" || (d.isVideo && !d.isCarousel)
+    (d) => d.mediaType === "reel" || d.isVideo
   );
 
   const rawDiscoveredPosts = discovered.filter(
-    (d) => d.mediaType === "post" || d.isCarousel || !d.isVideo
+    (d) => d.mediaType === "post" || !d.isVideo || d.isCarousel
   );
 
   // 4. UN-SAVED discovered items (Prevents double counting and count inflation!)

@@ -145,7 +145,8 @@ export async function GET(req: NextRequest) {
     try {
       const realAvatarUrl = await fetchRealAvatarUrl(username);
       if (realAvatarUrl) {
-        return NextResponse.redirect(realAvatarUrl, {
+        const proxied = `https://wsrv.nl/?url=${encodeURIComponent(realAvatarUrl)}&default=1`;
+        return NextResponse.redirect(proxied, {
           status: 307,
           headers: {
             "Cache-Control": "public, max-age=86400, s-maxage=86400",
@@ -161,7 +162,8 @@ export async function GET(req: NextRequest) {
 
   // 2. DIRECT IMAGE PROXY BY URL
   if (directUrl) {
-    return NextResponse.redirect(directUrl, {
+    const proxied = `https://wsrv.nl/?url=${encodeURIComponent(directUrl)}&default=1`;
+    return NextResponse.redirect(proxied, {
       status: 307,
       headers: {
         "Cache-Control": "public, max-age=86400, s-maxage=86400",
