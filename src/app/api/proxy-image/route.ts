@@ -3,6 +3,9 @@ import { resolveRealInstagramAvatar } from "@/lib/instagramAvatar";
 
 export const dynamic = "force-dynamic";
 
+// In-memory cache for shortcode cover images
+const coverCache = new Map<string, { url: string; expiresAt: number }>();
+
 function serveCleanPlaceholderSvg() {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 600" width="100%" height="100%">
     <defs>
@@ -37,7 +40,7 @@ async function serveImageBinary(imageUrl: string, fallbackAvatarUrl?: string): P
     try {
       const wsrvUrl = `https://wsrv.nl/?url=${encodeURIComponent(imageUrl)}&output=jpg&q=85`;
       const imgRes = await fetch(wsrvUrl, {
-        signal: AbortSignal.timeout(4000),
+        signal: AbortSignal.timeout(4500),
       });
       if (imgRes.ok) {
         const buffer = await imgRes.arrayBuffer();
@@ -105,10 +108,62 @@ async function serveImageBinary(imageUrl: string, fallbackAvatarUrl?: string): P
   return serveCleanPlaceholderSvg();
 }
 
+async function extractCoverByShortcode(shortcode: string): Promise<string | null> {
+  const clean = shortcode.replace(/[^\w-]/g, "").trim();
+  if (!clean) return null;
+
+  const cached = coverCache.get(clean);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.url;
+  }
+
+  try {
+    const embedRes = await fetch(`https://www.instagram.com/p/${clean}/embed/captioned/`, {
+      headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" },
+      cache: "no-store",
+      signal: AbortSignal.timeout(3500),
+    });
+
+    if (embedRes.ok) {
+      const html = await embedRes.text();
+      const unescaped = html
+        .replace(/\\u0026/gi, "&")
+        .replace(/\\u00253D/gi, "%3D")
+        .replace(/\\\//g, "/")
+        .replace(/\\/g, "")
+        .replace(/&amp;/g, "&");
+
+      const matches = unescaped.match(/https:\/\/[^"'\s<>]+\.jpg[^"'\s<>]*/g) || [];
+      for (const m of matches) {
+        if (
+          !m.includes("t51.82787-19") &&
+          !m.includes("profile_pic") &&
+          (m.includes("t51.82787-15") ||
+            m.includes("CLIPS") ||
+            m.includes("CAROUSEL_ITEM") ||
+            m.includes("dst-jpg") ||
+            m.includes("dst-jpegr"))
+        ) {
+          coverCache.set(clean, {
+            url: m,
+            expiresAt: Date.now() + 1000 * 60 * 60 * 24, // 24 hours
+          });
+          return m;
+        }
+      }
+    }
+  } catch {
+    // Continue
+  }
+
+  return null;
+}
+
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const username = searchParams.get("username");
   const directUrl = searchParams.get("url");
+  const shortcode = searchParams.get("shortcode");
 
   // 1. AVATAR PROXY BY USERNAME
   if (username) {
@@ -128,6 +183,18 @@ export async function GET(req: NextRequest) {
   // 2. DIRECT IMAGE PROXY BY URL
   if (directUrl) {
     return await serveImageBinary(directUrl);
+  }
+
+  // 3. REEL / POST COVER BY SHORTCODE
+  if (shortcode) {
+    try {
+      const coverUrl = await extractCoverByShortcode(shortcode);
+      if (coverUrl) {
+        return await serveImageBinary(coverUrl);
+      }
+    } catch {
+      // Continue
+    }
   }
 
   return serveCleanPlaceholderSvg();

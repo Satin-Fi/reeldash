@@ -83,9 +83,25 @@ async function fetchAllMedia(username: string): Promise<any> {
         const isVideo = item.title?.startsWith("▶") || url.includes("/reel/");
         const isReel = url.includes("/reel/");
         const content = item.content_html || "";
-        const imgMatch = content.match(/src="(https:\/\/[^"]+\.jpg[^"]*)"/);
+        const imgMatch = content.match(/src="(https:\/\/[^"]+)"/);
         const videoMatch = content.match(/src="(https:\/\/[^"]+\.mp4[^"]*)"/);
-        const displayUrl = imgMatch?.[1] || "";
+
+        // Extract real image from attachments array or primary image property
+        const attachImgs: string[] = (item.attachments || [])
+          .map((a: any) => a.url)
+          .filter(Boolean);
+
+        const primaryAttachment = item.attachments?.find((a: any) =>
+          a.mime_type?.startsWith("image/") || a.url?.includes(".jpg") || a.url?.includes(".jpeg")
+        )?.url;
+
+        const displayUrl =
+          primaryAttachment ||
+          item.image ||
+          item.attachments?.[0]?.url ||
+          imgMatch?.[1] ||
+          "";
+
         const caption = item.title?.replace(/^▶\s*/, "") || "";
 
         nodeMap.set(shortcode, {
@@ -94,13 +110,15 @@ async function fetchAllMedia(username: string): Promise<any> {
           video_url: videoMatch?.[1] || "",
           is_video: isVideo,
           isReel,
-          __typename: isVideo ? "GraphVideo" : "GraphImage",
+          __typename: isVideo ? "GraphVideo" : attachImgs.length > 1 ? "GraphSidecar" : "GraphImage",
           edge_media_to_caption: {
             edges: caption ? [{ node: { text: caption } }] : [],
           },
           edge_media_preview_like: { count: null },
           edge_media_to_comment: { count: null },
-          edge_sidecar_to_children: null,
+          edge_sidecar_to_children: attachImgs.length > 1
+            ? { edges: attachImgs.map((imgUrl) => ({ node: { display_url: imgUrl } })) }
+            : null,
         });
       }
     }
@@ -254,7 +272,7 @@ function normalize(node: any) {
       : `https://www.instagram.com/p/${shortcode}/`,
     thumbnailUrl: displayUrl
       ? `/api/proxy-image?url=${encodeURIComponent(displayUrl)}`
-      : "",
+      : `/api/proxy-image?shortcode=${cleanCode(shortcode)}`,
     rawThumbnailUrl: displayUrl || "",
     caption,
     isVideo,
