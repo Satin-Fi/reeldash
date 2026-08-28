@@ -501,21 +501,24 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
         setReels((prev) => {
           const updated = prev.map((r) => {
             if (r.id === tempId) {
+              const keepThumb = r.thumbnailUrl && !r.thumbnailUrl.includes("unsplash.com") && !r.thumbnailUrl.includes("shortcode=");
               return {
                 ...r,
                 creatorUsername: finalCreator,
                 creatorFullName: finalFullName,
-                creatorAvatar: data.creatorAvatar || r.creatorAvatar,
-                thumbnailUrl: data.thumbnailUrl || r.thumbnailUrl,
+                creatorAvatar: r.creatorAvatar && !r.creatorAvatar.includes("ui-avatars.com") ? r.creatorAvatar : (data.creatorAvatar || r.creatorAvatar),
+                thumbnailUrl: keepThumb ? r.thumbnailUrl : (data.thumbnailUrl || r.thumbnailUrl),
                 mediaUrl: data.mediaUrl || r.mediaUrl,
                 embedUrl: data.embedUrl || r.embedUrl,
                 caption: customDetails?.caption || data.caption || r.caption,
                 category: finalCategory,
-                likes: data.likes || r.likes,
-                commentsCount: data.commentsCount || r.commentsCount,
-                duration: data.duration || r.duration,
+                likes: customDetails?.likes || data.likes || r.likes,
+                commentsCount: customDetails?.commentsCount || data.commentsCount || r.commentsCount,
+                duration: customDetails?.duration || data.duration || r.duration,
                 audioTitle: customDetails?.audioTitle || data.audioTitle,
                 audioArtist: customDetails?.audioArtist || data.audioArtist,
+                isCarousel: customDetails?.isCarousel ?? r.isCarousel,
+                carouselImages: customDetails?.carouselImages ?? r.carouselImages,
                 aiSummary: data.aiSummary || r.aiSummary,
                 hashtags: data.hashtags && data.hashtags.length > 0 ? data.hashtags : r.hashtags,
               };

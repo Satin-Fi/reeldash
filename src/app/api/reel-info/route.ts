@@ -244,14 +244,15 @@ export async function POST(req: NextRequest) {
                 .replace(/&amp;/g, "&");
 
               const matches = unescaped.match(/https:\/\/[^"'\s<>\\]+/g) || [];
+              let foundCover = false;
               for (const m of matches) {
-                if (m.includes("t51.82787-19") || m.includes("profile_pic")) {
-                  if (!creatorAvatar) {
-                    creatorAvatar = `/api/proxy-image?url=${encodeURIComponent(m)}`;
-                  }
+                if (!creatorAvatar && (m.includes("t51.82787-19") || m.includes("profile_pic"))) {
+                  creatorAvatar = `/api/proxy-image?url=${encodeURIComponent(m)}`;
                 }
                 if (
-                  (!thumbnailUrl || thumbnailUrl.includes("/api/proxy-image?shortcode")) &&
+                  !foundCover &&
+                  !m.includes("t51.82787-19") &&
+                  !m.includes("profile_pic") &&
                   (m.includes("t51.82787-15") ||
                     m.includes("CLIPS") ||
                     m.includes("CAROUSEL_ITEM") ||
@@ -259,6 +260,7 @@ export async function POST(req: NextRequest) {
                     m.includes("dst-jpegr"))
                 ) {
                   thumbnailUrl = `/api/proxy-image?url=${encodeURIComponent(m)}`;
+                  foundCover = true;
                 }
               }
             }
