@@ -4,14 +4,22 @@ export const dynamic = "force-dynamic";
 
 // In-memory cache for instant responses
 const avatarCache = new Map<string, { url: string; expiresAt: number }>();
-const thumbCache = new Map<string, { url: string; expiresAt: number }>();
 
-function serveCleanPlaceholderSvg(): NextResponse {
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="400" height="711" viewBox="0 0 400 711" fill="none">
-    <rect width="400" height="711" fill="#111218"/>
-    <circle cx="200" cy="355" r="48" fill="#1a1c24" stroke="rgba(255,255,255,0.08)" stroke-width="1.5"/>
-    <path d="M192 340L216 355L192 370V340Z" fill="#71717A"/>
+function serveCleanPlaceholderSvg() {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 600" width="100%" height="100%">
+    <defs>
+      <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" style="stop-color:#3b82f6;stop-opacity:1" />
+        <stop offset="50%" style="stop-color:#8b5cf6;stop-opacity:1" />
+        <stop offset="100%" style="stop-color:#ec4899;stop-opacity:1" />
+      </linearGradient>
+    </defs>
+    <rect width="100%" height="100%" fill="url(#grad)"/>
+    <g fill="#ffffff" opacity="0.9" transform="translate(160, 260) scale(3.3)">
+      <path d="M8 5v14l11-7z"/>
+    </g>
   </svg>`;
+
   return new NextResponse(svg, {
     status: 200,
     headers: {
@@ -22,31 +30,27 @@ function serveCleanPlaceholderSvg(): NextResponse {
 }
 
 async function serveImageBinary(imageUrl: string, fallbackAvatarUrl?: string): Promise<NextResponse> {
-  if (!imageUrl || imageUrl.includes("unsplash.com")) {
-    return serveCleanPlaceholderSvg();
-  }
-
-  // 1. Try Direct Fetch with Instagram CDN headers
+  // 1. Try direct fetch with Meta headers
   try {
     const directRes = await fetch(imageUrl, {
       headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
         "Referer": "https://www.instagram.com/",
-        "Accept": "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
       },
-      signal: AbortSignal.timeout(4000),
+      signal: AbortSignal.timeout(3000),
     });
     if (directRes.ok) {
       const buffer = await directRes.arrayBuffer();
       const contentType = directRes.headers.get("content-type") || "image/jpeg";
-      return new NextResponse(Buffer.from(buffer), {
-        status: 200,
-        headers: {
-          "Content-Type": contentType,
-          "Cache-Control": "public, max-age=86400, s-maxage=86400, stale-while-revalidate=86400",
-        },
-      });
+      if (contentType.startsWith("image/") && buffer.byteLength > 500) {
+        return new NextResponse(Buffer.from(buffer), {
+          status: 200,
+          headers: {
+            "Content-Type": contentType,
+            "Cache-Control": "public, max-age=86400, s-maxage=86400, stale-while-revalidate=86400",
+          },
+        });
+      }
     }
   } catch {
     // Continue to proxy
@@ -105,6 +109,7 @@ async function fetchRealAvatarUrl(username: string): Promise<string | null> {
     return cached.url;
   }
 
+  // Strategy 1: RSS Bridge to recent post embed
   try {
     const bridgeUrls = [
       `https://rss.trom.tf/?action=display&bridge=InstagramBridge&u=${encodeURIComponent(cleanUsername)}&format=Json`,
@@ -168,6 +173,10 @@ async function fetchRealAvatarUrl(username: string): Promise<string | null> {
         }
       }
     }
+  } catch {
+    // Continue
+  }
+
   // Strategy 2: Direct Instagram Profile Embed Scraper
   try {
     const embedRes = await fetch(`https://www.instagram.com/${cleanUsername}/embed/`, {
