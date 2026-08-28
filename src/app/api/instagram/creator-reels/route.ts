@@ -25,7 +25,7 @@ function cleanCode(code: string): string {
   return code.replace(/[^\w-]/g, "");
 }
 
-async function fetchAllMedia(username: string): Promise<any[]> {
+async function fetchAllMedia(username: string): Promise<any> {
   const nodeMap = new Map<string, any>();
 
   const workerUrl =
@@ -35,6 +35,10 @@ async function fetchAllMedia(username: string): Promise<any[]> {
 
   // Step 1: Get user ID + first 12 posts via web_profile_info
   let userId: string | null = null;
+  let userAvatar: string | null = null;
+  let userDisplayName: string | null = null;
+  let userFollowers: string | null = null;
+  let userPostsCount: string | null = null;
   try {
     const res = await fetch(
       `https://www.instagram.com/api/v1/users/web_profile_info/?username=${encodeURIComponent(username)}`,
@@ -54,6 +58,14 @@ async function fetchAllMedia(username: string): Promise<any[]> {
       const user = data?.data?.user;
       if (user) {
         userId = user.id;
+        userAvatar = user.profile_pic_url_hd || user.profile_pic_url;
+        userDisplayName = user.full_name;
+        if (user.edge_followed_by?.count != null) {
+          userFollowers = Number(user.edge_followed_by.count).toLocaleString();
+        }
+        if (user.edge_owner_to_timeline_media?.count != null) {
+          userPostsCount = Number(user.edge_owner_to_timeline_media.count).toLocaleString();
+        }
         // Add first 12 posts
         for (const edge of user.edge_owner_to_timeline_media?.edges || []) {
           const node = edge.node;
@@ -297,7 +309,13 @@ async function fetchAllMedia(username: string): Promise<any[]> {
     // Return empty
   }
 
-  return dedup(Array.from(nodeMap.values()));
+  return {
+    items: dedup(Array.from(nodeMap.values())),
+    userAvatar,
+    userDisplayName,
+    userFollowers,
+    userPostsCount,
+  };
 }
 
 function dedup(nodes: any[]): any[] {
@@ -379,16 +397,22 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ username, items: cached.items, cached: true });
   }
 
-  let items: any[] = [];
+  let mediaResult: {
+    items: any[];
+    userAvatar?: string | null;
+    userDisplayName?: string | null;
+    userFollowers?: string | null;
+    userPostsCount?: string | null;
+  } = { items: [] };
 
   // Scrape public account media (Option B Cloudflare Edge Worker -> Hybrid Scraper -> SnapSave)
   try {
-    items = await fetchAllMedia(username);
+    mediaResult = await fetchAllMedia(username);
   } catch {
     // continue
   }
 
-  let normalized = items.map(normalize).filter((n) => n.shortcode);
+  let normalized = (mediaResult.items || []).map(normalize).filter((n) => n.shortcode);
 
   // Cache successful responses if any
   if (normalized.length > 0) {
@@ -400,6 +424,12 @@ export async function GET(request: NextRequest) {
       username,
       items: normalized,
       count: normalized.length,
+      avatarUrl: mediaResult.userAvatar
+        ? `/api/proxy-image?url=${encodeURIComponent(mediaResult.userAvatar)}`
+        : `/api/proxy-image?username=${encodeURIComponent(username)}`,
+      displayName: mediaResult.userDisplayName || username,
+      followers: mediaResult.userFollowers || null,
+      postsCount: mediaResult.userPostsCount || null,
       isLiveScraped: normalized.length > 0,
       reason: normalized.length === 0 ? "Instagram unauthenticated rate limit" : null,
     },

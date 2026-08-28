@@ -375,6 +375,7 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
                   <img
                     src={`/api/proxy-image?username=${encodeURIComponent(displayHandle)}`}
                     alt={displayHandle}
+                    referrerPolicy="no-referrer"
                     className="w-full h-full object-cover"
                     onError={(e) => {
                       (e.target as HTMLElement).style.display = "none";

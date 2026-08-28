@@ -131,6 +131,7 @@ export function ReelPlayerModal({ reel, isOpen, onClose }: ReelPlayerModalProps)
                   <img
                     src={`/api/proxy-image?username=${encodeURIComponent(creatorHandle)}`}
                     alt={creatorHandle}
+                    referrerPolicy="no-referrer"
                     className="w-full h-full object-cover"
                     onError={(e) => {
                       (e.target as HTMLElement).style.display = "none";
