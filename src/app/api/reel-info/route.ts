@@ -125,6 +125,7 @@ export async function POST(req: NextRequest) {
     let likes = "";
     let commentsCount = "";
     let thumbnailUrl = shortcode ? `/api/proxy-image?shortcode=${shortcode}` : "";
+    let creatorAvatar = "";
     let mediaUrl = "";
     let audioTitle = "";
     let audioArtist = "";
@@ -276,7 +277,7 @@ export async function POST(req: NextRequest) {
       mediaType,
       creatorUsername,
       creatorFullName,
-      creatorAvatar: `/api/proxy-image?username=${encodeURIComponent(creatorUsername)}`,
+      creatorAvatar: creatorAvatar || `/api/proxy-image?username=${encodeURIComponent(creatorUsername)}`,
       thumbnailUrl,
       mediaUrl,
       embedUrl: `https://www.instagram.com/p/${shortcode}/embed/`,
