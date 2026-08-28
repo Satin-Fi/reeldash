@@ -4,86 +4,124 @@ export const dynamic = "force-dynamic";
 
 /**
  * Scrapes a public Instagram account's media (Reels + posts) from any username.
- * Data source: SnapSave profile scraper + Cloudflare Edge Worker + Instagram web_profile_info
+ * Data source: High-speed Parallel RSS Bridge + Instagram Embed & OpenGraph Metadata
  */
 
-const cache = new Map<string, { items: any[]; ts: number }>();
-const CACHE_TTL = 10 * 60 * 1000;
-
-function igHeaders(extra: Record<string, string> = {}): HeadersInit {
-  return {
-    "User-Agent":
-      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
-    "X-IG-App-ID": "936619743392459",
-    "X-Requested-With": "XMLHttpRequest",
-    Accept: "*/*",
-    ...extra,
-  };
-}
+const cache = new Map<string, { items: any[]; userDetails: any; ts: number }>();
+const CACHE_TTL = 10 * 60 * 1000; // 10 min cache
 
 function cleanCode(code: string): string {
   return code.replace(/[^\w-]/g, "");
 }
 
 async function fetchAllMedia(username: string): Promise<any> {
+  const cleanUsername = username.replace(/^@/, "").trim().toLowerCase();
   const nodeMap = new Map<string, any>();
 
-  const workerUrl =
-    process.env.REELDASH_CF_WORKER_URL ||
-    "https://reeldash-ig-proxy.reeldash-ig-proxy.workers.dev";
-  const workerBase = workerUrl.replace(/\/$/, "");
-
-  // Step 1: Get user ID + first 12 posts via web_profile_info
-  let userId: string | null = null;
   let userAvatar: string | null = null;
   let userDisplayName: string | null = null;
   let userFollowers: string | null = null;
   let userPostsCount: string | null = null;
+
+  // 1. FAST PRIMARY: Parallel RSS Bridge Fetch (< 800ms)
+  const bridgeUrls = [
+    `https://rss.trom.tf/?action=display&bridge=InstagramBridge&u=${encodeURIComponent(cleanUsername)}&format=Json`,
+    `https://rss-bridge.org/bridge01/?action=display&bridge=InstagramBridge&u=${encodeURIComponent(cleanUsername)}&format=Json`,
+    `https://rss.bloat.cat/?action=display&bridge=InstagramBridge&u=${encodeURIComponent(cleanUsername)}&format=Json`,
+  ];
+
   try {
-    const res = await fetch(
-      `https://www.instagram.com/api/v1/users/web_profile_info/?username=${encodeURIComponent(username)}`,
-      {
-        headers: igHeaders({
-          Referer: `https://www.instagram.com/${username}/`,
-          "Sec-Fetch-Site": "same-origin",
-          "Sec-Fetch-Mode": "cors",
-          "Sec-Fetch-Dest": "empty",
-        }),
-        cache: "no-store",
-        signal: AbortSignal.timeout(8000),
-      }
+    const rssResult = await Promise.any(
+      bridgeUrls.map(async (url) => {
+        const res = await fetch(url, {
+          headers: {
+            "User-Agent":
+              "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
+            Accept: "application/json",
+          },
+          cache: "no-store",
+          signal: AbortSignal.timeout(4000),
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (!data.items || data.items.length === 0) throw new Error("No items");
+        return data;
+      })
     );
-    if (res.ok) {
-      const data = await res.json();
-      const user = data?.data?.user;
-      if (user) {
-        userId = user.id;
-        userAvatar = user.profile_pic_url_hd || user.profile_pic_url;
-        userDisplayName = user.full_name;
-        if (user.edge_followed_by?.count != null) {
-          userFollowers = Number(user.edge_followed_by.count).toLocaleString();
-        }
-        if (user.edge_owner_to_timeline_media?.count != null) {
-          userPostsCount = Number(user.edge_owner_to_timeline_media.count).toLocaleString();
-        }
-        // Add first 12 posts
-        for (const edge of user.edge_owner_to_timeline_media?.edges || []) {
-          const node = edge.node;
-          if (!node?.shortcode) continue;
-          const isVideo = node.is_video;
-          const isSidecar = node.__typename === "GraphSidecar";
-          nodeMap.set(node.shortcode, {
-            shortcode: node.shortcode,
-            display_url: node.display_url || node.thumbnail_src || "",
-            video_url: "",
-            is_video: isVideo,
-            isReel: isVideo,
-            __typename: node.__typename || (isVideo ? "GraphVideo" : isSidecar ? "GraphSidecar" : "GraphImage"),
-            edge_media_to_caption: node.edge_media_to_caption || { edges: [] },
-            edge_media_preview_like: node.edge_media_preview_like || { count: null },
-            edge_media_to_comment: node.edge_media_to_comment || { count: null },
-            edge_sidecar_to_children: node.edge_sidecar_to_children || null,
-          });
+
+    if (rssResult?.items?.length) {
+      for (const item of rssResult.items) {
+        const url = item.url || "";
+        const shortcodeMatch = url.match(/\/(reel|p)\/([A-Za-z0-9_-]+)/);
+        const shortcode = shortcodeMatch?.[2] || "";
+        if (!shortcode) continue;
+
+        const isVideo = item.title?.startsWith("▶") || url.includes("/reel/");
+        const isReel = url.includes("/reel/");
+        const content = item.content_html || "";
+        const imgMatch = content.match(/src="(https:\/\/[^"]+\.jpg[^"]*)"/);
+        const videoMatch = content.match(/src="(https:\/\/[^"]+\.mp4[^"]*)"/);
+        const displayUrl = imgMatch?.[1] || "";
+        const caption = item.title?.replace(/^▶\s*/, "") || "";
+
+        nodeMap.set(shortcode, {
+          shortcode,
+          display_url: displayUrl,
+          video_url: videoMatch?.[1] || "",
+          is_video: isVideo,
+          isReel,
+          __typename: isVideo ? "GraphVideo" : "GraphImage",
+          edge_media_to_caption: {
+            edges: caption ? [{ node: { text: caption } }] : [],
+          },
+          edge_media_preview_like: { count: null },
+          edge_media_to_comment: { count: null },
+          edge_sidecar_to_children: null,
+        });
+      }
+    }
+  } catch {
+    // Continue to next fallbacks
+  }
+
+  // 2. CREATOR PROFILE METADATA & AVATAR RESOLVER
+  try {
+    // Strategy A: Embed engine for avatar
+    const embedRes = await fetch(`https://www.instagram.com/${cleanUsername}/embed/`, {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
+        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+      },
+      redirect: "follow",
+      cache: "no-store",
+      signal: AbortSignal.timeout(3000),
+    });
+
+    if (embedRes.ok) {
+      const embedHtml = await embedRes.text();
+      const scontentMatches =
+        embedHtml.match(
+          /https:[\\\/]+[a-zA-Z0-9.\-_]*scontent[a-zA-Z0-9.\-_]*\.cdninstagram\.com[\\\/][^"'\s<>]+/g
+        ) || [];
+
+      for (const rawUrl of scontentMatches) {
+        const decoded = rawUrl
+          .replace(/\\\//g, "/")
+          .replace(/\\u00253D/gi, "%3D")
+          .replace(/\\u0026/gi, "&")
+          .replace(/&amp;/g, "&")
+          .replace(/\\+$/, "");
+
+        if (
+          decoded.includes("t51.82787-19") ||
+          decoded.includes("t51.2885-19") ||
+          decoded.includes("s150x150") ||
+          decoded.includes("s100x100") ||
+          decoded.includes("profile_pic")
+        ) {
+          userAvatar = decoded;
+          break;
         }
       }
     }
@@ -91,222 +129,43 @@ async function fetchAllMedia(username: string): Promise<any> {
     // Continue
   }
 
-  // Step 2: Full cursor pagination via Cloudflare Worker /ig proxy
-  // The Worker's edge IPs can paginate past page 1 where our Vercel server IP gets blocked.
-  if (userId) {
-    let maxId: string | null = null;
-    let hasMore = true;
-    let page = 0;
-    const MAX_PAGES = 10; // up to 120 posts (10 pages × 12)
-
-    while (hasMore && page < MAX_PAGES) {
-      page++;
-      const igUrl: string = "https://www.instagram.com/api/v1/feed/user/" + userId + "/?count=12" + (maxId ? "&max_id=" + encodeURIComponent(maxId) : "");
-      const proxyUrl: string = workerBase + "/ig?path=" + encodeURIComponent(igUrl);
-
-      try {
-        const res = await fetch(proxyUrl, {
-          cache: "no-store",
-          signal: AbortSignal.timeout(12000),
-        });
-
-        if (!res.ok) break;
-
-        const data = await res.json();
-
-        if (data.require_login || data.message?.includes("login")) break;
-
-        const items: any[] = data.items || [];
-        hasMore = data.more_available || false;
-        maxId = data.next_max_id || null;
-
-        for (const item of items) {
-          const code: string = item.code;
-          if (!code) continue;
-          const mediaType: number = item.media_type; // 1=photo, 2=video, 8=carousel
-          const isVideo = mediaType === 2;
-          const isCarousel = mediaType === 8;
-
-          const displayUrl =
-            item.image_versions2?.candidates?.[0]?.url ||
-            item.carousel_media?.[0]?.image_versions2?.candidates?.[0]?.url ||
-            "";
-
-          const carouselChildren = (item.carousel_media || []).map((c: any) =>
-            c.image_versions2?.candidates?.[0]?.url || ""
-          ).filter(Boolean);
-
-          if (nodeMap.has(code)) {
-            // Enrich existing entry
-            const existing = nodeMap.get(code)!;
-            if (!existing.display_url && displayUrl) existing.display_url = displayUrl;
-            if (!existing.edge_media_to_caption?.edges?.length && item.caption?.text) {
-              existing.edge_media_to_caption = { edges: [{ node: { text: item.caption.text } }] };
-            }
-            if (item.like_count != null && existing.edge_media_preview_like.count == null) {
-              existing.edge_media_preview_like = { count: item.like_count };
-            }
-          } else {
-            nodeMap.set(code, {
-              shortcode: code,
-              display_url: displayUrl,
-              video_url: "",
-              is_video: isVideo,
-              isReel: isVideo,
-              __typename: isVideo ? "GraphVideo" : isCarousel ? "GraphSidecar" : "GraphImage",
-              edge_media_to_caption: item.caption?.text
-                ? { edges: [{ node: { text: item.caption.text } }] }
-                : { edges: [] },
-              edge_media_preview_like: { count: item.like_count || null },
-              edge_media_to_comment: { count: item.comment_count || null },
-              edge_sidecar_to_children: carouselChildren.length > 0
-                ? { edges: carouselChildren.map((url: string) => ({ node: { display_url: url, thumbnail_src: url } })) }
-                : null,
-            });
-          }
-        }
-
-        console.log(`[PaginatedScraper] @${username} page=${page} items=${items.length} total=${nodeMap.size} hasMore=${hasMore}`);
-
-        if (!maxId || !hasMore) break;
-        // Small delay to avoid hammering Instagram
-        await new Promise((r) => setTimeout(r, 200));
-      } catch {
-        break;
-      }
-    }
-  }
-
-  // Step 3: RSS Bridge for caption enrichment + additional items
+  // Strategy B: OpenGraph crawler for display name & follower count
   try {
-    const rssBridgeUrls = [
-      `https://rss-bridge.org/bridge01/?action=display&bridge=InstagramBridge&u=${encodeURIComponent(username)}&format=Json`,
-      `https://rss.rss-bridge.org/bridge01/?action=display&bridge=InstagramBridge&u=${encodeURIComponent(username)}&format=Json`,
-    ];
-    for (const bridgeUrl of rssBridgeUrls) {
-      try {
-        const res = await fetch(bridgeUrl, {
-          headers: {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-            Accept: "application/json",
-          },
-          cache: "no-store",
-          signal: AbortSignal.timeout(6000),
-        });
-        if (res.ok) {
-          const json = await res.json();
-          const items: any[] = json.items || [];
-          for (const item of items) {
-            const url = item.url || "";
-            const shortcodeMatch = url.match(/\/(reel|p)\/([A-Za-z0-9_-]+)/);
-            const shortcode = shortcodeMatch?.[2] || "";
-            if (!shortcode) continue;
-
-            const isVideo = item.title?.startsWith("▶") || url.includes("/reel/");
-            const isReel = url.includes("/reel/");
-            const content = item.content_html || "";
-            const imgMatch = content.match(/src="(https:\/\/[^"]+\.jpg[^"]*)"/);
-            const videoMatch = content.match(/src="(https:\/\/[^"]+\.mp4[^"]*)"/);
-            const displayUrl = imgMatch?.[1] || "";
-            const caption = item.title?.replace(/^▶\s*/, "") || "";
-
-            if (nodeMap.has(shortcode)) {
-              const existing = nodeMap.get(shortcode)!;
-              if (caption && !existing.edge_media_to_caption?.edges?.length) {
-                existing.edge_media_to_caption = { edges: [{ node: { text: caption } }] };
-              }
-              if (displayUrl && !existing.display_url) existing.display_url = displayUrl;
-              if (videoMatch?.[1]) existing.video_url = videoMatch[1];
-              if (isVideo) {
-                existing.is_video = true;
-                existing.isReel = isReel;
-                existing.__typename = "GraphVideo";
-              }
-            } else {
-              nodeMap.set(shortcode, {
-                shortcode,
-                display_url: displayUrl,
-                video_url: videoMatch?.[1] || "",
-                is_video: isVideo,
-                isReel,
-                __typename: isVideo ? "GraphVideo" : "GraphImage",
-                edge_media_to_caption: { edges: caption ? [{ node: { text: caption } }] : [] },
-                edge_media_preview_like: { count: null },
-                edge_media_to_comment: { count: null },
-                edge_sidecar_to_children: null,
-              });
-            }
-          }
-          if (items.length > 0) break;
-        }
-      } catch {
-        // try next bridge URL
-      }
-    }
-  } catch {
-    // Continue with what we have in nodeMap
-  }
-
-  if (nodeMap.size > 0) {
-    const combinedNodes = Array.from(nodeMap.values());
-    console.log(`[Multi-Strategy Scraper] Fetched ${combinedNodes.length} items for @${username}`);
-    return dedup(combinedNodes);
-  }
-
-  // Final fallback: Direct profile HTML SSR scrape (returns 6-12)
-  try {
-    const igRes = await fetch(`https://www.instagram.com/${encodeURIComponent(username)}/`, {
+    const metaRes = await fetch(`https://www.instagram.com/${cleanUsername}/`, {
       headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
-        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
-        "Accept-Language": "en-US,en;q=0.9",
-        "Sec-Fetch-Dest": "document",
-        "Sec-Fetch-Mode": "navigate",
-        "Sec-Fetch-Site": "none",
-        "Sec-Fetch-User": "?1",
-        "Upgrade-Insecure-Requests": "1",
+        "User-Agent": "WhatsApp/2.21.12.21 A",
+        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
       },
+      redirect: "follow",
       cache: "no-store",
-      signal: AbortSignal.timeout(6000),
+      signal: AbortSignal.timeout(3000),
     });
 
-    if (igRes.ok) {
-      const html = await igRes.text();
-      const preloadImgRegex = /<link rel="preload" as="image" href="([^"]+)"/gi;
-      const preloadImages: string[] = [];
-      let m: RegExpExecArray | null;
-      while ((m = preloadImgRegex.exec(html)) !== null) {
-        const rawUrl = m[1].replace(/&amp;/g, "&");
-        if (rawUrl.includes("cdninstagram") || rawUrl.includes("fbcdn")) {
-          preloadImages.push(rawUrl);
+    if (metaRes.ok) {
+      const html = await metaRes.text();
+      const titleMatch =
+        html.match(/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)["']/i) ||
+        html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:title["']/i);
+      const descMatch =
+        html.match(/<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']+)["']/i) ||
+        html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:description["']/i);
+
+      if (titleMatch && titleMatch[1]) {
+        const namePart = titleMatch[1].split("(@")[0]?.trim();
+        if (namePart && namePart.length > 0 && namePart.toLowerCase() !== cleanUsername) {
+          userDisplayName = namePart;
         }
       }
-      const shortcodeRegex = /\/(p|reel)\/([A-Za-z0-9_-]{9,13})/g;
-      let imgIdx = 0;
-      while ((m = shortcodeRegex.exec(html)) !== null) {
-        const type = m[1];
-        const code = m[2];
-        if (!nodeMap.has(code)) {
-          const displayUrl = preloadImages[imgIdx] || "";
-          const isVideo = type === "reel";
-          nodeMap.set(code, {
-            shortcode: code,
-            display_url: displayUrl,
-            video_url: "",
-            is_video: isVideo,
-            isReel: isVideo,
-            __typename: isVideo ? "GraphVideo" : "GraphImage",
-            edge_media_to_caption: { edges: [] },
-            edge_media_preview_like: { count: null },
-            edge_media_to_comment: { count: null },
-            edge_sidecar_to_children: null,
-          });
-          imgIdx++;
-        }
+
+      if (descMatch && descMatch[1]) {
+        const followerMatch = descMatch[1].match(/([0-9.,KMkm]+)\s+Followers/i);
+        const postMatch = descMatch[1].match(/([0-9.,KMkm]+)\s+Posts/i);
+        if (followerMatch) userFollowers = followerMatch[1];
+        if (postMatch) userPostsCount = postMatch[1];
       }
     }
   } catch {
-    // Return empty
+    // Continue
   }
 
   return {
@@ -394,7 +253,18 @@ export async function GET(request: NextRequest) {
 
   const cached = cache.get(username.toLowerCase());
   if (cached && Date.now() - cached.ts < CACHE_TTL) {
-    return NextResponse.json({ username, items: cached.items, cached: true });
+    return NextResponse.json({
+      username,
+      items: cached.items,
+      count: cached.items.length,
+      avatarUrl: cached.userDetails.userAvatar
+        ? `/api/proxy-image?url=${encodeURIComponent(cached.userDetails.userAvatar)}`
+        : `/api/proxy-image?username=${encodeURIComponent(username)}`,
+      displayName: cached.userDetails.userDisplayName || username,
+      followers: cached.userDetails.userFollowers || null,
+      postsCount: cached.userDetails.userPostsCount || null,
+      cached: true,
+    });
   }
 
   let mediaResult: {
@@ -405,18 +275,20 @@ export async function GET(request: NextRequest) {
     userPostsCount?: string | null;
   } = { items: [] };
 
-  // Scrape public account media (Option B Cloudflare Edge Worker -> Hybrid Scraper -> SnapSave)
   try {
     mediaResult = await fetchAllMedia(username);
   } catch {
     // continue
   }
 
-  let normalized = (mediaResult.items || []).map(normalize).filter((n) => n.shortcode);
+  const normalized = (mediaResult.items || []).map(normalize).filter((n) => n.shortcode);
 
-  // Cache successful responses if any
   if (normalized.length > 0) {
-    cache.set(username.toLowerCase(), { items: normalized, ts: Date.now() });
+    cache.set(username.toLowerCase(), {
+      items: normalized,
+      userDetails: mediaResult,
+      ts: Date.now(),
+    });
   }
 
   const response = NextResponse.json(
