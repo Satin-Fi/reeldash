@@ -222,19 +222,19 @@ function SearchContent() {
             className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3 bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark rounded-rd-lg hover:bg-surfaceSecondary-light/80 transition-colors group cursor-pointer"
           >
             <div className="flex items-center space-x-3.5 min-w-0">
-              <div className="relative p-0.5 rounded-full bg-gradient-to-tr from-yellow-500 via-pink-500 to-purple-600 shrink-0">
+              <div className="w-12 h-12 rounded-full overflow-hidden bg-zinc-900 border border-zinc-700/80 shrink-0 flex items-center justify-center">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={searchedAccount.avatarUrl || `https://instagram.com/${searchedAccount.username}/media/?size=l`}
+                  src={searchedAccount.avatarUrl || `/api/instagram/avatar/${encodeURIComponent(searchedAccount.username)}`}
                   alt={searchedAccount.username}
                   onError={(e) => {
                     (e.target as HTMLElement).style.display = "none";
                     const fallback = (e.target as HTMLElement).nextElementSibling as HTMLElement;
                     if (fallback) fallback.style.display = "flex";
                   }}
-                  className="w-12 h-12 rounded-full object-cover bg-zinc-800"
+                  className="w-full h-full object-cover"
                 />
-                <div className="hidden w-12 h-12 rounded-full bg-zinc-800 items-center justify-center text-zinc-400">
+                <div className="hidden w-full h-full bg-zinc-800 items-center justify-center text-zinc-400">
                   <User className="w-6 h-6" />
                 </div>
               </div>

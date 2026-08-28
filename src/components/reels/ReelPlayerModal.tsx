@@ -48,18 +48,15 @@ export function ReelPlayerModal({ reel, isOpen, onClose }: ReelPlayerModalProps)
   useEffect(() => {
     if (reel) {
       setNoteContent(reel.notes || "");
-      if (reel.creatorAvatar) {
-        if (reel.creatorAvatar.startsWith("http")) {
-          setAvatarSrc(`/api/proxy-image?url=${encodeURIComponent(reel.creatorAvatar)}`);
-        } else {
-          setAvatarSrc(reel.creatorAvatar);
-        }
-      } else {
+      const username = reel.creatorUsername || "creator";
+      if (reel.creatorAvatar && !reel.creatorAvatar.includes("ui-avatars.com")) {
         setAvatarSrc(
-          `https://ui-avatars.com/api/?name=${encodeURIComponent(
-            reel.creatorFullName || reel.creatorUsername || "U"
-          )}&background=27272a&color=fff`
+          reel.creatorAvatar.startsWith("http")
+            ? `/api/proxy-image?url=${encodeURIComponent(reel.creatorAvatar)}`
+            : reel.creatorAvatar
         );
+      } else {
+        setAvatarSrc(`/api/instagram/avatar/${encodeURIComponent(username)}`);
       }
     }
   }, [reel]);

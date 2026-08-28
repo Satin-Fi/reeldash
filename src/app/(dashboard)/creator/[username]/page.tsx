@@ -211,14 +211,16 @@ function CreatorProfileContent() {
           <div className="flex items-center space-x-4 min-w-0">
             
             {/* Avatar */}
-            <div className="relative p-0.5 rounded-full bg-gradient-to-tr from-amber-500 via-rose-500 to-purple-600 shrink-0 shadow-rd-glow">
+            <div className="w-16 h-16 rounded-full overflow-hidden bg-zinc-900 border border-zinc-700 shrink-0 flex items-center justify-center shadow-md">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={account?.avatarUrl || `https://ui-avatars.com/api/?name=${username}&background=6366F1&color=fff`}
+                src={account?.avatarUrl || `/api/instagram/avatar/${encodeURIComponent(username)}`}
                 alt={username}
-                className="w-16 h-16 rounded-full object-cover bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark border-2 border-surface-light dark:border-surface-dark"
+                className="w-full h-full object-cover"
                 onError={(e) => {
-                  (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${username}&background=6366F1&color=fff`;
+                  (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                    username
+                  )}&background=27272a&color=fff`;
                 }}
               />
             </div>

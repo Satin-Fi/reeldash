@@ -240,7 +240,7 @@ export async function POST(req: NextRequest) {
       mediaType,
       creatorUsername,
       creatorFullName,
-      creatorAvatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(creatorFullName || creatorUsername)}&background=6366F1&color=fff`,
+      creatorAvatar: `/api/instagram/avatar/${encodeURIComponent(creatorUsername)}`,
       thumbnailUrl,
       mediaUrl,
       embedUrl: `https://www.instagram.com/p/${shortcode}/embed/`,
