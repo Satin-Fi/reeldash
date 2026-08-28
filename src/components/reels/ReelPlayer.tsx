@@ -581,7 +581,7 @@ export function ReelPlayer({
   const [status, setStatus] = useState<PlaybackStatus>(autoPlay ? "loading" : "idle");
   const [playbackUrl, setPlaybackUrl] = useState<string | null>(reel.mediaUrl || null);
   const [imageError, setImageError] = useState(false);
-  const [useIframe, setUseIframe] = useState(false);
+  const [streamSource, setStreamSource] = useState<"reeldash" | "instagram">("reeldash");
   const [isMuted, setIsMuted] = useState(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
@@ -717,8 +717,52 @@ export function ReelPlayer({
     <div
       className={`relative aspect-reel w-full overflow-hidden bg-black select-none ${className}`}
     >
-      {/* 1. PLAYING STATE: Native HTML5 Video Player */}
-      {status === "playing" && (
+      {/* ─── TAB SWITCHER: Watch on ReelDash vs Instagram ─── */}
+      <div className="absolute top-3 inset-x-3 z-30 flex items-center justify-between pointer-events-none">
+        <div className="flex items-center space-x-1 p-0.5 rounded-full bg-black/80 backdrop-blur-md border border-white/15 pointer-events-auto shadow-xl">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setStreamSource("reeldash");
+            }}
+            className={`px-3 py-1 rounded-full text-[10px] font-bold transition-all cursor-pointer flex items-center space-x-1 ${
+              streamSource === "reeldash"
+                ? "bg-brand-500 text-white shadow-sm"
+                : "text-zinc-400 hover:text-white"
+            }`}
+          >
+            <span>⚡ ReelDash</span>
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setStreamSource("instagram");
+            }}
+            className={`px-3 py-1 rounded-full text-[10px] font-bold transition-all cursor-pointer flex items-center space-x-1 ${
+              streamSource === "instagram"
+                ? "bg-pink-600 text-white shadow-sm"
+                : "text-zinc-400 hover:text-white"
+            }`}
+          >
+            <span>📸 Instagram</span>
+          </button>
+        </div>
+      </div>
+
+      {/* 1. INSTAGRAM EMBED VIEW */}
+      {streamSource === "instagram" && (
+        <div className="relative w-full h-full bg-black flex items-center justify-center overflow-hidden pt-10">
+          <iframe
+            src={`https://www.instagram.com/p/${shortcode}/embed/`}
+            className="w-full h-full border-0 rounded-none bg-black"
+            allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
+            allowFullScreen
+          />
+        </div>
+      )}
+
+      {/* 2. REELDASH NATIVE VIDEO PLAYER */}
+      {streamSource === "reeldash" && status === "playing" && (
         <div className="relative w-full h-full bg-black flex items-center justify-center overflow-hidden">
           <div className="relative w-full h-full bg-black">
             <video
@@ -766,7 +810,7 @@ export function ReelPlayer({
       )}
 
       {/* 2. LOADING STATE */}
-      {status === "loading" && (
+      {streamSource === "reeldash" && status === "loading" && (
         <div className="relative w-full h-full bg-black">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
@@ -787,7 +831,7 @@ export function ReelPlayer({
       )}
 
       {/* 3. IDLE / COVER PHOTO STATE */}
-      {status === "idle" && (
+      {streamSource === "reeldash" && status === "idle" && (
         <div
           className="relative w-full h-full cursor-pointer group bg-black"
           onClick={handlePlayClick}

@@ -15,6 +15,9 @@ import {
   Loader2,
   ArrowRight,
   User,
+  Film,
+  Bookmark,
+  Compass,
 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { extractInstagramUsername } from "@/lib/instagram";
@@ -30,12 +33,15 @@ interface AccountResult {
   isVerified?: boolean;
 }
 
+type SearchTab = "all" | "library" | "instagram";
+
 function SearchContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const initialQ = searchParams.get("q") || "";
 
   const { reels, searchQuery, setSearchQuery, viewMode, smartCategories } = useReels();
+  const [activeTab, setActiveTab] = useState<SearchTab>("all");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedCollection, setSelectedCollection] = useState<string | null>(null);
   const [onlyFavorites, setOnlyFavorites] = useState(false);
@@ -81,7 +87,7 @@ function SearchContent() {
   }, [searchQuery]);
 
   // Filter Reels based on query and selected facets
-  const results = reels.filter((r) => {
+  const libraryResults = reels.filter((r) => {
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase().replace(/^@/, "");
       const matchCaption = r.caption.toLowerCase().includes(q);
@@ -106,10 +112,10 @@ function SearchContent() {
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-primaryText-light dark:text-primaryText-dark">
-          Search Library & Instagram Creators
+          Search
         </h1>
         <p className="text-xs text-secondaryText-light dark:text-secondaryText-dark mt-0.5">
-          Find saved Reels by topic or search any public Instagram account (@username) to view directly on ReelDash.
+          Find saved items in your library or look up any public Instagram creator (@username).
         </p>
       </div>
 
@@ -143,8 +149,58 @@ function SearchContent() {
         )}
       </div>
 
-      {/* INSTAGRAM ACCOUNT SEARCH CARD - Opens inside ReelDash */}
-      {searchQuery.trim().length >= 2 && searchedAccount && (
+      {/* ─── TAB SWITCHER (Library vs Instagram Explore) ─── */}
+      <div className="flex items-center space-x-2 border-b border-borderSubtle-light dark:border-borderSubtle-dark pb-2 text-xs">
+        <button
+          onClick={() => setActiveTab("all")}
+          className={`px-3.5 py-1.5 rounded-rd-md font-semibold transition-all cursor-pointer flex items-center space-x-1.5 ${
+            activeTab === "all"
+              ? "bg-brand-500/10 text-brand-600 dark:text-brand-400 border border-brand-500/25"
+              : "text-secondaryText-light dark:text-secondaryText-dark hover:bg-surfaceSecondary-light dark:hover:bg-surfaceSecondary-dark"
+          }`}
+        >
+          <Film className="w-3.5 h-3.5" />
+          <span>All Results</span>
+          <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark text-secondaryText-light dark:text-secondaryText-dark">
+            {libraryResults.length + (searchedAccount ? 1 : 0)}
+          </span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab("library")}
+          className={`px-3.5 py-1.5 rounded-rd-md font-semibold transition-all cursor-pointer flex items-center space-x-1.5 ${
+            activeTab === "library"
+              ? "bg-brand-500/10 text-brand-600 dark:text-brand-400 border border-brand-500/25"
+              : "text-secondaryText-light dark:text-secondaryText-dark hover:bg-surfaceSecondary-light dark:hover:bg-surfaceSecondary-dark"
+          }`}
+        >
+          <Bookmark className="w-3.5 h-3.5" />
+          <span>Your Library</span>
+          <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark text-secondaryText-light dark:text-secondaryText-dark">
+            {libraryResults.length}
+          </span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab("instagram")}
+          className={`px-3.5 py-1.5 rounded-rd-md font-semibold transition-all cursor-pointer flex items-center space-x-1.5 ${
+            activeTab === "instagram"
+              ? "bg-brand-500/10 text-brand-600 dark:text-brand-400 border border-brand-500/25"
+              : "text-secondaryText-light dark:text-secondaryText-dark hover:bg-surfaceSecondary-light dark:hover:bg-surfaceSecondary-dark"
+          }`}
+        >
+          <Compass className="w-3.5 h-3.5" />
+          <span>Instagram Creators</span>
+          {searchedAccount && (
+            <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-pink-500/20 text-pink-400 font-bold">
+              1
+            </span>
+          )}
+        </button>
+      </div>
+
+      {/* ─── INSTAGRAM CREATOR RESULT CARD (Clean, non-repetitive) ─── */}
+      {(activeTab === "all" || activeTab === "instagram") && searchQuery.trim().length >= 2 && searchedAccount && (
         <div className="p-5 bg-surface-light dark:bg-surface-dark border border-brand-500/30 rounded-rd-xl shadow-rd-subtle space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-1.5 text-xs font-bold text-brand-500 uppercase tracking-wider">
@@ -155,7 +211,7 @@ function SearchContent() {
               href={`/creator/${searchedAccount.username}`}
               className="px-3.5 py-1.5 bg-brand-500 hover:bg-brand-600 text-white rounded-rd-md text-xs font-semibold flex items-center space-x-1.5 transition-all shadow-sm"
             >
-              <span>View Profile on ReelDash</span>
+              <span>View Profile</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </Link>
           </div>
@@ -212,76 +268,96 @@ function SearchContent() {
               </div>
             </div>
 
-            <div className="flex items-center space-x-2 shrink-0 self-end sm:self-center">
-              <span className="text-xs font-medium text-brand-500 group-hover:underline">
-                Explore on ReelDash &rarr;
-              </span>
+            <div className="flex items-center space-x-1.5 shrink-0 self-end sm:self-center text-xs font-semibold text-brand-500 group-hover:underline">
+              <span>Open Feed</span>
+              <ArrowRight className="w-3.5 h-3.5" />
             </div>
           </Link>
         </div>
       )}
 
-      {/* Suggested Search Terms & Facets */}
-      <div className="space-y-3 p-4 bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-md shadow-rd-subtle">
-        <div className="flex items-center space-x-2 text-xs font-semibold text-secondaryText-light">
-          <Filter className="w-3.5 h-3.5" />
-          <span>Filter Facets:</span>
-        </div>
+      {/* Suggested Search Terms & Facets (Only in Library / All tabs) */}
+      {(activeTab === "all" || activeTab === "library") && (
+        <div className="space-y-3 p-4 bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-md shadow-rd-subtle">
+          <div className="flex items-center space-x-2 text-xs font-semibold text-secondaryText-light">
+            <Filter className="w-3.5 h-3.5" />
+            <span>Filter Library:</span>
+          </div>
 
-        <div className="flex flex-wrap gap-2 text-xs">
-          <button
-            onClick={() => {
-              setSelectedCategory(null);
-              setSelectedCollection(null);
-              setOnlyFavorites(false);
-            }}
-            className={`px-3 py-1 rounded-full font-medium transition-all cursor-pointer ${
-              !selectedCategory && !selectedCollection && !onlyFavorites
-                ? "bg-brand-500 text-white"
-                : "bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark text-secondaryText-light"
-            }`}
-          >
-            All Results
-          </button>
-
-          <button
-            onClick={() => setOnlyFavorites(!onlyFavorites)}
-            className={`px-3 py-1 rounded-full font-medium transition-all cursor-pointer ${
-              onlyFavorites
-                ? "bg-rose-500 text-white"
-                : "bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark text-secondaryText-light"
-            }`}
-          >
-            ♥ Favorites Only
-          </button>
-
-          {smartCategories.map((cat) => (
+          <div className="flex flex-wrap gap-2 text-xs">
             <button
-              key={cat.name}
-              onClick={() => setSelectedCategory(selectedCategory === cat.name ? null : cat.name)}
+              onClick={() => {
+                setSelectedCategory(null);
+                setSelectedCollection(null);
+                setOnlyFavorites(false);
+              }}
               className={`px-3 py-1 rounded-full font-medium transition-all cursor-pointer ${
-                selectedCategory === cat.name
+                !selectedCategory && !selectedCollection && !onlyFavorites
                   ? "bg-brand-500 text-white"
-                  : "bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark text-secondaryText-light"
+                  : "bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark text-secondaryText-light hover:text-primaryText-light"
               }`}
             >
-              {cat.name}
+              All Library ({reels.length})
             </button>
-          ))}
+
+            <button
+              onClick={() => setOnlyFavorites(!onlyFavorites)}
+              className={`px-3 py-1 rounded-full font-medium transition-all cursor-pointer ${
+                onlyFavorites
+                  ? "bg-rose-500 text-white"
+                  : "bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark text-secondaryText-light hover:text-primaryText-light"
+              }`}
+            >
+              Favorites ({reels.filter((r) => r.isFavorite).length})
+            </button>
+
+            {smartCategories.map((c) => (
+              <button
+                key={c.name}
+                onClick={() => setSelectedCategory(selectedCategory === c.name ? null : c.name)}
+                className={`px-3 py-1 rounded-full font-medium transition-all cursor-pointer ${
+                  selectedCategory === c.name
+                    ? "bg-brand-500 text-white"
+                    : "bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark text-secondaryText-light hover:text-primaryText-light"
+                }`}
+              >
+                {c.name} ({c.count})
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* Results Header */}
-      <div className="flex items-center justify-between pt-2">
-        <span className="text-xs font-semibold text-secondaryText-light uppercase tracking-wider">
-          Saved Reels Results ({results.length})
-        </span>
-      </div>
+      {/* ─── LIBRARY RESULTS SECTION ─── */}
+      {(activeTab === "all" || activeTab === "library") && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-bold text-primaryText-light dark:text-primaryText-dark">
+              Library Items ({libraryResults.length})
+            </h2>
+          </div>
 
-      {/* Results Grid */}
-      <ReelGrid reels={results} viewMode={viewMode} />
+          {libraryResults.length > 0 ? (
+            <ReelGrid
+              reels={libraryResults}
+              viewMode={viewMode}
+            />
+          ) : (
+            <div className="p-10 text-center bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-lg space-y-2">
+              <p className="text-xs text-secondaryText-light dark:text-secondaryText-dark">
+                {searchQuery ? `No saved Reels found matching "${searchQuery}".` : "No Reels in your library yet."}
+              </p>
+              {searchQuery && !searchedAccount && (
+                <p className="text-xs text-mutedText-light dark:text-mutedText-dark">
+                  Tip: Type an exact username (e.g. <span className="font-mono text-brand-400">@lifeof.romana</span>) to explore their Instagram feed.
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
-      {/* Reel Player Modal */}
+      {/* Selected Reel Player Modal */}
       {activeModalReel && (
         <ReelPlayerModal
           reel={activeModalReel}
@@ -295,7 +371,7 @@ function SearchContent() {
 
 export default function SearchPage() {
   return (
-    <Suspense fallback={<div className="p-6 text-xs text-mutedText-light">Loading search…</div>}>
+    <Suspense fallback={<div className="p-6 text-xs text-mutedText-light">Loading search...</div>}>
       <SearchContent />
     </Suspense>
   );
