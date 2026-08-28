@@ -228,24 +228,17 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/30 opacity-70 group-hover:opacity-90 transition-opacity" />
 
-            {/* Media Type Badge (Top Left) */}
-            <div className="absolute top-2.5 left-2.5 z-10">
-              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold backdrop-blur-md shadow-sm uppercase tracking-wider flex items-center space-x-1 ${
-                mediaType === "audio"
-                  ? "bg-emerald-950/80 text-emerald-300 border border-emerald-500/30"
-                  : mediaType === "post"
-                  ? "bg-blue-950/80 text-blue-300 border border-blue-500/30"
-                  : mediaType === "story"
-                  ? "bg-amber-950/80 text-amber-300 border border-amber-500/30"
-                  : "bg-purple-950/80 text-purple-300 border border-purple-500/30"
-              }`}>
-                {mediaType === "audio" && <Music2 className="w-2.5 h-2.5" />}
-                {mediaType === "post" && (reel.isCarousel ? <Layers className="w-2.5 h-2.5" /> : <ImageIcon className="w-2.5 h-2.5" />)}
-                {mediaType === "story" && <Clock className="w-2.5 h-2.5" />}
-                {mediaType === "reel" && <Play className="w-2.5 h-2.5 fill-current" />}
-                <span>{mediaType === "audio" ? "Song" : mediaType === "post" ? (reel.isCarousel ? "Carousel" : "Post") : mediaType === "story" ? "Story" : "Reel"}</span>
-              </span>
-            </div>
+            {/* Subtle Top Left Media Icon (Instagram/Raycast clean style, NO ugly pills) */}
+            {(mediaType === "post" && reel.isCarousel) && (
+              <div className="absolute top-2.5 left-2.5 z-10 p-1.5 rounded-full bg-black/40 backdrop-blur-md text-white/90 shadow-sm">
+                <Layers className="w-3.5 h-3.5" />
+              </div>
+            )}
+            {mediaType === "audio" && (
+              <div className="absolute top-2.5 left-2.5 z-10 p-1.5 rounded-full bg-black/40 backdrop-blur-md text-white/90 shadow-sm">
+                <Music2 className="w-3.5 h-3.5" />
+              </div>
+            )}
 
             {/* Favorite Toggle Button */}
             <motion.button
@@ -262,15 +255,7 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
 
             {/* Center Action Hover Icon (Appears on Hover) */}
             <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none opacity-0 group-hover:opacity-100 transition-all duration-200">
-              <div className={`w-12 h-12 rounded-full text-white flex items-center justify-center shadow-rd-modal transform scale-90 group-hover:scale-100 transition-transform ${
-                mediaType === "audio"
-                  ? "bg-emerald-500/90"
-                  : mediaType === "post"
-                  ? "bg-blue-500/90"
-                  : mediaType === "story"
-                  ? "bg-amber-500/90"
-                  : "bg-brand-500/90"
-              }`}>
+              <div className="w-12 h-12 rounded-full bg-brand-500/90 text-white flex items-center justify-center shadow-rd-modal transform scale-90 group-hover:scale-100 transition-transform">
                 {mediaType === "audio" ? (
                   <Music2 className="w-5 h-5" />
                 ) : mediaType === "post" ? (
@@ -283,27 +268,22 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
               </div>
             </div>
 
-            {/* Media Type & Metrics Badge */}
-            <div className="absolute bottom-2.5 left-2.5 flex items-center space-x-2 z-10">
-              <div className="flex items-center space-x-1 px-2 py-0.5 rounded-rd-sm bg-black/60 backdrop-blur-md text-white text-[10px] font-medium">
-                {mediaType === "audio" ? (
-                  <Music2 className="w-2.5 h-2.5 text-emerald-400" />
-                ) : mediaType === "post" ? (
-                  reel.isCarousel ? <Layers className="w-2.5 h-2.5 text-blue-400" /> : <ImageIcon className="w-2.5 h-2.5 text-blue-400" />
-                ) : mediaType === "story" ? (
-                  <Clock className="w-2.5 h-2.5 text-amber-400" />
-                ) : (
-                  <Play className="w-2.5 h-2.5 fill-white" />
+            {/* Bottom Metrics (Clean minimal counters only, NO ugly Photo Post pill) */}
+            {(reel.duration || reel.likes) && (
+              <div className="absolute bottom-2.5 left-2.5 flex items-center space-x-1.5 z-10">
+                {reel.duration && (
+                  <span className="px-1.5 py-0.5 rounded-full bg-black/60 backdrop-blur-md font-mono text-[9px] text-white">
+                    {reel.duration}
+                  </span>
                 )}
-                <span>{reel.duration}</span>
+                {reel.likes && (
+                  <div className="flex items-center space-x-1 px-1.5 py-0.5 rounded-full bg-black/60 backdrop-blur-md text-white text-[10px] font-medium">
+                    <ThumbsUp className="w-2.5 h-2.5" />
+                    <span>{reel.likes.replace(/likes/i, "").trim()}</span>
+                  </div>
+                )}
               </div>
-              {reel.likes && (
-                <div className="flex items-center space-x-1 px-2 py-0.5 rounded-rd-sm bg-black/60 backdrop-blur-md text-white text-[10px] font-medium">
-                  <ThumbsUp className="w-2.5 h-2.5" />
-                  <span>{reel.likes.replace(/likes/i, "").trim()}</span>
-                </div>
-              )}
-            </div>
+            )}
 
             {/* More Options Button */}
             <button

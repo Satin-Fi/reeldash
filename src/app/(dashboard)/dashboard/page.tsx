@@ -5,8 +5,6 @@ import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 import { useReels } from "@/context/ReelContext";
 import { ReelGrid } from "@/components/reels/ReelGrid";
-import { Spline3DHero } from "@/components/ui/Spline3DHero";
-import { BentoGrid, BentoCard } from "@/components/ui/BentoGrid";
 import {
   ArrowRight,
   ArrowUpRight,
@@ -75,88 +73,6 @@ export default function DashboardPage() {
   return (
     <div className="mx-auto grid w-full max-w-7xl gap-5 xl:grid-cols-[minmax(0,1fr)_19rem]">
       <main className="min-w-0 space-y-6">
-        {/* Spline 3D Interactive Media Engine Studio */}
-        <Spline3DHero className="mb-6" />
-
-        {/* 21st.dev Bento Grid: Core Media Capabilities */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <p className="text-xs font-bold uppercase tracking-wider text-brand-600 dark:text-brand-400">
-                PRO MEDIA WORKSPACES
-              </p>
-              <h2 className="text-lg font-bold tracking-tight text-primaryText-light dark:text-primaryText-dark mt-0.5">
-                Organize, Stream & Extract
-              </h2>
-            </div>
-            <span className="text-xs text-zinc-400">Press ⌘K for Quick Actions</span>
-          </div>
-
-          <BentoGrid>
-            <BentoCard
-              title="🎬 Reels & Direct Video Stream"
-              subtitle="Native HTML5 video playback with 1-tap unmute, persistent volume controls, and background buffer."
-              badge="Active"
-              actionText="Open Reels"
-              onAction={() => window.location.assign("/reels?type=reel")}
-              colSpan="md:col-span-1"
-            >
-              <div className="h-16 rounded-xl bg-gradient-to-r from-brand-500/10 to-purple-500/10 border border-brand-500/20 p-3 flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <Film className="w-5 h-5 text-brand-500" />
-                  <span className="text-xs font-semibold text-zinc-900 dark:text-white">
-                    {counts.reels} Saved Reels
-                  </span>
-                </div>
-                <span className="text-[10px] font-mono font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full">
-                  100% Native
-                </span>
-              </div>
-            </BentoCard>
-
-            <BentoCard
-              title="📸 Multi-Media Posts & Carousels"
-              subtitle="Separated photo and video slides with individual media filter tabs (All, Photos, Videos) so HTML5 never crashes."
-              badge="New Engine"
-              actionText="View Posts"
-              onAction={() => window.location.assign("/reels?type=post")}
-              colSpan="md:col-span-1"
-            >
-              <div className="h-16 rounded-xl bg-gradient-to-r from-pink-500/10 to-rose-500/10 border border-pink-500/20 p-3 flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <ImageIcon className="w-5 h-5 text-pink-500" />
-                  <span className="text-xs font-semibold text-zinc-900 dark:text-white">
-                    {counts.posts} Saved Posts
-                  </span>
-                </div>
-                <span className="text-[10px] font-mono font-bold text-brand-400 bg-brand-500/10 px-2 py-0.5 rounded-full">
-                  Slide Isolated
-                </span>
-              </div>
-            </BentoCard>
-
-            <BentoCard
-              title="🎵 Audio & Music Tracks"
-              subtitle="Original audio track isolation, waveforms, and 1-click MP3 download without personal account credentials."
-              badge="Extractor"
-              actionText="Listen"
-              onAction={() => window.location.assign("/reels?type=audio")}
-              colSpan="md:col-span-1"
-            >
-              <div className="h-16 rounded-xl bg-gradient-to-r from-purple-500/10 to-indigo-500/10 border border-purple-500/20 p-3 flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <Music2 className="w-5 h-5 text-purple-500" />
-                  <span className="text-xs font-semibold text-zinc-900 dark:text-white">
-                    {counts.audio} Audio Tracks
-                  </span>
-                </div>
-                <span className="text-[10px] font-mono font-bold text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded-full">
-                  MP3 Ready
-                </span>
-              </div>
-            </BentoCard>
-          </BentoGrid>
-        </div>
 
         {/* Quick Ingest & Overview Bar */}
         <section className="overflow-hidden rounded-rd-xl border border-borderSubtle-light bg-surface-light shadow-rd-card dark:border-borderSubtle-dark dark:bg-surface-dark">

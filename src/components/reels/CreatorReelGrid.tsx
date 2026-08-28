@@ -133,25 +133,12 @@ function CreatorReelTile({ item, creatorUsername }: { item: CreatorReelItem; cre
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/30 opacity-70 group-hover:opacity-90 transition-opacity" />
 
-        {/* Media Type Badge (Top Left) */}
-        <div className="absolute top-2.5 left-2.5 z-10">
-          {item.isCarousel ? (
-            <span className="px-2 py-0.5 rounded-full bg-blue-950/80 text-blue-300 border border-blue-500/30 text-[10px] font-bold backdrop-blur-md flex items-center space-x-1">
-              <Layers className="w-2.5 h-2.5" />
-              <span>Carousel</span>
-            </span>
-          ) : isVideo ? (
-            <span className="px-2 py-0.5 rounded-full bg-purple-950/80 text-purple-300 border border-purple-500/30 text-[10px] font-bold backdrop-blur-md flex items-center space-x-1">
-              <Play className="w-2.5 h-2.5 fill-current" />
-              <span>Reel</span>
-            </span>
-          ) : (
-            <span className="px-2 py-0.5 rounded-full bg-black/60 text-white border border-white/20 text-[10px] font-medium backdrop-blur-md flex items-center space-x-1">
-              <ImageIcon className="w-2.5 h-2.5" />
-              <span>Post</span>
-            </span>
-          )}
-        </div>
+        {/* Subtle Carousel Icon (Only if multi-item carousel) */}
+        {item.isCarousel && (
+          <div className="absolute top-2.5 left-2.5 z-10 p-1.5 rounded-full bg-black/40 backdrop-blur-md text-white/90 shadow-sm">
+            <Layers className="w-3.5 h-3.5" />
+          </div>
+        )}
 
         {/* Save to Library Button (Top Right) */}
         <button
