@@ -50,6 +50,30 @@ async function fetchAllMedia(username: string): Promise<any> {
     );
 
     if (rssResult?.items?.length) {
+      const firstShortcode = rssResult.items[0]?.url?.match(/\/(reel|p)\/([A-Za-z0-9_-]+)/)?.[2];
+      if (firstShortcode) {
+        try {
+          const embedRes = await fetch(`https://www.instagram.com/p/${firstShortcode}/embed/captioned/`, {
+            headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" },
+            cache: "no-store",
+            signal: AbortSignal.timeout(2500),
+          });
+          if (embedRes.ok) {
+            const html = await embedRes.text();
+            const unescaped = html.replace(/\\u0026/gi, "&").replace(/\\u00253D/gi, "%3D").replace(/\\\//g, "/").replace(/\\/g, "").replace(/&amp;/g, "&");
+            const matches = unescaped.match(/https:\/\/[a-zA-Z0-9.\-_]*scontent[a-zA-Z0-9.\-_]*\.cdninstagram\.com\/[^\s"'<>]+/g) || [];
+            for (const m of matches) {
+              if (m.includes("t51.82787-19") || m.includes("t51.2885-19") || m.includes("s150x150") || m.includes("profile_pic")) {
+                userAvatar = m;
+                break;
+              }
+            }
+          }
+        } catch {
+          // Continue
+        }
+      }
+
       for (const item of rssResult.items) {
         const url = item.url || "";
         const shortcodeMatch = url.match(/\/(reel|p)\/([A-Za-z0-9_-]+)/);
