@@ -30,19 +30,47 @@ function serveCleanPlaceholderSvg() {
 }
 
 async function serveImageBinary(imageUrl: string, fallbackAvatarUrl?: string): Promise<NextResponse> {
-  // 1. Try direct fetch with Meta headers
+  if (!imageUrl) return serveCleanPlaceholderSvg();
+
+  // 1. If Meta CDN, wsrv.nl proxy is the most reliable (bypasses IP blocks)
+  const isMetaCdn = imageUrl.includes("cdninstagram.com") || imageUrl.includes("fbcdn.net");
+
+  if (isMetaCdn) {
+    try {
+      const wsrvUrl = `https://wsrv.nl/?url=${encodeURIComponent(imageUrl)}&output=jpg&q=85`;
+      const imgRes = await fetch(wsrvUrl, {
+        signal: AbortSignal.timeout(3500),
+      });
+      if (imgRes.ok) {
+        const buffer = await imgRes.arrayBuffer();
+        if (buffer.byteLength > 200) {
+          return new NextResponse(Buffer.from(buffer), {
+            status: 200,
+            headers: {
+              "Content-Type": "image/jpeg",
+              "Cache-Control": "public, max-age=86400, s-maxage=86400, stale-while-revalidate=86400",
+            },
+          });
+        }
+      }
+    } catch {
+      // Continue to direct fetch
+    }
+  }
+
+  // 2. Direct fetch with Meta referer
   try {
     const directRes = await fetch(imageUrl, {
       headers: {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
         "Referer": "https://www.instagram.com/",
       },
-      signal: AbortSignal.timeout(3000),
+      signal: AbortSignal.timeout(2500),
     });
     if (directRes.ok) {
       const buffer = await directRes.arrayBuffer();
       const contentType = directRes.headers.get("content-type") || "image/jpeg";
-      if (contentType.startsWith("image/") && buffer.byteLength > 500) {
+      if (contentType.startsWith("image/") && buffer.byteLength > 200) {
         return new NextResponse(Buffer.from(buffer), {
           status: 200,
           headers: {
@@ -53,34 +81,13 @@ async function serveImageBinary(imageUrl: string, fallbackAvatarUrl?: string): P
       }
     }
   } catch {
-    // Continue to proxy
-  }
-
-  // 2. Try wsrv.nl CDN Proxy
-  try {
-    const wsrvUrl = `https://wsrv.nl/?url=${encodeURIComponent(imageUrl)}`;
-    const imgRes = await fetch(wsrvUrl, {
-      signal: AbortSignal.timeout(4500),
-    });
-    if (imgRes.ok) {
-      const buffer = await imgRes.arrayBuffer();
-      const contentType = imgRes.headers.get("content-type") || "image/jpeg";
-      return new NextResponse(Buffer.from(buffer), {
-        status: 200,
-        headers: {
-          "Content-Type": contentType,
-          "Cache-Control": "public, max-age=86400, s-maxage=86400, stale-while-revalidate=86400",
-        },
-      });
-    }
-  } catch {
     // Continue
   }
 
-  // 3. Try fallback avatar if provided (for profile pictures only)
+  // 3. Fallback avatar if supplied
   if (fallbackAvatarUrl) {
     try {
-      const fbRes = await fetch(fallbackAvatarUrl, { signal: AbortSignal.timeout(3000) });
+      const fbRes = await fetch(fallbackAvatarUrl, { signal: AbortSignal.timeout(2500) });
       if (fbRes.ok) {
         const buffer = await fbRes.arrayBuffer();
         const contentType = fbRes.headers.get("content-type") || "image/svg+xml";
@@ -109,7 +116,7 @@ async function fetchRealAvatarUrl(username: string): Promise<string | null> {
     return cached.url;
   }
 
-  // Strategy 1: RSS Bridge to recent post embed
+  // Strategy 1: RSS-Bridge to recent post embed
   try {
     const bridgeUrls = [
       `https://rss.trom.tf/?action=display&bridge=InstagramBridge&u=${encodeURIComponent(cleanUsername)}&format=Json`,
@@ -122,7 +129,7 @@ async function fetchRealAvatarUrl(username: string): Promise<string | null> {
         const res = await fetch(url, {
           headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" },
           cache: "no-store",
-          signal: AbortSignal.timeout(3000),
+          signal: AbortSignal.timeout(2500),
         });
         if (!res.ok) throw new Error("bridge fail");
         const j = await res.json();
@@ -136,13 +143,9 @@ async function fetchRealAvatarUrl(username: string): Promise<string | null> {
 
     if (shortcode) {
       const embedRes = await fetch(`https://www.instagram.com/p/${shortcode}/embed/captioned/`, {
-        headers: {
-          "User-Agent":
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
-          Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        },
+        headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" },
         cache: "no-store",
-        signal: AbortSignal.timeout(3000),
+        signal: AbortSignal.timeout(2500),
       });
 
       if (embedRes.ok) {
@@ -177,14 +180,38 @@ async function fetchRealAvatarUrl(username: string): Promise<string | null> {
     // Continue
   }
 
-  // Strategy 2: Direct Instagram Profile Embed Scraper
+  // Strategy 2: Instagram Topsearch API
+  try {
+    const searchRes = await fetch(
+      `https://www.instagram.com/web/search/topsearch/?context=blended&query=${encodeURIComponent(cleanUsername)}&include_reel=false`,
+      {
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+          "X-Requested-With": "XMLHttpRequest",
+          "Accept": "*/*",
+        },
+        signal: AbortSignal.timeout(2500),
+      }
+    );
+    if (searchRes.ok) {
+      const data = await searchRes.json();
+      const userObj = data.users?.find((u: { user: { username: string; profile_pic_url?: string } }) => u.user.username.toLowerCase() === cleanUsername)?.user;
+      if (userObj?.profile_pic_url) {
+        avatarCache.set(cleanUsername, {
+          url: userObj.profile_pic_url,
+          expiresAt: Date.now() + 1000 * 60 * 60 * 24,
+        });
+        return userObj.profile_pic_url;
+      }
+    }
+  } catch {
+    // Continue
+  }
+
+  // Strategy 3: Direct Instagram Profile Embed
   try {
     const embedRes = await fetch(`https://www.instagram.com/${cleanUsername}/embed/`, {
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
-        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-      },
+      headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" },
       redirect: "follow",
       cache: "no-store",
       signal: AbortSignal.timeout(2500),
@@ -213,40 +240,6 @@ async function fetchRealAvatarUrl(username: string): Promise<string | null> {
             expiresAt: Date.now() + 1000 * 60 * 60 * 24,
           });
           return decoded;
-        }
-      }
-    }
-  } catch {
-    // Continue
-  }
-
-  // Strategy 3: Bot Crawler OpenGraph Avatar
-  try {
-    const metaRes = await fetch(`https://www.instagram.com/${cleanUsername}/`, {
-      headers: {
-        "User-Agent": "WhatsApp/2.21.12.21 A",
-        "Accept-Language": "en-US,en;q=0.9",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-      },
-      redirect: "follow",
-      cache: "no-store",
-      signal: AbortSignal.timeout(2500),
-    });
-
-    if (metaRes.ok) {
-      const metaHtml = await metaRes.text();
-      const ogImgMatch =
-        metaHtml.match(/<meta\s+(?:property|name)="og:image"\s+content="([^"]*)"/i) ||
-        metaHtml.match(/content="([^"]*)"\s+(?:property|name)="og:image"/i);
-
-      if (ogImgMatch && ogImgMatch[1]) {
-        const rawPic = ogImgMatch[1].replace(/&amp;/g, "&");
-        if (rawPic && !rawPic.includes("instagram_profile.png") && !rawPic.includes("rsrc.php")) {
-          avatarCache.set(cleanUsername, {
-            url: rawPic,
-            expiresAt: Date.now() + 1000 * 60 * 60 * 24,
-          });
-          return rawPic;
         }
       }
     }
