@@ -40,7 +40,9 @@ export async function GET(request: NextRequest) {
 
     // Preferred path: proxy through Cloudflare Worker edge (free, no login).
     // Avoids Vercel's cloud-IP rate-limit so followers/bio/avatar actually return.
-    const workerUrl = process.env.REELDASH_CF_WORKER_URL;
+    const workerUrl =
+      process.env.REELDASH_CF_WORKER_URL ||
+      "https://reeldash-ig-proxy.reeldash-ig-proxy.workers.dev";
     if (workerUrl) {
       try {
         const wRes = await fetch(

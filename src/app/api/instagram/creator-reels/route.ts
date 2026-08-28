@@ -27,7 +27,9 @@ function cleanCode(code: string): string {
 }
 
 async function fetchAllMedia(username: string): Promise<any[]> {
-  const workerUrl = process.env.REELDASH_CF_WORKER_URL;
+  const workerUrl =
+    process.env.REELDASH_CF_WORKER_URL ||
+    "https://reeldash-ig-proxy.reeldash-ig-proxy.workers.dev";
 
   // Strategy 1: Option B - Cloudflare Edge Worker Proxy (Zero login, 300+ edge IPs)
   if (workerUrl) {
