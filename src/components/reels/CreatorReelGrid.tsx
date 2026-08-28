@@ -94,6 +94,8 @@ function CreatorReelTile({ item, creatorUsername }: { item: CreatorReelItem; cre
     }
   };
 
+  const currentImg = item.thumbnailUrl || item.rawThumbnailUrl || imgSrc;
+
   return (
     <>
       <div
@@ -103,7 +105,7 @@ function CreatorReelTile({ item, creatorUsername }: { item: CreatorReelItem; cre
         {/* Thumbnail Image */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src={imgSrc || item.rawThumbnailUrl || item.thumbnailUrl}
+          src={currentImg}
           alt={item.caption || "Instagram Media"}
           referrerPolicy="no-referrer"
           className="w-full h-full object-cover group-hover:scale-103 transition-transform duration-300 ease-out"
