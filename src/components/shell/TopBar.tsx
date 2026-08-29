@@ -44,10 +44,10 @@ export function TopBar() {
   }, []);
 
   // Format user initial
-  const userInitial = user?.name ? user.name.charAt(0).toUpperCase() : "U";
+  const userInitial = user?.name ? user.name.charAt(0).toUpperCase() : "J";
 
-  // Contextual metadata for clean situational awareness
-  const getContextMeta = () => {
+  // Contextual page identity for the Left Zone
+  const getContextIdentity = () => {
     if (pathname === "/dashboard") return { title: "Visual Library", icon: Layers, count: reels.length };
     if (pathname.startsWith("/collections")) return { title: "Collections", icon: Folder };
     if (pathname.startsWith("/creator")) return { title: "Creator Studio", icon: Users };
@@ -55,98 +55,109 @@ export function TopBar() {
     if (pathname.startsWith("/integrations")) return { title: "Instagram Sync", icon: MessageCircle };
     if (pathname.startsWith("/settings")) return { title: "Settings", icon: Settings };
     if (pathname.startsWith("/favorites")) return { title: "Favorites", icon: Heart, count: favorites.length };
-    return { title: "Workspace", icon: Layers };
+    return { title: "Visual Library", icon: Layers, count: reels.length };
   };
 
-  const currentMeta = getContextMeta();
-  const CurrentIcon = currentMeta.icon;
+  const identity = getContextIdentity();
+  const IdentityIcon = identity.icon;
 
   return (
-    <header className="h-13 shrink-0 w-full z-30 bg-white/80 dark:bg-[#090a0f]/80 backdrop-blur-xl border-b border-zinc-200/80 dark:border-white/[0.07] px-4 md:px-6 flex items-center justify-between transition-colors duration-200 select-none">
+    <header className="h-[64px] min-h-[64px] w-full sticky top-0 z-30 bg-[#0B0D10] border-b border-white/[0.06] px-6 flex items-center justify-between select-none transition-colors duration-150">
       
-      {/* Left: Situational View Context + Quick Command Search */}
-      <div className="flex items-center gap-3 sm:gap-5 min-w-0 flex-1 max-w-xl">
-        {/* Page Context Badge */}
-        <div className="hidden lg:flex items-center gap-2 text-xs font-medium text-zinc-900 dark:text-zinc-200 shrink-0">
-          <div className="w-5 h-5 rounded-md bg-zinc-100 dark:bg-white/[0.06] border border-zinc-200/80 dark:border-white/[0.08] flex items-center justify-center text-zinc-500 dark:text-zinc-400">
-            <CurrentIcon className="w-3 h-3" strokeWidth={2} />
-          </div>
-          <span className="font-semibold tracking-tight">{currentMeta.title}</span>
-          {currentMeta.count !== undefined && (
-            <span className="px-1.5 py-0.2 text-[10px] font-mono text-zinc-500 dark:text-zinc-400 bg-zinc-100 dark:bg-white/[0.06] rounded-md border border-zinc-200/60 dark:border-white/[0.06]">
-              {currentMeta.count}
-            </span>
-          )}
-        </div>
+      {/* ─── 1. LEFT ZONE: Workspace / Page Identity ────────────────── */}
+      <div className="flex items-center gap-2 shrink-0">
+        {/* Identity Icon */}
+        <IdentityIcon
+          className="w-[18px] h-[18px] text-[#A7A9B5] shrink-0"
+          strokeWidth={1.7}
+        />
 
-        {/* Global Command Palette Trigger (Linear / Raycast Style) */}
+        {/* Identity Title */}
+        <span className="text-[14px] font-semibold leading-[20px] tracking-[-0.01em] text-[#E7E8EC]">
+          {identity.title}
+        </span>
+
+        {/* Tiny Muted Count Capsule */}
+        {identity.count !== undefined && (
+          <span className="inline-flex items-center justify-center h-[20px] min-w-[20px] px-[6px] rounded-[6px] text-[11px] font-semibold bg-white/[0.06] text-[#9296A5]">
+            {identity.count}
+          </span>
+        )}
+      </div>
+
+      {/* ─── 2. CENTER ZONE: Command Center Search ────────────────── */}
+      <div className="flex-1 flex justify-center px-4 max-w-2xl">
         <button
           onClick={() => setIsCommandPaletteOpen(true)}
-          className="group relative flex-1 max-w-xs sm:max-w-sm flex items-center justify-between h-8 px-2.5 bg-zinc-100/70 dark:bg-white/[0.04] hover:bg-zinc-200/60 dark:hover:bg-white/[0.07] border border-zinc-200/80 dark:border-white/[0.07] hover:border-zinc-300 dark:hover:border-white/[0.14] rounded-lg text-xs text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200 transition-all duration-150 cursor-pointer shadow-[0_1px_2px_rgba(0,0,0,0.02)] active:scale-[0.99]"
+          className="group w-full max-w-[420px] h-[38px] px-3 bg-[#111419] hover:bg-[#13161B] border border-white/[0.07] hover:border-white/[0.12] focus:border-[#635BFF]/55 focus:ring-4 focus:ring-[#635BFF]/10 rounded-[10px] flex items-center justify-between transition-all duration-150 cursor-pointer text-left"
+          title="Search reels, creators, or command shortcuts (⌘K)"
         >
-          <div className="flex items-center gap-2 truncate">
-            <Search className="w-3.5 h-3.5 text-zinc-400 dark:text-zinc-500 group-hover:text-zinc-600 dark:group-hover:text-zinc-300 transition-colors shrink-0" strokeWidth={2} />
-            <span className="font-normal truncate text-[12px]">Search or jump to...</span>
+          {/* Left: Icon + Subtle Placeholder */}
+          <div className="flex items-center gap-2.5 truncate">
+            <Search
+              className="w-[17px] h-[17px] text-[#777C89] group-hover:text-[#A0A5B2] transition-colors shrink-0"
+              strokeWidth={1.8}
+            />
+            <span className="text-[14px] font-normal text-[#747987] group-hover:text-[#A0A5B2] transition-colors truncate">
+              Search or jump to…
+            </span>
           </div>
 
-          <kbd className="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-white dark:bg-white/[0.08] border border-zinc-200/80 dark:border-white/[0.08] text-[10px] font-sans font-medium text-zinc-500 dark:text-zinc-400 shadow-sm shrink-0">
-            <span className="text-[11px] leading-none">⌘</span>
-            <span>K</span>
-          </kbd>
+          {/* Right: Keyboard Shortcut Key */}
+          <div className="hidden sm:inline-flex items-center justify-center h-[24px] px-[6px] min-w-[32px] rounded-[6px] bg-white/[0.05] border border-white/[0.08] text-[11px] font-semibold text-[#8E93A2] tracking-wide shrink-0">
+            ⌘ K
+          </div>
         </button>
       </div>
 
-      {/* Right: SaaS Action Bar */}
-      <div className="flex items-center gap-1.5 sm:gap-2">
-        {/* DM Sync Button */}
+      {/* ─── 3. RIGHT ZONE: Action Controls ───────────────────────── */}
+      <div className="flex items-center shrink-0">
+        {/* DM Sync (Secondary Status/Product Action) */}
         <Link
           href="/integrations/instagram"
-          className="hidden md:inline-flex items-center gap-1.5 h-8 px-2.5 rounded-lg text-xs font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-white/[0.05] border border-transparent hover:border-zinc-200 dark:hover:border-white/[0.08] transition-all duration-150"
+          className="hidden md:inline-flex items-center gap-2 text-[13px] font-medium text-[#AEB2BF] hover:text-white transition-colors duration-150 mr-[20px]"
+          title="Instagram Direct Message Sync"
         >
-          <MessageCircle className="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400" strokeWidth={1.75} />
+          <MessageCircle className="w-[16px] h-[16px] text-[#AEB2BF]" strokeWidth={1.8} />
           <span>DM Sync</span>
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500/80" />
         </Link>
 
-        {/* Primary "+ Save Reel" Action Button */}
+        {/* Primary CTA: + Save Reel */}
         <button
           onClick={() => setIsSaveModalOpen(true)}
-          className="group relative flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-medium bg-brand-600 hover:bg-brand-500 active:bg-brand-700 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.25),0_1px_2px_rgba(0,0,0,0.12)] border border-brand-500/40 active:scale-[0.98] transition-all duration-150 cursor-pointer"
+          className="h-[38px] px-[15px] rounded-[9px] bg-[#5B52E8] hover:bg-[#665DF2] hover:-translate-y-[1px] hover:shadow-[0_4px_14px_rgba(91,82,232,0.22)] active:translate-y-0 active:scale-[0.98] text-[14px] font-semibold text-white flex items-center gap-1.5 transition-all duration-150 ease-out cursor-pointer mr-[16px]"
         >
-          <Plus className="w-3.5 h-3.5 text-white/90 group-hover:scale-110 transition-transform" strokeWidth={2.5} />
+          <Plus className="w-[16px] h-[16px]" strokeWidth={2.2} />
           <span>Save Reel</span>
         </button>
 
-        {/* Hairline Divider */}
-        <div className="h-4 w-px bg-zinc-200 dark:bg-white/[0.08] mx-0.5" />
-
-        {/* Theme Switcher */}
+        {/* Theme Toggle (36px x 36px) */}
         <button
           onClick={toggleTheme}
-          className="w-8 h-8 rounded-lg flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-white/[0.05] border border-transparent hover:border-zinc-200 dark:hover:border-white/[0.08] transition-colors cursor-pointer"
-          title={theme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode"}
-          aria-label="Toggle Theme"
+          className="w-[36px] h-[36px] rounded-[8px] bg-transparent hover:bg-white/[0.06] flex items-center justify-center text-[#A8ACB8] hover:text-white transition-all duration-150 cursor-pointer mr-[10px]"
+          title="Toggle theme"
+          aria-label="Toggle theme"
         >
           {theme === "dark" ? (
-            <Sun className="w-3.5 h-3.5 text-amber-400/90 hover:text-amber-400 transition-colors" strokeWidth={2} />
+            <Sun className="w-[18px] h-[18px]" strokeWidth={1.8} />
           ) : (
-            <Moon className="w-3.5 h-3.5 text-zinc-600 hover:text-zinc-900 transition-colors" strokeWidth={2} />
+            <Moon className="w-[18px] h-[18px]" strokeWidth={1.8} />
           )}
         </button>
 
-        {/* User Profile Menu */}
+        {/* User Avatar (34px x 34px) */}
         <div className="relative" ref={profileRef}>
           <button
             onClick={() => setProfileOpen((v) => !v)}
-            className="flex items-center justify-center p-0.5 rounded-full hover:ring-2 hover:ring-zinc-300 dark:hover:ring-white/20 transition-all cursor-pointer"
+            className="w-[34px] h-[34px] rounded-full aspect-square bg-gradient-to-tr from-[#5B52E8] to-[#7B73F6] border border-white/10 flex items-center justify-center text-[13px] font-semibold text-white hover:scale-[1.03] transition-transform duration-150 cursor-pointer select-none"
             aria-expanded={profileOpen}
-            aria-label="User menu"
+            aria-label="User profile menu"
           >
-            <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-brand-600 via-indigo-600 to-purple-600 text-white font-semibold text-[11px] flex items-center justify-center shadow-sm ring-1 ring-black/10 dark:ring-white/10 shrink-0 aspect-square">
-              {userInitial}
-            </div>
+            {userInitial}
           </button>
 
-          {/* Profile Dropdown */}
+          {/* Profile Dropdown Menu */}
           <AnimatePresence>
             {profileOpen && (
               <motion.div
@@ -154,17 +165,17 @@ export function TopBar() {
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.96, y: 4 }}
                 transition={{ duration: 0.12, ease: "easeOut" }}
-                className="absolute right-0 mt-2 w-56 bg-white dark:bg-[#111218] border border-zinc-200/80 dark:border-white/[0.08] rounded-xl shadow-xl shadow-black/10 dark:shadow-black/50 p-1 z-50 text-xs text-zinc-700 dark:text-zinc-300 space-y-0.5"
+                className="absolute right-0 mt-2 w-56 bg-[#111419] border border-white/[0.08] rounded-[10px] shadow-2xl shadow-black/80 p-1.5 z-50 text-xs text-[#E7E8EC] space-y-0.5"
               >
                 {/* User Header */}
-                <div className="px-3 py-2 rounded-lg bg-zinc-50 dark:bg-white/[0.03] border border-zinc-100 dark:border-white/[0.04] mb-1">
+                <div className="px-3 py-2 rounded-[8px] bg-white/[0.03] border border-white/[0.04] mb-1">
                   <div className="flex items-center justify-between">
-                    <p className="font-semibold text-zinc-900 dark:text-white truncate">{user?.name || "User"}</p>
-                    <span className="px-1.5 py-0.5 text-[9px] font-medium rounded bg-brand-500/10 text-brand-600 dark:text-brand-400 border border-brand-500/20">
+                    <p className="font-semibold text-white truncate">{user?.name || "User"}</p>
+                    <span className="px-1.5 py-0.5 text-[9px] font-semibold rounded bg-[#5B52E8]/20 text-[#8E87F6] border border-[#5B52E8]/30">
                       Pro
                     </span>
                   </div>
-                  <p className="text-[11px] text-zinc-500 dark:text-zinc-400 truncate mt-0.5">
+                  <p className="text-[11px] text-[#747987] truncate mt-0.5">
                     {user?.email || "user@reeldash.app"}
                   </p>
                 </div>
@@ -172,18 +183,18 @@ export function TopBar() {
                 <Link
                   href="/settings"
                   onClick={() => setProfileOpen(false)}
-                  className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-white/[0.06] text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white transition-colors"
+                  className="flex items-center gap-2.5 px-2.5 py-2 rounded-[6px] hover:bg-white/[0.06] text-[#AEB2BF] hover:text-white transition-colors"
                 >
-                  <Settings className="w-3.5 h-3.5 text-zinc-400 dark:text-zinc-500" />
+                  <Settings className="w-3.5 h-3.5 text-[#777C89]" />
                   <span>Account Settings</span>
                 </Link>
 
                 <Link
                   href="/integrations/instagram"
                   onClick={() => setProfileOpen(false)}
-                  className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-white/[0.06] text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white transition-colors"
+                  className="flex items-center gap-2.5 px-2.5 py-2 rounded-[6px] hover:bg-white/[0.06] text-[#AEB2BF] hover:text-white transition-colors"
                 >
-                  <MessageCircle className="w-3.5 h-3.5 text-zinc-400 dark:text-zinc-500" />
+                  <MessageCircle className="w-3.5 h-3.5 text-[#777C89]" />
                   <span>Instagram DM Setup</span>
                 </Link>
 
@@ -192,36 +203,36 @@ export function TopBar() {
                     setProfileOpen(false);
                     setIsCommandPaletteOpen(true);
                   }}
-                  className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-white/[0.06] text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white transition-colors text-left cursor-pointer"
+                  className="w-full flex items-center justify-between px-2.5 py-2 rounded-[6px] hover:bg-white/[0.06] text-[#AEB2BF] hover:text-white transition-colors text-left cursor-pointer"
                 >
                   <div className="flex items-center gap-2.5">
-                    <Command className="w-3.5 h-3.5 text-zinc-400 dark:text-zinc-500" />
+                    <Command className="w-3.5 h-3.5 text-[#777C89]" />
                     <span>Command Menu</span>
                   </div>
-                  <kbd className="text-[10px] text-zinc-400 dark:text-zinc-500 font-mono">⌘K</kbd>
+                  <kbd className="text-[10px] text-[#777C89] font-mono">⌘K</kbd>
                 </button>
 
                 <a
                   href="https://github.com/Satin-Fi/reeldash"
                   target="_blank"
                   rel="noreferrer"
-                  className="flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-white/[0.06] text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white transition-colors"
+                  className="flex items-center justify-between px-2.5 py-2 rounded-[6px] hover:bg-white/[0.06] text-[#AEB2BF] hover:text-white transition-colors"
                 >
                   <div className="flex items-center gap-2.5">
-                    <HelpCircle className="w-3.5 h-3.5 text-zinc-400 dark:text-zinc-500" />
+                    <HelpCircle className="w-3.5 h-3.5 text-[#777C89]" />
                     <span>Documentation</span>
                   </div>
-                  <ExternalLink className="w-3 h-3 text-zinc-400" />
+                  <ExternalLink className="w-3 h-3 text-[#777C89]" />
                 </a>
 
-                <div className="border-t border-zinc-200/80 dark:border-white/[0.08] my-1" />
+                <div className="border-t border-white/[0.06] my-1" />
 
                 <button
                   onClick={() => {
                     setProfileOpen(false);
                     logout();
                   }}
-                  className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg hover:bg-rose-500/10 text-rose-600 dark:text-rose-400 font-medium transition-colors cursor-pointer text-left"
+                  className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-[6px] hover:bg-rose-500/10 text-rose-400 font-medium transition-colors cursor-pointer text-left"
                 >
                   <LogOut className="w-3.5 h-3.5" />
                   <span>Log Out</span>
