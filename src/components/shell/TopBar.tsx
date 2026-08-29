@@ -14,14 +14,20 @@ import {
   Command,
   ExternalLink,
   Layers,
+  LayoutGrid,
+  Film,
+  Image as ImageIcon,
+  Music2,
+  CircleDashed,
   Folder,
   Heart,
+  Clock,
   Users,
   Compass,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 
 export function TopBar() {
   const { reels, favorites, setIsCommandPaletteOpen, theme, toggleTheme } = useReels();
@@ -30,6 +36,8 @@ export function TopBar() {
   const [isMac, setIsMac] = useState(true);
   const profileRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const mediaTypeParam = searchParams.get("type");
 
   // Detect platform for keyboard shortcut display (⌘K on Mac, Ctrl+K on Windows/Linux)
   useEffect(() => {
@@ -61,15 +69,51 @@ export function TopBar() {
   // Format user initial
   const userInitial = user?.name ? user.name.charAt(0).toUpperCase() : "J";
 
-  // Contextual page identity for the Left Zone
+  // Contextual distinct page identity for the Left Zone
   const getContextIdentity = () => {
-    if (pathname === "/dashboard") return { title: "Visual Library", icon: Layers, count: reels.length };
-    if (pathname.startsWith("/collections")) return { title: "Collections", icon: Folder };
-    if (pathname.startsWith("/creator")) return { title: "Creator Studio", icon: Users };
-    if (pathname.startsWith("/search")) return { title: "Discovery", icon: Compass };
-    if (pathname.startsWith("/integrations")) return { title: "Instagram Sync", icon: MessageCircle };
-    if (pathname.startsWith("/settings")) return { title: "Settings", icon: Settings };
-    if (pathname.startsWith("/favorites")) return { title: "Favorites", icon: Heart, count: favorites.length };
+    if (pathname === "/dashboard") {
+      return { title: "Visual Library", icon: Layers, count: reels.length };
+    }
+    if (pathname === "/reels") {
+      if (mediaTypeParam === "reel") {
+        const count = reels.filter((r) => !r.mediaType || r.mediaType === "reel").length;
+        return { title: "Reels", icon: Film, count };
+      }
+      if (mediaTypeParam === "post") {
+        const count = reels.filter((r) => r.mediaType === "post").length;
+        return { title: "Posts & Photos", icon: ImageIcon, count };
+      }
+      if (mediaTypeParam === "audio") {
+        const count = reels.filter((r) => r.mediaType === "audio").length;
+        return { title: "Songs & Audio", icon: Music2, count };
+      }
+      if (mediaTypeParam === "story") {
+        const count = reels.filter((r) => r.mediaType === "story").length;
+        return { title: "Stories", icon: CircleDashed, count };
+      }
+      return { title: "All Library", icon: LayoutGrid, count: reels.length };
+    }
+    if (pathname.startsWith("/collections")) {
+      return { title: "Collections", icon: Folder };
+    }
+    if (pathname.startsWith("/creator")) {
+      return { title: "Creator Studio", icon: Users };
+    }
+    if (pathname.startsWith("/search")) {
+      return { title: "Discovery", icon: Compass };
+    }
+    if (pathname.startsWith("/integrations")) {
+      return { title: "Instagram Sync", icon: MessageCircle };
+    }
+    if (pathname.startsWith("/settings")) {
+      return { title: "Settings", icon: Settings };
+    }
+    if (pathname.startsWith("/favorites")) {
+      return { title: "Favorites", icon: Heart, count: favorites.length };
+    }
+    if (pathname.startsWith("/recent")) {
+      return { title: "Recently Saved", icon: Clock };
+    }
     return { title: "Visual Library", icon: Layers, count: reels.length };
   };
 

@@ -12,6 +12,7 @@ import {
   Music2,
   CircleDashed,
   Layers,
+  LayoutGrid,
   Heart,
   Clock,
   Folder,
@@ -91,7 +92,7 @@ export function Sidebar() {
     {
       label: "All Library",
       href: "/reels?type=all",
-      icon: Layers,
+      icon: LayoutGrid,
       count: counts.all,
       isActive: isReelsPath && activeMediaType === "all",
       onClick: () => setActiveMediaType("all"),
