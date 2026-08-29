@@ -105,8 +105,8 @@ function AudioSongPlayer({ reel, coverImageSrc }: { reel: Reel; coverImageSrc: s
   const shortcodeMatch = audioIdMatch || reel.instagramUrl.match(/\/(?:reel|p|stories)\/([A-Za-z0-9_-]+)/);
   const shortcode = shortcodeMatch ? shortcodeMatch[1] : reel.id.replace(/^(audio|reel|post|story)-/, "");
 
-  const trackTitle = reel.audioTitle || `Instagram Audio #${shortcode}`;
-  const artistName = reel.audioArtist || `@${reel.creatorUsername} • Original Audio`;
+  const trackTitle = reel.audioTitle || `Original Audio`;
+  const artistName = reel.audioArtist || reel.creatorFullName || `@${reel.creatorUsername} • Original Audio`;
 
   useEffect(() => {
     let isMounted = true;
@@ -119,8 +119,9 @@ function AudioSongPlayer({ reel, coverImageSrc }: { reel: Reel; coverImageSrc: s
         );
         if (res.ok) {
           const data = await res.json();
-          if (data.streamUrl && isMounted) {
-            setAudioSrc(data.streamUrl);
+          const resolvedStream = data.playbackUrl || data.directCdnUrl || data.streamUrl;
+          if (resolvedStream && isMounted) {
+            setAudioSrc(resolvedStream);
           }
         }
       } catch (err) {
@@ -136,7 +137,7 @@ function AudioSongPlayer({ reel, coverImageSrc }: { reel: Reel; coverImageSrc: s
   }, [reel.id, shortcode, reel.instagramUrl, audioSrc]);
 
   const togglePlay = () => {
-    if (audioRef.current) {
+    if (audioRef.current && audioSrc) {
       if (isPlaying) {
         audioRef.current.pause();
         setIsPlaying(false);
@@ -153,7 +154,8 @@ function AudioSongPlayer({ reel, coverImageSrc }: { reel: Reel; coverImageSrc: s
           });
       }
     } else {
-      setIsPlaying(!isPlaying);
+      // Direct open on Instagram Audio
+      window.open(reel.instagramUrl, "_blank");
     }
   };
 

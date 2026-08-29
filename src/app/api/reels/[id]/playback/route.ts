@@ -216,12 +216,14 @@ export async function GET(
 ) {
   const reelId = params.id;
   const { searchParams } = new URL(req.url);
-  const instagramUrl = searchParams.get("url");
+  const instagramUrl = searchParams.get("url") || searchParams.get("reelUrl");
+  const mediaType = searchParams.get("type");
   const forceRefresh = searchParams.get("refresh") === "true";
 
-  let shortcode = reelId.replace(/^(reel|audio|post|story)-/, "");
-  if (instagramUrl) {
-    const match = instagramUrl.match(/(?:reel|reels|p|audio|stories)\/([A-Za-z0-9_-]+)/);
+  const audioIdMatch = instagramUrl?.match(/\/reels\/audio\/(\d+)/);
+  let shortcode = audioIdMatch ? audioIdMatch[1] : reelId.replace(/^(reel|audio|post|story)-/, "");
+  if (instagramUrl && !audioIdMatch) {
+    const match = instagramUrl.match(/(?:reel|reels|p|stories)\/([A-Za-z0-9_-]+)/);
     if (match) shortcode = match[1];
   }
 
@@ -232,7 +234,17 @@ export async function GET(
     );
   }
 
-  // 1. Check in-memory resolution cache
+  // 1. Fast-path for standalone Instagram Audio URLs (no public CDN audio binary without browser session)
+  if (mediaType === "audio" || (instagramUrl && instagramUrl.includes("/audio/"))) {
+    return NextResponse.json({
+      status: "external_only",
+      reason: "Instagram audio tracks require Instagram session to play",
+      shortcode,
+      instagramUrl: instagramUrl || `https://www.instagram.com/reels/audio/${shortcode}/`,
+    });
+  }
+
+  // 2. Check in-memory resolution cache
   if (!forceRefresh) {
     const cached = mediaCache.get(shortcode);
     if (cached && Date.now() < cached.expiresAt) {
