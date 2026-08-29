@@ -155,8 +155,8 @@ function AudioSongPlayer({ reel, coverImageSrc }: { reel: Reel; coverImageSrc: s
           });
       }
     } else {
-      // Direct open on Instagram Audio
-      window.open(reel.instagramUrl, "_blank");
+      // Toggle player visualizer state in-place without opening any external window
+      setIsPlaying(!isPlaying);
     }
   };
 
