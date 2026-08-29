@@ -98,6 +98,7 @@ function AudioSongPlayer({ reel, coverImageSrc }: { reel: Reel; coverImageSrc: s
   const [audioSrc, setAudioSrc] = useState<string>(reel.audioUrl || reel.mediaUrl || "");
   const [isLoadingAudio, setIsLoadingAudio] = useState(false);
   const [hasAudioError, setHasAudioError] = useState(false);
+  const [playerMode, setPlayerMode] = useState<"visualizer" | "embed">("visualizer");
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // /reels/audio/{numeric_id}/ — generic regex would capture the word "audio" as the shortcode
@@ -215,149 +216,181 @@ function AudioSongPlayer({ reel, coverImageSrc }: { reel: Reel; coverImageSrc: s
             Audio Studio Player
           </span>
         </div>
-        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono bg-zinc-800 text-zinc-300 border border-zinc-700">
-          {audioSrc ? "Lossless Audio" : "Instagram Audio"}
-        </span>
-      </div>
-
-      {/* Center Vinyl Disc / Cover Art Presentation */}
-      <div className="relative flex flex-col items-center justify-center my-4 z-10">
-        <div className="relative w-44 h-44 sm:w-56 sm:h-56 flex items-center justify-center">
-          {/* Spinning Vinyl Disc */}
-          <motion.div
-            animate={{ rotate: isPlaying ? 360 : 0 }}
-            transition={{ repeat: Infinity, duration: 8, ease: "linear" }}
-            className="absolute inset-0 rounded-full border-4 border-zinc-800 bg-zinc-950 shadow-2xl flex items-center justify-center overflow-hidden"
-          >
-            <div className="absolute inset-0 opacity-40 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-zinc-700 via-black to-zinc-900" />
-            <div className="w-20 h-20 rounded-full border border-zinc-700/50" />
-            <div className="w-32 h-32 rounded-full border border-zinc-700/30" />
-          </motion.div>
-
-          {/* Center Album Artwork */}
-          <div className="relative w-28 h-28 sm:w-36 sm:h-36 rounded-full overflow-hidden border-2 border-emerald-500 shadow-xl z-10 bg-zinc-900 flex items-center justify-center">
-            {effectiveCover && !effectiveCover.includes("placehold") ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={effectiveCover}
-                alt={trackTitle}
-                referrerPolicy="no-referrer"
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <Music2 className="w-10 h-10 text-emerald-400" />
-            )}
-            <div className="absolute inset-0 bg-black/20" />
-            <div className="absolute inset-0 m-auto w-4 h-4 rounded-full bg-zinc-950 border border-zinc-700" />
-          </div>
-        </div>
-
-        {/* Track Title & Artist */}
-        <div className="text-center mt-5 space-y-1 max-w-xs">
-          <h3 className="text-sm sm:text-base font-bold text-white tracking-tight truncate">
-            {trackTitle}
-          </h3>
-          <p className="text-xs text-zinc-400 truncate">{artistName}</p>
-        </div>
-      </div>
-
-      {/* Dynamic Animated Waveform Equalizer */}
-      <div className="w-full max-w-xs flex items-center justify-center space-x-1.5 h-8 my-2 z-10">
-        {[40, 70, 95, 55, 80, 100, 60, 85, 45, 90, 65, 75, 95, 50, 80, 60, 40].map((h, i) => (
-          <motion.div
-            key={i}
-            animate={{
-              height: isPlaying ? [`${Math.max(15, h * 0.3)}%`, `${h}%`, `${Math.max(20, h * 0.5)}%`] : "20%",
-            }}
-            transition={{
-              repeat: Infinity,
-              duration: 0.8 + (i % 4) * 0.2,
-              ease: "easeInOut",
-            }}
-            className="w-1 rounded-full bg-gradient-to-t from-emerald-500 to-emerald-300"
-          />
-        ))}
-      </div>
-
-      {/* Audio Controls Bar */}
-      <div className="w-full max-w-sm space-y-3 z-10">
-        {/* Progress Timeline */}
-        <div className="space-y-1">
-          <div
-            onClick={(e) => {
-              if (!audioRef.current || !audioRef.current.duration) return;
-              const rect = e.currentTarget.getBoundingClientRect();
-              const clickX = e.clientX - rect.left;
-              const newPct = (clickX / rect.width) * 100;
-              setProgress(newPct);
-              audioRef.current.currentTime = (newPct / 100) * audioRef.current.duration;
-            }}
-            className="w-full h-1.5 bg-zinc-800 rounded-full overflow-hidden cursor-pointer relative"
-          >
-            <div
-              className="h-full bg-emerald-500 rounded-full transition-all"
-              style={{ width: `${progress}%` }}
-            />
-          </div>
-          <div className="flex items-center justify-between text-[10px] font-mono text-zinc-400">
-            <span>{currentTime}</span>
-            <span>{durationStr}</span>
-          </div>
-        </div>
-
-        {/* Buttons Row */}
-        <div className="flex items-center justify-between pt-1">
+        
+        {/* Toggle Mode */}
+        <div className="flex items-center space-x-1 bg-zinc-900/80 p-0.5 rounded-lg border border-zinc-800">
           <button
-            onClick={toggleMute}
-            className="p-2 text-zinc-400 hover:text-white rounded-full hover:bg-zinc-800 transition-colors cursor-pointer"
-            title={isMuted ? "Unmute" : "Mute"}
+            onClick={() => setPlayerMode("visualizer")}
+            className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-all ${
+              playerMode === "visualizer"
+                ? "bg-zinc-800 text-white shadow-xs"
+                : "text-zinc-400 hover:text-zinc-200"
+            }`}
           >
-            {isMuted ? <VolumeX className="w-4 h-4 text-rose-400" /> : <Volume2 className="w-4 h-4" />}
+            Studio
           </button>
-
-          {isLoadingAudio ? (
-            <div className="w-12 h-12 rounded-full bg-zinc-800 text-zinc-400 flex items-center justify-center">
-              <Loader2 className="w-5 h-5 animate-spin" />
-            </div>
-          ) : (
-            <button
-              onClick={togglePlay}
-              className="w-12 h-12 rounded-full bg-emerald-500 hover:bg-emerald-400 text-zinc-950 flex items-center justify-center shadow-lg hover:scale-105 active:scale-95 transition-all cursor-pointer font-bold"
-              title={audioSrc ? (isPlaying ? "Pause" : "Play") : "Listen on Instagram"}
-            >
-              {isPlaying ? (
-                <Pause className="w-5 h-5 fill-current" />
-              ) : (
-                <Play className="w-5 h-5 fill-current ml-0.5" />
-              )}
-            </button>
-          )}
-
-          <a
-            href={`/api/download?type=audio&shortcode=${shortcode}&reelUrl=${encodeURIComponent(reel.instagramUrl)}`}
-            download
-            className="p-2 text-zinc-400 hover:text-white rounded-full hover:bg-zinc-800 transition-colors cursor-pointer"
-            title="Download Audio"
+          <button
+            onClick={() => setPlayerMode("embed")}
+            className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-all ${
+              playerMode === "embed"
+                ? "bg-emerald-500 text-zinc-950 font-semibold shadow-xs"
+                : "text-zinc-400 hover:text-zinc-200"
+            }`}
           >
-            <Download className="w-4 h-4" />
-          </a>
+            In-App Player
+          </button>
         </div>
-
-        {/* Notice for Instagram Audio Link */}
-        {!audioSrc && !isLoadingAudio && (
-          <div className="pt-2 text-center">
-            <a
-              href={reel.instagramUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full bg-emerald-500/10 hover:bg-emerald-500/20 text-[11px] font-medium text-emerald-400 border border-emerald-500/20 hover:border-emerald-500/40 transition-colors"
-            >
-              <span>Listen on Instagram</span>
-              <ExternalLink className="w-3 h-3" />
-            </a>
-          </div>
-        )}
       </div>
+
+      {playerMode === "embed" ? (
+        <div className="w-full flex-1 my-3 z-10 rounded-xl overflow-hidden bg-black/60 border border-zinc-800 flex items-center justify-center">
+          <iframe
+            src={`https://www.instagram.com/reels/audio/${shortcode}/embed/`}
+            className="w-full h-full min-h-[380px] border-0"
+            allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
+            title="Instagram Audio In-App Player"
+          />
+        </div>
+      ) : (
+        <>
+          {/* Center Vinyl Disc / Cover Art Presentation */}
+          <div className="relative flex flex-col items-center justify-center my-4 z-10">
+            <div className="relative w-44 h-44 sm:w-56 sm:h-56 flex items-center justify-center">
+              {/* Spinning Vinyl Disc */}
+              <motion.div
+                animate={{ rotate: isPlaying ? 360 : 0 }}
+                transition={{ repeat: Infinity, duration: 8, ease: "linear" }}
+                className="absolute inset-0 rounded-full border-4 border-zinc-800 bg-zinc-950 shadow-2xl flex items-center justify-center overflow-hidden"
+              >
+                <div className="absolute inset-0 opacity-40 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-zinc-700 via-black to-zinc-900" />
+                <div className="w-20 h-20 rounded-full border border-zinc-700/50" />
+                <div className="w-32 h-32 rounded-full border border-zinc-700/30" />
+              </motion.div>
+
+              {/* Center Album Artwork */}
+              <div className="relative w-28 h-28 sm:w-36 sm:h-36 rounded-full overflow-hidden border-2 border-emerald-500 shadow-xl z-10 bg-zinc-900 flex items-center justify-center">
+                {effectiveCover && !effectiveCover.includes("placehold") ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={effectiveCover}
+                    alt={trackTitle}
+                    referrerPolicy="no-referrer"
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <Music2 className="w-10 h-10 text-emerald-400" />
+                )}
+                <div className="absolute inset-0 bg-black/20" />
+                <div className="absolute inset-0 m-auto w-4 h-4 rounded-full bg-zinc-950 border border-zinc-700" />
+              </div>
+            </div>
+
+            {/* Track Title & Artist */}
+            <div className="text-center mt-5 space-y-1 max-w-xs">
+              <h3 className="text-sm sm:text-base font-bold text-white tracking-tight truncate">
+                {trackTitle}
+              </h3>
+              <p className="text-xs text-zinc-400 truncate">{artistName}</p>
+            </div>
+          </div>
+
+          {/* Dynamic Animated Waveform Equalizer */}
+          <div className="w-full max-w-xs flex items-center justify-center space-x-1.5 h-8 my-2 z-10">
+            {[40, 70, 95, 55, 80, 100, 60, 85, 45, 90, 65, 75, 95, 50, 80, 60, 40].map((h, i) => (
+              <motion.div
+                key={i}
+                animate={{
+                  height: isPlaying ? [`${Math.max(15, h * 0.3)}%`, `${h}%`, `${Math.max(20, h * 0.5)}%`] : "20%",
+                }}
+                transition={{
+                  repeat: Infinity,
+                  duration: 0.8 + (i % 4) * 0.2,
+                  ease: "easeInOut",
+                }}
+                className="w-1 rounded-full bg-gradient-to-t from-emerald-500 to-emerald-300"
+              />
+            ))}
+          </div>
+
+          {/* Audio Controls Bar */}
+          <div className="w-full max-w-sm space-y-3 z-10">
+            {/* Progress Timeline */}
+            <div className="space-y-1">
+              <div
+                onClick={(e) => {
+                  if (!audioRef.current || !audioRef.current.duration) return;
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  const clickX = e.clientX - rect.left;
+                  const newPct = (clickX / rect.width) * 100;
+                  setProgress(newPct);
+                  audioRef.current.currentTime = (newPct / 100) * audioRef.current.duration;
+                }}
+                className="w-full h-1.5 bg-zinc-800 rounded-full overflow-hidden cursor-pointer relative"
+              >
+                <div
+                  className="h-full bg-emerald-500 rounded-full transition-all"
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
+              <div className="flex items-center justify-between text-[10px] font-mono text-zinc-400">
+                <span>{currentTime}</span>
+                <span>{durationStr}</span>
+              </div>
+            </div>
+
+            {/* Buttons Row */}
+            <div className="flex items-center justify-between pt-1">
+              <button
+                onClick={toggleMute}
+                className="p-2 text-zinc-400 hover:text-white rounded-full hover:bg-zinc-800 transition-colors cursor-pointer"
+                title={isMuted ? "Unmute" : "Mute"}
+              >
+                {isMuted ? <VolumeX className="w-4 h-4 text-rose-400" /> : <Volume2 className="w-4 h-4" />}
+              </button>
+
+              {isLoadingAudio ? (
+                <div className="w-12 h-12 rounded-full bg-zinc-800 text-zinc-400 flex items-center justify-center">
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                </div>
+              ) : (
+                <button
+                  onClick={togglePlay}
+                  className="w-12 h-12 rounded-full bg-emerald-500 hover:bg-emerald-400 text-zinc-950 flex items-center justify-center shadow-lg hover:scale-105 active:scale-95 transition-all cursor-pointer font-bold"
+                  title={audioSrc ? (isPlaying ? "Pause" : "Play") : "Listen on Instagram"}
+                >
+                  {isPlaying ? (
+                    <Pause className="w-5 h-5 fill-current" />
+                  ) : (
+                    <Play className="w-5 h-5 fill-current ml-0.5" />
+                  )}
+                </button>
+              )}
+
+              <a
+                href={`/api/download?type=audio&shortcode=${shortcode}&reelUrl=${encodeURIComponent(reel.instagramUrl)}`}
+                download
+                className="p-2 text-zinc-400 hover:text-white rounded-full hover:bg-zinc-800 transition-colors cursor-pointer"
+                title="Download Audio"
+              >
+                <Download className="w-4 h-4" />
+              </a>
+            </div>
+
+            {/* Notice for Instagram Audio Link */}
+            {!audioSrc && !isLoadingAudio && (
+              <div className="pt-2 text-center">
+                <button
+                  onClick={() => setPlayerMode("embed")}
+                  className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full bg-emerald-500/10 hover:bg-emerald-500/20 text-[11px] font-medium text-emerald-400 border border-emerald-500/20 hover:border-emerald-500/40 transition-colors cursor-pointer"
+                >
+                  <Play className="w-3 h-3 fill-current" />
+                  <span>Play In-App Live Audio</span>
+                </button>
+              </div>
+            )}
+          </div>
+        </>
+      )}
     </div>
   );
 }
