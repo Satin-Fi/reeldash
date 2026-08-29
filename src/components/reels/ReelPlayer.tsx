@@ -94,7 +94,7 @@ function AudioSongPlayer({ reel, coverImageSrc }: { reel: Reel; coverImageSrc: s
   const [isMuted, setIsMuted] = useState(false);
   const [progress, setProgress] = useState(0);
   const [currentTime, setCurrentTime] = useState("0:00");
-  const [durationStr, setDurationStr] = useState(reel.duration && reel.duration !== "2:14" ? reel.duration : "--:--");
+  const [durationStr, setDurationStr] = useState(reel.duration && reel.duration !== "--:--" ? reel.duration : "0:18");
   const [audioSrc, setAudioSrc] = useState<string>(reel.audioUrl || reel.mediaUrl || "");
   const [isLoadingAudio, setIsLoadingAudio] = useState(false);
   const [hasAudioError, setHasAudioError] = useState(false);
