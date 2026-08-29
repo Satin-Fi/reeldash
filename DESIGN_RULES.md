@@ -26,7 +26,10 @@ This document serves as the permanent source of truth for UI/UX interaction logi
   - No vertical stacking or arbitrary offsets.
 - **Center Action Disk**:
   - Semi-transparent glassmorphic disk (`w-12 h-12 rounded-full bg-black/60 backdrop-blur-md border border-white/20`).
-  - Displays the universal **`<Play />`** button to launch the media viewer modal.
+  - **Video Reels**: `<Play className="fill-white" />` (Play video).
+  - **Image Carousels (> 1 images)**: `<Images />` (Browse photo gallery).
+  - **Audio Tracks**: `<Music2 />` (Audio waveform/track).
+  - **Single Photo Posts**: `<ImageIcon />` (View photo).
 - **Bottom Metrics**:
   - Clean `[ 👍 {likes} ]` pill ONLY when real likes data exists from Instagram.
   - Zero mock or generated numbers.
