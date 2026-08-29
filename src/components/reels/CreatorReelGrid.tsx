@@ -134,42 +134,50 @@ function CreatorReelTile({ item, creatorUsername }: { item: CreatorReelItem; cre
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/30 opacity-70 group-hover:opacity-90 transition-opacity" />
 
-        {/* Subtle Carousel Icon (Only if multi-item carousel) */}
-        {item.isCarousel && (
-          <div className="absolute top-2.5 left-2.5 z-10 p-1.5 rounded-full bg-black/40 backdrop-blur-md text-white/90 shadow-sm" title="Multi-image Carousel">
-            <Images className="w-3.5 h-3.5" />
+        {/* Top Header Group */}
+        <div className="absolute top-2.5 left-2.5 right-2.5 flex items-center justify-between z-20 pointer-events-none">
+          {/* Subtle Carousel Icon (Only if multi-item carousel) */}
+          <div>
+            {item.isCarousel && (
+              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-md text-[11px] font-semibold text-white shadow-sm border border-white/10" title="Multi-image Carousel">
+                <Images className="w-3 h-3 text-white/90" />
+                {item.carouselImages && item.carouselImages.length > 0 && (
+                  <span className="tabular-nums">{item.carouselImages.length}</span>
+                )}
+              </span>
+            )}
           </div>
-        )}
 
-        {/* Save to Library Button (Top Right) */}
-        <button
-          onClick={handleSave}
-          disabled={alreadySaved || saving}
-          className={`absolute top-2.5 right-2.5 px-2.5 py-1 rounded-full text-[11px] font-semibold flex items-center space-x-1 backdrop-blur-md transition-all z-10 cursor-pointer ${
-            alreadySaved
-              ? "bg-emerald-600/90 text-white cursor-default"
-              : "bg-black/60 hover:bg-brand-500 text-white active:scale-95"
-          }`}
-        >
-          {saving ? (
-            <Loader2 className="w-3 h-3 animate-spin" />
-          ) : alreadySaved ? (
-            <Check className="w-3 h-3" strokeWidth={2.5} />
-          ) : (
-            <Bookmark className="w-3 h-3" />
-          )}
-          <span>{alreadySaved ? "Saved" : "Save"}</span>
-        </button>
-
-        {/* Center Hover Play Icon */}
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-0 group-hover:opacity-100 transition-all duration-200 z-10">
-          <div className="w-12 h-12 rounded-full bg-brand-500/90 text-white flex items-center justify-center shadow-rd-modal transform scale-90 group-hover:scale-100 transition-transform">
-            {item.isCarousel ? (
-              <Images className="w-5 h-5 text-white" />
-            ) : !isVideo ? (
-              <ImageIcon className="w-5 h-5 text-white" />
+          {/* Save to Library Button (Top Right) */}
+          <button
+            onClick={handleSave}
+            disabled={alreadySaved || saving}
+            className={`pointer-events-auto px-2.5 py-1 rounded-full text-[11px] font-semibold flex items-center space-x-1 backdrop-blur-md border transition-all cursor-pointer shadow-sm ${
+              alreadySaved
+                ? "bg-emerald-600/90 border-emerald-500/40 text-white cursor-default"
+                : "bg-black/60 border-white/10 hover:bg-[#5B52E8] text-white active:scale-95"
+            }`}
+          >
+            {saving ? (
+              <Loader2 className="w-3 h-3 animate-spin" />
+            ) : alreadySaved ? (
+              <Check className="w-3 h-3" strokeWidth={2.5} />
             ) : (
-              <Play className="w-5 h-5 fill-white ml-0.5" />
+              <Bookmark className="w-3 h-3" />
+            )}
+            <span>{alreadySaved ? "Saved" : "Save"}</span>
+          </button>
+        </div>
+
+        {/* Center Hover Action Disk (Sleek Glassmorphic) */}
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-0 group-hover:opacity-100 transition-all duration-200 z-10">
+          <div className="w-11 h-11 rounded-full bg-black/50 backdrop-blur-md border border-white/20 text-white flex items-center justify-center shadow-xl transform scale-90 group-hover:scale-100 transition-transform duration-200">
+            {item.isCarousel ? (
+              <Images className="w-4 h-4 text-white" />
+            ) : !isVideo ? (
+              <ImageIcon className="w-4 h-4 text-white" />
+            ) : (
+              <Play className="w-4 h-4 fill-white ml-0.5" />
             )}
           </div>
         </div>

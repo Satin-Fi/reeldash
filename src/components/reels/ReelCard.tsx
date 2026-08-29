@@ -33,50 +33,47 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isCollectionPickerOpen, setIsCollectionPickerOpen] = useState(false);
   const [imageError, setImageError] = useState(false);
-  const [isPlayerModalOpen, setIsPlayerModalOpen] = useState(false);
+  const [isPlayerOpen, setIsPlayerOpen] = useState(false);
 
-  const mediaType =
-    reel.mediaType ||
-    (reel.instagramUrl?.includes("/audio/")
-      ? "audio"
-      : reel.instagramUrl?.includes("/stories/")
-      ? "story"
-      : (reel.instagramUrl?.includes("/p/") || reel.isCarousel || (reel.carouselImages && reel.carouselImages.length > 0))
-      ? "post"
-      : "reel");
+  const displayCaption = reel.caption || "Instagram Reel";
+  const shortcode = reel.shortcode || (reel.instagramUrl ? reel.instagramUrl.split("/p/")[1]?.split("/")[0] || reel.instagramUrl.split("/reel/")[1]?.split("/")[0] : "");
 
-  // Shortcode extraction
-  const shortcodeMatch = reel.instagramUrl.match(/(?:reel|reels|p|audio|stories)\/([A-Za-z0-9_-]+)/);
-  const shortcode = shortcodeMatch ? shortcodeMatch[1] : null;
+  const mediaType = reel.mediaType || ((reel.instagramUrl?.includes("/p/") || reel.isCarousel || (reel.carouselImages && reel.carouselImages.length > 0)) ? "post" : "reel");
 
-  // Clean thumbnail image source via our proxy endpoint with multiple fallback layers
-  const resolveImageSource = () => {
-    if (
-      reel.thumbnailUrl &&
-      !reel.thumbnailUrl.includes("unsplash.com") &&
-      !reel.thumbnailUrl.includes("ui-avatars.com") &&
-      !reel.thumbnailUrl.includes("username=")
-    ) {
-      if (
-        reel.thumbnailUrl.startsWith("http") &&
-        !reel.thumbnailUrl.includes("wsrv.nl")
-      ) {
-        return `/api/proxy-image?url=${encodeURIComponent(reel.thumbnailUrl)}`;
-      }
-      return reel.thumbnailUrl;
-    }
+  // Determine if it's a carousel and count of photos
+  const isCarousel = reel.isCarousel || (reel.carouselImages && reel.carouselImages.length > 0) || (typeof reel.duration === "string" && reel.duration.toLowerCase().includes("carousel"));
+  const carouselCount = reel.carouselImages?.length || (typeof reel.duration === "string" ? reel.duration.match(/\d+/)?.[0] : null);
+
+  // Clean duration display (only if true video time, e.g. "0:30", "1:15", "12s")
+  const isRealTimeDuration = reel.duration && 
+    !reel.duration.toLowerCase().includes("carousel") && 
+    !reel.duration.toLowerCase().includes("post") && 
+    !reel.duration.toLowerCase().includes("photo");
+
+  const creatorName = reel.creatorUsername || (reel as any).creator || "creator";
+  const formattedDate = new Date(reel.createdAt || (reel as any).savedAt || Date.now()).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  const displayCategories = reel.subcategories?.length ? reel.subcategories : (reel.category ? [reel.category] : []);
+
+  // Format thumbnail source with proxy fallback
+  let imageSrc = reel.thumbnailUrl;
+  if (imageError || !imageSrc || imageSrc.includes("placeholder")) {
     if (shortcode) {
-      return `/api/proxy-image?shortcode=${shortcode}`;
+      imageSrc = `/api/proxy-image?shortcode=${shortcode}`;
+    } else {
+      imageSrc = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='700' viewBox='0 0 400 700'%3E%3Crect width='400' height='700' fill='%23111218'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='%236366f1' font-family='sans-serif' font-size='16'%3EInstagram Media%3C/text%3E%3C/svg%3E";
     }
-    return "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600&auto=format&fit=crop&q=80";
+  }
+
+  const handleCardClick = (e: React.MouseEvent) => {
+    if (isMenuOpen || isCollectionPickerOpen) return;
+    setIsPlayerOpen(true);
   };
 
-  const imageSrc = resolveImageSource();
-
-  const displayCreator =
-    reel.creatorFullName || reel.creatorUsername || (shortcode ? `ig_${shortcode.substring(0, 6)}` : "creator");
-  const displayHandle = reel.creatorUsername || "creator";
-  const displayCaption = reel.caption || `Instagram ${mediaType.toUpperCase()} (${shortcode || "media"})`;
+  const handleFavoriteClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    toggleFavorite(reel.id);
+  };
 
   const handleCopyLink = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -86,112 +83,74 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
     setIsMenuOpen(false);
   };
 
-  const handleFavoriteClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    toggleFavorite(reel.id);
-  };
-
-  const handleCardClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    setIsPlayerModalOpen(true);
-  };
-
   return (
     <>
-      {/* Player Modal with reference Instagram split layout */}
-      <ReelPlayerModal
-        reel={reel}
-        isOpen={isPlayerModalOpen}
-        onClose={() => setIsPlayerModalOpen(false)}
-      />
-
       {viewMode === "compact" ? (
         <div
           onClick={handleCardClick}
-          className="group relative flex items-center justify-between p-3.5 bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-md hover:border-brand-500/40 transition-all duration-200 shadow-rd-subtle cursor-pointer"
+          className="group flex items-center justify-between p-3.5 bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-md shadow-rd-subtle hover:border-brand-500/40 transition-all duration-200 cursor-pointer"
         >
-          <div className="flex items-center space-x-3 min-w-0">
-            <div className="relative w-12 h-16 rounded-rd-sm overflow-hidden shrink-0 bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark flex items-center justify-center">
+          <div className="flex items-center space-x-3.5 overflow-hidden">
+            <div className="relative w-12 h-16 rounded-rd-sm overflow-hidden bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark shrink-0">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={imageSrc}
                 alt={displayCaption}
                 referrerPolicy="no-referrer"
-                onError={(e) => {
-                  setImageError(true);
-                  (e.target as HTMLImageElement).src = `/api/proxy-image?username=${encodeURIComponent(displayHandle)}`;
-                }}
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                onError={() => setImageError(true)}
+                className="w-full h-full object-cover"
               />
-              <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
                 {mediaType === "audio" ? (
-                  <Music2 className="w-5 h-5 text-emerald-400" />
+                  <Music2 className="w-3.5 h-3.5 text-white" />
+                ) : isCarousel ? (
+                  <Images className="w-3.5 h-3.5 text-white" />
                 ) : mediaType === "post" ? (
-                  <ImageIcon className="w-5 h-5 text-blue-400" />
-                ) : mediaType === "story" ? (
-                  <Clock className="w-5 h-5 text-amber-400" />
+                  <ImageIcon className="w-3.5 h-3.5 text-white" />
                 ) : (
-                  <Play className="w-5 h-5 text-white fill-white" />
+                  <Play className="w-3.5 h-3.5 fill-white text-white" />
                 )}
               </div>
             </div>
-            <div className="min-w-0">
-              <div className="flex items-center space-x-2">
-                <span className={`px-1.5 py-0.2 text-[9px] font-bold rounded-full uppercase tracking-wider ${
-                  mediaType === "audio"
-                    ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
-                    : mediaType === "post"
-                    ? "bg-blue-500/10 text-blue-500 border border-blue-500/20"
-                    : mediaType === "story"
-                    ? "bg-amber-500/10 text-amber-500 border border-amber-500/20"
-                    : "bg-purple-500/10 text-purple-500 border border-purple-500/20"
-                }`}>
-                  {mediaType === "audio" ? "🎵 Song" : mediaType === "post" ? "📸 Post" : mediaType === "story" ? "⏱️ Story" : "🎬 Reel"}
-                </span>
-                <p className="text-xs font-semibold text-primaryText-light dark:text-primaryText-dark truncate">
-                  {displayCreator} <span className="text-mutedText-light dark:text-mutedText-dark font-normal">(@{displayHandle})</span>
-                </p>
-              </div>
-              <p className="text-xs text-secondaryText-light dark:text-secondaryText-dark truncate max-w-md mt-0.5">
-                {reel.audioTitle || displayCaption}
+            <div className="flex flex-col min-w-0">
+              <span className="font-semibold text-xs text-primaryText-light dark:text-primaryText-dark truncate">
+                {creatorName}
+              </span>
+              <p className="text-xs text-secondaryText-light dark:text-secondaryText-dark line-clamp-1">
+                {displayCaption}
               </p>
-              <div className="flex items-center space-x-2 mt-1.5 text-[11px]">
-                <span className="px-2 py-0.5 rounded-full bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark font-medium text-secondaryText-light dark:text-secondaryText-dark">
-                  {reel.category}
-                </span>
-                {reel.likes && (
-                  <span className="text-mutedText-light dark:text-mutedText-dark flex items-center space-x-1">
-                    <ThumbsUp className="w-3 h-3" />
-                    <span>{reel.likes}</span>
-                  </span>
+              <div className="flex items-center space-x-2 mt-1 text-[10px] text-mutedText-light dark:text-mutedText-dark">
+                {isRealTimeDuration && (
+                  <span className="font-mono">{reel.duration}</span>
                 )}
-                {reel.commentsCount && (
-                  <span className="text-mutedText-light dark:text-mutedText-dark flex items-center space-x-1">
-                    <MessageCircle className="w-3 h-3" />
-                    <span>{reel.commentsCount}</span>
-                  </span>
+                {isCarousel && (
+                  <span className="text-brand-400">Carousel{carouselCount ? ` (${carouselCount})` : ""}</span>
                 )}
+                <span>{formattedDate}</span>
               </div>
             </div>
           </div>
 
-          <div className="flex items-center space-x-2 shrink-0 ml-3">
-            <button
+          <div className="flex items-center space-x-1 shrink-0" onClick={(e) => e.stopPropagation()}>
+            <motion.button
+              whileTap={{ scale: 1.2 }}
               onClick={handleFavoriteClick}
-              className="p-1.5 text-secondaryText-light dark:text-secondaryText-dark hover:text-rose-500 transition-colors cursor-pointer"
+              className="p-1.5 text-mutedText-light dark:text-mutedText-dark hover:text-rose-500 transition-colors cursor-pointer"
             >
               <Heart
-                className={`w-4 h-4 transition-transform duration-200 ${
-                  reel.isFavorite ? "fill-rose-500 text-rose-500 scale-110" : ""
+                className={`w-4 h-4 ${
+                  reel.isFavorite ? "fill-rose-500 text-rose-500" : ""
                 }`}
               />
+            </motion.button>
+            <button
+              onClick={handleCopyLink}
+              className="p-1.5 text-mutedText-light dark:text-mutedText-dark hover:text-primaryText-light dark:hover:text-primaryText-dark transition-colors cursor-pointer"
+            >
+              <Copy className="w-4 h-4" />
             </button>
             <button
-              onClick={(e) => {
-                e.stopPropagation();
-                deleteReel(reel.id);
-              }}
+              onClick={() => deleteReel(reel.id)}
               className="p-1.5 text-mutedText-light dark:text-mutedText-dark hover:text-rose-500 transition-colors cursor-pointer"
             >
               <Trash2 className="w-4 h-4" />
@@ -201,99 +160,95 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
       ) : (
         <div
           onClick={handleCardClick}
-          className="group relative flex flex-col bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-card overflow-hidden shadow-rd-subtle hover:-translate-y-0.5 hover:border-brand-500/40 transition-all duration-200 cursor-pointer"
+          className="group relative flex flex-col bg-[#111419] border border-white/[0.07] hover:border-white/[0.16] rounded-[12px] overflow-hidden shadow-sm hover:-translate-y-0.5 transition-all duration-200 cursor-pointer select-none"
         >
           {/* 9:16 Clean Image Thumbnail Container */}
-          <div className="relative aspect-reel w-full overflow-hidden bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark">
+          <div className="relative aspect-reel w-full overflow-hidden bg-[#0D0F12]">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={imageSrc}
               alt={displayCaption}
               referrerPolicy="no-referrer"
-              onError={(e) => {
-                setImageError(true);
-                const target = e.target as HTMLImageElement;
-                if (shortcode) {
-                  const scUrl = `/api/proxy-image?shortcode=${shortcode}`;
-                  if (target.src !== scUrl) {
-                    target.src = scUrl;
-                    return;
-                  }
-                }
-                target.src = "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600&auto=format&fit=crop&q=80";
-              }}
+              onError={() => setImageError(true)}
               className="w-full h-full object-cover group-hover:scale-103 transition-transform duration-300 ease-out"
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/30 opacity-70 group-hover:opacity-90 transition-opacity" />
+            {/* Subtle Clean Vignette */}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/10 to-black/30 opacity-60 group-hover:opacity-85 transition-opacity" />
 
-            {/* Subtle Top Left Media Icon (Instagram/Raycast clean style, NO ugly pills) */}
-            {(mediaType === "post" && reel.isCarousel) && (
-              <div className="absolute top-2.5 left-2.5 z-10 p-1.5 rounded-full bg-black/40 backdrop-blur-md text-white/90 shadow-sm" title="Multi-image Carousel">
-                <Images className="w-3.5 h-3.5" />
+            {/* ─── 1. TOP HEADER (Systematic & Balanced) ───────────────────────── */}
+            <div className="absolute top-2.5 left-2.5 right-2.5 flex items-center justify-between z-20 pointer-events-none">
+              {/* Left Context Pill (Only if Carousel, Duration, or Audio) */}
+              <div>
+                {isCarousel ? (
+                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-md text-[11px] font-semibold text-white shadow-sm border border-white/10">
+                    <Images className="w-3 h-3 text-white/90" />
+                    {carouselCount && <span className="tabular-nums">{carouselCount}</span>}
+                  </span>
+                ) : mediaType === "audio" ? (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-md text-[11px] font-semibold text-white shadow-sm border border-white/10">
+                    <Music2 className="w-3 h-3 text-white/90" />
+                  </span>
+                ) : isRealTimeDuration ? (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-md text-[10px] font-mono font-medium text-white shadow-sm border border-white/10">
+                    <Play className="w-2.5 h-2.5 fill-white" />
+                    <span>{reel.duration}</span>
+                  </span>
+                ) : null}
               </div>
-            )}
-            {mediaType === "audio" && (
-              <div className="absolute top-2.5 left-2.5 z-10 p-1.5 rounded-full bg-black/40 backdrop-blur-md text-white/90 shadow-sm">
-                <Music2 className="w-3.5 h-3.5" />
+
+              {/* Right Action Group (Horizontal Side-by-Side Pill Controls) */}
+              <div className="flex items-center gap-1.5 pointer-events-auto">
+                {/* Favorite Button */}
+                <motion.button
+                  whileTap={{ scale: 1.2 }}
+                  onClick={handleFavoriteClick}
+                  className="w-7 h-7 rounded-full bg-black/60 backdrop-blur-md border border-white/10 flex items-center justify-center text-white/90 hover:text-rose-400 transition-colors cursor-pointer shadow-sm"
+                  title={reel.isFavorite ? "Remove from Favorites" : "Add to Favorites"}
+                >
+                  <Heart
+                    className={`w-3.5 h-3.5 transition-transform duration-150 ${
+                      reel.isFavorite ? "fill-rose-500 text-rose-500 scale-110" : ""
+                    }`}
+                  />
+                </motion.button>
+
+                {/* More Options Trigger */}
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setIsMenuOpen(!isMenuOpen);
+                  }}
+                  className="w-7 h-7 rounded-full bg-black/60 backdrop-blur-md border border-white/10 flex items-center justify-center text-white/90 hover:text-white transition-colors cursor-pointer shadow-sm opacity-0 group-hover:opacity-100"
+                  title="Options"
+                >
+                  <MoreVertical className="w-3.5 h-3.5" />
+                </button>
               </div>
-            )}
+            </div>
 
-            {/* Favorite Toggle Button */}
-            <motion.button
-              whileTap={{ scale: 1.25 }}
-              onClick={handleFavoriteClick}
-              className="absolute top-2.5 right-2.5 p-2 rounded-full bg-black/50 backdrop-blur-md text-white/90 hover:text-rose-400 transition-colors cursor-pointer z-10"
-            >
-              <Heart
-                className={`w-4 h-4 transition-transform duration-200 ${
-                  reel.isFavorite ? "fill-rose-500 text-rose-500 scale-110" : ""
-                }`}
-              />
-            </motion.button>
-
-            {/* Center Action Hover Icon (Appears on Hover) */}
+            {/* ─── 2. CENTER ACTION DISK (Restrained Translucent Glassmorphic) ─── */}
             <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none opacity-0 group-hover:opacity-100 transition-all duration-200">
-              <div className="w-12 h-12 rounded-full bg-brand-500/90 text-white flex items-center justify-center shadow-rd-modal transform scale-90 group-hover:scale-100 transition-transform">
+              <div className="w-11 h-11 rounded-full bg-black/50 backdrop-blur-md border border-white/20 text-white flex items-center justify-center shadow-xl transform scale-90 group-hover:scale-100 transition-transform duration-200">
                 {mediaType === "audio" ? (
-                  <Music2 className="w-5 h-5" />
+                  <Music2 className="w-4 h-4 text-white" />
+                ) : isCarousel ? (
+                  <Images className="w-4 h-4 text-white" />
                 ) : mediaType === "post" ? (
-                  reel.isCarousel ? <Images className="w-5 h-5" /> : <ImageIcon className="w-5 h-5" />
-                ) : mediaType === "story" ? (
-                  <Clock className="w-5 h-5" />
+                  <ImageIcon className="w-4 h-4 text-white" />
                 ) : (
-                  <Play className="w-5 h-5 fill-white ml-0.5" />
+                  <Play className="w-4 h-4 fill-white ml-0.5" />
                 )}
               </div>
             </div>
 
-            {/* Bottom Metrics (Clean minimal counters only, NO ugly Photo Post pill) */}
-            {(reel.duration && reel.duration !== "Photo Post" && reel.duration !== "Post" || reel.likes) && (
-              <div className="absolute bottom-2.5 left-2.5 flex items-center space-x-1.5 z-10">
-                {reel.duration && reel.duration !== "Photo Post" && reel.duration !== "Post" && (
-                  <span className="px-1.5 py-0.5 rounded-full bg-black/60 backdrop-blur-md font-mono text-[9px] text-white">
-                    {reel.duration}
-                  </span>
-                )}
-                {reel.likes && (
-                  <div className="flex items-center space-x-1 px-1.5 py-0.5 rounded-full bg-black/60 backdrop-blur-md text-white text-[10px] font-medium">
-                    <ThumbsUp className="w-2.5 h-2.5" />
-                    <span>{reel.likes.replace(/likes/i, "").trim()}</span>
-                  </div>
-                )}
+            {/* ─── 3. BOTTOM METRICS (Clean & Minimal) ────────────────────────── */}
+            {reel.likes && (
+              <div className="absolute bottom-2.5 right-2.5 z-10 flex items-center space-x-1 px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-md border border-white/10 text-white text-[10px] font-medium shadow-sm">
+                <ThumbsUp className="w-2.5 h-2.5 text-white/80" />
+                <span>{reel.likes.replace(/likes/i, "").trim()}</span>
               </div>
             )}
-
-            {/* More Options Button */}
-            <button
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setIsMenuOpen(!isMenuOpen);
-              }}
-              className="absolute top-10 right-2.5 p-1.5 rounded-full bg-black/50 backdrop-blur-md text-white/90 hover:text-white transition-colors cursor-pointer z-10 opacity-0 group-hover:opacity-100"
-            >
-              <MoreVertical className="w-4 h-4" />
-            </button>
 
             {/* Context Menu Dropdown */}
             <AnimatePresence>
@@ -303,22 +258,22 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.95, y: -5 }}
                   onClick={(e) => e.stopPropagation()}
-                  className="absolute top-10 left-2.5 z-30 w-48 bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-md shadow-rd-modal p-1 text-xs text-primaryText-light dark:text-primaryText-dark"
+                  className="absolute top-11 right-2.5 z-30 w-48 bg-[#161920] border border-white/[0.08] rounded-[10px] shadow-2xl p-1 text-xs text-[#E7E8EC] space-y-0.5"
                 >
                   <Link
                     href={`/reel/${reel.id}`}
-                    className="flex items-center space-x-2 px-2.5 py-2 rounded-rd-sm hover:bg-surfaceSecondary-light dark:hover:bg-surfaceSecondary-dark transition-colors"
+                    className="flex items-center space-x-2 px-2.5 py-2 rounded-[6px] hover:bg-white/[0.06] text-[#AEB2BF] hover:text-white transition-colors"
                   >
-                    <FileText className="w-3.5 h-3.5 text-secondaryText-light dark:text-secondaryText-dark" />
+                    <FileText className="w-3.5 h-3.5 text-[#777C89]" />
                     <span>Open Detail Page</span>
                   </Link>
                   <a
                     href={reel.instagramUrl}
                     target="_blank"
                     rel="noreferrer"
-                    className="flex items-center space-x-2 px-2.5 py-2 rounded-rd-sm hover:bg-surfaceSecondary-light dark:hover:bg-surfaceSecondary-dark transition-colors"
+                    className="flex items-center space-x-2 px-2.5 py-2 rounded-[6px] hover:bg-white/[0.06] text-[#AEB2BF] hover:text-white transition-colors"
                   >
-                    <ExternalLink className="w-3.5 h-3.5 text-secondaryText-light dark:text-secondaryText-dark" />
+                    <ExternalLink className="w-3.5 h-3.5 text-[#777C89]" />
                     <span>Open on Instagram</span>
                   </a>
                   <button
@@ -326,16 +281,16 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
                       e.stopPropagation();
                       setIsCollectionPickerOpen(!isCollectionPickerOpen);
                     }}
-                    className="w-full flex items-center justify-between px-2.5 py-2 rounded-rd-sm hover:bg-surfaceSecondary-light dark:hover:bg-surfaceSecondary-dark transition-colors text-left"
+                    className="w-full flex items-center justify-between px-2.5 py-2 rounded-[6px] hover:bg-white/[0.06] text-[#AEB2BF] hover:text-white transition-colors text-left cursor-pointer"
                   >
                     <span className="flex items-center space-x-2">
-                      <FolderPlus className="w-3.5 h-3.5 text-secondaryText-light dark:text-secondaryText-dark" />
+                      <FolderPlus className="w-3.5 h-3.5 text-[#777C89]" />
                       <span>Add to Collection</span>
                     </span>
                   </button>
 
                   {isCollectionPickerOpen && (
-                    <div className="my-1 pl-4 border-l border-borderSubtle-light dark:border-borderSubtle-dark space-y-1">
+                    <div className="my-1 pl-3 border-l border-white/[0.08] space-y-0.5">
                       {collections.map((col) => (
                         <button
                           key={col.id}
@@ -344,7 +299,7 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
                             addReelToCollection(reel.id, col.id);
                             setIsMenuOpen(false);
                           }}
-                          className="w-full text-left px-2 py-1 text-[11px] hover:text-brand-500 transition-colors truncate"
+                          className="w-full text-left px-2 py-1 text-[11px] text-[#AEB2BF] hover:text-white transition-colors truncate"
                         >
                           {col.icon} {col.name}
                         </button>
@@ -354,70 +309,68 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
 
                   <button
                     onClick={handleCopyLink}
-                    className="w-full flex items-center space-x-2 px-2.5 py-2 rounded-rd-sm hover:bg-surfaceSecondary-light dark:hover:bg-surfaceSecondary-dark transition-colors text-left"
+                    className="w-full flex items-center space-x-2 px-2.5 py-2 rounded-[6px] hover:bg-white/[0.06] text-[#AEB2BF] hover:text-white transition-colors text-left cursor-pointer"
                   >
-                    <Copy className="w-3.5 h-3.5 text-secondaryText-light dark:text-secondaryText-dark" />
+                    <Copy className="w-3.5 h-3.5 text-[#777C89]" />
                     <span>Copy Link</span>
                   </button>
 
-                  <div className="my-1 border-t border-borderSubtle-light dark:border-borderSubtle-dark" />
+                  <div className="my-1 border-t border-white/[0.06]" />
 
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
                       deleteReel(reel.id);
                     }}
-                    className="w-full flex items-center space-x-2 px-2.5 py-2 rounded-rd-sm hover:bg-rose-500/10 text-rose-500 transition-colors text-left cursor-pointer"
+                    className="w-full flex items-center space-x-2 px-2.5 py-2 rounded-[6px] hover:bg-rose-500/10 text-rose-400 transition-colors text-left cursor-pointer font-medium"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
-                    <span>Delete Reel</span>
+                    <span>Remove from Library</span>
                   </button>
                 </motion.div>
               )}
             </AnimatePresence>
           </div>
 
-          {/* Card Content Footer */}
-          <div className="p-3 flex flex-col flex-1 justify-between space-y-2">
+          {/* Footer Metadata Info Area */}
+          <div className="p-3 flex flex-col justify-between flex-1 bg-[#111419]">
             <div>
-              <div className="flex items-center space-x-2 min-w-0">
-                <div className="w-5 h-5 rounded-full overflow-hidden bg-zinc-800 border border-zinc-700/60 shrink-0 flex items-center justify-center">
-                  <img
-                    src={
-                      reel.creatorAvatar && !reel.creatorAvatar.includes("ui-avatars.com")
-                        ? reel.creatorAvatar
-                        : `/api/proxy-image?username=${encodeURIComponent(displayHandle)}`
-                    }
-                    alt={displayHandle}
-                    referrerPolicy="no-referrer"
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      const fallback = `/api/proxy-image?username=${encodeURIComponent(displayHandle)}`;
-                      if ((e.target as HTMLImageElement).src !== fallback) {
-                        (e.target as HTMLImageElement).src = fallback;
-                      }
-                    }}
-                  />
-                </div>
-                <span className="text-xs font-semibold text-primaryText-light dark:text-primaryText-dark truncate">
-                  @{displayHandle}
+              <div className="flex items-center justify-between text-xs mb-1">
+                <span className="font-semibold text-white hover:text-brand-400 transition-colors truncate">
+                  {creatorName}
+                </span>
+                <span className="text-[11px] text-[#747987] shrink-0 font-normal">
+                  {formattedDate}
                 </span>
               </div>
-              <p className="text-xs text-secondaryText-light dark:text-secondaryText-dark line-clamp-2 mt-1.5 leading-relaxed">
+              <p className="text-xs text-[#9AA0AC] line-clamp-2 leading-relaxed font-normal">
                 {displayCaption}
               </p>
             </div>
 
-            <div className="flex items-center justify-between pt-1 text-[11px] border-t border-borderSubtle-light dark:border-borderSubtle-dark">
-              <span className="px-2 py-0.5 rounded-full bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark text-secondaryText-light dark:text-secondaryText-dark font-medium text-[10px]">
-                {reel.category}
-              </span>
-              <span className="text-mutedText-light dark:text-mutedText-dark font-mono text-[10px]">
-                {reel.createdAt ? new Date(reel.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "Today"}
-              </span>
-            </div>
+            {displayCategories && displayCategories.length > 0 && (
+              <div className="flex flex-wrap gap-1 mt-2.5">
+                {displayCategories.slice(0, 2).map((cat) => (
+                  <span
+                    key={cat}
+                    className="px-2 py-0.5 text-[10px] font-medium rounded-[5px] bg-white/[0.04] text-[#A0A5B2] border border-white/[0.05]"
+                  >
+                    {cat}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
         </div>
+      )}
+
+      {/* Full Featured ReelPlayer Modal View */}
+      {isPlayerOpen && (
+        <ReelPlayerModal
+          isOpen={isPlayerOpen}
+          onClose={() => setIsPlayerOpen(false)}
+          reel={reel}
+        />
       )}
     </>
   );
