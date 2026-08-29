@@ -94,7 +94,9 @@ function AudioSongPlayer({ reel, coverImageSrc }: { reel: Reel; coverImageSrc: s
   const [isMuted, setIsMuted] = useState(false);
   const [progress, setProgress] = useState(0);
   const [currentTime, setCurrentTime] = useState("0:00");
-  const [durationStr, setDurationStr] = useState(reel.duration && reel.duration !== "--:--" ? reel.duration : "0:18");
+  const [durationStr, setDurationStr] = useState(
+    reel.duration && reel.duration !== "0:00" && reel.duration !== "--:--" ? reel.duration : "--:--"
+  );
   const [audioSrc, setAudioSrc] = useState<string>(reel.audioUrl || reel.mediaUrl || "");
   const [isLoadingAudio, setIsLoadingAudio] = useState(false);
   const [hasAudioError, setHasAudioError] = useState(false);
@@ -170,19 +172,25 @@ function AudioSongPlayer({ reel, coverImageSrc }: { reel: Reel; coverImageSrc: s
   };
 
   const handleTimeUpdate = () => {
-    if (audioRef.current && audioRef.current.duration) {
+    if (audioRef.current && audioRef.current.duration && !isNaN(audioRef.current.duration)) {
       const p = (audioRef.current.currentTime / audioRef.current.duration) * 100;
       setProgress(p);
       const mins = Math.floor(audioRef.current.currentTime / 60);
       const secs = Math.floor(audioRef.current.currentTime % 60);
       setCurrentTime(`${mins}:${secs < 10 ? "0" : ""}${secs}`);
+
+      const totalSecs = Math.round(audioRef.current.duration);
+      const dMins = Math.floor(totalSecs / 60);
+      const dSecs = totalSecs % 60;
+      setDurationStr(`${dMins}:${dSecs < 10 ? "0" : ""}${dSecs}`);
     }
   };
 
   const handleLoadedMetadata = () => {
-    if (audioRef.current && audioRef.current.duration) {
-      const mins = Math.floor(audioRef.current.duration / 60);
-      const secs = Math.floor(audioRef.current.duration % 60);
+    if (audioRef.current && audioRef.current.duration && !isNaN(audioRef.current.duration)) {
+      const totalSecs = Math.round(audioRef.current.duration);
+      const mins = Math.floor(totalSecs / 60);
+      const secs = totalSecs % 60;
       setDurationStr(`${mins}:${secs < 10 ? "0" : ""}${secs}`);
     }
   };

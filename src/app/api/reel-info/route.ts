@@ -398,9 +398,6 @@ export async function POST(req: NextRequest) {
       if (!audioArtist) {
         audioArtist = creatorUsername || "Instagram Audio";
       }
-      if (!duration) {
-        duration = "0:18";
-      }
     }
 
     const responsePayload = {

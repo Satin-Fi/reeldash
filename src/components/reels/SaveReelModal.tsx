@@ -110,7 +110,6 @@ export function SaveReelModal() {
       caption: caption.trim() || undefined,
       category: category.trim() || undefined,
       mediaType: currentEffectiveType,
-      duration: currentEffectiveType === "audio" ? "0:18" : undefined,
       audioTitle: audioTitle.trim() || (currentEffectiveType === "audio" ? "Original audio" : undefined),
       audioArtist: audioArtist.trim() || (currentEffectiveType === "audio" ? (creator.trim() || undefined) : undefined),
     });
