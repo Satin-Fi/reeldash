@@ -277,13 +277,25 @@ export async function POST(req: NextRequest) {
 
     // 3. Defaults & Sanitization
     if (!creatorUsername) {
-      creatorUsername = shortcode ? `ig_${shortcode.substring(0, 6)}` : "creator";
+      if (mediaType === "audio") {
+        creatorUsername = "instagram_audio";
+      } else {
+        creatorUsername = shortcode ? `ig_${shortcode.substring(0, 6)}` : "creator";
+      }
     }
     if (!creatorFullName) {
-      creatorFullName = creatorUsername.charAt(0).toUpperCase() + creatorUsername.slice(1);
+      if (mediaType === "audio") {
+        creatorFullName = "Instagram Audio";
+      } else {
+        creatorFullName = creatorUsername.charAt(0).toUpperCase() + creatorUsername.slice(1);
+      }
     }
     if (!caption) {
-      caption = `Instagram ${mediaType.toUpperCase()} by @${creatorUsername}`;
+      if (mediaType === "audio") {
+        caption = `Instagram Audio Track #${shortcode}`;
+      } else {
+        caption = `Instagram ${mediaType.toUpperCase()} by @${creatorUsername}`;
+      }
     }
 
     // Extract hashtags from caption
@@ -292,11 +304,11 @@ export async function POST(req: NextRequest) {
       hashtags = tagMatches.slice(0, 8);
     }
 
-    const category = inferCategory(caption, creatorUsername);
+    const category = mediaType === "audio" ? "Music & Audio" : inferCategory(caption, creatorUsername);
 
-    if (mediaType === "audio") {
-      audioTitle = `${creatorFullName}'s Original Sound`;
-      audioArtist = `${creatorFullName} • Audio Track`;
+    if (mediaType === "audio" && !audioTitle) {
+      audioTitle = `Audio Track #${shortcode}`;
+      audioArtist = `Instagram Audio • Original Sound`;
     }
 
     const responsePayload = {

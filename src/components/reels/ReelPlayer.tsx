@@ -87,28 +87,69 @@ function ReelDashEmbedFrame({ reel, shortcode }: { reel: Reel; shortcode: string
 }
 
 /**
- * 1. DEDICATED SONG / AUDIO PLAYER WITH WAVEFORM & VINYL DISC
+ * 1. DEDICATED SONG / AUDIO PLAYER WITH REAL STREAM RESOLUTION & VINYL DISC
  */
 function AudioSongPlayer({ reel, coverImageSrc }: { reel: Reel; coverImageSrc: string }) {
-  const [isPlaying, setIsPlaying] = useState(true);
+  const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
-  const [progress, setProgress] = useState(25);
-  const [currentTime, setCurrentTime] = useState("0:34");
+  const [progress, setProgress] = useState(0);
+  const [currentTime, setCurrentTime] = useState("0:00");
+  const [durationStr, setDurationStr] = useState(reel.duration && reel.duration !== "2:14" ? reel.duration : "--:--");
+  const [audioSrc, setAudioSrc] = useState<string>(reel.audioUrl || reel.mediaUrl || "");
+  const [isLoadingAudio, setIsLoadingAudio] = useState(false);
+  const [hasAudioError, setHasAudioError] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  const audioTrackUrl = reel.audioUrl || reel.mediaUrl || "";
+  const shortcodeMatch = reel.instagramUrl.match(/(?:reel|reels|p|audio|stories)\/([A-Za-z0-9_-]+)/);
+  const shortcode = shortcodeMatch ? shortcodeMatch[1] : reel.id.replace(/^audio-/, "");
 
-  const trackTitle = reel.audioTitle || reel.caption.slice(0, 35) || "Instagram Audio Track";
+  const trackTitle = reel.audioTitle || `Instagram Audio #${shortcode}`;
   const artistName = reel.audioArtist || `@${reel.creatorUsername} • Original Audio`;
+
+  useEffect(() => {
+    let isMounted = true;
+    async function loadAudioStream() {
+      if (audioSrc && audioSrc.startsWith("http")) return;
+      setIsLoadingAudio(true);
+      try {
+        const res = await fetch(
+          `/api/reels/${reel.id}/playback?type=audio&shortcode=${shortcode}&reelUrl=${encodeURIComponent(reel.instagramUrl)}`
+        );
+        if (res.ok) {
+          const data = await res.json();
+          if (data.streamUrl && isMounted) {
+            setAudioSrc(data.streamUrl);
+          }
+        }
+      } catch (err) {
+        console.warn("Audio resolution notice:", err);
+      } finally {
+        if (isMounted) setIsLoadingAudio(false);
+      }
+    }
+    loadAudioStream();
+    return () => {
+      isMounted = false;
+    };
+  }, [reel.id, shortcode, reel.instagramUrl, audioSrc]);
 
   const togglePlay = () => {
     if (audioRef.current) {
       if (isPlaying) {
         audioRef.current.pause();
+        setIsPlaying(false);
       } else {
-        audioRef.current.play().catch(() => {});
+        audioRef.current
+          .play()
+          .then(() => {
+            setIsPlaying(true);
+            setHasAudioError(false);
+          })
+          .catch(() => {
+            setHasAudioError(true);
+            setIsPlaying(false);
+          });
       }
-      setIsPlaying(!isPlaying);
     } else {
       setIsPlaying(!isPlaying);
     }
@@ -133,16 +174,27 @@ function AudioSongPlayer({ reel, coverImageSrc }: { reel: Reel; coverImageSrc: s
     }
   };
 
+  const handleLoadedMetadata = () => {
+    if (audioRef.current && audioRef.current.duration) {
+      const mins = Math.floor(audioRef.current.duration / 60);
+      const secs = Math.floor(audioRef.current.duration % 60);
+      setDurationStr(`${mins}:${secs < 10 ? "0" : ""}${secs}`);
+    }
+  };
+
   return (
     <div className="relative w-full h-full flex flex-col items-center justify-between p-6 sm:p-8 bg-gradient-to-b from-zinc-900 via-black to-zinc-950 text-white select-none overflow-hidden">
-      <audio
-        ref={audioRef}
-        src={audioTrackUrl}
-        autoPlay
-        loop
-        muted={isMuted}
-        onTimeUpdate={handleTimeUpdate}
-      />
+      {audioSrc && (
+        <audio
+          ref={audioRef}
+          src={audioSrc}
+          muted={isMuted}
+          onTimeUpdate={handleTimeUpdate}
+          onLoadedMetadata={handleLoadedMetadata}
+          onError={() => setHasAudioError(true)}
+          onEnded={() => setIsPlaying(false)}
+        />
+      )}
 
       {/* Background ambient glow */}
       <div className="absolute inset-0 bg-emerald-500/10 blur-3xl rounded-full scale-125 pointer-events-none" />
@@ -158,7 +210,7 @@ function AudioSongPlayer({ reel, coverImageSrc }: { reel: Reel; coverImageSrc: s
           </span>
         </div>
         <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono bg-zinc-800 text-zinc-300 border border-zinc-700">
-          Lossless 320kbps
+          {audioSrc ? "Lossless Audio" : "Instagram Track"}
         </span>
       </div>
 
@@ -177,14 +229,18 @@ function AudioSongPlayer({ reel, coverImageSrc }: { reel: Reel; coverImageSrc: s
           </motion.div>
 
           {/* Center Album Artwork */}
-          <div className="relative w-28 h-28 sm:w-36 sm:h-36 rounded-full overflow-hidden border-2 border-emerald-500 shadow-xl z-10">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={coverImageSrc}
-              alt={trackTitle}
-              referrerPolicy="no-referrer"
-              className="w-full h-full object-cover"
-            />
+          <div className="relative w-28 h-28 sm:w-36 sm:h-36 rounded-full overflow-hidden border-2 border-emerald-500 shadow-xl z-10 bg-zinc-900 flex items-center justify-center">
+            {coverImageSrc && !coverImageSrc.includes("placehold") ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={coverImageSrc}
+                alt={trackTitle}
+                referrerPolicy="no-referrer"
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <Music2 className="w-10 h-10 text-emerald-400" />
+            )}
             <div className="absolute inset-0 bg-black/20" />
             <div className="absolute inset-0 m-auto w-4 h-4 rounded-full bg-zinc-950 border border-zinc-700" />
           </div>
@@ -200,7 +256,7 @@ function AudioSongPlayer({ reel, coverImageSrc }: { reel: Reel; coverImageSrc: s
       </div>
 
       {/* Dynamic Animated Waveform Equalizer */}
-      <div className="w-full max-w-xs flex items-center justify-center space-x-1.5 h-10 my-2 z-10">
+      <div className="w-full max-w-xs flex items-center justify-center space-x-1.5 h-8 my-2 z-10">
         {[40, 70, 95, 55, 80, 100, 60, 85, 45, 90, 65, 75, 95, 50, 80, 60, 40].map((h, i) => (
           <motion.div
             key={i}
@@ -223,13 +279,12 @@ function AudioSongPlayer({ reel, coverImageSrc }: { reel: Reel; coverImageSrc: s
         <div className="space-y-1">
           <div
             onClick={(e) => {
+              if (!audioRef.current || !audioRef.current.duration) return;
               const rect = e.currentTarget.getBoundingClientRect();
               const clickX = e.clientX - rect.left;
               const newPct = (clickX / rect.width) * 100;
               setProgress(newPct);
-              if (audioRef.current && audioRef.current.duration) {
-                audioRef.current.currentTime = (newPct / 100) * audioRef.current.duration;
-              }
+              audioRef.current.currentTime = (newPct / 100) * audioRef.current.duration;
             }}
             className="w-full h-1.5 bg-zinc-800 rounded-full overflow-hidden cursor-pointer relative"
           >
@@ -240,7 +295,7 @@ function AudioSongPlayer({ reel, coverImageSrc }: { reel: Reel; coverImageSrc: s
           </div>
           <div className="flex items-center justify-between text-[10px] font-mono text-zinc-400">
             <span>{currentTime}</span>
-            <span>{reel.duration || "2:14"}</span>
+            <span>{durationStr}</span>
           </div>
         </div>
 
@@ -254,19 +309,25 @@ function AudioSongPlayer({ reel, coverImageSrc }: { reel: Reel; coverImageSrc: s
             {isMuted ? <VolumeX className="w-4 h-4 text-rose-400" /> : <Volume2 className="w-4 h-4" />}
           </button>
 
-          <button
-            onClick={togglePlay}
-            className="w-12 h-12 rounded-full bg-emerald-500 hover:bg-emerald-400 text-zinc-950 flex items-center justify-center shadow-lg hover:scale-105 active:scale-95 transition-all cursor-pointer font-bold"
-          >
-            {isPlaying ? (
-              <Pause className="w-5 h-5 fill-current" />
-            ) : (
-              <Play className="w-5 h-5 fill-current ml-0.5" />
-            )}
-          </button>
+          {isLoadingAudio ? (
+            <div className="w-12 h-12 rounded-full bg-zinc-800 text-zinc-400 flex items-center justify-center">
+              <Loader2 className="w-5 h-5 animate-spin" />
+            </div>
+          ) : (
+            <button
+              onClick={togglePlay}
+              className="w-12 h-12 rounded-full bg-emerald-500 hover:bg-emerald-400 text-zinc-950 flex items-center justify-center shadow-lg hover:scale-105 active:scale-95 transition-all cursor-pointer font-bold"
+            >
+              {isPlaying ? (
+                <Pause className="w-5 h-5 fill-current" />
+              ) : (
+                <Play className="w-5 h-5 fill-current ml-0.5" />
+              )}
+            </button>
+          )}
 
           <a
-            href={`/api/download?type=audio&shortcode=${reel.id.replace(/^audio-/, "")}`}
+            href={`/api/download?type=audio&shortcode=${shortcode}&reelUrl=${encodeURIComponent(reel.instagramUrl)}`}
             download
             className="p-2 text-zinc-400 hover:text-white rounded-full hover:bg-zinc-800 transition-colors cursor-pointer"
             title="Download Audio MP3"
@@ -274,6 +335,21 @@ function AudioSongPlayer({ reel, coverImageSrc }: { reel: Reel; coverImageSrc: s
             <Download className="w-4 h-4" />
           </a>
         </div>
+
+        {/* Notice if direct CORS stream is restricted by Instagram */}
+        {hasAudioError && !audioSrc && (
+          <div className="pt-2 text-center">
+            <a
+              href={reel.instagramUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center space-x-1.5 text-[11px] text-emerald-400 hover:underline"
+            >
+              <span>Listen on Instagram Audio</span>
+              <ExternalLink className="w-3 h-3" />
+            </a>
+          </div>
+        )}
       </div>
     </div>
   );

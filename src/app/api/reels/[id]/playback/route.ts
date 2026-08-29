@@ -219,9 +219,9 @@ export async function GET(
   const instagramUrl = searchParams.get("url");
   const forceRefresh = searchParams.get("refresh") === "true";
 
-  let shortcode = reelId.replace(/^reel-/, "");
+  let shortcode = reelId.replace(/^(reel|audio|post|story)-/, "");
   if (instagramUrl) {
-    const match = instagramUrl.match(/(?:reel|p)\/([A-Za-z0-9_-]+)/);
+    const match = instagramUrl.match(/(?:reel|reels|p|audio|stories)\/([A-Za-z0-9_-]+)/);
     if (match) shortcode = match[1];
   }
 
