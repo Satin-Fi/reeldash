@@ -390,11 +390,7 @@ function MultiMediaPostViewer({ reel, coverImageSrc }: { reel: Reel; coverImageS
               🎬 Videos ({videoCount})
             </button>
           </div>
-        ) : (
-          <div className="px-2.5 py-1 rounded-full bg-black/70 backdrop-blur-md text-white text-[10px] font-semibold border border-white/10 flex items-center space-x-1">
-            <span>{activeSlide.type === "video" ? "🎬 Video Slide" : "📸 Photo Slide"}</span>
-          </div>
-        )}
+        ) : null}
 
         {/* Counter Badge */}
         {filteredSlides.length > 1 && (
@@ -419,28 +415,7 @@ function MultiMediaPostViewer({ reel, coverImageSrc }: { reel: Reel; coverImageS
               playsInline
               muted={isSlideMuted}
               className="w-full h-full object-contain cursor-pointer"
-              onClick={() => toggleSlideMute()}
             />
-
-            {/* Video Slide Unmute Pill */}
-            {isSlideMuted && (
-              <button
-                onClick={toggleSlideMute}
-                className="absolute top-12 left-4 z-20 px-3 py-1.5 rounded-full bg-black/85 hover:bg-black text-white text-xs font-semibold flex items-center space-x-1.5 backdrop-blur-md border border-white/20 shadow-xl cursor-pointer animate-pulse"
-              >
-                <VolumeX className="w-4 h-4 text-pink-400" />
-                <span>Tap to Unmute</span>
-              </button>
-            )}
-
-            {/* Video Sound Toggle */}
-            <button
-              onClick={toggleSlideMute}
-              className="absolute bottom-4 right-4 z-20 w-9 h-9 rounded-full bg-black/80 hover:bg-black text-white flex items-center justify-center backdrop-blur-md transition-transform hover:scale-105 cursor-pointer shadow-xl border border-white/20"
-              title={isSlideMuted ? "Unmute" : "Mute"}
-            >
-              {isSlideMuted ? <VolumeX className="w-4 h-4 text-pink-400" /> : <Volume2 className="w-4 h-4 text-emerald-400" />}
-            </button>
           </div>
         ) : (
           /* High-Res Photo Slide */
@@ -693,43 +668,10 @@ export function ReelPlayer({
     }
   }, [reel.id, autoPlay]);
 
-  const toggleMute = (e?: React.MouseEvent) => {
-    if (e) e.stopPropagation();
-    if (videoRef.current) {
-      const nextMuted = !videoRef.current.muted;
-      videoRef.current.muted = nextMuted;
-      videoRef.current.volume = 1.0;
-      setIsMuted(nextMuted);
-    }
-  };
-
-  const handleFullscreen = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (videoRef.current) {
-      if (videoRef.current.requestFullscreen) {
-        videoRef.current.requestFullscreen();
-      }
-    }
-  };
-
   return (
     <div
       className={`relative aspect-reel w-full overflow-hidden bg-black select-none ${className}`}
     >
-      {/* Media Type Badge (Top Left) */}
-      <div className="absolute top-3 left-3 z-30 pointer-events-none">
-        <span className="px-2.5 py-1 rounded-full bg-black/70 backdrop-blur-md text-white text-[10px] font-bold border border-white/15 shadow-sm flex items-center space-x-1.5">
-          {mediaType === "post" ? (
-            <span>Post</span>
-          ) : (
-            <>
-              <Play className="w-3 h-3 fill-current text-purple-400" />
-              <span>Reel</span>
-            </>
-          )}
-        </span>
-      </div>
-
       {/* 1. PLAYING STATE: Native HTML5 Video Player */}
       {status === "playing" && (
         <div className="relative w-full h-full bg-black flex items-center justify-center overflow-hidden">
@@ -743,37 +685,7 @@ export function ReelPlayer({
               playsInline
               muted={isMuted}
               className="w-full h-full object-cover cursor-pointer"
-              onClick={() => toggleMute()}
             />
-          </div>
-
-          {/* Persistent Floating Tap to Unmute Badge */}
-          {isMuted && (
-            <button
-              onClick={toggleMute}
-              className="absolute top-12 left-4 z-30 px-3 py-1.5 rounded-full bg-black/85 hover:bg-black text-white text-xs font-semibold flex items-center space-x-1.5 backdrop-blur-md border border-white/20 shadow-xl cursor-pointer animate-pulse"
-            >
-              <VolumeX className="w-4 h-4 text-pink-400" />
-              <span>Tap to Unmute</span>
-            </button>
-          )}
-
-          {/* Persistent Sound & Fullscreen floating controls */}
-          <div className="absolute bottom-4 right-4 flex items-center space-x-2 z-30 pointer-events-auto">
-            <button
-              onClick={toggleMute}
-              className="w-9 h-9 rounded-full bg-black/80 hover:bg-black text-white flex items-center justify-center backdrop-blur-md transition-transform hover:scale-105 cursor-pointer shadow-xl border border-white/20"
-              title={isMuted ? "Unmute" : "Mute"}
-            >
-              {isMuted ? <VolumeX className="w-4 h-4 text-pink-400" /> : <Volume2 className="w-4 h-4 text-emerald-400" />}
-            </button>
-            <button
-              onClick={handleFullscreen}
-              className="w-9 h-9 rounded-full bg-black/80 hover:bg-black text-white flex items-center justify-center backdrop-blur-md transition-transform hover:scale-105 cursor-pointer shadow-xl border border-white/20"
-              title="Fullscreen"
-            >
-              <Maximize2 className="w-4 h-4" />
-            </button>
           </div>
         </div>
       )}
