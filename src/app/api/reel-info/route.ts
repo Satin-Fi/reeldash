@@ -391,9 +391,16 @@ export async function POST(req: NextRequest) {
 
     const category = mediaType === "audio" ? "Music & Audio" : inferCategory(caption, creatorUsername);
 
-    if (mediaType === "audio" && !audioTitle) {
-      audioTitle = `Audio Track #${shortcode}`;
-      audioArtist = `Instagram Audio • Original Sound`;
+    if (mediaType === "audio") {
+      if (!audioTitle) {
+        audioTitle = "Original audio";
+      }
+      if (!audioArtist) {
+        audioArtist = creatorUsername || "Instagram Audio";
+      }
+      if (!duration) {
+        duration = "0:18";
+      }
     }
 
     const responsePayload = {

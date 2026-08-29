@@ -18,6 +18,7 @@ import {
   ThumbsUp,
   MessageSquare,
   Calendar,
+  Plus,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
@@ -37,6 +38,7 @@ export function ReelPlayerModal({ reel, isOpen, onClose }: ReelPlayerModalProps)
     collections,
     addReelToCollection,
     showToast,
+    saveReel,
   } = useReels();
 
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -233,13 +235,38 @@ export function ReelPlayerModal({ reel, isOpen, onClose }: ReelPlayerModalProps)
                   {formatCaption(reel.caption || "No caption provided.")}
                 </p>
 
-                {/* Audio Track Tag (if present) */}
-                {reel.audioTitle && (
-                  <div className="inline-flex items-center space-x-1.5 px-2.5 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-md text-[11px] text-emerald-400">
-                    <Music2 className="w-3 h-3 text-emerald-400 shrink-0" />
-                    <span className="font-semibold truncate">
-                      {reel.audioTitle} {reel.audioArtist ? `• ${reel.audioArtist}` : ""}
-                    </span>
+                {/* Audio Track Tag with 1-Click Save Audio action */}
+                {(reel.audioTitle || reel.mediaType === "audio") && (
+                  <div className="flex items-center justify-between p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+                    <div className="flex items-center space-x-2 min-w-0 mr-2">
+                      <Music2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                      <div className="min-w-0">
+                        <p className="font-semibold text-xs text-white truncate">
+                          {reel.audioTitle || "Original audio"}
+                        </p>
+                        <p className="text-[10px] text-emerald-400/80 truncate">
+                          {reel.audioArtist || `@${reel.creatorUsername} • Audio Track`}
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={async () => {
+                        await saveReel(reel.instagramUrl, {
+                          mediaType: "audio",
+                          audioTitle: reel.audioTitle || "Original audio",
+                          audioArtist: reel.audioArtist || `@${reel.creatorUsername}`,
+                          creator: reel.creatorUsername,
+                          caption: `Soundtrack from @${reel.creatorUsername}`,
+                          category: "Music & Audio",
+                        });
+                        showToast("Audio track saved to Songs & Audio!");
+                      }}
+                      className="shrink-0 flex items-center space-x-1 px-2.5 py-1 rounded bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-semibold transition-all cursor-pointer shadow-sm active:scale-95"
+                      title="Save this audio track to your library"
+                    >
+                      <Plus className="w-3 h-3" />
+                      <span>Save Audio</span>
+                    </button>
                   </div>
                 )}
 
