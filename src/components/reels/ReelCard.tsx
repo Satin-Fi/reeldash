@@ -38,11 +38,12 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
   const displayCaption = reel.caption || "Instagram Reel";
   const shortcode = reel.shortcode || (reel.instagramUrl ? reel.instagramUrl.split("/p/")[1]?.split("/")[0] || reel.instagramUrl.split("/reel/")[1]?.split("/")[0] : "");
 
-  const mediaType = reel.mediaType || ((reel.instagramUrl?.includes("/p/") || reel.isCarousel || (reel.carouselImages && reel.carouselImages.length > 0)) ? "post" : "reel");
+  const mediaType = reel.mediaType || "reel";
 
-  // Determine if it's a carousel and count of photos
-  const isCarousel = reel.isCarousel || (reel.carouselImages && reel.carouselImages.length > 0) || (typeof reel.duration === "string" && reel.duration.toLowerCase().includes("carousel"));
-  const carouselCount = reel.carouselImages?.length || (typeof reel.duration === "string" ? reel.duration.match(/\d+/)?.[0] : null);
+  // Determine if it is TRULY a multi-item carousel (must have MORE than 1 image)
+  const parsedCount = reel.carouselImages?.length || (typeof reel.duration === "string" ? parseInt(reel.duration.match(/\d+/)?.[0] || "0", 10) : 0);
+  const isMultiCarousel = (reel.isCarousel && parsedCount > 1) || (reel.carouselImages && reel.carouselImages.length > 1) || (typeof reel.duration === "string" && reel.duration.toLowerCase().includes("carousel") && parsedCount > 1);
+  const carouselCount = isMultiCarousel ? (reel.carouselImages?.length || parsedCount) : null;
 
   // Clean duration display (only if true video time, e.g. "0:30", "1:15", "12s")
   const isRealTimeDuration = reel.duration && 
@@ -103,10 +104,8 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
               <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
                 {mediaType === "audio" ? (
                   <Music2 className="w-3.5 h-3.5 text-white" />
-                ) : isCarousel ? (
+                ) : isMultiCarousel ? (
                   <Images className="w-3.5 h-3.5 text-white" />
-                ) : mediaType === "post" ? (
-                  <ImageIcon className="w-3.5 h-3.5 text-white" />
                 ) : (
                   <Play className="w-3.5 h-3.5 fill-white text-white" />
                 )}
@@ -123,8 +122,8 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
                 {isRealTimeDuration && (
                   <span className="font-mono">{reel.duration}</span>
                 )}
-                {isCarousel && (
-                  <span className="text-brand-400">Carousel{carouselCount ? ` (${carouselCount})` : ""}</span>
+                {isMultiCarousel && carouselCount && (
+                  <span className="text-brand-400">Carousel ({carouselCount})</span>
                 )}
                 <span>{formattedDate}</span>
               </div>
@@ -177,12 +176,12 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
 
             {/* ─── 1. TOP HEADER (Systematic & Balanced) ───────────────────────── */}
             <div className="absolute top-2.5 left-2.5 right-2.5 flex items-center justify-between z-20 pointer-events-none">
-              {/* Left Context Pill (Only if Carousel, Duration, or Audio) */}
+              {/* Left Context Pill (Only if Multi-Image Carousel > 1, Real Video Duration, or Audio) */}
               <div>
-                {isCarousel ? (
+                {isMultiCarousel && carouselCount && carouselCount > 1 ? (
                   <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-md text-[11px] font-semibold text-white shadow-sm border border-white/10">
                     <Images className="w-3 h-3 text-white/90" />
-                    {carouselCount && <span className="tabular-nums">{carouselCount}</span>}
+                    <span className="tabular-nums">{carouselCount}</span>
                   </span>
                 ) : mediaType === "audio" ? (
                   <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-md text-[11px] font-semibold text-white shadow-sm border border-white/10">
@@ -227,18 +226,10 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
               </div>
             </div>
 
-            {/* ─── 2. CENTER ACTION DISK (Restrained Translucent Glassmorphic) ─── */}
+            {/* ─── 2. CENTER ACTION DISK (Universal Play / Watch Action) ──────── */}
             <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none opacity-0 group-hover:opacity-100 transition-all duration-200">
-              <div className="w-11 h-11 rounded-full bg-black/50 backdrop-blur-md border border-white/20 text-white flex items-center justify-center shadow-xl transform scale-90 group-hover:scale-100 transition-transform duration-200">
-                {mediaType === "audio" ? (
-                  <Music2 className="w-4 h-4 text-white" />
-                ) : isCarousel ? (
-                  <Images className="w-4 h-4 text-white" />
-                ) : mediaType === "post" ? (
-                  <ImageIcon className="w-4 h-4 text-white" />
-                ) : (
-                  <Play className="w-4 h-4 fill-white ml-0.5" />
-                )}
+              <div className="w-12 h-12 rounded-full bg-black/60 backdrop-blur-md border border-white/20 text-white flex items-center justify-center shadow-xl transform scale-90 group-hover:scale-100 transition-transform duration-200">
+                <Play className="w-5 h-5 fill-white text-white ml-0.5" />
               </div>
             </div>
 

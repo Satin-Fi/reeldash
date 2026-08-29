@@ -136,14 +136,12 @@ function CreatorReelTile({ item, creatorUsername }: { item: CreatorReelItem; cre
 
         {/* Top Header Group */}
         <div className="absolute top-2.5 left-2.5 right-2.5 flex items-center justify-between z-20 pointer-events-none">
-          {/* Subtle Carousel Icon (Only if multi-item carousel) */}
+          {/* Subtle Carousel Icon (Only if multi-item carousel > 1) */}
           <div>
-            {item.isCarousel && (
+            {item.isCarousel && item.carouselImages && item.carouselImages.length > 1 && (
               <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-md text-[11px] font-semibold text-white shadow-sm border border-white/10" title="Multi-image Carousel">
                 <Images className="w-3 h-3 text-white/90" />
-                {item.carouselImages && item.carouselImages.length > 0 && (
-                  <span className="tabular-nums">{item.carouselImages.length}</span>
-                )}
+                <span className="tabular-nums">{item.carouselImages.length}</span>
               </span>
             )}
           </div>
@@ -169,16 +167,10 @@ function CreatorReelTile({ item, creatorUsername }: { item: CreatorReelItem; cre
           </button>
         </div>
 
-        {/* Center Hover Action Disk (Sleek Glassmorphic) */}
+        {/* Center Hover Action Disk (Universal Play Button) */}
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-0 group-hover:opacity-100 transition-all duration-200 z-10">
-          <div className="w-11 h-11 rounded-full bg-black/50 backdrop-blur-md border border-white/20 text-white flex items-center justify-center shadow-xl transform scale-90 group-hover:scale-100 transition-transform duration-200">
-            {item.isCarousel ? (
-              <Images className="w-4 h-4 text-white" />
-            ) : !isVideo ? (
-              <ImageIcon className="w-4 h-4 text-white" />
-            ) : (
-              <Play className="w-4 h-4 fill-white ml-0.5" />
-            )}
+          <div className="w-12 h-12 rounded-full bg-black/60 backdrop-blur-md border border-white/20 text-white flex items-center justify-center shadow-xl transform scale-90 group-hover:scale-100 transition-transform duration-200">
+            <Play className="w-5 h-5 fill-white text-white ml-0.5" />
           </div>
         </div>
 
