@@ -10,7 +10,7 @@ import {
   Loader2,
   Bookmark,
   Check,
-  Layers,
+  Images,
   Image as ImageIcon,
 } from "lucide-react";
 import { ReelPlayerModal } from "./ReelPlayerModal";
@@ -136,8 +136,8 @@ function CreatorReelTile({ item, creatorUsername }: { item: CreatorReelItem; cre
 
         {/* Subtle Carousel Icon (Only if multi-item carousel) */}
         {item.isCarousel && (
-          <div className="absolute top-2.5 left-2.5 z-10 p-1.5 rounded-full bg-black/40 backdrop-blur-md text-white/90 shadow-sm">
-            <Layers className="w-3.5 h-3.5" />
+          <div className="absolute top-2.5 left-2.5 z-10 p-1.5 rounded-full bg-black/40 backdrop-blur-md text-white/90 shadow-sm" title="Multi-image Carousel">
+            <Images className="w-3.5 h-3.5" />
           </div>
         )}
 
@@ -165,7 +165,7 @@ function CreatorReelTile({ item, creatorUsername }: { item: CreatorReelItem; cre
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-0 group-hover:opacity-100 transition-all duration-200 z-10">
           <div className="w-12 h-12 rounded-full bg-brand-500/90 text-white flex items-center justify-center shadow-rd-modal transform scale-90 group-hover:scale-100 transition-transform">
             {item.isCarousel ? (
-              <Layers className="w-5 h-5 text-white" />
+              <Images className="w-5 h-5 text-white" />
             ) : !isVideo ? (
               <ImageIcon className="w-5 h-5 text-white" />
             ) : (

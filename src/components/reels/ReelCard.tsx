@@ -16,7 +16,7 @@ import {
   MessageCircle,
   ThumbsUp,
   Music2,
-  Layers,
+  Images,
   Image as ImageIcon,
   Clock,
 } from "lucide-react";
@@ -228,8 +228,8 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
 
             {/* Subtle Top Left Media Icon (Instagram/Raycast clean style, NO ugly pills) */}
             {(mediaType === "post" && reel.isCarousel) && (
-              <div className="absolute top-2.5 left-2.5 z-10 p-1.5 rounded-full bg-black/40 backdrop-blur-md text-white/90 shadow-sm">
-                <Layers className="w-3.5 h-3.5" />
+              <div className="absolute top-2.5 left-2.5 z-10 p-1.5 rounded-full bg-black/40 backdrop-blur-md text-white/90 shadow-sm" title="Multi-image Carousel">
+                <Images className="w-3.5 h-3.5" />
               </div>
             )}
             {mediaType === "audio" && (
@@ -257,7 +257,7 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
                 {mediaType === "audio" ? (
                   <Music2 className="w-5 h-5" />
                 ) : mediaType === "post" ? (
-                  reel.isCarousel ? <Layers className="w-5 h-5" /> : <ImageIcon className="w-5 h-5" />
+                  reel.isCarousel ? <Images className="w-5 h-5" /> : <ImageIcon className="w-5 h-5" />
                 ) : mediaType === "story" ? (
                   <Clock className="w-5 h-5" />
                 ) : (

@@ -13,7 +13,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Disc3,
-  Layers,
   Sparkles,
   Download,
 } from "lucide-react";
