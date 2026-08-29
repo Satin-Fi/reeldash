@@ -63,6 +63,35 @@ async function fetchOpenGraphMeta(shortcode: string, mediaType: string, signal: 
   };
 }
 
+async function fetchDirectInstagramMeta(url: string, signal: AbortSignal) {
+  try {
+    const res = await fetch(url, {
+      signal,
+      headers: {
+        "User-Agent": "facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.9",
+      },
+    });
+    if (!res.ok) return null;
+    const html = await res.text();
+
+    const titleMatch = html.match(/<meta\s+(?:property|name)="og:title"\s+content="([^"]*)"/i) || html.match(/<title>([^<]+)<\/title>/i);
+    const descMatch = html.match(/<meta\s+(?:property|name)="og:description"\s+content="([^"]*)"/i) || html.match(/<meta\s+(?:property|name)="description"\s+content="([^"]*)"/i);
+    const imgMatch = html.match(/<meta\s+(?:property|name)="og:image"\s+content="([^"]*)"/i);
+    const videoMatch = html.match(/<meta\s+(?:property|name)="og:video"\s+content="([^"]*)"/i);
+
+    return {
+      title: titleMatch ? decodeEntities(titleMatch[1]) : "",
+      description: descMatch ? decodeEntities(descMatch[1]) : "",
+      image: imgMatch ? decodeEntities(imgMatch[1]) : "",
+      video: videoMatch ? decodeEntities(videoMatch[1]) : "",
+    };
+  } catch {
+    return null;
+  }
+}
+
 async function fetchCloudflareWorkerMeta(shortcode: string, signal: AbortSignal) {
   const workerProxy = `https://reeldash-ig-proxy.reeldash-ig-proxy.workers.dev/api/info?url=${encodeURIComponent(
     `https://www.instagram.com/reel/${shortcode}/`
@@ -211,7 +240,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Task D: Instagram Captioned Embed Scraper for Real Avatar, Username, Caption & High-Res Cover
-    if (shortcode) {
+    if (shortcode && mediaType !== "audio") {
       extractionTasks.push(
         (async () => {
           try {
@@ -273,6 +302,59 @@ export async function POST(req: NextRequest) {
         })()
       );
     }
+
+    // Task E: Direct Instagram OpenGraph Fetcher (Highest reliability for Audio tracks & creators)
+    extractionTasks.push(
+      fetchDirectInstagramMeta(cleanUrl, controller.signal)
+        .then((meta) => {
+          if (!meta) return;
+          if (mediaType === "audio") {
+            if (meta.title) {
+              if (meta.title.includes("|")) {
+                const parts = meta.title.split("|");
+                creatorUsername = parts[0].trim();
+                creatorFullName = parts[0].trim();
+                audioTitle = parts[1].replace(/\s+on\s+Instagram$/i, "").trim();
+                audioArtist = parts[0].trim();
+              } else if (meta.title.includes("•")) {
+                const parts = meta.title.split("•");
+                creatorUsername = parts[0].trim();
+                creatorFullName = parts[0].trim();
+                audioTitle = parts[1].replace(/\s+on\s+Instagram$/i, "").trim();
+                audioArtist = parts[0].trim();
+              } else {
+                audioTitle = meta.title.replace(/\s+on\s+Instagram$/i, "").trim();
+              }
+            }
+            if (meta.description) {
+              caption = meta.description;
+              if (!creatorUsername) {
+                const descMatch = meta.description.match(/Listen\s+to\s+([A-Za-z0-9_.]+)\s+on\s+Instagram/i);
+                if (descMatch) {
+                  creatorUsername = descMatch[1].trim();
+                  creatorFullName = descMatch[1].trim();
+                }
+              }
+            }
+            if (meta.image) {
+              thumbnailUrl = `/api/proxy-image?url=${encodeURIComponent(meta.image)}`;
+              creatorAvatar = `/api/proxy-image?url=${encodeURIComponent(meta.image)}`;
+            }
+          } else {
+            if (meta.title && !creatorFullName) {
+              const titleMatch = meta.title.match(/^(.+?)\s+on\s+Instagram\s*:/i);
+              if (titleMatch) creatorFullName = titleMatch[1].trim();
+            }
+            if (meta.description && !caption) {
+              caption = meta.description;
+            }
+            if (meta.image && (!thumbnailUrl || thumbnailUrl.includes("/api/proxy-image?shortcode"))) {
+              thumbnailUrl = `/api/proxy-image?url=${encodeURIComponent(meta.image)}`;
+            }
+          }
+        })
+        .catch(() => {})
+    );
 
     // Wait for parallel tasks or timeout
     await Promise.allSettled(extractionTasks);

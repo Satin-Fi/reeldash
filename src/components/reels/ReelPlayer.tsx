@@ -184,6 +184,8 @@ function AudioSongPlayer({ reel, coverImageSrc }: { reel: Reel; coverImageSrc: s
     }
   };
 
+  const effectiveCover = reel.creatorAvatar || reel.thumbnailUrl || coverImageSrc;
+
   return (
     <div className="relative w-full h-full flex flex-col items-center justify-between p-6 sm:p-8 bg-gradient-to-b from-zinc-900 via-black to-zinc-950 text-white select-none overflow-hidden">
       {audioSrc && (
@@ -212,7 +214,7 @@ function AudioSongPlayer({ reel, coverImageSrc }: { reel: Reel; coverImageSrc: s
           </span>
         </div>
         <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono bg-zinc-800 text-zinc-300 border border-zinc-700">
-          {audioSrc ? "Lossless Audio" : "Instagram Track"}
+          {audioSrc ? "Lossless Audio" : "Instagram Audio"}
         </span>
       </div>
 
@@ -232,10 +234,10 @@ function AudioSongPlayer({ reel, coverImageSrc }: { reel: Reel; coverImageSrc: s
 
           {/* Center Album Artwork */}
           <div className="relative w-28 h-28 sm:w-36 sm:h-36 rounded-full overflow-hidden border-2 border-emerald-500 shadow-xl z-10 bg-zinc-900 flex items-center justify-center">
-            {coverImageSrc && !coverImageSrc.includes("placehold") ? (
+            {effectiveCover && !effectiveCover.includes("placehold") ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
-                src={coverImageSrc}
+                src={effectiveCover}
                 alt={trackTitle}
                 referrerPolicy="no-referrer"
                 className="w-full h-full object-cover"
@@ -319,6 +321,7 @@ function AudioSongPlayer({ reel, coverImageSrc }: { reel: Reel; coverImageSrc: s
             <button
               onClick={togglePlay}
               className="w-12 h-12 rounded-full bg-emerald-500 hover:bg-emerald-400 text-zinc-950 flex items-center justify-center shadow-lg hover:scale-105 active:scale-95 transition-all cursor-pointer font-bold"
+              title={audioSrc ? (isPlaying ? "Pause" : "Play") : "Listen on Instagram"}
             >
               {isPlaying ? (
                 <Pause className="w-5 h-5 fill-current" />
@@ -332,22 +335,22 @@ function AudioSongPlayer({ reel, coverImageSrc }: { reel: Reel; coverImageSrc: s
             href={`/api/download?type=audio&shortcode=${shortcode}&reelUrl=${encodeURIComponent(reel.instagramUrl)}`}
             download
             className="p-2 text-zinc-400 hover:text-white rounded-full hover:bg-zinc-800 transition-colors cursor-pointer"
-            title="Download Audio MP3"
+            title="Download Audio"
           >
             <Download className="w-4 h-4" />
           </a>
         </div>
 
-        {/* Notice if direct CORS stream is restricted by Instagram */}
-        {hasAudioError && !audioSrc && (
+        {/* Notice for Instagram Audio Link */}
+        {!audioSrc && !isLoadingAudio && (
           <div className="pt-2 text-center">
             <a
               href={reel.instagramUrl}
               target="_blank"
               rel="noreferrer"
-              className="inline-flex items-center space-x-1.5 text-[11px] text-emerald-400 hover:underline"
+              className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full bg-emerald-500/10 hover:bg-emerald-500/20 text-[11px] font-medium text-emerald-400 border border-emerald-500/20 hover:border-emerald-500/40 transition-colors"
             >
-              <span>Listen on Instagram Audio</span>
+              <span>Listen on Instagram</span>
               <ExternalLink className="w-3 h-3" />
             </a>
           </div>

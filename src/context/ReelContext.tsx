@@ -368,9 +368,12 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
               ...r,
               creatorUsername: data.creatorUsername || r.creatorUsername,
               creatorFullName: data.creatorFullName || r.creatorFullName,
+              creatorAvatar: data.creatorAvatar || r.creatorAvatar,
               caption: data.caption || r.caption,
               thumbnailUrl: data.thumbnailUrl || r.thumbnailUrl,
               mediaUrl: data.mediaUrl || r.mediaUrl || "",
+              audioTitle: data.audioTitle || r.audioTitle,
+              audioArtist: data.audioArtist || r.audioArtist,
               likes: data.likes || r.likes,
               commentsCount: data.commentsCount || r.commentsCount,
               category: data.category || r.category,
@@ -424,7 +427,8 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    const shortcodeMatch = cleanUrl.match(/(?:reel|p|audio|stories)\/([A-Za-z0-9_-]+)/);
+    const audioIdMatch = cleanUrl.match(/\/reels\/audio\/(\d+)/);
+    const shortcodeMatch = audioIdMatch || cleanUrl.match(/\/(?:reel|p|stories)\/([A-Za-z0-9_-]+)/);
     const shortcode = shortcodeMatch ? shortcodeMatch[1] : `sc_${Date.now().toString(36)}`;
     const mediaType: MediaType =
       customDetails?.mediaType ||
@@ -492,7 +496,7 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
       if (res.ok) {
         const data = await res.json();
         const finalCreator =
-          (data.creatorUsername && !data.creatorUsername.startsWith("ig_"))
+          (data.creatorUsername && !data.creatorUsername.startsWith("ig_") && data.creatorUsername !== "instagram_audio" && data.creatorUsername !== "instagram_creator")
             ? data.creatorUsername
             : customDetails?.creator || initialCreator;
         const finalFullName = data.creatorFullName || customDetails?.creatorFullName || finalCreator;
@@ -501,13 +505,12 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
         setReels((prev) => {
           const updated = prev.map((r) => {
             if (r.id === tempId) {
-              const keepThumb = r.thumbnailUrl && !r.thumbnailUrl.includes("unsplash.com") && !r.thumbnailUrl.includes("shortcode=");
               return {
                 ...r,
                 creatorUsername: finalCreator,
                 creatorFullName: finalFullName,
-                creatorAvatar: r.creatorAvatar && !r.creatorAvatar.includes("ui-avatars.com") ? r.creatorAvatar : (data.creatorAvatar || r.creatorAvatar),
-                thumbnailUrl: keepThumb ? r.thumbnailUrl : (data.thumbnailUrl || r.thumbnailUrl),
+                creatorAvatar: data.creatorAvatar || customDetails?.creatorAvatar || r.creatorAvatar,
+                thumbnailUrl: data.thumbnailUrl || customDetails?.thumbnailUrl || r.thumbnailUrl,
                 mediaUrl: data.mediaUrl || r.mediaUrl,
                 embedUrl: data.embedUrl || r.embedUrl,
                 caption: customDetails?.caption || data.caption || r.caption,
