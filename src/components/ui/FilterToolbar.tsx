@@ -1,9 +1,28 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { useReels } from "@/context/ReelContext";
-import { SortOption, ViewMode } from "@/types/reel";
-import { Search, LayoutGrid, List, SlidersHorizontal, ArrowUpDown, X } from "lucide-react";
+import { SortOption, ViewMode, MediaTypeFilter } from "@/types/reel";
+import {
+  Search,
+  LayoutGrid,
+  List,
+  Film,
+  Images,
+  Music2,
+  CircleDashed,
+  ArrowUpDown,
+  X,
+  Sparkles,
+} from "lucide-react";
+
+const mediaTabs: { id: MediaTypeFilter; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
+  { id: "all", label: "All Media", icon: LayoutGrid },
+  { id: "reel", label: "Reels", icon: Film },
+  { id: "post", label: "Posts & Carousels", icon: Images },
+  { id: "audio", label: "Songs & Audio", icon: Music2 },
+  { id: "story", label: "Stories", icon: CircleDashed },
+];
 
 export function FilterToolbar() {
   const {
@@ -25,117 +44,81 @@ export function FilterToolbar() {
   } = useReels();
 
   // Counts by media type
-  const reelsCount = reels.filter((r) => !r.mediaType || r.mediaType === "reel").length;
-  const postsCount = reels.filter((r) => r.mediaType === "post").length;
-  const audioCount = reels.filter((r) => r.mediaType === "audio").length;
-  const storiesCount = reels.filter((r) => r.mediaType === "story").length;
+  const counts: Record<MediaTypeFilter, number> = {
+    all: reels.length,
+    reel: reels.filter((r) => !r.mediaType || r.mediaType === "reel").length,
+    post: reels.filter((r) => r.mediaType === "post").length,
+    audio: reels.filter((r) => r.mediaType === "audio").length,
+    story: reels.filter((r) => r.mediaType === "story").length,
+  };
 
   return (
-    <div className="flex flex-col space-y-3 mb-6">
-      {/* 1. Media Type Filter Tabs Bar */}
-      <div className="flex items-center space-x-2 overflow-x-auto pb-1 scrollbar-none text-xs">
-        <button
-          onClick={() => setActiveMediaType("all")}
-          className={`px-3 py-1.5 rounded-rd-md font-semibold transition-all cursor-pointer flex items-center space-x-1.5 shrink-0 ${
-            activeMediaType === "all"
-              ? "bg-primaryText-light dark:bg-white text-surface-light dark:text-black shadow-sm"
-              : "bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark text-secondaryText-light dark:text-secondaryText-dark hover:text-primaryText-light"
-          }`}
-        >
-          <span>All Media</span>
-          <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-black/10 dark:bg-black/20 font-mono">
-            {reels.length}
-          </span>
-        </button>
-
-        <button
-          onClick={() => setActiveMediaType("reel")}
-          className={`px-3 py-1.5 rounded-rd-md font-semibold transition-all cursor-pointer flex items-center space-x-1.5 shrink-0 ${
-            activeMediaType === "reel"
-              ? "bg-purple-600 text-white shadow-sm"
-              : "bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark text-secondaryText-light dark:text-secondaryText-dark hover:border-purple-500/40"
-          }`}
-        >
-          <span>🎬 Reels</span>
-          <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-white/20 font-mono">
-            {reelsCount}
-          </span>
-        </button>
-
-        <button
-          onClick={() => setActiveMediaType("post")}
-          className={`px-3 py-1.5 rounded-rd-md font-semibold transition-all cursor-pointer flex items-center space-x-1.5 shrink-0 ${
-            activeMediaType === "post"
-              ? "bg-blue-600 text-white shadow-sm"
-              : "bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark text-secondaryText-light dark:text-secondaryText-dark hover:border-blue-500/40"
-          }`}
-        >
-          <span>📸 Posts & Carousels</span>
-          <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-white/20 font-mono">
-            {postsCount}
-          </span>
-        </button>
-
-        <button
-          onClick={() => setActiveMediaType("audio")}
-          className={`px-3 py-1.5 rounded-rd-md font-semibold transition-all cursor-pointer flex items-center space-x-1.5 shrink-0 ${
-            activeMediaType === "audio"
-              ? "bg-emerald-600 text-white shadow-sm"
-              : "bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark text-secondaryText-light dark:text-secondaryText-dark hover:border-emerald-500/40"
-          }`}
-        >
-          <span>🎵 Songs & Audio</span>
-          <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-white/20 font-mono">
-            {audioCount}
-          </span>
-        </button>
-
-        <button
-          onClick={() => setActiveMediaType("story")}
-          className={`px-3 py-1.5 rounded-rd-md font-semibold transition-all cursor-pointer flex items-center space-x-1.5 shrink-0 ${
-            activeMediaType === "story"
-              ? "bg-amber-600 text-white shadow-sm"
-              : "bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark text-secondaryText-light dark:text-secondaryText-dark hover:border-amber-500/40"
-          }`}
-        >
-          <span>⏱️ Stories</span>
-          <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-white/20 font-mono">
-            {storiesCount}
-          </span>
-        </button>
-      </div>
-
-      {/* 2. Main Search & Sort Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 p-2 bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-md shadow-rd-subtle">
-        {/* Left: Search input */}
-        <div className="relative flex-1 min-w-[200px] flex items-center">
-          <Search className="absolute left-3 w-4 h-4 text-mutedText-light dark:text-mutedText-dark" />
-          <input
-            type="text"
-            placeholder="Search all items by title, creator, caption, audio..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-3 py-1.5 bg-transparent text-xs text-primaryText-light dark:text-primaryText-dark focus:outline-none placeholder:text-mutedText-light dark:placeholder:text-mutedText-dark"
-          />
-          {searchQuery && (
-            <button
-              onClick={() => setSearchQuery("")}
-              className="pr-3 text-mutedText-light dark:text-mutedText-dark hover:text-primaryText-light dark:hover:text-primaryText-dark cursor-pointer"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
-          )}
+    <div className="flex flex-col space-y-3 mb-5">
+      {/* ─── 1. PRIMARY ACTION BAR (Segmented Media Tabs + Search + Controls) ─── */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-2.5 p-1.5 rounded-xl bg-zinc-900/60 dark:bg-[#12141A] border border-zinc-800/80 dark:border-white/[0.07] backdrop-blur-md">
+        
+        {/* Left: Quiet Segmented Media Type Tabs */}
+        <div className="flex items-center space-x-1 overflow-x-auto pb-0.5 md:pb-0 scrollbar-none">
+          {mediaTabs.map((tab) => {
+            const Icon = tab.icon;
+            const isActive = activeMediaType === tab.id;
+            const count = counts[tab.id];
+            
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveMediaType(tab.id)}
+                className={`group flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all duration-150 cursor-pointer shrink-0 ${
+                  isActive
+                    ? "bg-white/[0.12] text-white border border-white/[0.1] shadow-xs"
+                    : "text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.04] border border-transparent"
+                }`}
+              >
+                <Icon className={`w-3.5 h-3.5 transition-colors ${isActive ? "text-white" : "text-zinc-400 group-hover:text-zinc-300"}`} />
+                <span>{tab.label}</span>
+                {count > 0 && (
+                  <span
+                    className={`ml-0.5 px-1.5 py-0.2 rounded-full text-[10px] font-mono tabular-nums ${
+                      isActive ? "bg-white/20 text-white" : "bg-white/[0.06] text-zinc-400"
+                    }`}
+                  >
+                    {count}
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </div>
 
-        {/* Right: Sort and View mode */}
+        {/* Right: Integrated Search + Sort + View Mode */}
         <div className="flex items-center space-x-2 shrink-0">
-          {/* Sort Dropdown */}
+          {/* Minimal Search Input */}
+          <div className="relative flex-1 md:w-56 flex items-center">
+            <Search className="absolute left-2.5 w-3.5 h-3.5 text-zinc-400 pointer-events-none" />
+            <input
+              type="text"
+              placeholder="Search library..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-8 pr-7 py-1.5 bg-black/40 dark:bg-black/30 border border-zinc-800 dark:border-white/[0.08] rounded-lg text-xs text-white placeholder:text-zinc-500 focus:outline-none focus:border-zinc-600 transition-colors"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery("")}
+                className="absolute right-2 text-zinc-500 hover:text-zinc-300 cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+
+          {/* Sort Selector */}
           <div className="relative flex items-center">
-            <ArrowUpDown className="w-3.5 h-3.5 text-secondaryText-light dark:text-secondaryText-dark absolute left-2.5 pointer-events-none" />
+            <ArrowUpDown className="w-3 h-3 text-zinc-400 absolute left-2.5 pointer-events-none" />
             <select
               value={sortOption}
               onChange={(e) => setSortOption(e.target.value as SortOption)}
-              className="pl-8 pr-3 py-1.5 text-xs bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-sm text-primaryText-light dark:text-primaryText-dark focus:outline-none cursor-pointer appearance-none"
+              className="pl-7 pr-3 py-1.5 text-xs bg-black/40 dark:bg-black/30 border border-zinc-800 dark:border-white/[0.08] rounded-lg text-zinc-300 hover:text-white focus:outline-none cursor-pointer appearance-none transition-colors"
             >
               <option value="newest">Recently Saved</option>
               <option value="oldest">Oldest First</option>
@@ -145,14 +128,14 @@ export function FilterToolbar() {
             </select>
           </div>
 
-          {/* View Switcher */}
-          <div className="flex items-center bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-sm p-0.5">
+          {/* View Mode Toggle */}
+          <div className="flex items-center bg-black/40 dark:bg-black/30 border border-zinc-800 dark:border-white/[0.08] rounded-lg p-0.5">
             <button
               onClick={() => setViewMode("grid")}
-              className={`p-1 rounded-rd-sm transition-colors cursor-pointer ${
+              className={`p-1.5 rounded-md transition-all cursor-pointer ${
                 viewMode === "grid"
-                  ? "bg-surface-light dark:bg-surface-dark text-brand-500 shadow-rd-subtle"
-                  : "text-secondaryText-light dark:text-secondaryText-dark hover:text-primaryText-light"
+                  ? "bg-white/[0.12] text-white shadow-xs"
+                  : "text-zinc-500 hover:text-zinc-300"
               }`}
               title="Grid View"
             >
@@ -160,76 +143,85 @@ export function FilterToolbar() {
             </button>
             <button
               onClick={() => setViewMode("compact")}
-              className={`p-1 rounded-rd-sm transition-colors cursor-pointer ${
+              className={`p-1.5 rounded-md transition-all cursor-pointer ${
                 viewMode === "compact"
-                  ? "bg-surface-light dark:bg-surface-dark text-brand-500 shadow-rd-subtle"
-                  : "text-secondaryText-light dark:text-secondaryText-dark hover:text-primaryText-light"
+                  ? "bg-white/[0.12] text-white shadow-xs"
+                  : "text-zinc-500 hover:text-zinc-300"
               }`}
-              title="Compact View"
+              title="Compact List View"
             >
               <List className="w-3.5 h-3.5" />
             </button>
           </div>
         </div>
+
       </div>
 
-      {/* 3. Category & Collection Pills */}
-      <div className="flex items-center space-x-1.5 overflow-x-auto pb-1 scrollbar-none text-xs">
-        <button
-          onClick={() => {
-            setActiveCategory(null);
-            setActiveCollection(null);
-          }}
-          className={`px-3 py-1 rounded-full font-medium transition-all cursor-pointer shrink-0 ${
-            activeCategory === null && activeCollection === null
-              ? "bg-brand-500 text-white"
-              : "bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark text-secondaryText-light dark:text-secondaryText-dark hover:border-brand-500/50"
-          }`}
-        >
-          All Categories
-        </button>
-
-        {smartCategories.map((cat) => (
+      {/* ─── 2. SMART CATEGORIES & COLLECTIONS (Quiet Filter Chips) ───────── */}
+      {(smartCategories.length > 0 || collections.length > 0) && (
+        <div className="flex items-center space-x-1.5 overflow-x-auto pb-1 scrollbar-none text-xs">
           <button
-            key={cat.name}
             onClick={() => {
-              setActiveCategory(cat.name === activeCategory ? null : cat.name);
+              setActiveCategory(null);
               setActiveCollection(null);
             }}
-            className={`px-3 py-1 rounded-full font-medium transition-all cursor-pointer shrink-0 flex items-center space-x-1.5 ${
-              activeCategory === cat.name
-                ? "bg-brand-500 text-white"
-                : "bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark text-secondaryText-light dark:text-secondaryText-dark hover:border-brand-500/50"
+            className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-all cursor-pointer shrink-0 ${
+              activeCategory === null && activeCollection === null
+                ? "bg-white/[0.12] text-white border border-white/[0.12]"
+                : "text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.04] border border-transparent"
             }`}
           >
-            <span>{cat.name}</span>
-            <span
-              className={`px-1.5 py-0.2 text-[10px] rounded-full ${
-                activeCategory === cat.name ? "bg-white/20 text-white" : "bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark text-mutedText-light dark:text-mutedText-dark"
-              }`}
-            >
-              {cat.count}
-            </span>
+            All Categories
           </button>
-        ))}
 
-        {collections.map((col) => (
-          <button
-            key={col.id}
-            onClick={() => {
-              setActiveCollection(col.id === activeCollection ? null : col.id);
-              setActiveCategory(null);
-            }}
-            className={`px-3 py-1 rounded-full font-medium transition-all cursor-pointer shrink-0 flex items-center space-x-1 ${
-              activeCollection === col.id
-                ? "bg-brand-500 text-white"
-                : "bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark text-secondaryText-light dark:text-secondaryText-dark hover:border-brand-500/50"
-            }`}
-          >
-            <span>{col.icon} {col.name}</span>
-          </button>
-        ))}
-      </div>
+          {smartCategories.map((cat) => {
+            const isCatActive = activeCategory === cat.name;
+            return (
+              <button
+                key={cat.name}
+                onClick={() => {
+                  setActiveCategory(isCatActive ? null : cat.name);
+                  setActiveCollection(null);
+                }}
+                className={`group px-2.5 py-1 rounded-md text-[11px] font-medium transition-all cursor-pointer shrink-0 flex items-center space-x-1.5 ${
+                  isCatActive
+                    ? "bg-white/[0.12] text-white border border-white/[0.12]"
+                    : "text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.04] border border-transparent"
+                }`}
+              >
+                <span>{cat.name}</span>
+                <span
+                  className={`px-1.5 py-0.2 text-[10px] rounded-full font-mono tabular-nums ${
+                    isCatActive ? "bg-white/20 text-white" : "bg-white/[0.06] text-zinc-500 group-hover:text-zinc-400"
+                  }`}
+                >
+                  {cat.count}
+                </span>
+              </button>
+            );
+          })}
+
+          {collections.map((col) => {
+            const isColActive = activeCollection === col.id;
+            return (
+              <button
+                key={col.id}
+                onClick={() => {
+                  setActiveCollection(isColActive ? null : col.id);
+                  setActiveCategory(null);
+                }}
+                className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-all cursor-pointer shrink-0 flex items-center space-x-1.5 ${
+                  isColActive
+                    ? "bg-white/[0.12] text-white border border-white/[0.12]"
+                    : "text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.04] border border-transparent"
+                }`}
+              >
+                <span>{col.icon} {col.name}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

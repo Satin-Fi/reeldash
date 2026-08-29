@@ -128,30 +128,27 @@ function ReelsContent() {
   const HeaderIcon = headerInfo.icon;
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
+    <div className="space-y-4">
+      {/* Sleek Page Header */}
       <div className="flex items-center justify-between">
-        <div>
-          <div className="flex items-center space-x-2">
-            <HeaderIcon className="w-6 h-6 text-brand-500" />
-            <h1 className="text-2xl font-bold tracking-tight text-primaryText-light dark:text-primaryText-dark">
-              {headerInfo.title}
-            </h1>
-          </div>
-          <p className="text-xs text-secondaryText-light dark:text-secondaryText-dark mt-1 font-mono">
-            {headerInfo.description}
-          </p>
+        <div className="flex items-baseline space-x-2">
+          <h1 className="text-xl font-semibold tracking-tight text-primaryText-light dark:text-primaryText-dark">
+            {headerInfo.title}
+          </h1>
+          <span className="text-xs text-zinc-500 font-normal">
+            · {filteredReels.length} {filteredReels.length === 1 ? "item" : "items"}
+          </span>
         </div>
         <button
           onClick={() => setIsSaveModalOpen(true)}
-          className="flex items-center space-x-1.5 px-3.5 py-2 bg-brand-500 hover:bg-brand-600 active:scale-95 text-white text-xs font-semibold rounded-rd-md shadow-rd-subtle transition-all cursor-pointer"
+          className="flex items-center space-x-1.5 px-3 py-1.5 bg-[#5B52E8] hover:bg-[#4E45D9] active:scale-95 text-white text-xs font-medium rounded-lg shadow-sm transition-all cursor-pointer"
         >
-          <Plus className="w-4 h-4" />
+          <Plus className="w-3.5 h-3.5" />
           <span>{headerInfo.saveBtnText}</span>
         </button>
       </div>
 
-      {/* Toolbar */}
+      {/* Modern Unified Toolbar */}
       <FilterToolbar />
 
       {/* Grid / List View */}

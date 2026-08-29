@@ -45,3 +45,15 @@ This document serves as the permanent source of truth for UI/UX interaction logi
 - **Sidebar**: Uses `<LayoutGrid />` for `All Library` to prevent icon collisions.
 - **Center**: Linear / Raycast style command search palette trigger (`⌘K` / `Ctrl+K`).
 - **Right**: Theme toggle + User profile avatar.
+
+---
+
+## 4. Toolbar & Filter Standards (Linear / Raycast Grade)
+- **Zero Raw Emojis**: Emojis like `🎬`, `📸`, `🎵`, `⏱️` are strictly banned. Use crisp Lucide SVG icons (`<Film />`, `<Images />`, `<Music2 />`, `<CircleDashed />`).
+- **Unified Action Bar**:
+  - Segmented media type tabs, search input, sort selector, and view switcher combined into a single sleek glassmorphic container (`bg-zinc-900/60 border border-zinc-800/80`).
+  - Active tab uses high-contrast text with quiet background (`bg-white/[0.12] text-white`).
+- **Quiet Filter Chips**:
+  - Category filters render as minimal text chips without heavy background saturation or bulky borders.
+- **Clean Typography**:
+  - Inter / Geist sans-serif, tight tracking, no noisy monospace subtitle strings.
