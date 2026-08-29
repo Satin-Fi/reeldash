@@ -98,7 +98,7 @@ function AudioSongPlayer({ reel, coverImageSrc }: { reel: Reel; coverImageSrc: s
   const [audioSrc, setAudioSrc] = useState<string>(reel.audioUrl || reel.mediaUrl || "");
   const [isLoadingAudio, setIsLoadingAudio] = useState(false);
   const [hasAudioError, setHasAudioError] = useState(false);
-  const [playerMode, setPlayerMode] = useState<"visualizer" | "embed">("visualizer");
+  const [hasImageError, setHasImageError] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // /reels/audio/{numeric_id}/ — generic regex would capture the word "audio" as the shortcode
@@ -217,82 +217,54 @@ function AudioSongPlayer({ reel, coverImageSrc }: { reel: Reel; coverImageSrc: s
           </span>
         </div>
         
-        {/* Toggle Mode */}
-        <div className="flex items-center space-x-1 bg-zinc-900/80 p-0.5 rounded-lg border border-zinc-800">
-          <button
-            onClick={() => setPlayerMode("visualizer")}
-            className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-all ${
-              playerMode === "visualizer"
-                ? "bg-zinc-800 text-white shadow-xs"
-                : "text-zinc-400 hover:text-zinc-200"
-            }`}
-          >
-            Studio
-          </button>
-          <button
-            onClick={() => setPlayerMode("embed")}
-            className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-all ${
-              playerMode === "embed"
-                ? "bg-emerald-500 text-zinc-950 font-semibold shadow-xs"
-                : "text-zinc-400 hover:text-zinc-200"
-            }`}
-          >
-            In-App Player
-          </button>
-        </div>
+        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono bg-zinc-800 text-zinc-300 border border-zinc-700">
+          {audioSrc ? "Lossless Audio" : "Instagram Audio Track"}
+        </span>
       </div>
 
-      {playerMode === "embed" ? (
-        <div className="w-full flex-1 my-3 z-10 rounded-xl overflow-hidden bg-black/60 border border-zinc-800 flex items-center justify-center">
-          <iframe
-            src={`https://www.instagram.com/reels/audio/${shortcode}/embed/`}
-            className="w-full h-full min-h-[380px] border-0"
-            allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
-            title="Instagram Audio In-App Player"
-          />
-        </div>
-      ) : (
-        <>
-          {/* Center Vinyl Disc / Cover Art Presentation */}
-          <div className="relative flex flex-col items-center justify-center my-4 z-10">
-            <div className="relative w-44 h-44 sm:w-56 sm:h-56 flex items-center justify-center">
-              {/* Spinning Vinyl Disc */}
-              <motion.div
-                animate={{ rotate: isPlaying ? 360 : 0 }}
-                transition={{ repeat: Infinity, duration: 8, ease: "linear" }}
-                className="absolute inset-0 rounded-full border-4 border-zinc-800 bg-zinc-950 shadow-2xl flex items-center justify-center overflow-hidden"
-              >
-                <div className="absolute inset-0 opacity-40 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-zinc-700 via-black to-zinc-900" />
-                <div className="w-20 h-20 rounded-full border border-zinc-700/50" />
-                <div className="w-32 h-32 rounded-full border border-zinc-700/30" />
-              </motion.div>
+      {/* Center Vinyl Disc / Cover Art Presentation */}
+      <div className="relative flex flex-col items-center justify-center my-4 z-10">
+        <div className="relative w-44 h-44 sm:w-56 sm:h-56 flex items-center justify-center">
+          {/* Spinning Vinyl Disc */}
+          <motion.div
+            animate={{ rotate: isPlaying ? 360 : 0 }}
+            transition={{ repeat: Infinity, duration: 8, ease: "linear" }}
+            className="absolute inset-0 rounded-full border-4 border-zinc-800 bg-zinc-950 shadow-2xl flex items-center justify-center overflow-hidden"
+          >
+            <div className="absolute inset-0 opacity-40 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-zinc-700 via-black to-zinc-900" />
+            <div className="w-20 h-20 rounded-full border border-zinc-700/50" />
+            <div className="w-32 h-32 rounded-full border border-zinc-700/30" />
+          </motion.div>
 
-              {/* Center Album Artwork */}
-              <div className="relative w-28 h-28 sm:w-36 sm:h-36 rounded-full overflow-hidden border-2 border-emerald-500 shadow-xl z-10 bg-zinc-900 flex items-center justify-center">
-                {effectiveCover && !effectiveCover.includes("placehold") ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={effectiveCover}
-                    alt={trackTitle}
-                    referrerPolicy="no-referrer"
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <Music2 className="w-10 h-10 text-emerald-400" />
-                )}
-                <div className="absolute inset-0 bg-black/20" />
-                <div className="absolute inset-0 m-auto w-4 h-4 rounded-full bg-zinc-950 border border-zinc-700" />
+          {/* Center Album Artwork */}
+          <div className="relative w-28 h-28 sm:w-36 sm:h-36 rounded-full overflow-hidden border-2 border-emerald-500 shadow-xl z-10 bg-zinc-900 flex items-center justify-center">
+            {effectiveCover && !effectiveCover.includes("placehold") && !hasImageError ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={effectiveCover}
+                alt=""
+                referrerPolicy="no-referrer"
+                onError={() => setHasImageError(true)}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div className="w-full h-full bg-zinc-800 flex items-center justify-center">
+                <Music2 className="w-10 h-10 text-emerald-400" />
               </div>
-            </div>
-
-            {/* Track Title & Artist */}
-            <div className="text-center mt-5 space-y-1 max-w-xs">
-              <h3 className="text-sm sm:text-base font-bold text-white tracking-tight truncate">
-                {trackTitle}
-              </h3>
-              <p className="text-xs text-zinc-400 truncate">{artistName}</p>
-            </div>
+            )}
+            <div className="absolute inset-0 bg-black/20 pointer-events-none" />
+            <div className="absolute inset-0 m-auto w-4 h-4 rounded-full bg-zinc-950 border border-zinc-700 pointer-events-none" />
           </div>
+        </div>
+
+        {/* Track Title & Artist */}
+        <div className="text-center mt-5 space-y-1 max-w-xs">
+          <h3 className="text-sm sm:text-base font-bold text-white tracking-tight truncate">
+            {trackTitle}
+          </h3>
+          <p className="text-xs text-zinc-400 truncate">{artistName}</p>
+        </div>
+      </div>
 
           {/* Dynamic Animated Waveform Equalizer */}
           <div className="w-full max-w-xs flex items-center justify-center space-x-1.5 h-8 my-2 z-10">
@@ -375,23 +347,8 @@ function AudioSongPlayer({ reel, coverImageSrc }: { reel: Reel; coverImageSrc: s
                 <Download className="w-4 h-4" />
               </a>
             </div>
-
-            {/* Notice for Instagram Audio Link */}
-            {!audioSrc && !isLoadingAudio && (
-              <div className="pt-2 text-center">
-                <button
-                  onClick={() => setPlayerMode("embed")}
-                  className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full bg-emerald-500/10 hover:bg-emerald-500/20 text-[11px] font-medium text-emerald-400 border border-emerald-500/20 hover:border-emerald-500/40 transition-colors cursor-pointer"
-                >
-                  <Play className="w-3 h-3 fill-current" />
-                  <span>Play In-App Live Audio</span>
-                </button>
-              </div>
-            )}
           </div>
-        </>
-      )}
-    </div>
+        </div>
   );
 }
 
