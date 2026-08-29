@@ -21,19 +21,21 @@ This document serves as the permanent source of truth for UI/UX interaction logi
 ---
 
 ## 2. Card Overlay System
+- **Top-Left**:
+  - Multi-image Carousels (> 1 images): `[ 🖼 {count} ]` (e.g., `[ 🖼 6 ]`).
+  - Video Reels with Duration: `[ ▶ 0:30 ]`.
+  - Single Photos / Videos without duration: None (clean).
 - **Top-Right Controls**:
-  - Grouped horizontally in a single row (`[ ♥ Favorite ] [ ⋮ Menu ]`) with identical dimensions (`w-7 h-7`), glassmorphic styling, and smooth hover dynamics.
-  - No vertical stacking or arbitrary offsets.
+  - Contextual `[ ⋮ Menu ]` options trigger (appears cleanly on hover).
 - **Center Action Disk**:
   - Semi-transparent glassmorphic disk (`w-12 h-12 rounded-full bg-black/60 backdrop-blur-md border border-white/20`).
   - **Video Reels**: `<Play className="fill-white" />` (Play video).
   - **Image Carousels (> 1 images)**: `<Images />` (Browse photo gallery).
   - **Audio Tracks**: `<Music2 />` (Audio waveform/track).
   - **Single Photo Posts**: `<ImageIcon />` (View photo).
-- **Bottom Metrics**:
-  - Clean `[ 👍 {likes} ]` pill ONLY when real likes data exists from Instagram.
-  - Zero mock or generated numbers.
-  - No raw `Carousel (6)` or `Photo Post` debug strings.
+- **Bottom-Right Corner**:
+  - **Favorite Heart Button**: `w-7 h-7 rounded-full bg-black/60 backdrop-blur-md border border-white/10` with spring physics tap.
+  - **Real Metrics**: `[ 👍 {likes} ]` pill beside the heart button ONLY when real likes data exists from Instagram.
 
 ---
 

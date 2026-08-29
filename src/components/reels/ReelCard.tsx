@@ -195,23 +195,8 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
                 ) : null}
               </div>
 
-              {/* Right Action Group (Horizontal Side-by-Side Pill Controls) */}
-              <div className="flex items-center gap-1.5 pointer-events-auto">
-                {/* Favorite Button */}
-                <motion.button
-                  whileTap={{ scale: 1.2 }}
-                  onClick={handleFavoriteClick}
-                  className="w-7 h-7 rounded-full bg-black/60 backdrop-blur-md border border-white/10 flex items-center justify-center text-white/90 hover:text-rose-400 transition-colors cursor-pointer shadow-sm"
-                  title={reel.isFavorite ? "Remove from Favorites" : "Add to Favorites"}
-                >
-                  <Heart
-                    className={`w-3.5 h-3.5 transition-transform duration-150 ${
-                      reel.isFavorite ? "fill-rose-500 text-rose-500 scale-110" : ""
-                    }`}
-                  />
-                </motion.button>
-
-                {/* More Options Trigger */}
+              {/* Right Action: More Options Trigger */}
+              <div className="pointer-events-auto">
                 <button
                   onClick={(e) => {
                     e.preventDefault();
@@ -241,13 +226,29 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
               </div>
             </div>
 
-            {/* ─── 3. BOTTOM METRICS (Clean & Minimal) ────────────────────────── */}
-            {reel.likes && (
-              <div className="absolute bottom-2.5 right-2.5 z-10 flex items-center space-x-1 px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-md border border-white/10 text-white text-[10px] font-medium shadow-sm">
-                <ThumbsUp className="w-2.5 h-2.5 text-white/80" />
-                <span>{reel.likes.replace(/likes/i, "").trim()}</span>
-              </div>
-            )}
+            {/* ─── 3. BOTTOM CORNER CONTROLS (Heart Like & Real Metrics) ──────── */}
+            <div className="absolute bottom-2.5 right-2.5 z-20 flex items-center gap-1.5 pointer-events-auto">
+              {reel.likes && (
+                <div className="flex items-center space-x-1 px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-md border border-white/10 text-white text-[10px] font-medium shadow-sm">
+                  <ThumbsUp className="w-2.5 h-2.5 text-white/80" />
+                  <span>{reel.likes.replace(/likes/i, "").trim()}</span>
+                </div>
+              )}
+
+              {/* Bottom Corner Favorite Heart Button */}
+              <motion.button
+                whileTap={{ scale: 1.25 }}
+                onClick={handleFavoriteClick}
+                className="w-7 h-7 rounded-full bg-black/60 backdrop-blur-md border border-white/10 flex items-center justify-center text-white/90 hover:text-rose-400 transition-colors cursor-pointer shadow-sm"
+                title={reel.isFavorite ? "Remove from Favorites" : "Add to Favorites"}
+              >
+                <Heart
+                  className={`w-3.5 h-3.5 transition-transform duration-150 ${
+                    reel.isFavorite ? "fill-rose-500 text-rose-500 scale-110" : ""
+                  }`}
+                />
+              </motion.button>
+            </div>
 
             {/* Context Menu Dropdown */}
             <AnimatePresence>
