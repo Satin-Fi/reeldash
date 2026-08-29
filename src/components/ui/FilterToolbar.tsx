@@ -13,7 +13,6 @@ import {
   CircleDashed,
   ArrowUpDown,
   X,
-  Sparkles,
 } from "lucide-react";
 
 const mediaTabs: { id: MediaTypeFilter; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
@@ -43,15 +42,6 @@ export function FilterToolbar() {
     setViewMode,
   } = useReels();
 
-  // Counts by media type
-  const counts: Record<MediaTypeFilter, number> = {
-    all: reels.length,
-    reel: reels.filter((r) => !r.mediaType || r.mediaType === "reel").length,
-    post: reels.filter((r) => r.mediaType === "post").length,
-    audio: reels.filter((r) => r.mediaType === "audio").length,
-    story: reels.filter((r) => r.mediaType === "story").length,
-  };
-
   return (
     <div className="flex flex-col space-y-3 mb-5">
       {/* ─── 1. PRIMARY ACTION BAR (Segmented Media Tabs + Search + Controls) ─── */}
@@ -62,7 +52,6 @@ export function FilterToolbar() {
           {mediaTabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeMediaType === tab.id;
-            const count = counts[tab.id];
             
             return (
               <button
@@ -76,15 +65,6 @@ export function FilterToolbar() {
               >
                 <Icon className={`w-3.5 h-3.5 transition-colors ${isActive ? "text-white" : "text-zinc-400 group-hover:text-zinc-300"}`} />
                 <span>{tab.label}</span>
-                {count > 0 && (
-                  <span
-                    className={`ml-0.5 px-1.5 py-0.2 rounded-full text-[10px] font-mono tabular-nums ${
-                      isActive ? "bg-white/20 text-white" : "bg-white/[0.06] text-zinc-400"
-                    }`}
-                  >
-                    {count}
-                  </span>
-                )}
               </button>
             );
           })}
@@ -190,13 +170,6 @@ export function FilterToolbar() {
                 }`}
               >
                 <span>{cat.name}</span>
-                <span
-                  className={`px-1.5 py-0.2 text-[10px] rounded-full font-mono tabular-nums ${
-                    isCatActive ? "bg-white/20 text-white" : "bg-white/[0.06] text-zinc-500 group-hover:text-zinc-400"
-                  }`}
-                >
-                  {cat.count}
-                </span>
               </button>
             );
           })}
