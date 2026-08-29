@@ -5,7 +5,6 @@ import { useReels } from "@/context/ReelContext";
 import { useAuth } from "@/context/AuthContext";
 import {
   Search,
-  Plus,
   Sun,
   Moon,
   Settings,
@@ -19,14 +18,13 @@ import {
   Heart,
   Users,
   Compass,
-  Zap,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 export function TopBar() {
-  const { reels, favorites, setIsSaveModalOpen, setIsCommandPaletteOpen, theme, toggleTheme } = useReels();
+  const { reels, favorites, setIsCommandPaletteOpen, theme, toggleTheme } = useReels();
   const { user, logout } = useAuth();
   const [profileOpen, setProfileOpen] = useState(false);
   const [isMac, setIsMac] = useState(true);
@@ -129,36 +127,11 @@ export function TopBar() {
       </div>
 
       {/* ─── 3. RIGHT ZONE: Action Controls ───────────────────────── */}
-      <div className="flex items-center shrink-0">
-        {/* DM Sync (Secondary Status/Product Action with Live Radar Dot) */}
-        <Link
-          href="/integrations/instagram"
-          className="hidden md:inline-flex items-center gap-2 text-[13px] font-medium text-[#AEB2BF] hover:text-white transition-colors duration-150 mr-[20px] group"
-          title="Instagram Direct Message Ingest & Sync"
-        >
-          <MessageCircle className="w-[16px] h-[16px] text-[#AEB2BF] group-hover:text-white transition-colors" strokeWidth={1.8} />
-          <span>DM Sync</span>
-          <span className="relative flex h-1.5 w-1.5 shrink-0">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60"></span>
-            <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
-          </span>
-        </Link>
-
-        {/* Primary CTA: + Save Reel */}
-        <motion.button
-          whileHover={{ y: -1 }}
-          whileTap={{ scale: 0.98 }}
-          onClick={() => setIsSaveModalOpen(true)}
-          className="h-[38px] px-[15px] rounded-[9px] bg-[#5B52E8] hover:bg-[#665DF2] hover:shadow-[0_4px_14px_rgba(91,82,232,0.22)] text-[14px] font-semibold text-white flex items-center gap-1.5 transition-all duration-150 ease-out cursor-pointer mr-[16px] outline-none"
-        >
-          <Plus className="w-[16px] h-[16px]" strokeWidth={2.2} />
-          <span>Save Reel</span>
-        </motion.button>
-
+      <div className="flex items-center shrink-0 gap-2.5">
         {/* Theme Toggle (36px x 36px with Kinetic Spring Rotation) */}
         <button
           onClick={toggleTheme}
-          className="w-[36px] h-[36px] rounded-[8px] bg-transparent hover:bg-white/[0.06] flex items-center justify-center text-[#A8ACB8] hover:text-white transition-all duration-150 cursor-pointer mr-[10px] outline-none"
+          className="w-[36px] h-[36px] rounded-[8px] bg-transparent hover:bg-white/[0.06] flex items-center justify-center text-[#A8ACB8] hover:text-white transition-all duration-150 cursor-pointer outline-none"
           title="Toggle theme"
           aria-label="Toggle theme"
         >
