@@ -100,8 +100,10 @@ function AudioSongPlayer({ reel, coverImageSrc }: { reel: Reel; coverImageSrc: s
   const [hasAudioError, setHasAudioError] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  const shortcodeMatch = reel.instagramUrl.match(/(?:reel|reels|p|audio|stories)\/([A-Za-z0-9_-]+)/);
-  const shortcode = shortcodeMatch ? shortcodeMatch[1] : reel.id.replace(/^audio-/, "");
+  // /reels/audio/{numeric_id}/ — generic regex would capture the word "audio" as the shortcode
+  const audioIdMatch = reel.instagramUrl.match(/\/reels\/audio\/(\d+)/);
+  const shortcodeMatch = audioIdMatch || reel.instagramUrl.match(/\/(?:reel|p|stories)\/([A-Za-z0-9_-]+)/);
+  const shortcode = shortcodeMatch ? shortcodeMatch[1] : reel.id.replace(/^(audio|reel|post|story)-/, "");
 
   const trackTitle = reel.audioTitle || `Instagram Audio #${shortcode}`;
   const artistName = reel.audioArtist || `@${reel.creatorUsername} • Original Audio`;

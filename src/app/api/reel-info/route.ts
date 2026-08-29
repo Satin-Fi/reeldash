@@ -116,7 +116,10 @@ export async function POST(req: NextRequest) {
       duration = "0:30";
     }
 
-    const shortcodeMatch = cleanUrl.match(/(?:reel|reels|p|audio|stories)\/([A-Za-z0-9_-]+)/);
+    // For /reels/audio/{numeric_id}/ URLs the generic regex captures the word "audio" instead of the ID
+    // So we special-case it first
+    const audioIdMatch = cleanUrl.match(/\/reels\/audio\/(\d+)/);
+    const shortcodeMatch = audioIdMatch || cleanUrl.match(/\/(?:reel|p|stories)\/([A-Za-z0-9_-]+)/);
     const shortcode = shortcodeMatch ? shortcodeMatch[1] : `sc_${Date.now().toString(36)}`;
 
     let creatorUsername = "";

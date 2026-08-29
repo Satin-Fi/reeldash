@@ -90,7 +90,9 @@ export default function ReelDetailPage() {
 
   const handleDownload = () => {
     setDownloadState("processing");
-    const match = reel.instagramUrl.match(/(?:reel|reels|p|audio|stories)\/([A-Za-z0-9_-]+)/);
+    // /reels/audio/{numeric_id}/ — must extract the numeric ID, not the word "audio"
+    const audioIdMatch = reel.instagramUrl.match(/\/reels\/audio\/(\d+)/);
+    const match = audioIdMatch || reel.instagramUrl.match(/\/(?:reel|p|stories)\/([A-Za-z0-9_-]+)/);
     const shortcode = match ? match[1] : reel.id.replace(/^(reel|audio|post|story)-/, "");
     const ext = mediaType === "audio" ? "mp3" : mediaType === "post" ? "jpg" : "mp4";
     const downloadUrl = `/api/download?shortcode=${shortcode}&type=${mediaType === "audio" ? "audio" : mediaType === "post" ? "image" : "video"}&reelUrl=${encodeURIComponent(reel.instagramUrl)}`;
@@ -113,8 +115,10 @@ export default function ReelDetailPage() {
     showToast("Metadata refreshed from Instagram");
   };
 
-  const shortcodeMatch = reel.instagramUrl.match(/(?:reel|reels|p|audio|stories)\/([A-Za-z0-9_-]+)/);
-  const shortcode = shortcodeMatch ? shortcodeMatch[1] : reel.id.replace(/^(reel|audio|post|story)-/, "");
+  // /reels/audio/{numeric_id}/ — generic regex captures the word "audio", not the ID
+  const audioIdMatch = reel.instagramUrl.match(/\/reels\/audio\/(\d+)/);
+  const shortcodeRef = audioIdMatch || reel.instagramUrl.match(/\/(?:reel|p|stories)\/([A-Za-z0-9_-]+)/);
+  const shortcode = shortcodeRef ? shortcodeRef[1] : reel.id.replace(/^(reel|audio|post|story)-/, "");
   const creatorHandle = reel.creatorUsername || "creator";
 
   const formatCaption = (text: string) => {
