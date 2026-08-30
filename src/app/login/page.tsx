@@ -5,13 +5,9 @@ import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 import { SplineScene } from "@/components/ui/SplineScene";
 import {
-  Lock,
-  Mail,
   Eye,
   EyeOff,
   ChevronRight,
-  Shield,
-  Layers,
 } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -42,53 +38,37 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen bg-[#08090b] text-zinc-100 flex items-stretch font-sans selection:bg-white/20 selection:text-white">
       {/* ========================================================================= */}
-      {/* LEFT COLUMN: INTERACTIVE 3D SPLINE SCENE + MINIMALIST BRAND OVERLAY      */}
+      {/* LEFT COLUMN: PURE INTERACTIVE 3D SPLINE SCENE                             */}
       {/* ========================================================================= */}
       <div className="hidden lg:flex lg:w-1/2 relative flex-col justify-between p-12 border-r border-white/[0.06] bg-[#050608] overflow-hidden select-none">
-        {/* Top Branding */}
-        <div className="relative z-20 flex items-center justify-between">
-          <Link href="/" className="inline-flex items-center space-x-3 group">
-            <div className="w-8 h-8 rounded-xl bg-zinc-900 border border-white/15 flex items-center justify-center text-white shadow-lg transition-transform group-hover:scale-105 duration-200">
-              <span className="font-mono text-xs font-bold">⚡</span>
-            </div>
-            <span className="text-sm font-semibold tracking-tight text-white">ReelDash</span>
+        {/* Clean Logo Only */}
+        <div className="relative z-20 flex items-center">
+          <Link href="/" className="inline-flex items-center">
+            <span className="text-base font-semibold tracking-tight text-white hover:text-zinc-300 transition-colors">
+              ReelDash
+            </span>
           </Link>
-
-          <div className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full bg-white/[0.04] border border-white/[0.08] text-[11px] text-zinc-400">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="font-mono tracking-tight">Sync Engine Online</span>
-          </div>
         </div>
 
-        {/* Center: Full Interactive 3D Spline Scene */}
-        <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-auto">
+        {/* Center: Full Interactive 3D Spline Canvas */}
+        <div className="absolute inset-0 z-10 flex items-center justify-center">
           <SplineScene
             scene="https://prod.spline.design/kZDDjO5HuC9GJUM2/scene.splinecode"
-            className="w-full h-full bg-transparent"
+            className="w-full h-full"
           />
         </div>
 
-        {/* Ambient Subtle Grid & Vignette */}
+        {/* Vignette */}
         <div className="absolute inset-0 bg-gradient-to-t from-[#050608] via-transparent to-[#050608]/40 pointer-events-none z-15" />
 
-        {/* Bottom Statement */}
-        <div className="relative z-20 space-y-3 max-w-md">
-          <h2 className="text-2xl xl:text-3xl font-semibold tracking-tight text-zinc-100 leading-snug">
-            Welcome back to your curated gallery.
+        {/* Clean Bottom Text */}
+        <div className="relative z-20 space-y-2 max-w-md">
+          <h2 className="text-2xl xl:text-3xl font-semibold tracking-tight text-white leading-snug">
+            Welcome back to your workspace.
           </h2>
           <p className="text-xs text-zinc-400 leading-relaxed font-normal">
-            Access your organized Reels, sound design clips, and visual inspiration across all your devices.
+            Access your organized Instagram reels, audio clips, and collections.
           </p>
-          <div className="flex items-center space-x-6 pt-2 text-[11px] font-mono text-zinc-400">
-            <div className="flex items-center space-x-2">
-              <Shield className="w-3.5 h-3.5 text-zinc-400" />
-              <span>Encrypted Storage</span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Layers className="w-3.5 h-3.5 text-zinc-400" />
-              <span>Instant Playback</span>
-            </div>
-          </div>
         </div>
       </div>
 
@@ -97,18 +77,15 @@ export default function LoginPage() {
       {/* ========================================================================= */}
       <div className="w-full lg:w-1/2 flex items-center justify-center p-6 sm:p-12 relative z-20">
         <motion.div
-          initial={{ opacity: 0, y: 8 }}
+          initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3 }}
-          className="w-full max-w-[400px] space-y-8"
+          transition={{ duration: 0.2 }}
+          className="w-full max-w-[380px] space-y-8"
         >
           {/* Mobile Top Brand */}
           <div className="lg:hidden flex items-center justify-between pb-4 border-b border-white/[0.06]">
-            <Link href="/" className="inline-flex items-center space-x-2.5">
-              <div className="w-7 h-7 rounded-lg bg-zinc-900 border border-white/15 flex items-center justify-center text-white text-xs font-bold font-mono">
-                ⚡
-              </div>
-              <span className="text-sm font-semibold tracking-tight text-white">ReelDash</span>
+            <Link href="/" className="inline-flex items-center">
+              <span className="text-base font-semibold tracking-tight text-white">ReelDash</span>
             </Link>
           </div>
 
@@ -117,7 +94,7 @@ export default function LoginPage() {
               Sign in to your account
             </h1>
             <p className="text-xs text-zinc-400">
-              Enter your credentials or continue with Google to access your library.
+              Enter your credentials or continue with Google.
             </p>
           </div>
 

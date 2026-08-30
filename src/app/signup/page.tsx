@@ -7,20 +7,11 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/context/AuthContext";
 import { SplineScene } from "@/components/ui/SplineScene";
 import {
-  ArrowRight,
-  Lock,
-  Mail,
-  User,
-  Instagram,
-  CheckCircle2,
   Eye,
   EyeOff,
-  AtSign,
   Check,
   ChevronRight,
-  Shield,
-  Layers,
-  Sparkles,
+  CheckCircle2,
 } from "lucide-react";
 
 function SignupContent() {
@@ -87,7 +78,7 @@ function SignupContent() {
     setInstaConnected(true);
     setTimeout(() => {
       router.push("/dashboard");
-    }, 800);
+    }, 600);
   };
 
   const handleSkipInstagram = () => {
@@ -97,73 +88,54 @@ function SignupContent() {
   return (
     <div className="min-h-screen bg-[#08090b] text-zinc-100 flex items-stretch font-sans selection:bg-white/20 selection:text-white">
       {/* ========================================================================= */}
-      {/* LEFT COLUMN: INTERACTIVE 3D SPLINE SCENE + MINIMALIST HERO OVERLAY       */}
+      {/* LEFT COLUMN: PURE INTERACTIVE 3D SPLINE SCENE                             */}
       {/* ========================================================================= */}
       <div className="hidden lg:flex lg:w-1/2 relative flex-col justify-between p-12 border-r border-white/[0.06] bg-[#050608] overflow-hidden select-none">
-        {/* Top Branding & Pill */}
-        <div className="relative z-20 flex items-center justify-between">
-          <Link href="/" className="inline-flex items-center space-x-3 group">
-            <div className="w-8 h-8 rounded-xl bg-zinc-900 border border-white/15 flex items-center justify-center text-white shadow-lg transition-transform group-hover:scale-105 duration-200">
-              <span className="font-mono text-xs font-bold">⚡</span>
-            </div>
-            <span className="text-sm font-semibold tracking-tight text-white">ReelDash</span>
+        {/* Clean Logo Only */}
+        <div className="relative z-20 flex items-center">
+          <Link href="/" className="inline-flex items-center group">
+            <span className="text-base font-semibold tracking-tight text-white hover:text-zinc-300 transition-colors">
+              ReelDash
+            </span>
           </Link>
-
-          <div className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full bg-white/[0.04] border border-white/[0.08] text-[11px] text-zinc-400">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="font-mono tracking-tight">DM Sync 2.0 Live</span>
-          </div>
         </div>
 
-        {/* Center: Full Interactive 3D Spline Scene */}
-        <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-auto">
+        {/* Center: Full Interactive 3D Spline Canvas */}
+        <div className="absolute inset-0 z-10 flex items-center justify-center">
           <SplineScene
             scene="https://prod.spline.design/kZDDjO5HuC9GJUM2/scene.splinecode"
-            className="w-full h-full bg-transparent"
+            className="w-full h-full"
           />
         </div>
 
-        {/* Ambient Subtle Grid & Vignette */}
+        {/* Vignette */}
         <div className="absolute inset-0 bg-gradient-to-t from-[#050608] via-transparent to-[#050608]/40 pointer-events-none z-15" />
 
-        {/* Bottom Hero Statement */}
-        <div className="relative z-20 space-y-3 max-w-md">
-          <h2 className="text-2xl xl:text-3xl font-semibold tracking-tight text-zinc-100 leading-snug">
-            The private vault for Instagram visual inspiration.
+        {/* Clean Bottom Text */}
+        <div className="relative z-20 space-y-2 max-w-md">
+          <h2 className="text-2xl xl:text-3xl font-semibold tracking-tight text-white leading-snug">
+            The workspace for visual inspiration.
           </h2>
           <p className="text-xs text-zinc-400 leading-relaxed font-normal">
-            Forward any Reel, Post, or Audio on Instagram directly to your bot. Everything is saved, tagged, and indexed automatically in real-time.
+            Save and organize your Instagram references seamlessly.
           </p>
-          <div className="flex items-center space-x-6 pt-2 text-[11px] font-mono text-zinc-400">
-            <div className="flex items-center space-x-2">
-              <Shield className="w-3.5 h-3.5 text-zinc-400" />
-              <span>End-to-End Private</span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Layers className="w-3.5 h-3.5 text-zinc-400" />
-              <span>Lossless 4K Cache</span>
-            </div>
-          </div>
         </div>
       </div>
 
       {/* ========================================================================= */}
-      {/* RIGHT COLUMN: PRECISION ONBOARDING INTERFACE (STEP 1 & 2)                 */}
+      {/* RIGHT COLUMN: ONBOARDING INTERFACE (STEP 1 & 2)                          */}
       {/* ========================================================================= */}
       <div className="w-full lg:w-1/2 flex items-center justify-center p-6 sm:p-12 relative z-20">
-        <div className="w-full max-w-[400px] space-y-8">
-          {/* Mobile Top Brand Bar */}
+        <div className="w-full max-w-[380px] space-y-8">
+          {/* Mobile Top Brand */}
           <div className="lg:hidden flex items-center justify-between pb-4 border-b border-white/[0.06]">
-            <Link href="/" className="inline-flex items-center space-x-2.5">
-              <div className="w-7 h-7 rounded-lg bg-zinc-900 border border-white/15 flex items-center justify-center text-white text-xs font-bold font-mono">
-                ⚡
-              </div>
-              <span className="text-sm font-semibold tracking-tight text-white">ReelDash</span>
+            <Link href="/" className="inline-flex items-center">
+              <span className="text-base font-semibold tracking-tight text-white">ReelDash</span>
             </Link>
             <span className="text-[11px] font-mono text-zinc-500">Step {step} of 2</span>
           </div>
 
-          {/* Stepper Progress Header */}
+          {/* Stepper Progress */}
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
               <div
@@ -199,10 +171,10 @@ function SignupContent() {
               /* ------------------------------------------------------------- */
               <motion.div
                 key="step-1"
-                initial={{ opacity: 0, y: 8 }}
+                initial={{ opacity: 0, y: 6 }}
                 animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -8 }}
-                transition={{ duration: 0.25 }}
+                exit={{ opacity: 0, y: -6 }}
+                transition={{ duration: 0.2 }}
                 className="space-y-6"
               >
                 <div className="space-y-1.5">
@@ -260,32 +232,28 @@ function SignupContent() {
                     <label className="block text-[11px] font-medium text-zinc-400">
                       Full Name
                     </label>
-                    <div className="relative flex items-center">
-                      <input
-                        type="text"
-                        required
-                        placeholder="Alex Rivera"
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        className="w-full px-3.5 py-2.5 bg-[#111215] border border-white/[0.08] hover:border-white/[0.14] focus:border-white/30 rounded-xl text-xs sm:text-sm text-zinc-100 placeholder:text-zinc-600 outline-none transition-all duration-150"
-                      />
-                    </div>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Alex Rivera"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      className="w-full px-3.5 py-2.5 bg-[#111215] border border-white/[0.08] hover:border-white/[0.14] focus:border-white/30 rounded-xl text-xs sm:text-sm text-zinc-100 placeholder:text-zinc-600 outline-none transition-all duration-150"
+                    />
                   </div>
 
                   <div className="space-y-1">
                     <label className="block text-[11px] font-medium text-zinc-400">
                       Email Address
                     </label>
-                    <div className="relative flex items-center">
-                      <input
-                        type="email"
-                        required
-                        placeholder="alex@reeldash.app"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        className="w-full px-3.5 py-2.5 bg-[#111215] border border-white/[0.08] hover:border-white/[0.14] focus:border-white/30 rounded-xl text-xs sm:text-sm text-zinc-100 placeholder:text-zinc-600 outline-none transition-all duration-150"
-                      />
-                    </div>
+                    <input
+                      type="email"
+                      required
+                      placeholder="alex@reeldash.app"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="w-full px-3.5 py-2.5 bg-[#111215] border border-white/[0.08] hover:border-white/[0.14] focus:border-white/30 rounded-xl text-xs sm:text-sm text-zinc-100 placeholder:text-zinc-600 outline-none transition-all duration-150"
+                    />
                   </div>
 
                   <div className="space-y-1">
@@ -337,10 +305,10 @@ function SignupContent() {
               /* ------------------------------------------------------------- */
               <motion.div
                 key="step-2"
-                initial={{ opacity: 0, y: 8 }}
+                initial={{ opacity: 0, y: 6 }}
                 animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -8 }}
-                transition={{ duration: 0.25 }}
+                exit={{ opacity: 0, y: -6 }}
+                transition={{ duration: 0.2 }}
                 className="space-y-6"
               >
                 <div className="space-y-1.5">
@@ -373,7 +341,7 @@ function SignupContent() {
                     </p>
                   </div>
 
-                  {/* Suggestion Chips */}
+                  {/* Clean Suggestion Chips */}
                   <div className="space-y-1.5 pt-1">
                     <span className="text-[10px] font-mono text-zinc-600 uppercase tracking-wider">
                       Quick Suggestions:
