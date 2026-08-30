@@ -11,7 +11,8 @@ import {
   Moon,
   Sun,
   User,
-  Sparkles,
+  Heart,
+  Music2,
   Command,
   X,
   ArrowRight,
@@ -51,48 +52,48 @@ export function CommandPalette() {
 
   const actions = [
     {
-      title: "Save New Instagram Reel",
-      subtitle: "Paste any link to ingest directly",
-      icon: <Plus className="w-4 h-4 text-brand-500" />,
+      title: "Save Instagram Link",
+      subtitle: "Ingest any Reel, Post, Carousel, Audio, or Story",
+      icon: <Plus className="w-4 h-4 text-[#5B52E8]" />,
       run: () => {
         setOpen(false);
         setIsSaveModalOpen(true);
       },
     },
     {
-      title: "Search Creators & Content",
-      subtitle: "Browse public profiles & topics",
-      icon: <Search className="w-4 h-4 text-purple-400" />,
+      title: "Search Library & Creators",
+      subtitle: "Find saved reels, captions, notes, and profiles",
+      icon: <Search className="w-4 h-4 text-[#8E93A2]" />,
       run: () => {
         setOpen(false);
         router.push("/search");
       },
     },
     {
-      title: "View All Collections",
-      subtitle: "Organized workspaces & moodboards",
-      icon: <Folder className="w-4 h-4 text-amber-400" />,
+      title: "Collections",
+      subtitle: "Organized workspaces and reference sets",
+      icon: <Folder className="w-4 h-4 text-[#8E93A2]" />,
       run: () => {
         setOpen(false);
         router.push("/collections");
       },
     },
     {
-      title: "Explore Dr. Dhamija (@drdhamija)",
-      subtitle: "Verified creator profile & live reels",
-      icon: <User className="w-4 h-4 text-blue-400" />,
+      title: "Favorites",
+      subtitle: "Quickly access bookmarked items",
+      icon: <Heart className="w-4 h-4 text-[#8E93A2]" />,
       run: () => {
         setOpen(false);
-        router.push("/creator/drdhamija");
+        router.push("/favorites");
       },
     },
     {
-      title: "Explore Romana (@lifeof.romana)",
-      subtitle: "Verified creator profile & live reels",
-      icon: <User className="w-4 h-4 text-pink-400" />,
+      title: "Songs & Audio",
+      subtitle: "Browse saved Instagram audio tracks",
+      icon: <Music2 className="w-4 h-4 text-[#8E93A2]" />,
       run: () => {
         setOpen(false);
-        router.push("/creator/lifeof.romana");
+        router.push("/reels?type=audio");
       },
     },
   ];

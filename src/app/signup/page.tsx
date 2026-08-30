@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, Suspense } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
@@ -20,6 +20,12 @@ function SignupContent() {
   const initialStep = searchParams?.get("step") === "instagram" ? 2 : 1;
 
   const [step, setStep] = useState<1 | 2>(initialStep as 1 | 2);
+
+  useEffect(() => {
+    if (searchParams?.get("step") === "instagram") {
+      setStep(2);
+    }
+  }, [searchParams]);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
