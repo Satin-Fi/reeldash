@@ -42,43 +42,15 @@ export function Sidebar() {
   } = useReels();
   const { user, logout } = useAuth();
   const [isAccountDropdownOpen, setIsAccountDropdownOpen] = useState(false);
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
-
-  // Multi-tier avatar lookup for instant and robust display
-  const connectedAccountAvatar = user?.connectedAccounts?.find(
-    (a) => a.username?.toLowerCase() === selectedInstagramAccount?.toLowerCase()
-  )?.avatarUrl;
-
-  const libraryCreatorAvatar = reels.find(
-    (r) =>
-      (r.creatorUsername?.toLowerCase() === selectedInstagramAccount?.toLowerCase() ||
-        r.instagramUsername?.toLowerCase() === selectedInstagramAccount?.toLowerCase()) &&
-      Boolean(r.creatorAvatar)
-  )?.creatorAvatar;
-
-  // Fetch avatar URL if not found in local state
-  React.useEffect(() => {
-    if (!selectedInstagramAccount) {
-      setAvatarUrl(null);
-      return;
+  const getAccountAvatarSrc = (handle: string) => {
+    const acc = user?.connectedAccounts?.find(
+      (a) => a.username?.toLowerCase() === handle.toLowerCase()
+    );
+    if (acc?.avatarUrl && acc.avatarUrl.startsWith("http") && !acc.avatarUrl.includes("proxy-image")) {
+      return `/api/proxy-image?url=${encodeURIComponent(acc.avatarUrl)}`;
     }
-    if (connectedAccountAvatar || libraryCreatorAvatar) {
-      return;
-    }
-    fetch(`/api/instagram/avatar/${encodeURIComponent(selectedInstagramAccount)}`)
-      .then((r) => r.json())
-      .then((data) => {
-        if (data?.avatarUrl) setAvatarUrl(data.avatarUrl);
-      })
-      .catch(() => setAvatarUrl(null));
-  }, [selectedInstagramAccount, connectedAccountAvatar, libraryCreatorAvatar]);
-
-  const rawActiveAvatar = connectedAccountAvatar || libraryCreatorAvatar || avatarUrl;
-  const activeAvatarSrc = rawActiveAvatar
-    ? rawActiveAvatar.startsWith("http") && !rawActiveAvatar.includes("/api/proxy-image")
-      ? `/api/proxy-image?url=${encodeURIComponent(rawActiveAvatar)}`
-      : rawActiveAvatar
-    : null;
+    return `/api/proxy-image?username=${encodeURIComponent(handle)}`;
+  };
 
   const connectedAccounts = user?.connectedAccounts || [];
   const allHandles = Array.from(
@@ -186,19 +158,23 @@ export function Sidebar() {
               className="w-full flex items-center justify-between px-2.5 py-2 rounded-rd-md hover:bg-surfaceSecondary-light dark:hover:bg-white/[0.05] transition-colors cursor-pointer text-left focus:outline-none group"
             >
               <div className="flex items-center gap-2.5 min-w-0">
-                {selectedInstagramAccount && activeAvatarSrc ? (
+                {selectedInstagramAccount ? (
                   /* Profile picture for selected account */
-                  <div className="w-7 h-7 rounded-lg overflow-hidden shrink-0 bg-brand-500/15 flex items-center justify-center">
+                  <div className="w-7 h-7 rounded-lg overflow-hidden shrink-0 bg-brand-500/15 flex items-center justify-center relative">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
-                      src={activeAvatarSrc}
+                      src={getAccountAvatarSrc(selectedInstagramAccount)}
                       alt={selectedInstagramAccount}
-                      className="w-full h-full object-cover"
-                      onError={() => setAvatarUrl(null)}
+                      referrerPolicy="no-referrer"
+                      onError={(e) => {
+                        (e.target as HTMLElement).style.display = "none";
+                      }}
+                      className="w-full h-full object-cover z-10"
                     />
+                    <Instagram className="w-3.5 h-3.5 text-brand-600 dark:text-brand-400 absolute" />
                   </div>
                 ) : (
-                  /* Instagram icon for All Accounts or while loading / fallback */
+                  /* Instagram icon for All Accounts */
                   <div className="w-7 h-7 rounded-lg bg-brand-500/15 flex items-center justify-center shrink-0">
                     <Instagram className="w-3.5 h-3.5 text-brand-600 dark:text-brand-400" />
                   </div>
@@ -229,7 +205,12 @@ export function Sidebar() {
                       : "text-secondaryText-light dark:text-zinc-400 hover:bg-surfaceSecondary-light dark:hover:bg-white/[0.05] hover:text-primaryText-light dark:hover:text-zinc-200"
                   }`}
                 >
-                  <span>All Accounts</span>
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="w-4 h-4 rounded-full bg-brand-500/15 flex items-center justify-center shrink-0">
+                      <Instagram className="w-2.5 h-2.5 text-brand-500" />
+                    </div>
+                    <span>All Accounts</span>
+                  </div>
                   {!selectedInstagramAccount && <Check className="w-3 h-3 text-brand-500 shrink-0" />}
                 </button>
 
@@ -248,7 +229,24 @@ export function Sidebar() {
                           : "text-secondaryText-light dark:text-zinc-400 hover:bg-surfaceSecondary-light dark:hover:bg-white/[0.05] hover:text-primaryText-light dark:hover:text-zinc-200"
                       }`}
                     >
-                      <span className="truncate">@{handle}</span>
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className="w-4 h-4 rounded-full overflow-hidden bg-brand-500/15 flex items-center justify-center shrink-0 relative">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={getAccountAvatarSrc(handle)}
+                            alt={handle}
+                            referrerPolicy="no-referrer"
+                            onError={(e) => {
+                              (e.target as HTMLElement).style.display = "none";
+                            }}
+                            className="w-full h-full object-cover z-10"
+                          />
+                          <span className="text-[8px] uppercase font-mono absolute text-brand-500 font-bold">
+                            {handle.replace(/^_/, "").charAt(0) || handle.charAt(0)}
+                          </span>
+                        </div>
+                        <span className="truncate font-mono">@{handle}</span>
+                      </div>
                       {isSelected && <Check className="w-3 h-3 text-brand-500 shrink-0" />}
                     </button>
                   );
@@ -407,8 +405,20 @@ export function Sidebar() {
         {/* User Profile Bar */}
         <div className="flex items-center justify-between p-2 rounded-rd-md bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark border border-borderSubtle-light dark:border-borderSubtle-dark">
           <Link href="/settings" className="flex items-center space-x-2.5 min-w-0 flex-1 hover:opacity-80 transition-opacity">
-            <div className="w-7 h-7 rounded-full bg-brand-500/15 border border-brand-500/30 text-brand-600 dark:text-brand-400 font-bold text-xs flex items-center justify-center shrink-0">
-              {userInitial}
+            <div className="w-7 h-7 rounded-full overflow-hidden bg-brand-500/15 border border-brand-500/30 text-brand-600 dark:text-brand-400 font-bold text-xs flex items-center justify-center shrink-0 relative">
+              {user?.avatar || user?.instagramUsername ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={user.avatar || `/api/proxy-image?username=${encodeURIComponent(user.instagramUsername || "")}`}
+                  alt=""
+                  referrerPolicy="no-referrer"
+                  onError={(e) => {
+                    (e.target as HTMLElement).style.display = "none";
+                  }}
+                  className="w-full h-full object-cover z-10"
+                />
+              ) : null}
+              <span className="text-xs uppercase absolute">{userInitial}</span>
             </div>
             <div className="flex flex-col text-left min-w-0">
               <span className="text-xs font-semibold text-primaryText-light dark:text-primaryText-dark truncate">

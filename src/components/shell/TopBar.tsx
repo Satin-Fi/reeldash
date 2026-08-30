@@ -198,12 +198,24 @@ export function TopBar() {
             whileHover={{ scale: 1.03 }}
             whileTap={{ scale: 0.97 }}
             onClick={() => setProfileOpen((v) => !v)}
-            className="w-[34px] h-[34px] rounded-full aspect-square bg-gradient-to-tr from-[#5B52E8] to-[#7B73F6] border border-white/10 flex items-center justify-center text-[13px] font-semibold text-white cursor-pointer select-none outline-none shadow-sm"
+            className="w-[34px] h-[34px] rounded-full aspect-square overflow-hidden bg-gradient-to-tr from-[#5B52E8] to-[#7B73F6] border border-white/10 flex items-center justify-center text-[13px] font-semibold text-white cursor-pointer select-none outline-none shadow-sm relative"
             aria-expanded={profileOpen}
             aria-haspopup="menu"
             aria-label="User profile menu"
           >
-            {userInitial}
+            {user?.avatar || user?.instagramUsername ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={user.avatar || `/api/proxy-image?username=${encodeURIComponent(user.instagramUsername || "")}`}
+                alt=""
+                referrerPolicy="no-referrer"
+                onError={(e) => {
+                  (e.target as HTMLElement).style.display = "none";
+                }}
+                className="w-full h-full object-cover z-10"
+              />
+            ) : null}
+            <span className="absolute">{userInitial}</span>
           </motion.button>
 
           {/* Profile Dropdown Menu */}
