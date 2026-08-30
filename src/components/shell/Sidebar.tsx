@@ -131,12 +131,7 @@ export function Sidebar() {
       <div className="space-y-4 flex-1 overflow-y-auto pr-1">
         {/* Brand Logo Header */}
         <div className="flex items-center justify-between px-2 pt-1">
-          <Link href="/dashboard" className="flex items-center space-x-2">
-            <ReelDashLogo size={24} />
-            <span className="font-bold text-base tracking-tight text-primaryText-light dark:text-primaryText-dark">
-              ReelDash
-            </span>
-          </Link>
+          <ReelDashLogo href="/dashboard" size={26} textSize="text-[19px]" />
           <Link
             href="/pricing"
             className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-brand-500/10 hover:bg-brand-500/20 text-brand-600 dark:text-brand-400 font-semibold text-[10px] transition-colors"
@@ -166,7 +161,7 @@ export function Sidebar() {
                       className="w-full h-full object-cover"
                     />
                   ) : (
-                    <Sparkles className="w-3.5 h-3.5 text-brand-500" />
+                    <Layers className="w-3.5 h-3.5 text-brand-500" />
                   )}
                 </div>
                 <div className="min-w-0 flex-1">

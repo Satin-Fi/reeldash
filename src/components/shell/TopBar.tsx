@@ -218,19 +218,19 @@ export function TopBar() {
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.96, y: 4 }}
                 transition={{ duration: 0.12, ease: "easeOut" }}
-                className="absolute right-0 mt-2 w-56 bg-[#111419] border border-white/[0.08] rounded-[10px] shadow-2xl shadow-black/80 p-1.5 z-50 text-xs text-[#E7E8EC] space-y-0.5"
+                className="absolute right-0 mt-2 w-56 bg-surface-light dark:bg-[#111419] border border-borderSubtle-light dark:border-white/[0.08] rounded-[10px] shadow-2xl p-1.5 z-50 text-xs text-primaryText-light dark:text-[#E7E8EC] space-y-0.5"
                 role="menu"
                 aria-orientation="vertical"
               >
                 {/* User Header */}
-                <div className="px-3 py-2 rounded-[8px] bg-white/[0.03] border border-white/[0.04] mb-1">
+                <div className="px-3 py-2 rounded-[8px] bg-surfaceSecondary-light dark:bg-white/[0.03] border border-borderSubtle-light dark:border-white/[0.04] mb-1">
                   <div className="flex items-center justify-between">
-                    <p className="font-semibold text-white truncate">{user?.name || "User"}</p>
-                    <span className="px-1.5 py-0.5 text-[9px] font-semibold rounded bg-[#5B52E8]/20 text-[#8E87F6] border border-[#5B52E8]/30">
+                    <p className="font-semibold text-primaryText-light dark:text-white truncate">{user?.name || "User"}</p>
+                    <span className="px-1.5 py-0.5 text-[9px] font-semibold rounded bg-brand-500/20 text-brand-600 dark:text-brand-400 border border-brand-500/30">
                       Pro
                     </span>
                   </div>
-                  <p className="text-[11px] text-[#747987] truncate mt-0.5">
+                  <p className="text-[11px] text-secondaryText-light dark:text-[#747987] truncate mt-0.5">
                     {user?.email || "user@reeldash.app"}
                   </p>
                 </div>
@@ -239,9 +239,9 @@ export function TopBar() {
                   href="/settings"
                   role="menuitem"
                   onClick={() => setProfileOpen(false)}
-                  className="flex items-center gap-2.5 px-2.5 py-2 rounded-[6px] hover:bg-white/[0.06] text-[#AEB2BF] hover:text-white transition-colors"
+                  className="flex items-center gap-2.5 px-2.5 py-2 rounded-[6px] hover:bg-surfaceSecondary-light dark:hover:bg-white/[0.06] text-secondaryText-light dark:text-[#AEB2BF] hover:text-primaryText-light dark:hover:text-white transition-colors"
                 >
-                  <Settings className="w-3.5 h-3.5 text-[#777C89]" />
+                  <Settings className="w-3.5 h-3.5 text-secondaryText-light dark:text-[#777C89]" />
                   <span>Account Settings</span>
                 </Link>
 
@@ -249,9 +249,9 @@ export function TopBar() {
                   href="/integrations/instagram"
                   role="menuitem"
                   onClick={() => setProfileOpen(false)}
-                  className="flex items-center gap-2.5 px-2.5 py-2 rounded-[6px] hover:bg-white/[0.06] text-[#AEB2BF] hover:text-white transition-colors"
+                  className="flex items-center gap-2.5 px-2.5 py-2 rounded-[6px] hover:bg-surfaceSecondary-light dark:hover:bg-white/[0.06] text-secondaryText-light dark:text-[#AEB2BF] hover:text-primaryText-light dark:hover:text-white transition-colors"
                 >
-                  <MessageCircle className="w-3.5 h-3.5 text-[#777C89]" />
+                  <MessageCircle className="w-3.5 h-3.5 text-secondaryText-light dark:text-[#777C89]" />
                   <span>Instagram DM Setup</span>
                 </Link>
 
@@ -261,13 +261,13 @@ export function TopBar() {
                     setProfileOpen(false);
                     setIsCommandPaletteOpen(true);
                   }}
-                  className="w-full flex items-center justify-between px-2.5 py-2 rounded-[6px] hover:bg-white/[0.06] text-[#AEB2BF] hover:text-white transition-colors text-left cursor-pointer"
+                  className="w-full flex items-center justify-between px-2.5 py-2 rounded-[6px] hover:bg-surfaceSecondary-light dark:hover:bg-white/[0.06] text-secondaryText-light dark:text-[#AEB2BF] hover:text-primaryText-light dark:hover:text-white transition-colors text-left cursor-pointer"
                 >
                   <div className="flex items-center gap-2.5">
-                    <Command className="w-3.5 h-3.5 text-[#777C89]" />
+                    <Command className="w-3.5 h-3.5 text-secondaryText-light dark:text-[#777C89]" />
                     <span>Command Menu</span>
                   </div>
-                  <kbd className="text-[10px] text-[#777C89] font-mono">{isMac ? "⌘K" : "Ctrl+K"}</kbd>
+                  <kbd className="text-[10px] text-secondaryText-light dark:text-[#777C89] font-mono">{isMac ? "⌘K" : "Ctrl+K"}</kbd>
                 </button>
 
                 <a
@@ -275,16 +275,16 @@ export function TopBar() {
                   target="_blank"
                   rel="noreferrer"
                   role="menuitem"
-                  className="flex items-center justify-between px-2.5 py-2 rounded-[6px] hover:bg-white/[0.06] text-[#AEB2BF] hover:text-white transition-colors"
+                  className="flex items-center justify-between px-2.5 py-2 rounded-[6px] hover:bg-surfaceSecondary-light dark:hover:bg-white/[0.06] text-secondaryText-light dark:text-[#AEB2BF] hover:text-primaryText-light dark:hover:text-white transition-colors"
                 >
                   <div className="flex items-center gap-2.5">
-                    <HelpCircle className="w-3.5 h-3.5 text-[#777C89]" />
+                    <HelpCircle className="w-3.5 h-3.5 text-secondaryText-light dark:text-[#777C89]" />
                     <span>Documentation</span>
                   </div>
-                  <ExternalLink className="w-3 h-3 text-[#777C89]" />
+                  <ExternalLink className="w-3 h-3 text-secondaryText-light dark:text-[#777C89]" />
                 </a>
 
-                <div className="border-t border-white/[0.06] my-1" />
+                <div className="border-t border-borderSubtle-light dark:border-white/[0.06] my-1" />
 
                 <button
                   role="menuitem"
@@ -292,7 +292,7 @@ export function TopBar() {
                     setProfileOpen(false);
                     logout();
                   }}
-                  className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-[6px] hover:bg-rose-500/10 text-rose-400 font-medium transition-colors cursor-pointer text-left"
+                  className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-[6px] hover:bg-rose-500/10 text-rose-500 font-medium transition-colors cursor-pointer text-left"
                 >
                   <LogOut className="w-3.5 h-3.5" />
                   <span>Log Out</span>
