@@ -74,7 +74,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       const {
         data: { subscription },
-      } = supabase.auth.onAuthStateChange((_event, session) => {
+      } = supabase.auth.onAuthStateChange((event, session) => {
         if (session?.user) {
           const meta = session.user.user_metadata || {};
           const email = session.user.email || "user@gmail.com";
@@ -91,6 +91,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           };
           setUser(googleUser);
           localStorage.setItem("reeldash_user", JSON.stringify(googleUser));
+
+          if (
+            event === "SIGNED_IN" ||
+            window.location.pathname === "/login" ||
+            window.location.pathname === "/signup"
+          ) {
+            router.push("/dashboard");
+          }
         }
       });
 
