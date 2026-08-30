@@ -251,19 +251,22 @@ export function TopBar() {
                   <span>Plans & Pricing</span>
                 </Link>
 
-                <a
-                  href="https://github.com/Satin-Fi/reeldash"
-                  target="_blank"
-                  rel="noreferrer"
+                <button
                   role="menuitem"
-                  className="flex items-center justify-between px-2.5 py-2 rounded-[6px] hover:bg-surfaceSecondary-light dark:hover:bg-white/[0.06] text-secondaryText-light dark:text-[#AEB2BF] hover:text-primaryText-light dark:hover:text-white transition-colors"
+                  onClick={() => {
+                    setProfileOpen(false);
+                    setIsCommandPaletteOpen(true);
+                  }}
+                  className="w-full flex items-center justify-between px-2.5 py-2 rounded-[6px] hover:bg-surfaceSecondary-light dark:hover:bg-white/[0.06] text-secondaryText-light dark:text-[#AEB2BF] hover:text-primaryText-light dark:hover:text-white transition-colors cursor-pointer text-left"
                 >
                   <div className="flex items-center gap-2.5">
-                    <HelpCircle className="w-3.5 h-3.5 text-secondaryText-light dark:text-[#777C89]" />
-                    <span>Documentation</span>
+                    <Command className="w-3.5 h-3.5 text-secondaryText-light dark:text-[#777C89]" />
+                    <span>Command Menu</span>
                   </div>
-                  <ExternalLink className="w-3 h-3 text-secondaryText-light dark:text-[#777C89]" />
-                </a>
+                  <span className="font-mono text-[10px] text-secondaryText-light dark:text-[#777C89] px-1 py-0.5 rounded bg-surfaceSecondary-light dark:bg-white/[0.06]">
+                    {isMac ? "⌘K" : "Ctrl K"}
+                  </span>
+                </button>
 
                 <div className="border-t border-borderSubtle-light dark:border-white/[0.06] my-1" />
 
