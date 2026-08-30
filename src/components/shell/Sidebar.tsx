@@ -263,7 +263,7 @@ export function Sidebar() {
 
         {/* Collections Section */}
         <div className="space-y-2 pt-2 border-t border-borderSubtle-light dark:border-borderSubtle-dark">
-          <div className="flex items-center justify-between px-2 text-[11px] font-semibold text-secondaryText-light dark:text-secondaryText-dark uppercase tracking-wider">
+          <div className="flex items-center justify-between px-2 text-xs font-medium text-secondaryText-light dark:text-secondaryText-dark">
             <span>Collections</span>
             <button
               onClick={() => setIsCreateCollectionModalOpen(true)}
@@ -308,7 +308,7 @@ export function Sidebar() {
         {/* Smart Categories */}
         {smartCategories.length > 0 && (
           <div className="space-y-2 pt-2 border-t border-borderSubtle-light dark:border-borderSubtle-dark">
-            <div className="px-2 text-[11px] font-semibold text-secondaryText-light dark:text-secondaryText-dark uppercase tracking-wider">
+            <div className="px-2 text-xs font-medium text-secondaryText-light dark:text-secondaryText-dark">
               <span>Categories</span>
             </div>
 
