@@ -139,7 +139,7 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
         /* Standard 9:16 Grid Card View */
         <div
           onClick={handleCardClick}
-          className="reel-card group relative flex flex-col bg-surface-light dark:bg-[#111419] border border-borderSubtle-light dark:border-white/[0.07] hover:border-brand-500/20 dark:hover:border-brand-500/25 rounded-[12px] overflow-hidden shadow-rd-card hover:-translate-y-0.5 transition-all duration-300 ease-premium cursor-pointer select-none active:scale-[0.98]"
+          className="reel-card group relative flex flex-col bg-surface-light dark:bg-[#111419] border border-borderSubtle-light dark:border-white/[0.07] hover:border-brand-500/20 dark:hover:border-brand-500/25 rounded-[10px] sm:rounded-[12px] overflow-hidden shadow-rd-card hover:-translate-y-0.5 transition-all duration-300 ease-premium cursor-pointer select-none active:scale-[0.98]"
         >
           {/* 9:16 Clean Image Thumbnail Container */}
           <div className="relative aspect-reel w-full overflow-hidden bg-surfaceSecondary-light dark:bg-[#0D0F12]">
@@ -155,17 +155,17 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-black/25 opacity-50 group-hover:opacity-75 transition-opacity" />
 
             {/* ─── 1. TOP HEADER (Systematic & Balanced) ───────────────────────── */}
-            <div className="absolute top-2.5 left-2.5 right-2.5 flex items-center justify-between z-20 pointer-events-none">
+            <div className="absolute top-1.5 sm:top-2.5 left-1.5 sm:left-2.5 right-1.5 sm:right-2.5 flex items-center justify-between z-20 pointer-events-none">
               {/* Left Context Pill (Only for Multi-Image Carousel > 1 or Audio) */}
               <div>
                 {isMultiCarousel && carouselCount && carouselCount > 1 ? (
-                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-md text-[11px] font-semibold text-white shadow-sm border border-white/10">
-                    <Images className="w-3 h-3 text-white/90" />
+                  <span className="inline-flex items-center gap-1 sm:gap-1.5 px-1.5 sm:px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-md text-[9px] sm:text-[11px] font-semibold text-white shadow-sm border border-white/10">
+                    <Images className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-white/90" />
                     <span className="tabular-nums">{carouselCount}</span>
                   </span>
                 ) : mediaType === "audio" ? (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-md text-[11px] font-semibold text-white shadow-sm border border-white/10">
-                    <Music2 className="w-3 h-3 text-white/90" />
+                  <span className="inline-flex items-center gap-1 px-1.5 sm:px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-md text-[9px] sm:text-[11px] font-semibold text-white shadow-sm border border-white/10">
+                    <Music2 className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-white/90" />
                   </span>
                 ) : null}
               </div>
@@ -178,17 +178,17 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
                     e.stopPropagation();
                     setIsMenuOpen(!isMenuOpen);
                   }}
-                  className="w-7 h-7 rounded-full bg-black/60 backdrop-blur-md border border-white/10 flex items-center justify-center text-white/90 hover:text-white transition-colors cursor-pointer shadow-sm opacity-0 group-hover:opacity-100"
+                  className="w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-black/60 backdrop-blur-md border border-white/10 flex items-center justify-center text-white/90 hover:text-white transition-colors cursor-pointer shadow-sm opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
                   title="Options"
                 >
-                  <MoreVertical className="w-3.5 h-3.5" />
+                  <MoreVertical className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                 </button>
               </div>
             </div>
 
-            {/* ─── 2. CENTER ACTION DISK (Contextual Hover Action) ──────── */}
-            <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none opacity-0 group-hover:opacity-100 transition-all duration-200">
-              <div className="w-12 h-12 rounded-full bg-black/60 backdrop-blur-md border border-white/20 text-white flex items-center justify-center shadow-xl transform scale-90 group-hover:scale-100 transition-transform duration-200">
+            {/* ─── 2. CENTER ACTION DISK (Desktop Hover Action) ──────── */}
+            <div className="hidden sm:flex absolute inset-0 items-center justify-center z-10 pointer-events-none opacity-0 group-hover:opacity-100 transition-all duration-200">
+              <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-black/60 backdrop-blur-md border border-white/20 text-white flex items-center justify-center shadow-xl transform scale-90 group-hover:scale-100 transition-transform duration-200">
                 {mediaType === "audio" ? (
                   <Music2 className="w-5 h-5 text-white" />
                 ) : isMultiCarousel ? (
@@ -202,15 +202,15 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
             </div>
 
             {/* ─── 3. BOTTOM CORNER CONTROLS (Heart Like) ──────── */}
-            <div className="absolute bottom-2.5 right-2.5 z-20 flex items-center gap-1.5 pointer-events-auto">
+            <div className="absolute bottom-1.5 sm:bottom-2.5 right-1.5 sm:right-2.5 z-20 flex items-center gap-1.5 pointer-events-auto">
               <motion.button
                 whileTap={{ scale: 1.25 }}
                 onClick={handleFavoriteClick}
-                className="w-7 h-7 rounded-full bg-black/60 backdrop-blur-md border border-white/10 flex items-center justify-center text-white/90 hover:text-rose-400 transition-colors cursor-pointer shadow-sm"
+                className="w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-black/60 backdrop-blur-md border border-white/10 flex items-center justify-center text-white/90 hover:text-rose-400 transition-colors cursor-pointer shadow-sm"
                 title={reel.isFavorite ? "Remove from Favorites" : "Add to Favorites"}
               >
                 <Heart
-                  className={`w-3.5 h-3.5 transition-transform duration-150 ${
+                  className={`w-3 h-3 sm:w-3.5 sm:h-3.5 transition-transform duration-150 ${
                     reel.isFavorite ? "fill-rose-500 text-rose-500 scale-110" : ""
                   }`}
                 />
@@ -225,11 +225,11 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.95, y: -5 }}
                   onClick={(e) => e.stopPropagation()}
-                  className="absolute top-11 right-2.5 z-30 w-48 bg-surface-light dark:bg-[#161920] border border-borderSubtle-light dark:border-white/[0.08] rounded-[10px] shadow-2xl p-1 text-xs text-primaryText-light dark:text-[#E7E8EC] space-y-0.5"
+                  className="absolute top-9 sm:top-11 right-1.5 sm:right-2.5 z-30 w-44 sm:w-48 bg-surface-light dark:bg-[#161920] border border-borderSubtle-light dark:border-white/[0.08] rounded-[10px] shadow-2xl p-1 text-xs text-primaryText-light dark:text-[#E7E8EC] space-y-0.5"
                 >
                   <Link
                     href={`/reel/${reel.id}`}
-                    className="flex items-center space-x-2 px-2.5 py-2 rounded-[6px] hover:bg-surfaceSecondary-light dark:hover:bg-white/[0.06] text-secondaryText-light dark:text-[#AEB2BF] hover:text-primaryText-light dark:hover:text-white transition-colors"
+                    className="flex items-center space-x-2 px-2.5 py-1.5 sm:py-2 rounded-[6px] hover:bg-surfaceSecondary-light dark:hover:bg-white/[0.06] text-secondaryText-light dark:text-[#AEB2BF] hover:text-primaryText-light dark:hover:text-white transition-colors text-[11px] sm:text-xs"
                   >
                     <FileText className="w-3.5 h-3.5 text-secondaryText-light dark:text-[#777C89]" />
                     <span>Open Detail Page</span>
@@ -238,7 +238,7 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
                     href={reel.instagramUrl}
                     target="_blank"
                     rel="noreferrer"
-                    className="flex items-center space-x-2 px-2.5 py-2 rounded-[6px] hover:bg-surfaceSecondary-light dark:hover:bg-white/[0.06] text-secondaryText-light dark:text-[#AEB2BF] hover:text-primaryText-light dark:hover:text-white transition-colors"
+                    className="flex items-center space-x-2 px-2.5 py-1.5 sm:py-2 rounded-[6px] hover:bg-surfaceSecondary-light dark:hover:bg-white/[0.06] text-secondaryText-light dark:text-[#AEB2BF] hover:text-primaryText-light dark:hover:text-white transition-colors text-[11px] sm:text-xs"
                   >
                     <ExternalLink className="w-3.5 h-3.5 text-secondaryText-light dark:text-[#777C89]" />
                     <span>Open on Instagram</span>
@@ -248,7 +248,7 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
                       e.stopPropagation();
                       setIsCollectionPickerOpen(!isCollectionPickerOpen);
                     }}
-                    className="w-full flex items-center justify-between px-2.5 py-2 rounded-[6px] hover:bg-surfaceSecondary-light dark:hover:bg-white/[0.06] text-secondaryText-light dark:text-[#AEB2BF] hover:text-primaryText-light dark:hover:text-white transition-colors text-left cursor-pointer"
+                    className="w-full flex items-center justify-between px-2.5 py-1.5 sm:py-2 rounded-[6px] hover:bg-surfaceSecondary-light dark:hover:bg-white/[0.06] text-secondaryText-light dark:text-[#AEB2BF] hover:text-primaryText-light dark:hover:text-white transition-colors text-left cursor-pointer text-[11px] sm:text-xs"
                   >
                     <span className="flex items-center space-x-2">
                       <FolderPlus className="w-3.5 h-3.5 text-secondaryText-light dark:text-[#777C89]" />
@@ -277,7 +277,7 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
 
                   <button
                     onClick={handleCopyLink}
-                    className="w-full flex items-center space-x-2 px-2.5 py-2 rounded-[6px] hover:bg-surfaceSecondary-light dark:hover:bg-white/[0.06] text-secondaryText-light dark:text-[#AEB2BF] hover:text-primaryText-light dark:hover:text-white transition-colors text-left cursor-pointer"
+                    className="w-full flex items-center space-x-2 px-2.5 py-1.5 sm:py-2 rounded-[6px] hover:bg-surfaceSecondary-light dark:hover:bg-white/[0.06] text-secondaryText-light dark:text-[#AEB2BF] hover:text-primaryText-light dark:hover:text-white transition-colors text-left cursor-pointer text-[11px] sm:text-xs"
                   >
                     <Copy className="w-3.5 h-3.5 text-secondaryText-light dark:text-[#777C89]" />
                     <span>Copy Link</span>
@@ -290,7 +290,7 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
                       e.stopPropagation();
                       deleteReel(reel.id);
                     }}
-                    className="w-full flex items-center space-x-2 px-2.5 py-2 rounded-[6px] hover:bg-rose-500/10 text-rose-500 transition-colors text-left cursor-pointer font-medium"
+                    className="w-full flex items-center space-x-2 px-2.5 py-1.5 sm:py-2 rounded-[6px] hover:bg-rose-500/10 text-rose-500 transition-colors text-left cursor-pointer font-medium text-[11px] sm:text-xs"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                     <span>Remove from Library</span>
@@ -301,23 +301,23 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
           </div>
 
           {/* Footer Metadata Info Area */}
-          <div className="p-3 flex flex-col justify-between flex-1 bg-surface-light dark:bg-[#111419] border-t border-borderSubtle-light dark:border-white/[0.05]">
+          <div className="p-2 sm:p-3 flex flex-col justify-between flex-1 bg-surface-light dark:bg-[#111419] border-t border-borderSubtle-light dark:border-white/[0.05]">
             <div>
-              <div className="flex items-center justify-between text-xs mb-1">
-                <span className="font-semibold text-primaryText-light dark:text-white hover:text-brand-600 dark:hover:text-brand-400 transition-colors truncate">
+              <div className="flex items-center justify-between text-xs mb-0.5 sm:mb-1">
+                <span className="font-semibold text-[11px] sm:text-xs text-primaryText-light dark:text-white hover:text-brand-600 dark:hover:text-brand-400 transition-colors truncate max-w-[70%]">
                   {creatorName}
                 </span>
-                <span className="text-[11px] text-mutedText-light dark:text-[#747987] shrink-0 font-normal">
+                <span className="text-[10px] sm:text-[11px] text-mutedText-light dark:text-[#747987] shrink-0 font-normal">
                   {formattedDate}
                 </span>
               </div>
-              <p className="text-xs text-secondaryText-light dark:text-[#9AA0AC] line-clamp-2 leading-relaxed font-normal">
+              <p className="text-[11px] sm:text-xs text-secondaryText-light dark:text-[#9AA0AC] line-clamp-1 sm:line-clamp-2 leading-tight sm:leading-relaxed font-normal">
                 {displayCaption}
               </p>
             </div>
 
             {displayCategories && displayCategories.length > 0 && (
-              <div className="flex flex-wrap gap-1 mt-2.5">
+              <div className="hidden sm:flex flex-wrap gap-1 mt-2.5">
                 {displayCategories.slice(0, 2).map((cat) => (
                   <span
                     key={cat}
