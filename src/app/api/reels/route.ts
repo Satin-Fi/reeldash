@@ -7,10 +7,7 @@ export const dynamic = "force-dynamic";
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const userId = searchParams.get("userId");
-
-  if (!userId) {
-    return NextResponse.json({ error: "Missing userId parameter" }, { status: 400 });
-  }
+  const username = searchParams.get("username");
 
   try {
     const supabase = getSupabaseAdmin();
@@ -18,11 +15,36 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ reels: [], fallback: true, message: "Supabase not configured" });
     }
 
-    const { data: reels, error } = await supabase
-      .from("reels")
-      .select("*")
-      .eq("user_id", userId)
-      .order("created_at", { ascending: false });
+    const userIds: string[] = [];
+    if (userId) userIds.push(userId);
+
+    // If username is provided, find linked IG profile ID
+    if (username) {
+      const cleanUsername = username.replace(/^@/, "").trim().toLowerCase();
+      const { data: matchedProfiles } = await supabase
+        .from("profiles")
+        .select("id")
+        .ilike("username", cleanUsername);
+      if (matchedProfiles) {
+        matchedProfiles.forEach((p) => {
+          if (p.id && !userIds.includes(p.id)) userIds.push(p.id);
+        });
+      }
+    }
+
+    // Auto-include all ig_usr_ profiles associated with single user / workspace
+    const { data: allProfiles } = await supabase.from("profiles").select("id").limit(10);
+    if (allProfiles) {
+      allProfiles.forEach((p) => {
+        if (p.id && !userIds.includes(p.id)) userIds.push(p.id);
+      });
+    }
+
+    let query = supabase.from("reels").select("*");
+    if (userIds.length > 0) {
+      query = query.in("user_id", userIds);
+    }
+    const { data: reels, error } = await query.order("created_at", { ascending: false });
 
     if (error) {
       return NextResponse.json({ reels: [], fallback: true, message: error.message });

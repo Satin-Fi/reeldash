@@ -115,25 +115,44 @@ export async function processInstagramMessage(
         reelData = {
           shortcode,
           url: mediaUrl,
-          thumbnail_url: `https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600&auto=format&fit=crop&q=80`,
+          thumbnailUrl: `/api/proxy-image?shortcode=${shortcode}`,
           video_url: mediaUrl,
           caption: `Instagram ${isAudio ? "Audio" : "Reel"} shared via Direct Message`,
-          creator_handle: `ig_user_${senderIgId.slice(-4)}`,
+          creatorUsername: "creator",
           creator_name: "Instagram Creator",
-          creator_avatar: `/api/proxy-image?username=instagram`,
-          media_type: isAudio ? "audio" : "reel",
+          creatorAvatar: `/api/proxy-image?username=instagram`,
+          mediaType: isAudio ? "audio" : "reel",
           duration: isAudio ? "0:30" : "0:15",
           category: isAudio ? "Music" : "General",
-          tags: ["instagram-dm", isAudio ? "audio" : "reel", "auto-save"],
+          hashtags: ["instagram-dm", isAudio ? "audio" : "reel", "auto-save"],
         };
       }
 
+      const formattedReel = {
+        shortcode: reelData.shortcode,
+        url: reelData.url || mediaUrl,
+        thumbnail_url: reelData.thumbnailUrl || reelData.thumbnail_url || `/api/proxy-image?shortcode=${reelData.shortcode}`,
+        video_url: reelData.mediaUrl || reelData.video_url || mediaUrl,
+        caption: reelData.caption || "Saved Instagram Reel",
+        creator_handle: reelData.creatorUsername || reelData.creator_handle || "creator",
+        creator_name: reelData.creatorFullName || reelData.creator_name || "Instagram Creator",
+        creator_avatar: reelData.creatorAvatar || reelData.creator_avatar || `/api/proxy-image?username=${encodeURIComponent(reelData.creatorUsername || "creator")}`,
+        media_type: reelData.mediaType || reelData.media_type || "reel",
+        duration: reelData.duration || "0:15",
+        category: reelData.category || "General",
+        tags: reelData.hashtags || reelData.tags || ["instagram-dm", "auto-save"],
+      };
+
       // Save Reel to user's collection
-      const savedReel = await saveReelForUser(userProfile.id, reelData);
+      const savedReel = await saveReelForUser(userProfile.id, formattedReel);
       userProfile.savedReelsCount += 1;
       userProfile.lastActiveAt = new Date().toISOString();
 
-      const successReply = `⚡ Saved to your ReelDash Library!\n\n🎬 ${reelData.creator_handle ? "@" + reelData.creator_handle + "'s Reel" : "Reel"}\n📁 Category: ${reelData.category || "General"}`;
+      const creatorText = formattedReel.creator_handle && !formattedReel.creator_handle.startsWith("ig_user_") && formattedReel.creator_handle !== "creator"
+        ? `@${formattedReel.creator_handle}'s Reel`
+        : "Reel";
+
+      const successReply = `⚡ Saved to your ReelDash Library!\n\n🎬 ${creatorText}\n📁 Category: ${formattedReel.category || "General"}`;
 
       const buttons: BotButton[] = [
         {

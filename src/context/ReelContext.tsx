@@ -177,11 +177,51 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
 
       setReels(parsedReels);
       setCollections(parsedCols);
+
+      // Fetch live reels from Supabase database (including DM-saved reels)
+      fetch(`/api/reels?userId=${encodeURIComponent(user.id)}&username=${encodeURIComponent(user.instagramUsername || "")}`)
+        .then((res) => (res.ok ? res.json() : { reels: [] }))
+        .then((data) => {
+          if (data.reels && Array.isArray(data.reels) && data.reels.length > 0) {
+            const dbReels: Reel[] = data.reels.map((dbR: any) => {
+              const sc = dbR.shortcode || dbR.url?.match(/(?:reel|reels|p|audio|stories)\/([A-Za-z0-9_-]+)/)?.[1];
+              return {
+                id: dbR.id,
+                userId: user.id,
+                instagramUrl: dbR.url,
+                thumbnailUrl: dbR.thumbnail_url || (sc ? `/api/proxy-image?shortcode=${sc}` : ""),
+                caption: dbR.caption || "Saved Reel",
+                creatorUsername: dbR.creator_handle || "creator",
+                creatorFullName: dbR.creator_name || "Instagram Creator",
+                creatorAvatar: dbR.creator_avatar || `/api/proxy-image?username=${encodeURIComponent(dbR.creator_handle || "creator")}`,
+                category: dbR.category || "General",
+                tags: Array.isArray(dbR.tags) ? dbR.tags : [],
+                notes: dbR.note || "",
+                isFavorite: !!dbR.is_favorite,
+                mediaType: dbR.media_type || "reel",
+                duration: dbR.duration || "0:15",
+                likes: dbR.likes_count || "",
+                createdAt: dbR.created_at || new Date().toISOString(),
+              };
+            });
+
+            setReels((prev) => {
+              const merged = [...dbReels];
+              for (const localR of prev) {
+                if (!merged.some((m) => m.id === localR.id || (m.instagramUrl && m.instagramUrl === localR.instagramUrl))) {
+                  merged.push(localR);
+                }
+              }
+              return merged;
+            });
+          }
+        })
+        .catch((err) => console.warn("[ReelContext] fetch reels notice:", err));
     } else {
       setReels([]);
       setCollections([]);
     }
-  }, [user?.id]);
+  }, [user?.id, user?.instagramUsername]);
 
   const saveUserReels = (updatedReels: Reel[]) => {
     setReels(updatedReels);

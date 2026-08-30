@@ -114,18 +114,10 @@ function inferCategory(caption: string, creator: string): string {
   return "General";
 }
 
-// ─── Main POST handler (High-Speed Extraction) ───────────────────────
-export async function POST(req: NextRequest) {
-  const startTime = Date.now();
-  try {
-    const { url } = await req.json();
-
-    if (!url || typeof url !== "string") {
-      return NextResponse.json({ error: "Missing or invalid Instagram URL" }, { status: 400 });
-    }
-
-    const cleanUrl = url.trim();
-    const lowerUrl = cleanUrl.toLowerCase();
+// ─── Extract helper used by GET and POST ────────────────────────────
+async function extractMetadata(url: string, startTime: number) {
+  const cleanUrl = url.trim();
+  const lowerUrl = cleanUrl.toLowerCase();
 
     // 1. Instant regex classification (0ms)
     let mediaType: "reel" | "post" | "audio" | "story" = "reel";
@@ -437,3 +429,25 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+
+export async function GET(req: NextRequest) {
+  const { searchParams } = new URL(req.url);
+  const url = searchParams.get("url");
+  if (!url) {
+    return NextResponse.json({ error: "Missing url parameter" }, { status: 400 });
+  }
+  return extractMetadata(url, Date.now());
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    const { url } = await req.json();
+    if (!url || typeof url !== "string") {
+      return NextResponse.json({ error: "Missing or invalid Instagram URL" }, { status: 400 });
+    }
+    return extractMetadata(url, Date.now());
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
+}
+

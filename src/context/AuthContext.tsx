@@ -69,6 +69,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           };
           setUser(googleUser);
           localStorage.setItem("reeldash_user", JSON.stringify(googleUser));
+
+          // Auto-sync linked Instagram handle from Supabase profiles
+          supabase
+            .from("profiles")
+            .select("username, name, avatar_url")
+            .limit(1)
+            .then(({ data: profiles }) => {
+              if (profiles && profiles.length > 0 && profiles[0].username) {
+                setUser((prev) => {
+                  if (!prev) return prev;
+                  const updated = {
+                    ...prev,
+                    name: profiles[0].name || prev.name,
+                    instagramUsername: profiles[0].username,
+                    avatar: profiles[0].avatar_url || prev.avatar,
+                  };
+                  localStorage.setItem("reeldash_user", JSON.stringify(updated));
+                  return updated;
+                });
+              }
+            });
         }
       });
 
@@ -91,6 +112,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           };
           setUser(googleUser);
           localStorage.setItem("reeldash_user", JSON.stringify(googleUser));
+
+          // Auto-sync linked Instagram handle from Supabase profiles
+          supabase
+            .from("profiles")
+            .select("username, name, avatar_url")
+            .limit(1)
+            .then(({ data: profiles }) => {
+              if (profiles && profiles.length > 0 && profiles[0].username) {
+                setUser((prev) => {
+                  if (!prev) return prev;
+                  const updated = {
+                    ...prev,
+                    name: profiles[0].name || prev.name,
+                    instagramUsername: profiles[0].username,
+                    avatar: profiles[0].avatar_url || prev.avatar,
+                  };
+                  localStorage.setItem("reeldash_user", JSON.stringify(updated));
+                  return updated;
+                });
+              }
+            });
 
           if (
             event === "SIGNED_IN" ||
