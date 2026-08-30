@@ -236,8 +236,8 @@ export default function DashboardPage() {
           </div>
         </section>
 
-        {/* Quick View Metrics Bar */}
-        <section className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {/* Seamless Library Pulse Views Strip */}
+        <nav aria-label="Library views" className="grid grid-cols-2 border-y border-borderSubtle-light dark:border-borderSubtle-dark sm:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-borderSubtle-light dark:divide-borderSubtle-dark">
           {libraryViews.map((view) => {
             const Icon = view.icon;
             const value = view.getValue(counts);
@@ -245,23 +245,22 @@ export default function DashboardPage() {
               <Link
                 key={view.label}
                 href={view.href}
-                className="flex items-center gap-3 rounded-rd-md border border-borderSubtle-light bg-surface-light p-4 shadow-rd-subtle transition-all hover:border-brand-500/30 hover:bg-surfaceSecondary-light dark:border-borderSubtle-dark dark:bg-surface-dark dark:hover:bg-surfaceSecondary-dark"
+                className="group flex min-h-[4.5rem] items-center gap-3 px-4 py-3.5 transition-colors hover:bg-surfaceSecondary-light dark:hover:bg-surfaceSecondary-dark"
               >
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-rd-sm bg-brand-500/10 text-brand-600 dark:text-brand-400">
-                  <Icon className="h-4 w-4" />
-                </span>
-                <div className="min-w-0">
-                  <p className="font-mono text-lg font-bold tabular-nums text-primaryText-light dark:text-primaryText-dark">
+                <Icon className="h-4 w-4 shrink-0 text-brand-600 dark:text-brand-400" />
+                <span className="min-w-0">
+                  <span className="block font-mono text-xl font-bold tabular-nums text-primaryText-light dark:text-primaryText-dark">
                     {value}
-                  </p>
-                  <p className="truncate text-xs text-secondaryText-light dark:text-secondaryText-dark">
+                  </span>
+                  <span className="mt-0.5 flex items-center gap-1 text-xs text-secondaryText-light dark:text-secondaryText-dark">
                     {view.label}
-                  </p>
-                </div>
+                    <ArrowRight className="h-3 w-3 opacity-0 transition-opacity group-hover:opacity-100" />
+                  </span>
+                </span>
               </Link>
             );
           })}
-        </section>
+        </nav>
 
         {/* Visual Inbox Reel Feed */}
         <section className="space-y-4 pt-2">
