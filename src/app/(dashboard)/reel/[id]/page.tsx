@@ -244,8 +244,25 @@ export default function ReelDetailPage() {
                 {formatCaption(reel.caption || "No caption provided.")}
               </p>
 
-              {/* Audio Tag with 1-Click Save Audio action */}
-              {reel.audioTitle && (
+              {/* Audio Track Tag with 1-Click Save Audio action */}
+              {mediaType === "audio" ? (
+                <div className="flex items-center justify-between p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+                  <div className="flex items-center space-x-2 min-w-0">
+                    <Music2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                    <div className="min-w-0">
+                      <p className="font-semibold text-xs text-white truncate">
+                        {reel.audioTitle || "Original audio"}
+                      </p>
+                      <p className="text-[10px] text-emerald-400/80 truncate">
+                        {reel.audioArtist || `@${reel.creatorUsername} • Original Audio`}
+                      </p>
+                    </div>
+                  </div>
+                  <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 shrink-0">
+                    Audio Track
+                  </span>
+                </div>
+              ) : reel.audioTitle ? (
                 <div className="flex items-center justify-between p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
                   <div className="flex items-center space-x-2 min-w-0 mr-2">
                     <Music2 className="w-4 h-4 text-emerald-400 shrink-0" />
@@ -271,13 +288,13 @@ export default function ReelDetailPage() {
                       showToast("Audio track saved to Songs & Audio!");
                     }}
                     className="shrink-0 flex items-center space-x-1 px-2.5 py-1 rounded bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-semibold transition-all cursor-pointer shadow-sm active:scale-95"
-                    title="Save this audio track to your library"
+                    title="Save this audio track to Songs & Audio"
                   >
                     <Plus className="w-3 h-3" />
                     <span>Save Audio</span>
                   </button>
                 </div>
-              )}
+              ) : null}
             </div>
 
             {/* Engagement & Metadata Breakdown */}
