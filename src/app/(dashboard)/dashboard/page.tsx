@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 import { useReels } from "@/context/ReelContext";
@@ -12,16 +12,13 @@ import {
   Folder,
   Heart,
   Image as ImageIcon,
-  Layers,
   Link2,
   Loader2,
-  MessageCircle,
   Music2,
   Plus,
   X,
   Instagram,
   Sparkles,
-  CheckCircle2,
 } from "lucide-react";
 
 type DashboardCounts = { reels: number; posts: number; audio: number; favorites: number };
@@ -33,6 +30,17 @@ const libraryViews = [
   { label: "Favorites", href: "/favorites", icon: Heart, getValue: (counts: DashboardCounts) => counts.favorites },
 ];
 
+const greetings = [
+  { text: "Good morning", textAfternoon: "Good afternoon", textEvening: "Good evening" },
+  { text: "Bonjour", textAfternoon: "Bonjour", textEvening: "Bonsoir" },
+  { text: "¡Buenos días", textAfternoon: "¡Buenas tardes", textEvening: "¡Buenas noches" },
+  { text: "Namaste", textAfternoon: "Namaste", textEvening: "Namaste" },
+  { text: "Ohayō", textAfternoon: "Konnichiwa", textEvening: "Konbanwa" },
+  { text: "Buongiorno", textAfternoon: "Buon pomeriggio", textEvening: "Buonasera" },
+  { text: "Guten Morgen", textAfternoon: "Guten Tag", textEvening: "Guten Abend" },
+  { text: "Olá", textAfternoon: "Boa tarde", textEvening: "Boa noite" },
+];
+
 export default function DashboardPage() {
   const {
     reels,
@@ -40,28 +48,33 @@ export default function DashboardPage() {
     saveReel,
     collections,
     selectedInstagramAccount,
-    setSelectedInstagramAccount,
   } = useReels();
   const { user } = useAuth();
   const [inputUrl, setInputUrl] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [greetingIndex, setGreetingIndex] = useState(0);
+
+  useEffect(() => {
+    setGreetingIndex(Math.floor(Math.random() * greetings.length));
+  }, []);
 
   const hour = new Date().getHours();
-  const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
+  const activeGreetingObj = greetings[greetingIndex] || greetings[0];
+  const timeGreeting = hour < 12 
+    ? activeGreetingObj.text 
+    : hour < 17 
+    ? activeGreetingObj.textAfternoon 
+    : activeGreetingObj.textEvening;
+
   const displayName = selectedInstagramAccount
     ? `@${selectedInstagramAccount}`
     : user?.name
     ? user.name.split(" ")[0]
-    : "there";
+    : user?.instagramUsername
+    ? `@${user.instagramUsername}`
+    : "Creator";
 
-  // Aggregate connected accounts + distinct reel accounts
   const connectedAccounts = user?.connectedAccounts || [];
-  const accountHandles = Array.from(
-    new Set([
-      ...connectedAccounts.map((a) => a.username.toLowerCase()),
-      ...(user?.instagramUsername ? [user.instagramUsername.toLowerCase()] : []),
-    ])
-  ).filter(Boolean);
 
   const recentlySaved = [...reels].sort(
     (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
@@ -96,66 +109,24 @@ export default function DashboardPage() {
   return (
     <div className="mx-auto grid w-full max-w-7xl gap-5 xl:grid-cols-[minmax(0,1fr)_19rem]">
       <main className="min-w-0 space-y-6">
-
-        {/* Instagram Multi-Account Switcher Bar */}
-        <section className="flex flex-wrap items-center justify-between gap-3 p-2.5 rounded-rd-lg border border-borderSubtle-light dark:border-borderSubtle-dark bg-surface-light dark:bg-surface-dark shadow-rd-subtle">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs font-semibold text-secondaryText-light dark:text-secondaryText-dark flex items-center gap-1.5 pl-1.5 mr-1">
-              <Instagram className="w-3.5 h-3.5 text-brand-500" />
-              <span>Library Account:</span>
-            </span>
-
-            {/* All Accounts Pill */}
-            <button
-              onClick={() => setSelectedInstagramAccount(null)}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer ${
-                !selectedInstagramAccount
-                  ? "bg-brand-600 text-white shadow-rd-subtle"
-                  : "bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark text-secondaryText-light dark:text-secondaryText-dark hover:text-primaryText-light dark:hover:text-primaryText-dark border border-borderSubtle-light dark:border-borderSubtle-dark"
-              }`}
-            >
-              <Layers className="w-3 h-3" />
-              <span>All Accounts</span>
-            </button>
-
-            {/* Individual Instagram Account Pills */}
-            {accountHandles.map((handle) => {
-              const isSelected = selectedInstagramAccount?.toLowerCase() === handle.toLowerCase();
-              return (
-                <button
-                  key={handle}
-                  onClick={() => setSelectedInstagramAccount(handle)}
-                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-mono font-medium transition-all cursor-pointer ${
-                    isSelected
-                      ? "bg-brand-600 text-white shadow-rd-subtle"
-                      : "bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark text-secondaryText-light dark:text-secondaryText-dark hover:text-primaryText-light dark:hover:text-primaryText-dark border border-borderSubtle-light dark:border-borderSubtle-dark"
-                  }`}
-                >
-                  <span>@{handle}</span>
-                </button>
-              );
-            })}
-          </div>
-
-          <Link
-            href="/settings"
-            className="text-xs font-medium text-brand-600 dark:text-brand-400 hover:underline flex items-center gap-1 pr-1.5"
-          >
-            <Plus className="w-3 h-3" />
-            <span>Manage accounts</span>
-          </Link>
-        </section>
-
         {/* Quick Ingest & Overview Bar */}
         <section className="overflow-hidden rounded-rd-xl border border-borderSubtle-light bg-surface-light shadow-rd-card dark:border-borderSubtle-dark dark:bg-surface-dark">
           <div className="grid min-h-[20rem] lg:grid-cols-[minmax(0,1fr)_19rem]">
             <div className="flex min-w-0 flex-col p-5 sm:p-7">
               <div>
-                <p className="text-xs font-semibold tracking-[0.08em] text-brand-600 dark:text-brand-400">
-                  REELDASH CAPTURE DOCK
-                </p>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-semibold tracking-[0.08em] text-brand-600 dark:text-brand-400 uppercase">
+                    ReelDash Capture Dock
+                  </span>
+                  {selectedInstagramAccount && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-brand-500/10 text-brand-500 font-mono text-[11px] font-semibold border border-brand-500/20">
+                      <Instagram className="w-3 h-3" />
+                      @{selectedInstagramAccount}
+                    </span>
+                  )}
+                </div>
                 <h1 className="mt-2 max-w-xl text-2xl font-bold leading-tight tracking-tight text-primaryText-light dark:text-primaryText-dark sm:text-3xl">
-                  {greeting}, {displayName}.
+                  {timeGreeting}, {displayName}.
                 </h1>
                 <p className="mt-2 max-w-xl text-xs leading-relaxed text-secondaryText-light dark:text-secondaryText-dark">
                   {selectedInstagramAccount ? (
@@ -178,105 +149,152 @@ export default function DashboardPage() {
                     className="h-12 w-full rounded-rd-md border border-borderSubtle-light bg-background-light pl-11 pr-11 text-sm text-primaryText-light shadow-rd-inset transition-colors placeholder:text-mutedText-light focus:border-brand-500 focus:outline-none focus:ring-4 focus:ring-brand-500/10 dark:border-borderSubtle-dark dark:bg-background-dark dark:text-primaryText-dark dark:placeholder:text-mutedText-dark"
                   />
                   {inputUrl && (
-                    <button type="button" onClick={() => setInputUrl("")} aria-label="Clear Instagram URL" className="absolute right-3 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-rd-sm text-mutedText-light transition-colors hover:bg-surfaceSecondary-light hover:text-primaryText-light dark:text-mutedText-dark dark:hover:bg-surfaceSecondary-dark dark:hover:text-primaryText-dark">
+                    <button
+                      type="button"
+                      onClick={() => setInputUrl("")}
+                      aria-label="Clear Instagram URL"
+                      className="absolute right-3 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-rd-sm text-mutedText-light transition-colors hover:bg-surfaceSecondary-light hover:text-primaryText-light dark:text-mutedText-dark dark:hover:bg-surfaceSecondary-dark dark:hover:text-primaryText-dark"
+                    >
                       <X className="h-4 w-4" />
                     </button>
                   )}
                 </label>
-                <button type="submit" disabled={!inputUrl.trim() || isSubmitting} className="inline-flex h-12 items-center justify-center gap-2 rounded-rd-md bg-brand-600 px-5 text-sm font-semibold text-white transition-colors hover:bg-brand-700 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-50 shadow-rd-glow">
+                <button
+                  type="submit"
+                  disabled={!inputUrl.trim() || isSubmitting}
+                  className="inline-flex h-12 items-center justify-center gap-2 rounded-rd-md bg-brand-600 px-5 text-sm font-semibold text-white transition-colors hover:bg-brand-700 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-50 shadow-rd-glow cursor-pointer"
+                >
                   {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" strokeWidth={2.5} />}
                   <span>{isSubmitting ? "Saving" : "Save to library"}</span>
                 </button>
               </form>
 
               <div className="mt-auto grid grid-cols-3 divide-x divide-borderSubtle-light pt-6 dark:divide-borderSubtle-dark">
-                <div className="pr-4"><p className="font-mono text-2xl font-semibold tabular-nums text-primaryText-light dark:text-primaryText-dark">{reels.length}</p><p className="mt-0.5 text-xs text-secondaryText-light dark:text-secondaryText-dark">saved items</p></div>
-                <div className="px-4"><p className="font-mono text-2xl font-semibold tabular-nums text-primaryText-light dark:text-primaryText-dark">{thisWeekCount}</p><p className="mt-0.5 text-xs text-secondaryText-light dark:text-secondaryText-dark">saved this week</p></div>
-                <div className="pl-4"><p className="font-mono text-2xl font-semibold tabular-nums text-primaryText-light dark:text-primaryText-dark">{collections.length}</p><p className="mt-0.5 text-xs text-secondaryText-light dark:text-secondaryText-dark">collections</p></div>
+                <div className="pr-4">
+                  <p className="font-mono text-2xl font-semibold tabular-nums text-primaryText-light dark:text-primaryText-dark">{reels.length}</p>
+                  <p className="mt-0.5 text-xs text-secondaryText-light dark:text-secondaryText-dark">saved items</p>
+                </div>
+                <div className="px-4">
+                  <p className="font-mono text-2xl font-semibold tabular-nums text-primaryText-light dark:text-primaryText-dark">{thisWeekCount}</p>
+                  <p className="mt-0.5 text-xs text-secondaryText-light dark:text-secondaryText-dark">saved this week</p>
+                </div>
+                <div className="pl-4">
+                  <p className="font-mono text-2xl font-semibold tabular-nums text-primaryText-light dark:text-primaryText-dark">{collections.length}</p>
+                  <p className="mt-0.5 text-xs text-secondaryText-light dark:text-secondaryText-dark">collections</p>
+                </div>
               </div>
             </div>
 
             <div className="relative hidden overflow-hidden border-l border-borderSubtle-light bg-surfaceSecondary-light p-5 dark:border-borderSubtle-dark dark:bg-surfaceSecondary-dark lg:block">
               <div className="absolute inset-x-0 top-0 h-1 bg-brand-500" />
-              <div className="flex items-center justify-between"><p className="text-xs font-semibold text-secondaryText-light dark:text-secondaryText-dark">Latest capture</p><Link href="/reels" aria-label="Open full library" className="text-brand-600 hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300"><ArrowUpRight className="h-4 w-4" /></Link></div>
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-semibold text-secondaryText-light dark:text-secondaryText-dark">Latest capture</p>
+                <Link href="/reels" aria-label="Open full library" className="text-brand-600 hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300">
+                  <ArrowUpRight className="h-4 w-4" />
+                </Link>
+              </div>
               {featuredItem ? (
-                <div className="mt-5"><div className="relative mx-auto h-56 w-40">
-                  {previewItems.slice(1).reverse().map((item, index) => (
-                    <div key={item.id} className="absolute inset-x-0 top-0 aspect-reel overflow-hidden rounded-rd-md border border-white/40 bg-surfaceTertiary-light shadow-rd-card dark:border-white/10 dark:bg-surfaceTertiary-dark" style={{ transform: `translate(${(index + 1) * 12}px, ${(index + 1) * 10}px) rotate(${(index + 1) * 3}deg)` }}>
-                      {/* eslint-disable-next-line @next/next/no-img-element */}<img src={item.thumbnailUrl} alt="" className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                <div className="mt-5">
+                  <div className="relative mx-auto h-56 w-40">
+                    {previewItems.slice(1).reverse().map((item, index) => (
+                      <div
+                        key={item.id}
+                        className="absolute inset-x-0 top-0 aspect-reel overflow-hidden rounded-rd-md border border-white/40 bg-surfaceTertiary-light shadow-rd-card dark:border-white/10 dark:bg-surfaceTertiary-dark"
+                        style={{ transform: `translate(${(index + 1) * 12}px, ${(index + 1) * 10}px) rotate(${(index + 1) * 3}deg)` }}
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={item.thumbnailUrl} alt="" className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                      </div>
+                    ))}
+                    <Link href={`/reel/${featuredItem.id}`} className="group absolute inset-0 overflow-hidden rounded-rd-md border border-white/50 bg-surfaceTertiary-light shadow-rd-modal dark:border-white/10 dark:bg-surfaceTertiary-dark">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={featuredItem.thumbnailUrl}
+                        alt={`Open ${featuredItem.creatorUsername}'s saved item`}
+                        className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                        referrerPolicy="no-referrer"
+                      />
+                      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 to-transparent px-3 pb-3 pt-9 text-white">
+                        <p className="truncate text-xs font-semibold">@{featuredItem.creatorUsername || "creator"}</p>
+                        <p className="mt-0.5 truncate text-[11px] text-white/75">{featuredItem.category || "Unsorted"}</p>
+                      </div>
+                    </Link>
+                  </div>
+                </div>
+              ) : (
+                <div className="mt-7 grid grid-cols-3 gap-2 px-2">
+                  {[0, 1, 2].map((item) => (
+                    <div key={item} className="aspect-reel rounded-rd-sm border border-borderDefault-light bg-surface-light p-2 dark:border-borderDefault-dark dark:bg-surface-dark">
+                      <div className="h-full rounded-[3px] border border-dashed border-borderDefault-light dark:border-borderDefault-dark" />
                     </div>
                   ))}
-                  <Link href={`/reel/${featuredItem.id}`} className="group absolute inset-0 overflow-hidden rounded-rd-md border border-white/50 bg-surfaceTertiary-light shadow-rd-modal dark:border-white/10 dark:bg-surfaceTertiary-dark">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}<img src={featuredItem.thumbnailUrl} alt={`Open ${featuredItem.creatorUsername}'s saved item`} className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" referrerPolicy="no-referrer" />
-                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 to-transparent px-3 pb-3 pt-9 text-white"><p className="truncate text-xs font-semibold">@{featuredItem.creatorUsername || "creator"}</p><p className="mt-0.5 truncate text-[11px] text-white/75">{featuredItem.category || "Unsorted"}</p></div>
-                  </Link>
-                </div></div>
-              ) : (
-                <div className="mt-7 grid grid-cols-3 gap-2 px-2">{[0, 1, 2].map((item) => <div key={item} className="aspect-reel rounded-rd-sm border border-borderDefault-light bg-surface-light p-2 dark:border-borderDefault-dark dark:bg-surface-dark"><div className="h-full rounded-[3px] border border-dashed border-borderDefault-light dark:border-borderDefault-dark" /></div>)}</div>
+                </div>
               )}
-              <p className="absolute inset-x-5 bottom-5 text-xs leading-5 text-secondaryText-light dark:text-secondaryText-dark">{featuredItem ? "Your most recent saved reference." : "Your latest saved references will appear here."}</p>
+              <p className="absolute inset-x-5 bottom-5 text-xs leading-5 text-secondaryText-light dark:text-secondaryText-dark">
+                {featuredItem ? "Your most recent saved reference." : "Your latest saved references will appear here."}
+              </p>
             </div>
           </div>
         </section>
 
-        <nav aria-label="Library views" className="grid grid-cols-2 border-y border-borderSubtle-light dark:border-borderSubtle-dark sm:grid-cols-4">
+        {/* Quick View Metrics Bar */}
+        <section className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           {libraryViews.map((view) => {
             const Icon = view.icon;
-            return <Link key={view.label} href={view.href} className="group flex min-h-24 items-center gap-3 border-b border-borderSubtle-light px-4 py-4 transition-colors hover:bg-surface-light dark:border-borderSubtle-dark dark:hover:bg-surface-dark sm:border-b-0 sm:border-r last:sm:border-r-0"><Icon className="h-4 w-4 shrink-0 text-brand-600 dark:text-brand-400" /><span className="min-w-0"><span className="block font-mono text-xl font-semibold tabular-nums text-primaryText-light dark:text-primaryText-dark">{view.getValue(counts)}</span><span className="mt-0.5 flex items-center gap-1 text-xs text-secondaryText-light dark:text-secondaryText-dark">{view.label}<ArrowRight className="h-3 w-3 opacity-0 transition-opacity group-hover:opacity-100" /></span></span></Link>;
+            const value = view.getValue(counts);
+            return (
+              <Link
+                key={view.label}
+                href={view.href}
+                className="flex items-center gap-3 rounded-rd-md border border-borderSubtle-light bg-surface-light p-4 shadow-rd-subtle transition-all hover:border-brand-500/30 hover:bg-surfaceSecondary-light dark:border-borderSubtle-dark dark:bg-surface-dark dark:hover:bg-surfaceSecondary-dark"
+              >
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-rd-sm bg-brand-500/10 text-brand-600 dark:text-brand-400">
+                  <Icon className="h-4 w-4" />
+                </span>
+                <div className="min-w-0">
+                  <p className="font-mono text-lg font-bold tabular-nums text-primaryText-light dark:text-primaryText-dark">
+                    {value}
+                  </p>
+                  <p className="truncate text-xs text-secondaryText-light dark:text-secondaryText-dark">
+                    {view.label}
+                  </p>
+                </div>
+              </Link>
+            );
           })}
-        </nav>
+        </section>
 
-        <section>
-          <div className="mb-4 flex items-end justify-between gap-4">
+        {/* Visual Inbox Reel Feed */}
+        <section className="space-y-4 pt-2">
+          <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs font-semibold tracking-[0.08em] text-secondaryText-light dark:text-secondaryText-dark">
-                RECENTLY SAVED {selectedInstagramAccount ? `• @${selectedInstagramAccount.toUpperCase()}` : "• ALL ACCOUNTS"}
+              <p className="text-xs font-semibold tracking-[0.08em] text-secondaryText-light dark:text-secondaryText-dark uppercase">
+                {selectedInstagramAccount ? `RECENTLY SAVED • @${selectedInstagramAccount.toUpperCase()}` : "RECENTLY SAVED • ALL ACCOUNTS"}
               </p>
-              <h2 className="mt-1 text-xl font-semibold tracking-tight text-primaryText-light dark:text-primaryText-dark">
+              <h2 className="mt-0.5 text-lg font-bold text-primaryText-light dark:text-primaryText-dark">
                 Your visual inbox
               </h2>
             </div>
-            {reels.length > 0 && (
-              <Link href="/reels" className="inline-flex shrink-0 items-center gap-1.5 text-sm font-semibold text-brand-600 hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300">
-                View all <ArrowRight className="h-4 w-4" />
-              </Link>
-            )}
+            <Link
+              href="/reels"
+              className="group inline-flex items-center gap-1 text-xs font-semibold text-brand-600 hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300"
+            >
+              <span>View all</span>
+              <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+            </Link>
           </div>
 
-          {reels.length > 0 ? (
-            <ReelGrid reels={recentlySaved.slice(0, 8)} />
-          ) : (
-            <div className="border-y border-borderSubtle-light py-10 dark:border-borderSubtle-dark sm:py-14">
-              <div className="grid gap-8 sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:items-center">
-                <div className="flex h-14 w-14 items-center justify-center rounded-rd-md bg-brand-500/10 text-brand-600 dark:text-brand-400">
-                  <Layers className="h-6 w-6" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-primaryText-light dark:text-primaryText-dark">
-                    {selectedInstagramAccount ? `No reels saved from @${selectedInstagramAccount} yet.` : "Your inbox is ready for its first reference."}
-                  </h3>
-                  <p className="mt-2 max-w-lg text-sm leading-6 text-secondaryText-light dark:text-secondaryText-dark">
-                    {selectedInstagramAccount ? (
-                      <>Send any Reel, Post, or Story from <strong className="text-brand-500 font-mono">@{selectedInstagramAccount}</strong> via DM to <strong className="text-brand-500 font-mono">@reeldash_app</strong>.</>
-                    ) : (
-                      "Save one good post now. You can collect it, favorite it, and come back with context instead of hunting through Instagram later."
-                    )}
-                  </p>
-                </div>
-                <button
-                  onClick={() => document.querySelector<HTMLInputElement>('input[type="url"]')?.focus()}
-                  className="inline-flex h-10 items-center justify-center gap-2 rounded-rd-md border border-brand-500/30 px-4 text-sm font-semibold text-brand-600 transition-colors hover:bg-brand-500/10 dark:text-brand-400"
-                >
-                  <Plus className="h-4 w-4" />Add a link
-                </button>
-              </div>
-            </div>
-          )}
+          <ReelGrid
+            reels={reels}
+            emptyTitle={selectedInstagramAccount ? `No reels from @${selectedInstagramAccount}` : "No items saved yet"}
+            emptySubtitle={selectedInstagramAccount ? `Send a Reel via DM from @${selectedInstagramAccount} or paste a link.` : "Paste any Instagram link above to start your library."}
+          />
         </section>
       </main>
 
-      <aside className="space-y-5 xl:pt-1">
-        <section className="border-y border-borderSubtle-light py-5 dark:border-borderSubtle-dark xl:rounded-rd-lg xl:border xl:bg-surface-light xl:px-5 xl:shadow-rd-subtle xl:dark:border-borderSubtle-dark xl:dark:bg-surface-dark">
+      {/* Right Rail Overview */}
+      <aside className="space-y-5">
+        <section className="rounded-rd-lg border border-borderSubtle-light bg-surface-light p-5 shadow-rd-subtle dark:border-borderSubtle-dark dark:bg-surface-dark">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-xs font-semibold tracking-[0.08em] text-secondaryText-light dark:text-secondaryText-dark">LIBRARY PULSE</p>
@@ -342,16 +360,16 @@ export default function DashboardPage() {
         </section>
 
         <Link
-          href="/settings"
-          className="group flex items-center gap-3 border-l-2 border-brand-500 bg-brand-500/5 p-4 transition-colors hover:bg-brand-500/10"
+          href="/pricing"
+          className="group flex items-center gap-3 border-l-2 border-brand-500 bg-brand-500/5 p-4 rounded-rd-md transition-colors hover:bg-brand-500/10"
         >
-          <Instagram className="h-4 w-4 shrink-0 text-brand-600 dark:text-brand-400" />
+          <Sparkles className="h-4 w-4 shrink-0 text-brand-600 dark:text-brand-400" />
           <span className="min-w-0 flex-1">
             <span className="block text-sm font-semibold text-primaryText-light dark:text-primaryText-dark">
-              Connected Instagram Accounts
+              {user?.plan || "Pro Plan"} Active
             </span>
             <span className="mt-0.5 block text-xs leading-5 text-secondaryText-light dark:text-secondaryText-dark">
-              {connectedAccounts.length} account(s) synced. Click to add more.
+              {connectedAccounts.length} account(s) connected. View upgrade options.
             </span>
           </span>
           <ArrowRight className="h-4 w-4 shrink-0 text-brand-600 transition-transform group-hover:translate-x-0.5 dark:text-brand-400" />

@@ -71,7 +71,9 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
     ? reel.caption.replace(/<[^>]*>?/gm, "").slice(0, 160)
     : `Saved ${mediaType === "audio" ? "Audio Track" : mediaType === "post" ? "Post" : "Reel"}`;
 
-  const formattedDate = reel.savedAt || "Recently";
+  const formattedDate = reel.createdAt
+    ? new Date(reel.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })
+    : "Recently";
 
   // Category tags
   const displayCategories = reel.aiKeywords && reel.aiKeywords.length > 0
