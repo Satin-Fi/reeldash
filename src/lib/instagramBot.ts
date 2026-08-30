@@ -55,18 +55,19 @@ export async function processInstagramMessage(
     const igUser = await fetchInstagramUserProfile(senderIgId, customUsername);
     let isFollowing = forceFollowingStatus !== undefined ? forceFollowingStatus : igUser.isFollowing;
 
-    // If user clicked "I followed you!", re-verify or grant access
+    // If user clicked "I followed you!", strictly re-verify follower status
     if (isFollowCheckClick) {
-      if (forceFollowingStatus === undefined) {
-        // Re-check live status
+      if (forceFollowingStatus !== undefined) {
+        isFollowing = forceFollowingStatus;
+      } else {
         const recheck = await fetchInstagramUserProfile(senderIgId, customUsername);
-        isFollowing = recheck.isFollowing || true; // activate on confirmation
+        isFollowing = recheck.isFollowing;
       }
     }
 
-    // 2. Gate: If user is NOT following
+    // 2. Message 1: If user is NOT following (or clicked "I followed you" without actually following)
     if (!isFollowing) {
-      const followPrompt = `Oh no! You aren't following, so ReelDash sync won't activate. ✨\n\nMake sure you're following so we can auto-save any Reel you send! (You can always unfollow anytime 🤫)`;
+      const followPrompt = `Oh no! You aren't following, so the link won't send. ✨\n\nMake sure you're following so I can send you the link 🎉(also you won't regret it I promise 🤫 + you can always unfollow)`;
 
       const buttons: BotButton[] = [
         {
@@ -88,7 +89,7 @@ export async function processInstagramMessage(
       };
     }
 
-    // 3. User is following: Ensure ReelDash Profile exists
+    // 3. User is VERIFIED following: Auto-provision ReelDash Profile
     const userProfile = await getOrCreateUserProfile(senderIgId, igUser);
 
     // 4. Check if message contains a Reel / Post / Audio link
@@ -138,7 +139,7 @@ export async function processInstagramMessage(
       const buttons: BotButton[] = [
         {
           type: "web_url",
-          title: "Open in ReelDash 🚀",
+          title: "Click here! 🚀",
           url: "https://reeldash-nine.vercel.app/dashboard",
         },
       ];
@@ -156,13 +157,13 @@ export async function processInstagramMessage(
       };
     }
 
-    // 5. If following and sent a greeting/confirmation
-    const greetingReply = `🎁 Awesome! You're all set @${userProfile.username}!\n\nWhenever you see any Reel, Post, or Audio on Instagram, simply DM or share the link here and it will be saved to your dashboard instantly.`;
+    // 5. Message 2: When user successfully followed & verified
+    const greetingReply = `🎁 Awesome! Here's everything you need!\n\nYour ReelDash sync is active. Whenever you see an Instagram Reel, Post, or Audio, just send or share it here!`;
 
     const buttons: BotButton[] = [
       {
         type: "web_url",
-        title: "Open Dashboard 🚀",
+        title: "Click here! 🚀",
         url: "https://reeldash-nine.vercel.app/dashboard",
       },
     ];

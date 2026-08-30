@@ -192,9 +192,8 @@ export default function InstagramIntegrationPage() {
     }
 
     if (button.type === "postback" || button.payload) {
-      // User tapped button e.g. "I followed you! ✅"
-      setSimIsFollowing(true);
-      await sendDm(button.title, button.payload || "CHECK_FOLLOW_STATUS", true);
+      // Send verification request respecting actual follower status
+      await sendDm(button.title, button.payload || "CHECK_FOLLOW_STATUS", simIsFollowing);
     }
   };
 
