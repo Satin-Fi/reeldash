@@ -18,7 +18,7 @@ import {
   Settings,
   Plus,
   LogOut,
-  Sparkles,
+  Layers,
   Instagram,
   ChevronDown,
   Check,
