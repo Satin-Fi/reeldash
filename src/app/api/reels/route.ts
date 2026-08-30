@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
       creator_name: infoData.creatorFullName || infoData.creatorUsername || "Creator",
       creator_avatar: infoData.creatorAvatar || "",
       media_type: mediaType,
-      duration: infoData.duration || "0:30",
+      duration: infoData.duration || "",
       likes_count: infoData.likes || "",
       plays_count: infoData.views || "",
       category: category || infoData.category || "General",

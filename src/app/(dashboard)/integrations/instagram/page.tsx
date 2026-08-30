@@ -7,12 +7,17 @@ import {
   MessageCircle,
   CheckCircle2,
   Copy,
-  ExternalLink,
-  ChevronRight,
-  AlertCircle,
   Zap,
   Instagram,
   ShieldCheck,
+  Send,
+  UserCheck,
+  UserX,
+  Sparkles,
+  Bot,
+  RefreshCw,
+  ExternalLink,
+  Film,
 } from "lucide-react";
 import { useReels } from "@/context/ReelContext";
 import { useAuth } from "@/context/AuthContext";
@@ -22,32 +27,55 @@ const REELDASH_IG_HANDLE = "@ReelDash_app";
 const steps = [
   {
     n: "1",
-    title: "Link your Instagram Username",
-    desc: "Enter your Instagram handle below. When you send a reel to our bot, we match your username to your ReelDash account.",
+    title: "User DMs @ReelDash",
+    desc: "A user sends any message or Reel link to @ReelDash on Instagram.",
   },
   {
     n: "2",
-    title: "Send Reel to @ReelDash_app",
-    desc: "Open any Reel on the Instagram app → tap Share → Send to @ReelDash_app. Or DM the reel link directly.",
+    title: "Follower Check & Welcome",
+    desc: "If not following, the bot replies: 'Please follow @reeldash to activate sync'.",
   },
   {
     n: "3",
-    title: "Instant AI Extraction & Organization",
-    desc: "Our server parses the video URL, thumbnail, creator info, audio track, and caption automatically.",
+    title: "Automatic Profile Creation",
+    desc: "When the user follows @reeldash, ReelDash auto-provisions their library profile.",
   },
   {
     n: "4",
-    title: "Saved to your ReelDash Gallery",
-    desc: "View your saved content on desktop, mobile, or anywhere with full search and offline capabilities.",
+    title: "Reel Auto-Saved to Library",
+    desc: "Any Reel sent is automatically parsed and saved with instant DM confirmation.",
   },
 ];
 
+interface DmMessage {
+  id: string;
+  sender: "user" | "bot";
+  text: string;
+  timestamp: string;
+  status?: string;
+  profileCreated?: boolean;
+}
+
 export default function InstagramIntegrationPage() {
-  const { showToast } = useReels();
+  const { showToast, saveReel } = useReels();
   const { user, updateUser } = useAuth();
   const [igUsername, setIgUsername] = useState(user?.instagramUsername || "");
   const [isSaved, setIsSaved] = useState(!!user?.instagramUsername);
   const [copied, setCopied] = useState(false);
+
+  // Simulator State
+  const [simSender, setSimSender] = useState(user?.instagramUsername || "crypto_investor");
+  const [simIsFollowing, setSimIsFollowing] = useState(false);
+  const [simMessage, setSimMessage] = useState("https://www.instagram.com/reel/DbZkDwZsHgd/");
+  const [simLoading, setSimLoading] = useState(false);
+  const [chatHistory, setChatHistory] = useState<DmMessage[]>([
+    {
+      id: "initial-1",
+      sender: "bot",
+      text: "⚡ ReelDash Instagram Bot Online. Send any message or Reel link to test the follower check & auto-save flow.",
+      timestamp: "Just now",
+    },
+  ]);
 
   const webhookUrl = "https://reeldash-nine.vercel.app/api/instagram/webhook";
 
@@ -68,9 +96,79 @@ export default function InstagramIntegrationPage() {
     showToast(`Linked Instagram account @${clean}`);
   };
 
+  const handleSendSimulatedDm = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const text = simMessage.trim();
+    if (!text) return;
+
+    const userMsg: DmMessage = {
+      id: `user-${Date.now()}`,
+      sender: "user",
+      text,
+      timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+    };
+
+    setChatHistory((prev) => [...prev, userMsg]);
+    setSimLoading(true);
+
+    try {
+      const res = await fetch("/api/instagram/bot-simulate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          username: simSender.replace("@", "").trim() || "instagram_user",
+          senderIgId: `sim_ig_${simSender.replace(/[^a-zA-Z0-9]/g, "")}`,
+          message: text,
+          isFollowing: simIsFollowing,
+        }),
+      });
+
+      const data = await res.json();
+      const result = data?.result;
+
+      const botReplyText =
+        result?.replySent ||
+        (result?.status === "awaiting_follow"
+          ? "👋 Welcome to ReelDash! Please make sure you are following @reeldash to activate automatic Reel saving."
+          : "⚡ Saved to your ReelDash library!");
+
+      const botMsg: DmMessage = {
+        id: `bot-${Date.now()}`,
+        sender: "bot",
+        text: botReplyText,
+        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        status: result?.status,
+        profileCreated: result?.profileCreated,
+      };
+
+      setChatHistory((prev) => [...prev, botMsg]);
+
+      // If reel was saved in simulation, also save into active local library
+      if (result?.status === "reel_saved" && text.includes("instagram.com")) {
+        await saveReel(text, {
+          creator: result.creator,
+          mediaType: result.mediaType,
+          caption: `Saved via Instagram DM from @${simSender}`,
+        });
+        showToast("Reel synced to your active dashboard!");
+      }
+    } catch (err) {
+      setChatHistory((prev) => [
+        ...prev,
+        {
+          id: `bot-err-${Date.now()}`,
+          sender: "bot",
+          text: "❌ Error processing DM event. Please try again.",
+          timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        },
+      ]);
+    } finally {
+      setSimLoading(false);
+    }
+  };
+
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
-      
+    <div className="max-w-4xl mx-auto space-y-6 pb-12">
       {/* Top Back Navigation */}
       <Link
         href="/settings"
@@ -82,23 +180,32 @@ export default function InstagramIntegrationPage() {
 
       {/* Main Header Card */}
       <div className="p-6 md:p-8 bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-lg shadow-rd-subtle space-y-6 transition-colors duration-200">
-        <div className="flex items-start space-x-4">
-          <div className="w-12 h-12 rounded-rd-md bg-gradient-to-tr from-amber-500 via-rose-500 to-purple-600 flex items-center justify-center text-white shadow-rd-glow shrink-0">
-            <Instagram className="w-6 h-6" />
-          </div>
-          <div>
-            <h1 className="text-xl font-bold tracking-tight text-primaryText-light dark:text-primaryText-dark">
-              Instagram DM Sync
-            </h1>
-            <p className="text-xs sm:text-sm text-secondaryText-light dark:text-secondaryText-dark mt-1">
-              Save Reels directly while browsing Instagram on your phone by sending them to{" "}
-              <span className="font-semibold text-brand-600 dark:text-brand-400">{REELDASH_IG_HANDLE}</span>.
-            </p>
+        <div className="flex items-start justify-between">
+          <div className="flex items-start space-x-4">
+            <div className="w-12 h-12 rounded-rd-md bg-gradient-to-tr from-amber-500 via-rose-500 to-purple-600 flex items-center justify-center text-white shadow-rd-glow shrink-0">
+              <Instagram className="w-6 h-6" />
+            </div>
+            <div>
+              <div className="flex items-center space-x-2">
+                <h1 className="text-xl font-bold tracking-tight text-primaryText-light dark:text-primaryText-dark">
+                  Instagram DM Sync & Automation
+                </h1>
+                <span className="px-2 py-0.5 text-[10px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 rounded-full">
+                  Automated Bot Active
+                </span>
+              </div>
+              <p className="text-xs sm:text-sm text-secondaryText-light dark:text-secondaryText-dark mt-1">
+                When users DM <span className="font-semibold text-brand-600 dark:text-brand-400">{REELDASH_IG_HANDLE}</span>, the bot verifies their follower status, auto-creates their profile, and saves any Reel directly into their ReelDash gallery.
+              </p>
+            </div>
           </div>
         </div>
 
         {/* Username Linking Box */}
-        <form onSubmit={handleSaveUsername} className="p-4 bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-md space-y-3">
+        <form
+          onSubmit={handleSaveUsername}
+          className="p-4 bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-md space-y-3"
+        >
           <div className="flex items-center justify-between">
             <label className="text-xs font-bold text-primaryText-light dark:text-primaryText-dark">
               Your Instagram Handle
@@ -137,23 +244,23 @@ export default function InstagramIntegrationPage() {
           </div>
 
           <p className="text-[11px] text-secondaryText-light dark:text-secondaryText-dark">
-            We use your handle solely to route DMs to your private library. No login or password required.
+            We use your handle solely to match incoming DMs to your library. No Instagram login or password required.
           </p>
         </form>
       </div>
 
-      {/* 4-Step How It Works Grid */}
+      {/* 4-Step Architecture Banner */}
       <div className="p-6 bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-lg shadow-rd-subtle space-y-4">
         <h2 className="text-sm font-bold text-primaryText-light dark:text-primaryText-dark flex items-center space-x-2">
           <Zap className="w-4 h-4 text-brand-500" />
-          <span>How DM Saving Works</span>
+          <span>Follower Verification & Auto-Save Logic</span>
         </h2>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-1">
           {steps.map((step) => (
             <div
               key={step.n}
-              className="p-4 bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-md space-y-2"
+              className="p-4 bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-md space-y-2 relative overflow-hidden"
             >
               <div className="w-6 h-6 rounded-full bg-brand-500 text-white font-bold text-xs flex items-center justify-center">
                 {step.n}
@@ -169,13 +276,171 @@ export default function InstagramIntegrationPage() {
         </div>
       </div>
 
+      {/* LIVE INSTAGRAM DM BOT SIMULATOR & TEST CONSOLE */}
+      <div className="p-6 bg-surface-light dark:bg-surface-dark border border-brand-500/20 rounded-rd-lg shadow-rd-subtle space-y-5">
+        <div className="flex items-center justify-between border-b border-borderSubtle-light dark:border-borderSubtle-dark pb-4">
+          <div className="flex items-center space-x-3">
+            <div className="w-9 h-9 rounded-full bg-brand-500/10 text-brand-500 flex items-center justify-center">
+              <Bot className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="text-sm font-bold text-primaryText-light dark:text-primaryText-dark">
+                Instagram Bot DM Simulator
+              </h2>
+              <p className="text-[11px] text-secondaryText-light dark:text-secondaryText-dark">
+                Test the follower verification, automatic profile provisioning, and Reel extraction live.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => {
+              setChatHistory([
+                {
+                  id: "initial-reset",
+                  sender: "bot",
+                  text: "⚡ ReelDash Instagram Bot ready. Send any message or Reel link to test.",
+                  timestamp: "Just now",
+                },
+              ]);
+              showToast("Chat reset");
+            }}
+            className="p-1.5 rounded-md hover:bg-surfaceSecondary-light dark:hover:bg-surfaceSecondary-dark text-secondaryText-light dark:text-secondaryText-dark transition-colors"
+            title="Reset Chat"
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
+        {/* Simulator Controls */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark rounded-rd-md border border-borderSubtle-light dark:border-borderSubtle-dark text-xs">
+          <div className="space-y-1.5">
+            <label className="font-semibold text-primaryText-light dark:text-primaryText-dark">
+              Sender Instagram Handle
+            </label>
+            <input
+              type="text"
+              value={simSender}
+              onChange={(e) => setSimSender(e.target.value)}
+              placeholder="e.g. crypto_trader"
+              className="w-full px-3 py-1.5 bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-md text-xs text-primaryText-light dark:text-primaryText-dark focus:outline-none focus:border-brand-500"
+            />
+          </div>
+
+          <div className="space-y-1.5 flex flex-col justify-end">
+            <label className="font-semibold text-primaryText-light dark:text-primaryText-dark">
+              Follower Status with @reeldash
+            </label>
+            <button
+              type="button"
+              onClick={() => setSimIsFollowing(!simIsFollowing)}
+              className={`w-full py-1.5 px-3 rounded-rd-md font-semibold text-xs transition-all flex items-center justify-center space-x-2 border cursor-pointer ${
+                simIsFollowing
+                  ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
+                  : "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30"
+              }`}
+            >
+              {simIsFollowing ? (
+                <>
+                  <UserCheck className="w-3.5 h-3.5" />
+                  <span>Following @reeldash (Profile will Auto-Create)</span>
+                </>
+              ) : (
+                <>
+                  <UserX className="w-3.5 h-3.5" />
+                  <span>Not Following (Bot prompts to follow)</span>
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* Live Chat Window */}
+        <div className="p-4 bg-zinc-950 rounded-rd-md border border-zinc-800/80 space-y-3 min-h-[220px] max-h-[340px] overflow-y-auto custom-scrollbar font-sans text-xs">
+          {chatHistory.map((msg) => (
+            <div
+              key={msg.id}
+              className={`flex flex-col ${msg.sender === "user" ? "items-end" : "items-start"}`}
+            >
+              <div
+                className={`max-w-[85%] p-3 rounded-2xl whitespace-pre-line leading-relaxed ${
+                  msg.sender === "user"
+                    ? "bg-brand-600 text-white rounded-br-none"
+                    : "bg-zinc-900 border border-zinc-800 text-zinc-100 rounded-bl-none shadow-sm"
+                }`}
+              >
+                {msg.text}
+
+                {msg.profileCreated && (
+                  <div className="mt-2 pt-2 border-t border-zinc-800 flex items-center space-x-1.5 text-[10px] text-emerald-400 font-medium">
+                    <Sparkles className="w-3 h-3" />
+                    <span>ReelDash Profile Provisioned & Synced</span>
+                  </div>
+                )}
+              </div>
+              <span className="text-[9px] text-zinc-500 px-1 mt-0.5">{msg.timestamp}</span>
+            </div>
+          ))}
+          {simLoading && (
+            <div className="flex items-center space-x-2 text-xs text-zinc-400 p-2">
+              <div className="w-2 h-2 rounded-full bg-brand-500 animate-pulse" />
+              <span>@ReelDash Bot is typing response...</span>
+            </div>
+          )}
+        </div>
+
+        {/* Quick Example Reel Links */}
+        <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-secondaryText-light dark:text-secondaryText-dark">
+          <span className="font-semibold">Quick links:</span>
+          <button
+            type="button"
+            onClick={() => setSimMessage("https://www.instagram.com/reel/DbZkDwZsHgd/")}
+            className="px-2 py-0.5 bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark hover:bg-brand-500/10 hover:text-brand-500 rounded border border-borderSubtle-light dark:border-borderSubtle-dark cursor-pointer truncate max-w-[180px]"
+          >
+            🎬 Reel: DbZkDwZsHgd
+          </button>
+          <button
+            type="button"
+            onClick={() => setSimMessage("https://www.instagram.com/reels/audio/27987161810943092/")}
+            className="px-2 py-0.5 bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark hover:bg-brand-500/10 hover:text-brand-500 rounded border border-borderSubtle-light dark:border-borderSubtle-dark cursor-pointer truncate max-w-[180px]"
+          >
+            🎵 Audio: 27987161810943092
+          </button>
+          <button
+            type="button"
+            onClick={() => setSimMessage("Hey I just followed you!")}
+            className="px-2 py-0.5 bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark hover:bg-brand-500/10 hover:text-brand-500 rounded border border-borderSubtle-light dark:border-borderSubtle-dark cursor-pointer"
+          >
+            💬 "Hey I just followed you!"
+          </button>
+        </div>
+
+        {/* Simulator Input Box */}
+        <form onSubmit={handleSendSimulatedDm} className="flex gap-2">
+          <input
+            type="text"
+            value={simMessage}
+            onChange={(e) => setSimMessage(e.target.value)}
+            placeholder="Type message or paste Instagram link..."
+            className="flex-1 px-3 py-2 bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-md text-xs text-primaryText-light dark:text-primaryText-dark focus:outline-none focus:border-brand-500"
+          />
+          <button
+            type="submit"
+            disabled={!simMessage.trim() || simLoading}
+            className="px-4 py-2 bg-brand-500 hover:bg-brand-600 disabled:opacity-50 text-white font-semibold text-xs rounded-rd-md shadow-rd-subtle transition-all cursor-pointer flex items-center space-x-1.5"
+          >
+            <Send className="w-3.5 h-3.5" />
+            <span>Send DM</span>
+          </button>
+        </form>
+      </div>
+
       {/* Webhook Configuration for Meta Developers */}
       <div className="p-6 bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-lg shadow-rd-subtle space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
             <MessageCircle className="w-4 h-4 text-brand-500" />
             <h3 className="text-xs font-bold text-primaryText-light dark:text-primaryText-dark">
-              Meta Webhook Endpoint (API Integration)
+              Meta Webhook Endpoint (Production Integration)
             </h3>
           </div>
           <span className="px-2 py-0.5 text-[10px] font-mono rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-semibold">
@@ -184,14 +449,14 @@ export default function InstagramIntegrationPage() {
         </div>
 
         <p className="text-xs text-secondaryText-light dark:text-secondaryText-dark">
-          If you are configuring your Meta / Instagram Messenger bot in developer console, set your Callback URL to:
+          In your Meta Developer Console for Instagram Messenger API, configure your Callback URL to:
         </p>
 
         <div className="flex items-center space-x-2 p-2.5 bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-md font-mono text-xs text-primaryText-light dark:text-primaryText-dark">
           <span className="flex-1 truncate">{webhookUrl}</span>
           <button
             onClick={handleCopyWebhook}
-            className="px-2 py-1 bg-surface-light dark:bg-surface-dark hover:bg-brand-500/10 hover:text-brand-500 border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-sm text-[11px] font-semibold transition-colors flex items-center space-x-1"
+            className="px-2 py-1 bg-surface-light dark:bg-surface-dark hover:bg-brand-500/10 hover:text-brand-500 border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-sm text-[11px] font-semibold transition-colors flex items-center space-x-1 cursor-pointer"
           >
             {copied ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
             <span>{copied ? "Copied" : "Copy"}</span>
