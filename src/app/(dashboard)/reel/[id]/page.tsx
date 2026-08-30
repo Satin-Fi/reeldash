@@ -8,7 +8,6 @@ import {
   ArrowLeft,
   Heart,
   ExternalLink,
-  Sparkles,
   Trash2,
   Copy,
   Edit2,
@@ -331,16 +330,15 @@ export default function ReelDetailPage() {
               )}
             </div>
 
-            {/* AI Key Insights Card */}
+            {/* Key Insights Card */}
             <div className="p-3.5 bg-zinc-900/90 border border-zinc-800 rounded-lg space-y-2">
               <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-1.5 text-brand-400 font-semibold text-[11px]">
-                  <Sparkles className="w-3.5 h-3.5" />
-                  <span>AI Key Takeaways</span>
-                </div>
+                <span className="text-zinc-300 font-semibold text-[11px] uppercase tracking-wider">
+                  Key Takeaways
+                </span>
                 <button
                   onClick={() => generateAiSummary(reel.id)}
-                  className="text-[10px] text-zinc-400 hover:text-brand-400 cursor-pointer"
+                  className="text-[10px] text-zinc-400 hover:text-white cursor-pointer"
                 >
                   {reel.aiSummary ? "Regenerate" : "Extract"}
                 </button>

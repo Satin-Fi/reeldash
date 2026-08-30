@@ -22,7 +22,6 @@ import {
   Copy,
   Loader2,
   User,
-  Sparkles,
   CheckCircle2,
 } from "lucide-react";
 
@@ -311,7 +310,6 @@ function CreatorProfileContent() {
         {highlights.length > 0 && (
           <div className="border-t border-borderSubtle-light dark:border-borderSubtle-dark pt-4">
             <div className="flex items-center space-x-1.5 mb-3 text-xs font-bold text-secondaryText-light dark:text-secondaryText-dark uppercase tracking-wider">
-              <Sparkles className="w-3.5 h-3.5 text-amber-500" />
               <span>Story Highlights</span>
             </div>
             <div className="flex items-center space-x-4 overflow-x-auto pb-2 scrollbar-none">

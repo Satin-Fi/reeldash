@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Sparkles, Play, ShieldCheck, Zap } from "lucide-react";
+import { Play, ShieldCheck, Zap } from "lucide-react";
 
 interface Spline3DHeroProps {
   sceneUrl?: string;
@@ -32,8 +32,7 @@ export function Spline3DHero({
         </div>
 
         <div className="space-y-1.5">
-          <div className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full bg-brand-500/10 border border-brand-500/20 text-brand-400 text-xs font-semibold">
-            <Sparkles className="w-3 h-3 text-brand-400" />
+          <div className="inline-flex items-center px-3 py-1 rounded-full bg-brand-500/10 border border-brand-500/20 text-brand-400 text-xs font-semibold">
             <span>Interactive 3D Media Engine</span>
           </div>
           <h3 className="text-xl font-bold tracking-tight text-white">

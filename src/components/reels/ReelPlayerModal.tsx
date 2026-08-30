@@ -11,7 +11,6 @@ import {
   MoreHorizontal,
   Music2,
   ExternalLink,
-  Sparkles,
   Copy,
   Trash2,
   FolderPlus,
@@ -328,13 +327,12 @@ export function ReelPlayerModal({ reel, isOpen, onClose }: ReelPlayerModalProps)
               {reel.aiSummary && !reel.aiSummary.includes("discussing General") && !reel.aiSummary.startsWith("Summary:") ? (
                 <div className="p-3 bg-zinc-900/90 border border-zinc-800 rounded-lg space-y-2">
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-1.5 text-brand-400 font-semibold text-[11px]">
-                      <Sparkles className="w-3.5 h-3.5" />
-                      <span>AI Key Insights</span>
-                    </div>
+                    <span className="text-zinc-300 font-semibold text-[11px] uppercase tracking-wider">
+                      Key Takeaways
+                    </span>
                     <button
                       onClick={() => generateAiSummary(reel.id)}
-                      className="text-[10px] text-zinc-400 hover:text-brand-400 cursor-pointer"
+                      className="text-[10px] text-zinc-400 hover:text-white cursor-pointer"
                     >
                       Regenerate
                     </button>
@@ -346,10 +344,9 @@ export function ReelPlayerModal({ reel, isOpen, onClose }: ReelPlayerModalProps)
               ) : (
                 <button
                   onClick={() => generateAiSummary(reel.id)}
-                  className="w-full p-2.5 rounded-lg border border-dashed border-zinc-800 hover:border-brand-500/40 bg-zinc-900/30 hover:bg-zinc-900 text-[11px] text-zinc-400 hover:text-brand-400 flex items-center justify-center space-x-1.5 transition-all cursor-pointer"
+                  className="w-full p-2.5 rounded-lg border border-dashed border-zinc-800 hover:border-zinc-700 bg-zinc-900/30 hover:bg-zinc-900 text-xs font-medium text-zinc-400 hover:text-white flex items-center justify-center transition-all cursor-pointer"
                 >
-                  <Sparkles className="w-3.5 h-3.5 text-brand-400" />
-                  <span>Extract Key Takeaways with AI</span>
+                  <span>Extract Key Takeaways</span>
                 </button>
               )}
 

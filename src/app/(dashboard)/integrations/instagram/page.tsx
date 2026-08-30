@@ -13,7 +13,6 @@ import {
   Send,
   UserCheck,
   UserX,
-  Sparkles,
   Bot,
   RefreshCw,
   ExternalLink,
@@ -419,7 +418,6 @@ export default function InstagramIntegrationPage() {
 
                 {msg.profileCreated && (
                   <div className="mt-2 pt-2 border-t border-zinc-800 flex items-center space-x-1.5 text-[10px] text-emerald-400 font-medium">
-                    <Sparkles className="w-3 h-3" />
                     <span>ReelDash Profile Provisioned & Synced</span>
                   </div>
                 )}

@@ -13,7 +13,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Disc3,
-  Sparkles,
   Download,
 } from "lucide-react";
 import { motion } from "framer-motion";
