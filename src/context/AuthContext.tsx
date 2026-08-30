@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { getSupabaseClient } from "@/lib/supabase";
+import { ConnectedInstagramAccount } from "@/types/reel";
 
 export interface UserProfile {
   id: string;
@@ -11,6 +12,7 @@ export interface UserProfile {
   handle?: string;
   avatar?: string;
   instagramUsername?: string;
+  connectedAccounts?: ConnectedInstagramAccount[];
   plan: "Free Plan" | "Pro Plan";
 }
 
@@ -23,6 +25,9 @@ interface AuthContextType {
   signup: (name: string, email: string, autoRedirect?: boolean) => UserProfile;
   signupWithGoogle: (customData?: { name?: string; email?: string; avatar?: string }, autoRedirect?: boolean) => Promise<UserProfile | void>;
   updateUser: (data: Partial<UserProfile>) => void;
+  addInstagramAccount: (username: string) => Promise<{ success: boolean; message?: string; error?: string }>;
+  removeInstagramAccount: (accountId: string) => Promise<boolean>;
+  refreshAccounts: () => Promise<void>;
   logout: () => void;
 }
 
@@ -67,32 +72,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             avatar,
             plan: "Pro Plan",
           };
+
           setUser((prev) => {
-            const stored = prev || googleUser;
-            if (stored.instagramUsername) {
-              supabase
-                .from("profiles")
-                .select("username, name, avatar_url")
-                .ilike("username", stored.instagramUsername.replace(/^@/, "").trim())
-                .limit(1)
-                .then(({ data: profiles }) => {
-                  if (profiles && profiles.length > 0 && profiles[0].username) {
-                    setUser((current) => {
-                      if (!current) return current;
-                      const updated = {
-                        ...current,
-                        name: profiles[0].name || current.name,
-                        instagramUsername: profiles[0].username,
-                        avatar: profiles[0].avatar_url || current.avatar,
-                      };
-                      localStorage.setItem("reeldash_user", JSON.stringify(updated));
-                      return updated;
-                    });
-                  }
-                });
-            }
-            return stored;
+            const current = prev || googleUser;
+            localStorage.setItem("reeldash_user", JSON.stringify(current));
+            return current;
           });
+
+          // Fetch user's connected Instagram accounts from Supabase
+          fetch(`/api/instagram/accounts?userId=${encodeURIComponent(session.user.id)}&plan=Pro Plan`)
+            .then((r) => (r.ok ? r.json() : { accounts: [] }))
+            .then((data) => {
+              if (data.accounts && data.accounts.length > 0) {
+                setUser((prev) => {
+                  if (!prev) return prev;
+                  const updated: UserProfile = {
+                    ...prev,
+                    connectedAccounts: data.accounts,
+                    instagramUsername: data.accounts[0]?.username || prev.instagramUsername,
+                  };
+                  localStorage.setItem("reeldash_user", JSON.stringify(updated));
+                  return updated;
+                });
+              }
+            })
+            .catch(() => {});
         }
       });
 
@@ -113,34 +117,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               handle: `@${email.split("@")[0]}`,
               avatar: prev?.avatar || avatar,
               instagramUsername: prev?.instagramUsername,
+              connectedAccounts: prev?.connectedAccounts,
               plan: "Pro Plan",
             };
             localStorage.setItem("reeldash_user", JSON.stringify(current));
-
-            if (current.instagramUsername) {
-              supabase
-                .from("profiles")
-                .select("username, name, avatar_url")
-                .ilike("username", current.instagramUsername.replace(/^@/, "").trim())
-                .limit(1)
-                .then(({ data: profiles }) => {
-                  if (profiles && profiles.length > 0 && profiles[0].username) {
-                    setUser((curr) => {
-                      if (!curr) return curr;
-                      const updated = {
-                        ...curr,
-                        name: profiles[0].name || curr.name,
-                        instagramUsername: profiles[0].username,
-                        avatar: profiles[0].avatar_url || curr.avatar,
-                      };
-                      localStorage.setItem("reeldash_user", JSON.stringify(updated));
-                      return updated;
-                    });
-                  }
-                });
-            }
             return current;
           });
+
+          // Fetch accounts on auth state change
+          fetch(`/api/instagram/accounts?userId=${encodeURIComponent(session.user.id)}&plan=Pro Plan`)
+            .then((r) => (r.ok ? r.json() : { accounts: [] }))
+            .then((data) => {
+              if (data.accounts && data.accounts.length > 0) {
+                setUser((prev) => {
+                  if (!prev) return prev;
+                  const updated: UserProfile = {
+                    ...prev,
+                    connectedAccounts: data.accounts,
+                    instagramUsername: data.accounts[0]?.username || prev.instagramUsername,
+                  };
+                  localStorage.setItem("reeldash_user", JSON.stringify(updated));
+                  return updated;
+                });
+              }
+            })
+            .catch(() => {});
 
           if (
             event === "SIGNED_IN" ||
@@ -157,6 +158,69 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       };
     }
   }, []);
+
+  const refreshAccounts = async () => {
+    if (!user?.id) return;
+    try {
+      const res = await fetch(`/api/instagram/accounts?userId=${encodeURIComponent(user.id)}&plan=${encodeURIComponent(user.plan || "Free Plan")}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.accounts) {
+          setUser((prev) => {
+            if (!prev) return prev;
+            const updated = {
+              ...prev,
+              connectedAccounts: data.accounts,
+              instagramUsername: data.accounts[0]?.username || prev.instagramUsername,
+            };
+            localStorage.setItem("reeldash_user", JSON.stringify(updated));
+            return updated;
+          });
+        }
+      }
+    } catch (e) {
+      console.warn("[AuthContext] refreshAccounts notice:", e);
+    }
+  };
+
+  const addInstagramAccount = async (username: string): Promise<{ success: boolean; message?: string; error?: string }> => {
+    if (!user?.id) return { success: false, error: "Not authenticated" };
+    try {
+      const res = await fetch("/api/instagram/accounts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: user.id,
+          username,
+          plan: user.plan || "Free Plan",
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        return { success: false, error: data.error || "Failed to link account" };
+      }
+      await refreshAccounts();
+      return { success: true, message: data.message || "Account connected!" };
+    } catch (e: any) {
+      return { success: false, error: e?.message || "Failed to link account" };
+    }
+  };
+
+  const removeInstagramAccount = async (accountId: string): Promise<boolean> => {
+    if (!user?.id) return false;
+    try {
+      const res = await fetch(`/api/instagram/accounts?accountId=${encodeURIComponent(accountId)}&userId=${encodeURIComponent(user.id)}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        await refreshAccounts();
+        return true;
+      }
+      return false;
+    } catch {
+      return false;
+    }
+  };
 
   const login = (email: string, name?: string) => {
     const rawName = name || email.split("@")[0];
@@ -278,6 +342,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         signup,
         signupWithGoogle,
         updateUser,
+        addInstagramAccount,
+        removeInstagramAccount,
+        refreshAccounts,
         logout,
       }}
     >

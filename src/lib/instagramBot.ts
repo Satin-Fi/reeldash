@@ -316,8 +316,67 @@ async function getOrCreateUserProfile(
     return existing;
   }
 
+  let matchedUserId = `ig_usr_${senderIgId}`;
+
+  // Check Supabase instagram_accounts table to map to real ReelDash user
+  try {
+    const supabase = getSupabaseAdmin();
+    if (supabase) {
+      const { data: matchedAccount } = await supabase
+        .from("instagram_accounts")
+        .select("reeldash_user_id, id, username")
+        .or(`instagram_user_id.eq.${senderIgId},username.ilike.${igData.username}`)
+        .limit(1)
+        .single();
+
+      if (matchedAccount?.reeldash_user_id) {
+        matchedUserId = matchedAccount.reeldash_user_id;
+
+        // Update the account record with the verified senderIgId
+        await supabase
+          .from("instagram_accounts")
+          .update({
+            instagram_user_id: senderIgId,
+            display_name: igData.fullName || igData.username,
+            avatar_url: igData.avatar,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", matchedAccount.id);
+      } else {
+        // Create provisional connected account record
+        await supabase.from("instagram_accounts").upsert(
+          {
+            reeldash_user_id: matchedUserId,
+            instagram_user_id: senderIgId,
+            username: igData.username.toLowerCase(),
+            display_name: igData.fullName || igData.username,
+            avatar_url: igData.avatar,
+            is_active: true,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: "reeldash_user_id,username" }
+        );
+      }
+
+      await supabase.from("profiles").upsert(
+        {
+          id: matchedUserId,
+          ig_sender_id: senderIgId,
+          username: igData.username,
+          name: igData.fullName,
+          avatar_url: igData.avatar,
+          is_following_bot: true,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "ig_sender_id" }
+      );
+    }
+  } catch {
+    // Continue in-memory
+  }
+
   const newProfile: UserIgProfile = {
-    id: `ig_usr_${senderIgId}`,
+    id: matchedUserId,
     igSenderId: senderIgId,
     username: igData.username,
     fullName: igData.fullName,
@@ -329,28 +388,6 @@ async function getOrCreateUserProfile(
   };
 
   igProfileStore.set(senderIgId, newProfile);
-
-  // Persist to Supabase if connected
-  try {
-    const supabase = getSupabaseAdmin();
-    if (supabase) {
-      await supabase.from("profiles").upsert(
-        {
-          id: newProfile.id,
-          ig_sender_id: senderIgId,
-          username: newProfile.username,
-          name: newProfile.fullName,
-          avatar_url: newProfile.avatar,
-          is_following_bot: true,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: "ig_sender_id" }
-      );
-    }
-  } catch {
-    // Continue in-memory
-  }
-
   return newProfile;
 }
 
@@ -375,13 +412,23 @@ async function saveReelForUser(userId: string, reel: any) {
   }
   igSavedReelsStore.set(userId, userReels);
 
-  // Persist to Supabase if connected
+  // Persist to Supabase with instagram_username
   try {
     const supabase = getSupabaseAdmin();
     if (supabase) {
+      // Find instagram_account_id if available
+      const { data: acc } = await supabase
+        .from("instagram_accounts")
+        .select("id")
+        .eq("reeldash_user_id", userId)
+        .limit(1)
+        .single();
+
       await supabase.from("reels").upsert(
         {
           user_id: userId,
+          instagram_account_id: acc?.id || null,
+          instagram_username: reel.instagram_username || (igProfileStore.get(userId)?.username) || null,
           shortcode: reel.shortcode,
           url: reel.url,
           thumbnail_url: reel.thumbnail_url,

@@ -40,10 +40,23 @@ export interface Reel {
   audioTitle?: string;
   audioArtist?: string;
   audioUrl?: string;
+  instagramUsername?: string;
+  instagramAccountId?: string;
   carouselImages?: string[];
   carouselSlides?: CarouselSlide[];
   isCarousel?: boolean;
   storyExpiresAt?: string;
+}
+
+export interface ConnectedInstagramAccount {
+  id: string;
+  reeldashUserId?: string;
+  instagramUserId?: string;
+  username: string;
+  displayName?: string;
+  avatarUrl?: string;
+  isActive?: boolean;
+  createdAt?: string;
 }
 
 export interface Collection {

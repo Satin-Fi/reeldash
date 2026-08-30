@@ -8,6 +8,7 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const userId = searchParams.get("userId");
   const username = searchParams.get("username");
+  const filterAccount = searchParams.get("account");
 
   try {
     const supabase = getSupabaseAdmin();
@@ -18,7 +19,22 @@ export async function GET(req: NextRequest) {
     const userIds: string[] = [];
     if (userId) userIds.push(userId);
 
-    // If username(s) are provided, find linked IG profile ID(s) strictly
+    // Also include any instagram_accounts linked to this user
+    if (userId) {
+      const { data: userIgAccounts } = await supabase
+        .from("instagram_accounts")
+        .select("reeldash_user_id, username")
+        .or(`reeldash_user_id.eq.${userId},reeldash_user_id.like.ig_usr_%`);
+      if (userIgAccounts) {
+        userIgAccounts.forEach((acc) => {
+          if (acc.reeldash_user_id && !userIds.includes(acc.reeldash_user_id)) {
+            userIds.push(acc.reeldash_user_id);
+          }
+        });
+      }
+    }
+
+    // If username(s) are provided in query param
     if (username) {
       const handles = username
         .split(",")
@@ -26,15 +42,15 @@ export async function GET(req: NextRequest) {
         .filter(Boolean);
 
       if (handles.length > 0) {
-        const { data: matchedProfiles } = await supabase
-          .from("profiles")
-          .select("id, username");
+        const { data: matchedAccounts } = await supabase
+          .from("instagram_accounts")
+          .select("reeldash_user_id, username")
+          .in("username", handles);
 
-        if (matchedProfiles) {
-          matchedProfiles.forEach((p) => {
-            const pUser = (p.username || "").toLowerCase().trim();
-            if (handles.includes(pUser) && p.id && !userIds.includes(p.id)) {
-              userIds.push(p.id);
+        if (matchedAccounts) {
+          matchedAccounts.forEach((p) => {
+            if (p.reeldash_user_id && !userIds.includes(p.reeldash_user_id)) {
+              userIds.push(p.reeldash_user_id);
             }
           });
         }
@@ -45,11 +61,14 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ reels: [] });
     }
 
-    const { data: reels, error } = await supabase
-      .from("reels")
-      .select("*")
-      .in("user_id", userIds)
-      .order("created_at", { ascending: false });
+    let query = supabase.from("reels").select("*").in("user_id", userIds);
+
+    if (filterAccount && filterAccount !== "all") {
+      const cleanFilter = filterAccount.replace(/^@/, "").trim().toLowerCase();
+      query = query.ilike("instagram_username", cleanFilter);
+    }
+
+    const { data: reels, error } = await query.order("created_at", { ascending: false });
 
     if (error) {
       return NextResponse.json({ reels: [], fallback: true, message: error.message });

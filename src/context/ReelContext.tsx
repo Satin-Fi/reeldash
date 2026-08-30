@@ -22,6 +22,7 @@ interface ReelContextType {
   activeCategory: string | null;
   activeCollection: string | null;
   activeMediaType: MediaTypeFilter;
+  selectedInstagramAccount: string | null;
   searchQuery: string;
   sortOption: SortOption;
   viewMode: ViewMode;
@@ -36,6 +37,7 @@ interface ReelContextType {
   setActiveCategory: (cat: string | null) => void;
   setActiveCollection: (colId: string | null) => void;
   setActiveMediaType: (type: MediaTypeFilter) => void;
+  setSelectedInstagramAccount: (handle: string | null) => void;
   setSearchQuery: (query: string) => void;
   setSortOption: (sort: SortOption) => void;
   setViewMode: (mode: ViewMode) => void;
@@ -88,6 +90,7 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [activeCollection, setActiveCollection] = useState<string | null>(null);
   const [activeMediaType, setActiveMediaType] = useState<MediaTypeFilter>("all");
+  const [selectedInstagramAccount, setSelectedInstagramAccount] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [sortOption, setSortOption] = useState<SortOption>("newest");
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
@@ -178,8 +181,12 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
       setReels(parsedReels);
       setCollections(parsedCols);
 
-      // Fetch live reels from Supabase database (including DM-saved reels)
-      fetch(`/api/reels?userId=${encodeURIComponent(user.id)}&username=${encodeURIComponent(user.instagramUsername || "")}`)
+      // Fetch live reels from Supabase database (including DM-saved reels & handle filter)
+      const accountParam = selectedInstagramAccount && selectedInstagramAccount !== "all" 
+        ? `&account=${encodeURIComponent(selectedInstagramAccount)}` 
+        : "";
+
+      fetch(`/api/reels?userId=${encodeURIComponent(user.id)}&username=${encodeURIComponent(user.instagramUsername || "")}${accountParam}`)
         .then((res) => (res.ok ? res.json() : { reels: [] }))
         .then((data) => {
           if (data.reels && Array.isArray(data.reels) && data.reels.length > 0) {
@@ -189,6 +196,8 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
                 id: dbR.id,
                 userId: user.id,
                 instagramUrl: dbR.url,
+                instagramUsername: dbR.instagram_username || "",
+                instagramAccountId: dbR.instagram_account_id || "",
                 thumbnailUrl: dbR.thumbnail_url || (sc ? `/api/proxy-image?shortcode=${sc}` : ""),
                 caption: dbR.caption || "Saved Reel",
                 creatorUsername: dbR.creator_handle || "creator",
@@ -205,15 +214,9 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
               };
             });
 
-            setReels((prev) => {
-              const merged = [...dbReels];
-              for (const localR of prev) {
-                if (!merged.some((m) => m.id === localR.id || (m.instagramUrl && m.instagramUrl === localR.instagramUrl))) {
-                  merged.push(localR);
-                }
-              }
-              return merged;
-            });
+            setReels(dbReels);
+          } else if (selectedInstagramAccount && selectedInstagramAccount !== "all") {
+            setReels([]);
           }
         })
         .catch((err) => console.warn("[ReelContext] fetch reels notice:", err));
@@ -221,7 +224,7 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
       setReels([]);
       setCollections([]);
     }
-  }, [user?.id, user?.instagramUsername]);
+  }, [user?.id, user?.instagramUsername, selectedInstagramAccount]);
 
   const saveUserReels = (updatedReels: Reel[]) => {
     setReels(updatedReels);
@@ -622,6 +625,7 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
         activeCategory,
         activeCollection,
         activeMediaType,
+        selectedInstagramAccount,
         searchQuery,
         sortOption,
         viewMode,
@@ -634,6 +638,7 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
         setActiveCategory,
         setActiveCollection,
         setActiveMediaType,
+        setSelectedInstagramAccount,
         setSearchQuery,
         setSortOption,
         setViewMode,
