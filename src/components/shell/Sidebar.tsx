@@ -124,7 +124,7 @@ export function Sidebar() {
         
         {/* Brand Header */}
         <div className="px-2 py-1.5">
-          <ReelDashLogo href="/dashboard" size={24} />
+          <ReelDashLogo href="/dashboard" size={28} textSize="text-[20px]" />
         </div>
 
         {/* Primary Navigation */}

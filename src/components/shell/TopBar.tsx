@@ -121,24 +121,24 @@ export function TopBar() {
   const IdentityIcon = identity.icon;
 
   return (
-    <header className="h-[64px] min-h-[64px] w-full sticky top-0 z-30 bg-[#0B0D10] border-b border-white/[0.06] px-6 flex items-center justify-between select-none transition-colors duration-150 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+    <header className="h-[64px] min-h-[64px] w-full sticky top-0 z-30 bg-surface-light dark:bg-surface-dark border-b border-borderSubtle-light dark:border-borderSubtle-dark px-6 flex items-center justify-between select-none transition-colors duration-150">
       
       {/* ─── 1. LEFT ZONE: Workspace / Page Identity ────────────────── */}
       <div className="flex items-center gap-2 shrink-0">
         {/* Identity Icon */}
         <IdentityIcon
-          className="w-[18px] h-[18px] text-[#A7A9B5] shrink-0 transition-colors duration-150"
+          className="w-[18px] h-[18px] text-secondaryText-light dark:text-secondaryText-dark shrink-0 transition-colors duration-150"
           strokeWidth={1.7}
         />
 
         {/* Identity Title */}
-        <span className="text-[14px] font-semibold leading-[20px] tracking-[-0.01em] text-[#E7E8EC] transition-colors duration-150">
+        <span className="text-[14px] font-semibold leading-[20px] tracking-[-0.01em] text-primaryText-light dark:text-primaryText-dark transition-colors duration-150">
           {identity.title}
         </span>
 
         {/* Tiny Muted Count Capsule */}
         {identity.count !== undefined && (
-          <span className="inline-flex items-center justify-center h-[20px] min-w-[20px] px-[6px] rounded-[6px] text-[11px] font-semibold bg-white/[0.06] text-[#9296A5] tabular-nums transition-colors duration-150">
+          <span className="inline-flex items-center justify-center h-[20px] min-w-[20px] px-[6px] rounded-[6px] text-[11px] font-semibold bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark text-secondaryText-light dark:text-secondaryText-dark tabular-nums transition-colors duration-150 border border-borderSubtle-light dark:border-borderSubtle-dark">
             {identity.count}
           </span>
         )}
@@ -148,23 +148,23 @@ export function TopBar() {
       <div className="flex-1 flex justify-center px-4 max-w-2xl">
         <button
           onClick={() => setIsCommandPaletteOpen(true)}
-          className="group w-full max-w-[420px] h-[38px] px-3 bg-[#111419] hover:bg-[#13161B] border border-white/[0.07] hover:border-white/[0.12] focus:border-[#5B52E8]/60 focus:ring-4 focus:ring-[#5B52E8]/10 rounded-[10px] flex items-center justify-between transition-all duration-150 cursor-pointer text-left outline-none"
+          className="group w-full max-w-[420px] h-[38px] px-3 bg-surfaceSecondary-light dark:bg-[#111419] hover:bg-surfaceTertiary-light dark:hover:bg-[#13161B] border border-borderSubtle-light dark:border-white/[0.07] hover:border-borderDefault-light dark:hover:border-white/[0.12] focus:border-brand-500 rounded-[10px] flex items-center justify-between transition-all duration-150 cursor-pointer text-left outline-none"
           title={`Search reels, creators, or command shortcuts (${isMac ? "⌘K" : "Ctrl+K"})`}
           aria-label="Global search and command palette"
         >
           {/* Left: Icon + Subtle Placeholder */}
           <div className="flex items-center gap-2.5 truncate">
             <Search
-              className="w-[17px] h-[17px] text-[#777C89] group-hover:text-[#A0A5B2] transition-colors shrink-0"
+              className="w-[17px] h-[17px] text-secondaryText-light dark:text-[#777C89] group-hover:text-primaryText-light dark:group-hover:text-[#A0A5B2] transition-colors shrink-0"
               strokeWidth={1.8}
             />
-            <span className="text-[14px] font-normal text-[#747987] group-hover:text-[#A0A5B2] transition-colors truncate font-sans">
+            <span className="text-[14px] font-normal text-secondaryText-light dark:text-[#747987] group-hover:text-primaryText-light dark:group-hover:text-[#A0A5B2] transition-colors truncate font-sans">
               Search or jump to…
             </span>
           </div>
 
           {/* Right: Keyboard Shortcut Key */}
-          <div className="hidden sm:inline-flex items-center justify-center h-[24px] px-[6px] min-w-[32px] rounded-[6px] bg-white/[0.05] border border-white/[0.08] text-[11px] font-semibold text-[#8E93A2] tracking-wide shrink-0 select-none">
+          <div className="hidden sm:inline-flex items-center justify-center h-[24px] px-[6px] min-w-[32px] rounded-[6px] bg-surfaceTertiary-light dark:bg-white/[0.05] border border-borderSubtle-light dark:border-white/[0.08] text-[11px] font-semibold text-secondaryText-light dark:text-[#8E93A2] tracking-wide shrink-0 select-none">
             {isMac ? "⌘ K" : "Ctrl K"}
           </div>
         </button>
@@ -175,7 +175,7 @@ export function TopBar() {
         {/* Theme Toggle (36px x 36px with Kinetic Spring Rotation) */}
         <button
           onClick={toggleTheme}
-          className="w-[36px] h-[36px] rounded-[8px] bg-transparent hover:bg-white/[0.06] flex items-center justify-center text-[#A8ACB8] hover:text-white transition-all duration-150 cursor-pointer outline-none"
+          className="w-[36px] h-[36px] rounded-[8px] bg-transparent hover:bg-surfaceSecondary-light dark:hover:bg-white/[0.06] flex items-center justify-center text-secondaryText-light dark:text-[#A8ACB8] hover:text-primaryText-light dark:hover:text-white transition-all duration-150 cursor-pointer outline-none"
           title="Toggle theme"
           aria-label="Toggle theme"
         >

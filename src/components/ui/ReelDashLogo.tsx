@@ -36,10 +36,10 @@ export function ReelDashLogo({
         />
       </div>
 
-      {/* Supahub-Calibrated Bricolage Grotesque Wordmark */}
+      {/* Supahub-Calibrated Bricolage Grotesque Wordmark (Theme-Aware) */}
       {showText && (
         <span
-          className={`font-bricolage font-extrabold ${textSize} tracking-[-0.035em] text-white leading-none flex items-center`}
+          className={`font-bricolage font-extrabold ${textSize} tracking-[-0.035em] text-zinc-900 dark:text-white leading-none flex items-center transition-colors duration-150`}
         >
           ReelDash
         </span>
