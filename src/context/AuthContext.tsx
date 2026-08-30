@@ -67,29 +67,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             avatar,
             plan: "Pro Plan",
           };
-          setUser(googleUser);
-          localStorage.setItem("reeldash_user", JSON.stringify(googleUser));
-
-          // Auto-sync linked Instagram handle from Supabase profiles
-          supabase
-            .from("profiles")
-            .select("username, name, avatar_url")
-            .limit(1)
-            .then(({ data: profiles }) => {
-              if (profiles && profiles.length > 0 && profiles[0].username) {
-                setUser((prev) => {
-                  if (!prev) return prev;
-                  const updated = {
-                    ...prev,
-                    name: profiles[0].name || prev.name,
-                    instagramUsername: profiles[0].username,
-                    avatar: profiles[0].avatar_url || prev.avatar,
-                  };
-                  localStorage.setItem("reeldash_user", JSON.stringify(updated));
-                  return updated;
+          setUser((prev) => {
+            const stored = prev || googleUser;
+            if (stored.instagramUsername) {
+              supabase
+                .from("profiles")
+                .select("username, name, avatar_url")
+                .ilike("username", stored.instagramUsername.replace(/^@/, "").trim())
+                .limit(1)
+                .then(({ data: profiles }) => {
+                  if (profiles && profiles.length > 0 && profiles[0].username) {
+                    setUser((current) => {
+                      if (!current) return current;
+                      const updated = {
+                        ...current,
+                        name: profiles[0].name || current.name,
+                        instagramUsername: profiles[0].username,
+                        avatar: profiles[0].avatar_url || current.avatar,
+                      };
+                      localStorage.setItem("reeldash_user", JSON.stringify(updated));
+                      return updated;
+                    });
+                  }
                 });
-              }
-            });
+            }
+            return stored;
+          });
         }
       });
 
@@ -102,37 +105,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const fullName = meta.full_name || meta.name || email.split("@")[0];
           const avatar = meta.avatar_url || meta.picture || "";
 
-          const googleUser: UserProfile = {
-            id: session.user.id,
-            name: fullName,
-            email,
-            handle: `@${email.split("@")[0]}`,
-            avatar,
-            plan: "Pro Plan",
-          };
-          setUser(googleUser);
-          localStorage.setItem("reeldash_user", JSON.stringify(googleUser));
+          setUser((prev) => {
+            const current: UserProfile = {
+              id: session.user.id,
+              name: prev?.name || fullName,
+              email: session.user.email || email,
+              handle: `@${email.split("@")[0]}`,
+              avatar: prev?.avatar || avatar,
+              instagramUsername: prev?.instagramUsername,
+              plan: "Pro Plan",
+            };
+            localStorage.setItem("reeldash_user", JSON.stringify(current));
 
-          // Auto-sync linked Instagram handle from Supabase profiles
-          supabase
-            .from("profiles")
-            .select("username, name, avatar_url")
-            .limit(1)
-            .then(({ data: profiles }) => {
-              if (profiles && profiles.length > 0 && profiles[0].username) {
-                setUser((prev) => {
-                  if (!prev) return prev;
-                  const updated = {
-                    ...prev,
-                    name: profiles[0].name || prev.name,
-                    instagramUsername: profiles[0].username,
-                    avatar: profiles[0].avatar_url || prev.avatar,
-                  };
-                  localStorage.setItem("reeldash_user", JSON.stringify(updated));
-                  return updated;
+            if (current.instagramUsername) {
+              supabase
+                .from("profiles")
+                .select("username, name, avatar_url")
+                .ilike("username", current.instagramUsername.replace(/^@/, "").trim())
+                .limit(1)
+                .then(({ data: profiles }) => {
+                  if (profiles && profiles.length > 0 && profiles[0].username) {
+                    setUser((curr) => {
+                      if (!curr) return curr;
+                      const updated = {
+                        ...curr,
+                        name: profiles[0].name || curr.name,
+                        instagramUsername: profiles[0].username,
+                        avatar: profiles[0].avatar_url || curr.avatar,
+                      };
+                      localStorage.setItem("reeldash_user", JSON.stringify(updated));
+                      return updated;
+                    });
+                  }
                 });
-              }
-            });
+            }
+            return current;
+          });
 
           if (
             event === "SIGNED_IN" ||

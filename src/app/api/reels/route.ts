@@ -18,33 +18,38 @@ export async function GET(req: NextRequest) {
     const userIds: string[] = [];
     if (userId) userIds.push(userId);
 
-    // If username is provided, find linked IG profile ID
+    // If username(s) are provided, find linked IG profile ID(s) strictly
     if (username) {
-      const cleanUsername = username.replace(/^@/, "").trim().toLowerCase();
-      const { data: matchedProfiles } = await supabase
-        .from("profiles")
-        .select("id")
-        .ilike("username", cleanUsername);
-      if (matchedProfiles) {
-        matchedProfiles.forEach((p) => {
-          if (p.id && !userIds.includes(p.id)) userIds.push(p.id);
-        });
+      const handles = username
+        .split(",")
+        .map((h) => h.replace(/^@/, "").trim().toLowerCase())
+        .filter(Boolean);
+
+      if (handles.length > 0) {
+        const { data: matchedProfiles } = await supabase
+          .from("profiles")
+          .select("id, username");
+
+        if (matchedProfiles) {
+          matchedProfiles.forEach((p) => {
+            const pUser = (p.username || "").toLowerCase().trim();
+            if (handles.includes(pUser) && p.id && !userIds.includes(p.id)) {
+              userIds.push(p.id);
+            }
+          });
+        }
       }
     }
 
-    // Auto-include all ig_usr_ profiles associated with single user / workspace
-    const { data: allProfiles } = await supabase.from("profiles").select("id").limit(10);
-    if (allProfiles) {
-      allProfiles.forEach((p) => {
-        if (p.id && !userIds.includes(p.id)) userIds.push(p.id);
-      });
+    if (userIds.length === 0) {
+      return NextResponse.json({ reels: [] });
     }
 
-    let query = supabase.from("reels").select("*");
-    if (userIds.length > 0) {
-      query = query.in("user_id", userIds);
-    }
-    const { data: reels, error } = await query.order("created_at", { ascending: false });
+    const { data: reels, error } = await supabase
+      .from("reels")
+      .select("*")
+      .in("user_id", userIds)
+      .order("created_at", { ascending: false });
 
     if (error) {
       return NextResponse.json({ reels: [], fallback: true, message: error.message });
