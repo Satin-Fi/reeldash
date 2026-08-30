@@ -57,18 +57,29 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    if (filterAccount && filterAccount !== "all") {
+      const cleanFilter = filterAccount.replace(/^@/, "").trim().toLowerCase();
+      const { data: reels, error } = await supabase
+        .from("reels")
+        .select("*")
+        .ilike("instagram_username", cleanFilter)
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        return NextResponse.json({ reels: [], fallback: true, message: error.message });
+      }
+      return NextResponse.json({ reels: reels || [] });
+    }
+
     if (userIds.length === 0) {
       return NextResponse.json({ reels: [] });
     }
 
-    let query = supabase.from("reels").select("*").in("user_id", userIds);
-
-    if (filterAccount && filterAccount !== "all") {
-      const cleanFilter = filterAccount.replace(/^@/, "").trim().toLowerCase();
-      query = query.ilike("instagram_username", cleanFilter);
-    }
-
-    const { data: reels, error } = await query.order("created_at", { ascending: false });
+    const { data: reels, error } = await supabase
+      .from("reels")
+      .select("*")
+      .in("user_id", userIds)
+      .order("created_at", { ascending: false });
 
     if (error) {
       return NextResponse.json({ reels: [], fallback: true, message: error.message });
