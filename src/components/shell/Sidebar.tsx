@@ -141,38 +141,42 @@ export function Sidebar() {
           </Link>
         </div>
 
-        {/* ─── Minimalist Instagram Account Selector ─── */}
+        {/* ─── Instagram Account Selector ─── */}
         {allHandles.length > 0 && (
-          <div className="relative pt-1">
+          <div className="relative pt-0.5 pb-1">
             <button
               onClick={() => setIsAccountDropdownOpen(!isAccountDropdownOpen)}
-              className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-rd-sm border border-borderSubtle-light dark:border-borderSubtle-dark bg-surfaceSecondary-light/60 dark:bg-surfaceSecondary-dark/60 hover:bg-surfaceSecondary-light dark:hover:bg-surfaceSecondary-dark transition-colors cursor-pointer text-left text-xs"
+              className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-rd-md hover:bg-surfaceSecondary-light dark:hover:bg-white/[0.05] transition-colors cursor-pointer text-left focus:outline-none group"
             >
               <div className="flex items-center gap-2 min-w-0">
-                <Instagram className="w-3.5 h-3.5 text-brand-600 dark:text-brand-400 shrink-0" />
-                <span className="truncate font-mono font-medium text-primaryText-light dark:text-primaryText-dark">
-                  {selectedInstagramAccount ? `@${selectedInstagramAccount}` : "All Accounts"}
-                </span>
+                <div className="w-5 h-5 rounded-md bg-brand-500/15 flex items-center justify-center shrink-0">
+                  <Instagram className="w-3 h-3 text-brand-600 dark:text-brand-400" />
+                </div>
+                <div className="min-w-0">
+                  <span className="block text-[11px] font-semibold truncate text-primaryText-light dark:text-zinc-200 leading-tight">
+                    {selectedInstagramAccount ? `@${selectedInstagramAccount}` : "All Accounts"}
+                  </span>
+                </div>
               </div>
-              <ChevronsUpDown className="w-3.5 h-3.5 text-secondaryText-light dark:text-secondaryText-dark shrink-0" />
+              <ChevronsUpDown className="w-3 h-3 text-zinc-400 dark:text-zinc-500 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
             </button>
 
             {/* Dropdown Menu */}
             {isAccountDropdownOpen && (
-              <div className="absolute top-full left-0 right-0 mt-1 z-50 p-1 rounded-rd-md bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark shadow-rd-modal space-y-0.5">
+              <div className="absolute top-full left-0 right-0 mt-1 z-50 p-1 rounded-rd-md bg-surface-light dark:bg-zinc-900 border border-borderSubtle-light dark:border-white/[0.08] shadow-xl shadow-black/20 space-y-0.5">
                 <button
                   onClick={() => {
                     setSelectedInstagramAccount(null);
                     setIsAccountDropdownOpen(false);
                   }}
-                  className={`w-full flex items-center justify-between px-2 py-1.5 rounded-rd-sm text-xs transition-colors cursor-pointer text-left ${
+                  className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-rd-sm text-[11px] transition-colors cursor-pointer text-left ${
                     !selectedInstagramAccount
                       ? "bg-brand-500/10 text-brand-600 dark:text-brand-400 font-semibold"
-                      : "text-secondaryText-light dark:text-secondaryText-dark hover:bg-surfaceSecondary-light dark:hover:bg-surfaceSecondary-dark hover:text-primaryText-light dark:hover:text-primaryText-dark"
+                      : "text-secondaryText-light dark:text-zinc-400 hover:bg-surfaceSecondary-light dark:hover:bg-white/[0.05] hover:text-primaryText-light dark:hover:text-zinc-200"
                   }`}
                 >
-                  <span className="font-medium">All Accounts</span>
-                  <span className="font-mono text-[10px] opacity-75">{counts.all}</span>
+                  <span>All Accounts</span>
+                  <span className="tabular-nums text-[10px] opacity-60">{counts.all}</span>
                 </button>
 
                 {allHandles.map((handle) => {
@@ -184,26 +188,26 @@ export function Sidebar() {
                         setSelectedInstagramAccount(handle);
                         setIsAccountDropdownOpen(false);
                       }}
-                      className={`w-full flex items-center justify-between px-2 py-1.5 rounded-rd-sm text-xs transition-colors cursor-pointer text-left ${
+                      className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-rd-sm text-[11px] transition-colors cursor-pointer text-left ${
                         isSelected
                           ? "bg-brand-500/10 text-brand-600 dark:text-brand-400 font-semibold"
-                          : "text-secondaryText-light dark:text-secondaryText-dark hover:bg-surfaceSecondary-light dark:hover:bg-surfaceSecondary-dark hover:text-primaryText-light dark:hover:text-primaryText-dark"
+                          : "text-secondaryText-light dark:text-zinc-400 hover:bg-surfaceSecondary-light dark:hover:bg-white/[0.05] hover:text-primaryText-light dark:hover:text-zinc-200"
                       }`}
                     >
-                      <span className="font-mono truncate">@{handle}</span>
-                      {isSelected && <Check className="w-3 h-3 text-brand-500" />}
+                      <span className="truncate">@{handle}</span>
+                      {isSelected && <Check className="w-3 h-3 text-brand-500 shrink-0" />}
                     </button>
                   );
                 })}
 
-                <div className="pt-1 mt-0.5 border-t border-borderSubtle-light dark:border-borderSubtle-dark">
+                <div className="pt-1 mt-0.5 border-t border-borderSubtle-light dark:border-white/[0.06]">
                   <Link
                     href="/settings"
                     onClick={() => setIsAccountDropdownOpen(false)}
-                    className="w-full flex items-center space-x-2 px-2 py-1.5 rounded-rd-sm text-[11px] font-medium text-brand-600 dark:text-brand-400 hover:bg-brand-500/10 transition-colors"
+                    className="w-full flex items-center gap-1.5 px-2.5 py-1.5 rounded-rd-sm text-[11px] font-medium text-brand-600 dark:text-brand-400 hover:bg-brand-500/10 transition-colors"
                   >
-                    <Plus className="w-3 h-3" />
-                    <span>Manage Accounts</span>
+                    <Plus className="w-3 h-3 shrink-0" />
+                    <span>Connect Account</span>
                   </Link>
                 </div>
               </div>

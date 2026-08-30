@@ -30,11 +30,17 @@
     color: inherit;
   }
 
-  /* Focus visible - custom ring */
+  /* Focus visible - refined, barely-there ring */
   :focus-visible {
-    outline: 2px solid #6366F1;
-    outline-offset: 2px;
+    outline: 1px solid rgba(99, 102, 241, 0.35);
+    outline-offset: 1px;
     border-radius: 4px;
+  }
+
+  /* Buttons and interactive elements: no default focus ring */
+  button:focus,
+  a:focus {
+    outline: none;
   }
 }
 
