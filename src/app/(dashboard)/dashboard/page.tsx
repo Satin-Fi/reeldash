@@ -18,7 +18,6 @@ import {
   MessageCircle,
   Music2,
   Plus,
-  Sparkles,
   X,
 } from "lucide-react";
 
@@ -158,7 +157,7 @@ export default function DashboardPage() {
 
       <aside className="space-y-5 xl:pt-1">
         <section className="border-y border-borderSubtle-light py-5 dark:border-borderSubtle-dark xl:rounded-rd-lg xl:border xl:bg-surface-light xl:px-5 xl:shadow-rd-subtle xl:dark:border-borderSubtle-dark xl:dark:bg-surface-dark">
-          <div className="flex items-center justify-between"><div><p className="text-xs font-semibold tracking-[0.08em] text-secondaryText-light dark:text-secondaryText-dark">LIBRARY PULSE</p><p className="mt-1 text-sm font-semibold text-primaryText-light dark:text-primaryText-dark">What you have saved</p></div><Sparkles className="h-4 w-4 text-brand-600 dark:text-brand-400" /></div>
+          <div className="flex items-center justify-between"><div><p className="text-xs font-semibold tracking-[0.08em] text-secondaryText-light dark:text-secondaryText-dark">LIBRARY PULSE</p><p className="mt-1 text-sm font-semibold text-primaryText-light dark:text-primaryText-dark">What you have saved</p></div></div>
           <div className="mt-5 space-y-3.5">{libraryViews.slice(0, 3).map((view) => { const value = view.getValue(counts); const percentage = reels.length ? Math.max((value / reels.length) * 100, value ? 8 : 0) : 0; return <Link key={view.label} href={view.href} className="group block"><div className="flex items-center justify-between text-xs"><span className="text-secondaryText-light group-hover:text-primaryText-light dark:text-secondaryText-dark dark:group-hover:text-primaryText-dark">{view.label}</span><span className="font-mono font-semibold tabular-nums text-primaryText-light dark:text-primaryText-dark">{value}</span></div><div className="mt-2 h-1.5 overflow-hidden rounded-full bg-surfaceTertiary-light dark:bg-surfaceTertiary-dark"><div className="h-full rounded-full bg-brand-500 transition-[width] duration-300" style={{ width: `${percentage}%` }} /></div></Link>; })}</div>
         </section>
 
