@@ -43,10 +43,8 @@ export function TopBar() {
   } = useReels();
   const { user, logout } = useAuth();
   const [profileOpen, setProfileOpen] = useState(false);
-  const [mobileAccountOpen, setMobileAccountOpen] = useState(false);
   const [isMac, setIsMac] = useState(true);
   const profileRef = useRef<HTMLDivElement>(null);
-  const mobileAccountRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const mediaTypeParam = searchParams.get("type");
@@ -76,20 +74,16 @@ export function TopBar() {
     }
   }, []);
 
-  // Close dropdowns on outside click or Escape key
+  // Close dropdown on outside click or Escape key
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
         setProfileOpen(false);
       }
-      if (mobileAccountRef.current && !mobileAccountRef.current.contains(e.target as Node)) {
-        setMobileAccountOpen(false);
-      }
     }
     function handleKeyDown(e: KeyboardEvent) {
       if (e.key === "Escape") {
         setProfileOpen(false);
-        setMobileAccountOpen(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -98,7 +92,7 @@ export function TopBar() {
       document.removeEventListener("mousedown", handleClickOutside);
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [profileOpen, mobileAccountOpen]);
+  }, [profileOpen]);
 
   // Format user initial
   const userInitial = user?.name ? user.name.charAt(0).toUpperCase() : "J";
@@ -152,158 +146,45 @@ export function TopBar() {
   const IdentityIcon = identity.icon;
 
   return (
-    <header className="h-[64px] min-h-[64px] w-full sticky top-0 z-30 bg-surface-light dark:bg-surface-dark border-b border-borderSubtle-light dark:border-borderSubtle-dark px-3 sm:px-6 flex items-center justify-between select-none transition-colors duration-150">
+    <header className="h-[64px] min-h-[64px] w-full sticky top-0 z-30 bg-surface-light dark:bg-surface-dark border-b border-borderSubtle-light dark:border-borderSubtle-dark px-4 sm:px-6 flex items-center justify-between select-none transition-colors duration-150">
       
-      {/* ─── 1. LEFT ZONE: Workspace / Page Identity & Mobile Switcher ── */}
+      {/* ─── 1. LEFT ZONE: Workspace / Page Identity ────────────────── */}
       <div className="flex items-center gap-2 shrink-0">
-        {/* Desktop Page Identity */}
-        <div className="hidden md:flex items-center gap-2">
-          <IdentityIcon
-            className="w-[18px] h-[18px] text-secondaryText-light dark:text-secondaryText-dark shrink-0 transition-colors duration-150"
-            strokeWidth={1.7}
-          />
-          <span className="text-[14px] font-semibold leading-[20px] tracking-[-0.01em] text-primaryText-light dark:text-primaryText-dark transition-colors duration-150">
-            {identity.title}
+        <IdentityIcon
+          className="w-[18px] h-[18px] text-secondaryText-light dark:text-secondaryText-dark shrink-0 transition-colors duration-150"
+          strokeWidth={1.7}
+        />
+        <span className="text-[14px] font-semibold leading-[20px] tracking-[-0.01em] text-primaryText-light dark:text-primaryText-dark transition-colors duration-150">
+          {identity.title}
+        </span>
+        {identity.count !== undefined && (
+          <span className="inline-flex items-center justify-center h-[20px] min-w-[20px] px-[6px] rounded-[6px] text-[11px] font-semibold bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark text-secondaryText-light dark:text-secondaryText-dark tabular-nums transition-colors duration-150 border border-borderSubtle-light dark:border-borderSubtle-dark">
+            {identity.count}
           </span>
-          {identity.count !== undefined && (
-            <span className="inline-flex items-center justify-center h-[20px] min-w-[20px] px-[6px] rounded-[6px] text-[11px] font-semibold bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark text-secondaryText-light dark:text-secondaryText-dark tabular-nums transition-colors duration-150 border border-borderSubtle-light dark:border-borderSubtle-dark">
-              {identity.count}
-            </span>
-          )}
-        </div>
-
-        {/* Mobile View: Interactive Account Switcher (if handles exist) or Mobile Title */}
-        <div className="flex md:hidden items-center gap-1.5">
-          {allHandles.length > 0 ? (
-            <div className="relative" ref={mobileAccountRef}>
-              <button
-                onClick={() => setMobileAccountOpen(!mobileAccountOpen)}
-                className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-surfaceSecondary-light dark:bg-white/[0.06] border border-borderSubtle-light dark:border-white/[0.08] text-xs font-semibold text-primaryText-light dark:text-zinc-200 cursor-pointer active:scale-95 transition-all max-w-[155px]"
-              >
-                <div className="w-4 h-4 rounded-full overflow-hidden bg-brand-500/15 flex items-center justify-center shrink-0 relative">
-                  {selectedInstagramAccount ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={getAccountAvatarSrc(selectedInstagramAccount)}
-                      alt=""
-                      referrerPolicy="no-referrer"
-                      onError={(e) => {
-                        (e.target as HTMLElement).style.display = "none";
-                      }}
-                      className="w-full h-full object-cover z-10"
-                    />
-                  ) : null}
-                  <Instagram className="w-2.5 h-2.5 text-brand-500 absolute" />
-                </div>
-                <span className="truncate font-mono text-[11px]">
-                  {selectedInstagramAccount ? `@${selectedInstagramAccount}` : "All Feeds"}
-                </span>
-                <ChevronsUpDown className="w-3 h-3 text-secondaryText-light dark:text-zinc-400 shrink-0" />
-              </button>
-
-              {/* Mobile Account Dropdown Menu */}
-              <AnimatePresence>
-                {mobileAccountOpen && (
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.95, y: 4 }}
-                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.95, y: 4 }}
-                    transition={{ duration: 0.12 }}
-                    className="absolute left-0 mt-1.5 w-52 bg-surface-light dark:bg-[#111419] border border-borderSubtle-light dark:border-white/[0.08] rounded-[10px] shadow-2xl p-1.5 z-50 text-xs space-y-0.5"
-                  >
-                    <button
-                      onClick={() => {
-                        setSelectedInstagramAccount(null);
-                        setMobileAccountOpen(false);
-                      }}
-                      className={`w-full flex items-center justify-between px-2.5 py-2 rounded-[6px] text-xs transition-colors cursor-pointer text-left ${
-                        !selectedInstagramAccount
-                          ? "bg-brand-500/10 text-brand-600 dark:text-brand-400 font-semibold"
-                          : "text-secondaryText-light dark:text-zinc-400 hover:bg-surfaceSecondary-light dark:hover:bg-white/[0.05]"
-                      }`}
-                    >
-                      <div className="flex items-center gap-2 min-w-0">
-                        <div className="w-4 h-4 rounded-full bg-brand-500/15 flex items-center justify-center shrink-0">
-                          <Instagram className="w-2.5 h-2.5 text-brand-500" />
-                        </div>
-                        <span>All Accounts</span>
-                      </div>
-                      {!selectedInstagramAccount && <Check className="w-3.5 h-3.5 text-brand-500 shrink-0" />}
-                    </button>
-
-                    {allHandles.map((handle) => {
-                      const isSelected = selectedInstagramAccount?.toLowerCase() === handle.toLowerCase();
-                      return (
-                        <button
-                          key={handle}
-                          onClick={() => {
-                            setSelectedInstagramAccount(handle);
-                            setMobileAccountOpen(false);
-                          }}
-                          className={`w-full flex items-center justify-between px-2.5 py-2 rounded-[6px] text-xs transition-colors cursor-pointer text-left ${
-                            isSelected
-                              ? "bg-brand-500/10 text-brand-600 dark:text-brand-400 font-semibold"
-                              : "text-secondaryText-light dark:text-zinc-400 hover:bg-surfaceSecondary-light dark:hover:bg-white/[0.05]"
-                          }`}
-                        >
-                          <div className="flex items-center gap-2 min-w-0">
-                            <div className="w-4 h-4 rounded-full overflow-hidden bg-brand-500/15 flex items-center justify-center shrink-0 relative">
-                              {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img
-                                src={getAccountAvatarSrc(handle)}
-                                alt={handle}
-                                referrerPolicy="no-referrer"
-                                onError={(e) => {
-                                  (e.target as HTMLElement).style.display = "none";
-                                }}
-                                className="w-full h-full object-cover z-10"
-                              />
-                              <span className="text-[8px] uppercase font-mono absolute text-brand-500 font-bold">
-                                {handle.replace(/^_/, "").charAt(0) || handle.charAt(0)}
-                              </span>
-                            </div>
-                            <span className="truncate font-mono">@{handle}</span>
-                          </div>
-                          {isSelected && <Check className="w-3.5 h-3.5 text-brand-500 shrink-0" />}
-                        </button>
-                      );
-                    })}
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-          ) : (
-            <div className="flex items-center gap-1.5">
-              <IdentityIcon className="w-4 h-4 text-secondaryText-light dark:text-secondaryText-dark shrink-0" />
-              <span className="text-xs font-semibold text-primaryText-light dark:text-primaryText-dark">
-                {identity.title}
-              </span>
-            </div>
-          )}
-        </div>
+        )}
       </div>
 
-      {/* ─── 2. CENTER ZONE: Command Center Search ────────────────── */}
-      <div className="flex-1 flex justify-center px-2 sm:px-4 max-w-2xl">
+      {/* ─── 2. CENTER ZONE: Command Center Search (Desktop Only) ───── */}
+      <div className="hidden md:flex flex-1 justify-center px-4 max-w-2xl">
         <button
           onClick={() => setIsCommandPaletteOpen(true)}
-          className="group w-full max-w-[420px] h-[36px] sm:h-[38px] px-2.5 sm:px-3 bg-surfaceSecondary-light dark:bg-[#111419] hover:bg-surfaceTertiary-light dark:hover:bg-[#13161B] border border-borderSubtle-light dark:border-white/[0.07] hover:border-borderDefault-light dark:hover:border-white/[0.12] focus:border-brand-500 rounded-[10px] flex items-center justify-between transition-all duration-150 cursor-pointer text-left outline-none hover:ring-1 hover:ring-brand-500/15"
+          className="group w-full max-w-[420px] h-[38px] px-3 bg-surfaceSecondary-light dark:bg-[#111419] hover:bg-surfaceTertiary-light dark:hover:bg-[#13161B] border border-borderSubtle-light dark:border-white/[0.07] hover:border-borderDefault-light dark:hover:border-white/[0.12] focus:border-brand-500 rounded-[10px] flex items-center justify-between transition-all duration-150 cursor-pointer text-left outline-none hover:ring-1 hover:ring-brand-500/15"
           title={`Search reels, creators, or command shortcuts (${isMac ? "⌘K" : "Ctrl+K"})`}
           aria-label="Global search and command palette"
         >
           {/* Left: Icon + Subtle Placeholder */}
           <div className="flex items-center gap-2 truncate">
             <Search
-              className="w-[15px] sm:w-[17px] h-[15px] sm:h-[17px] text-secondaryText-light dark:text-[#777C89] group-hover:text-primaryText-light dark:group-hover:text-[#A0A5B2] transition-colors shrink-0"
+              className="w-[17px] h-[17px] text-secondaryText-light dark:text-[#777C89] group-hover:text-primaryText-light dark:group-hover:text-[#A0A5B2] transition-colors shrink-0"
               strokeWidth={1.8}
             />
-            <span className="text-[13px] sm:text-[14px] font-normal text-secondaryText-light dark:text-[#747987] group-hover:text-primaryText-light dark:group-hover:text-[#A0A5B2] transition-colors truncate font-sans">
+            <span className="text-[14px] font-normal text-secondaryText-light dark:text-[#747987] group-hover:text-primaryText-light dark:group-hover:text-[#A0A5B2] transition-colors truncate font-sans">
               Search library…
             </span>
           </div>
 
           {/* Right: Keyboard Shortcut Key */}
-          <div className="hidden sm:inline-flex items-center justify-center h-[24px] px-[6px] min-w-[32px] rounded-[6px] bg-surfaceTertiary-light dark:bg-white/[0.05] border border-borderSubtle-light dark:border-white/[0.08] text-[11px] font-semibold text-secondaryText-light dark:text-[#8E93A2] tracking-wide shrink-0 select-none">
+          <div className="inline-flex items-center justify-center h-[24px] px-[6px] min-w-[32px] rounded-[6px] bg-surfaceTertiary-light dark:bg-white/[0.05] border border-borderSubtle-light dark:border-white/[0.08] text-[11px] font-semibold text-secondaryText-light dark:text-[#8E93A2] tracking-wide shrink-0 select-none">
             {isMac ? "⌘ K" : "Ctrl K"}
           </div>
         </button>
