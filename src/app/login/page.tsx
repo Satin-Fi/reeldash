@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
+import { ReelDashLogo } from "@/components/ui/ReelDashLogo";
 import { SplineScene } from "@/components/ui/SplineScene";
 import {
   Eye,
@@ -41,13 +42,9 @@ export default function LoginPage() {
       {/* LEFT COLUMN: PURE INTERACTIVE 3D SPLINE SCENE                             */}
       {/* ========================================================================= */}
       <div className="hidden lg:flex lg:w-1/2 relative flex-col justify-between p-12 border-r border-white/[0.06] bg-[#050608] overflow-hidden select-none">
-        {/* Clean Logo Only */}
+        {/* Clean Logo */}
         <div className="relative z-20 flex items-center">
-          <Link href="/" className="inline-flex items-center">
-            <span className="text-base font-semibold tracking-tight text-white hover:text-zinc-300 transition-colors">
-              ReelDash
-            </span>
-          </Link>
+          <ReelDashLogo href="/" size={24} />
         </div>
 
         {/* Center: Full Interactive 3D Spline Canvas */}
@@ -84,9 +81,7 @@ export default function LoginPage() {
         >
           {/* Mobile Top Brand */}
           <div className="lg:hidden flex items-center justify-between pb-4 border-b border-white/[0.06]">
-            <Link href="/" className="inline-flex items-center">
-              <span className="text-base font-semibold tracking-tight text-white">ReelDash</span>
-            </Link>
+            <ReelDashLogo href="/" size={22} />
           </div>
 
           <div className="space-y-1.5">

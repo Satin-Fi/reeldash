@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useReels } from "@/context/ReelContext";
 import { useAuth } from "@/context/AuthContext";
+import { ReelDashLogo } from "@/components/ui/ReelDashLogo";
 import {
   Home,
   Film,
@@ -122,19 +123,9 @@ export function Sidebar() {
       <div className="flex flex-col space-y-6 min-h-0 overflow-y-auto pr-1 scrollbar-none">
         
         {/* Brand Header */}
-        <Link href="/dashboard" className="flex items-center space-x-2.5 px-2 py-1.5 rounded-rd-md hover:opacity-80 transition-opacity">
-          <div className="w-8 h-8 rounded-rd-md bg-brand-500 flex items-center justify-center text-white shadow-rd-glow shrink-0">
-            <Zap className="w-4 h-4 text-white" strokeWidth={2.5} />
-          </div>
-          <div className="flex flex-col">
-            <span className="text-sm font-bold tracking-tight text-primaryText-light dark:text-primaryText-dark">
-              ReelDash
-            </span>
-            <span className="text-[10px] text-secondaryText-light dark:text-secondaryText-dark font-medium leading-none">
-              Visual Library
-            </span>
-          </div>
-        </Link>
+        <div className="px-2 py-1.5">
+          <ReelDashLogo href="/dashboard" size={24} />
+        </div>
 
         {/* Primary Navigation */}
         <nav className="space-y-1">

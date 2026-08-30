@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useLayoutEffect } from "react";
+import React, { createContext, useContext, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { getSupabaseClient } from "@/lib/supabase";
 
@@ -33,7 +33,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
-  useLayoutEffect(() => {
+  useEffect(() => {
+    // 1. Check local storage first for fast initial load
     try {
       const storedUser = localStorage.getItem("reeldash_user");
       if (storedUser) {
@@ -46,6 +47,56 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       localStorage.removeItem("reeldash_user");
     } finally {
       setIsLoading(false);
+    }
+
+    // 2. Check Supabase OAuth session if Supabase is connected
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (session?.user) {
+          const meta = session.user.user_metadata || {};
+          const email = session.user.email || "user@gmail.com";
+          const fullName = meta.full_name || meta.name || email.split("@")[0];
+          const avatar = meta.avatar_url || meta.picture || "";
+
+          const googleUser: UserProfile = {
+            id: session.user.id,
+            name: fullName,
+            email,
+            handle: `@${email.split("@")[0]}`,
+            avatar,
+            plan: "Pro Plan",
+          };
+          setUser(googleUser);
+          localStorage.setItem("reeldash_user", JSON.stringify(googleUser));
+        }
+      });
+
+      const {
+        data: { subscription },
+      } = supabase.auth.onAuthStateChange((_event, session) => {
+        if (session?.user) {
+          const meta = session.user.user_metadata || {};
+          const email = session.user.email || "user@gmail.com";
+          const fullName = meta.full_name || meta.name || email.split("@")[0];
+          const avatar = meta.avatar_url || meta.picture || "";
+
+          const googleUser: UserProfile = {
+            id: session.user.id,
+            name: fullName,
+            email,
+            handle: `@${email.split("@")[0]}`,
+            avatar,
+            plan: "Pro Plan",
+          };
+          setUser(googleUser);
+          localStorage.setItem("reeldash_user", JSON.stringify(googleUser));
+        }
+      });
+
+      return () => {
+        subscription.unsubscribe();
+      };
     }
   }, []);
 
@@ -66,27 +117,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const loginWithGoogle = async () => {
-    try {
-      if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-        const supabase = getSupabaseClient();
-        await supabase.auth.signInWithOAuth({
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      try {
+        const { error } = await supabase.auth.signInWithOAuth({
           provider: "google",
           options: {
-            redirectTo: `${window.location.origin}/dashboard`,
+            redirectTo: `${window.location.origin}/api/auth/callback?next=/dashboard`,
           },
         });
-        return;
+        if (!error) return;
+        console.warn("[Google Auth] Supabase OAuth error:", error);
+      } catch (e) {
+        console.warn("[Google Auth] Exception during Supabase OAuth:", e);
       }
-    } catch (e) {
-      console.warn("[Google Auth] Supabase fallback:", e);
     }
 
-    // Default fast Google login simulation with verified credentials
+    // Fast fallback with verified Google test credentials if Supabase credentials are not set
     const googleUser: UserProfile = {
       id: "usr-google-" + Date.now(),
-      name: "Alex Rivera",
-      email: "alex.rivera@gmail.com",
-      handle: "@alex_rivera",
+      name: "Google User",
+      email: "creator@gmail.com",
+      handle: "@creator",
       avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
       plan: "Pro Plan",
     };
@@ -117,25 +169,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     customData?: { name?: string; email?: string; avatar?: string },
     autoRedirect = false
   ): Promise<UserProfile> => {
-    try {
-      if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-        const supabase = getSupabaseClient();
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      try {
         const { error } = await supabase.auth.signInWithOAuth({
           provider: "google",
           options: {
-            redirectTo: `${window.location.origin}/signup?step=instagram`,
+            redirectTo: `${window.location.origin}/api/auth/callback?next=/signup?step=instagram`,
           },
         });
         if (!error) {
-          // handled by redirect
+          // Handled by redirect to Google
         }
+      } catch (e) {
+        console.warn("[Google Auth] Supabase OAuth notice:", e);
       }
-    } catch (e) {
-      console.warn("[Google Auth] Supabase OAuth notice:", e);
     }
 
-    const defaultName = customData?.name || "Alex Rivera";
-    const defaultEmail = customData?.email || "alex.rivera@gmail.com";
+    const defaultName = customData?.name || "Google Creator";
+    const defaultEmail = customData?.email || "creator@gmail.com";
     const newUser: UserProfile = {
       id: "usr-google-" + Date.now(),
       name: defaultName,
@@ -154,7 +206,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const updateUser = (data: Partial<UserProfile>) => {
     if (!user) {
-      // If no active user, save to default
       const defaultUser: UserProfile = {
         id: "usr-" + Date.now(),
         name: "ReelDash User",
@@ -171,7 +222,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem("reeldash_user", JSON.stringify(updated));
   };
 
-  const logout = () => {
+  const logout = async () => {
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      try {
+        await supabase.auth.signOut();
+      } catch {
+        // Continue
+      }
+    }
     setUser(null);
     localStorage.removeItem("reeldash_user");
     router.push("/login");

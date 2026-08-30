@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/context/AuthContext";
+import { ReelDashLogo } from "@/components/ui/ReelDashLogo";
 import { SplineScene } from "@/components/ui/SplineScene";
 import {
   Eye,
@@ -97,13 +98,9 @@ function SignupContent() {
       {/* LEFT COLUMN: PURE INTERACTIVE 3D SPLINE SCENE                             */}
       {/* ========================================================================= */}
       <div className="hidden lg:flex lg:w-1/2 relative flex-col justify-between p-12 border-r border-white/[0.06] bg-[#050608] overflow-hidden select-none">
-        {/* Clean Logo Only */}
+        {/* Clean Logo */}
         <div className="relative z-20 flex items-center">
-          <Link href="/" className="inline-flex items-center group">
-            <span className="text-base font-semibold tracking-tight text-white hover:text-zinc-300 transition-colors">
-              ReelDash
-            </span>
-          </Link>
+          <ReelDashLogo href="/" size={24} />
         </div>
 
         {/* Center: Full Interactive 3D Spline Canvas */}
@@ -135,9 +132,7 @@ function SignupContent() {
         <div className="w-full max-w-[380px] space-y-8">
           {/* Mobile Top Brand */}
           <div className="lg:hidden flex items-center justify-between pb-4 border-b border-white/[0.06]">
-            <Link href="/" className="inline-flex items-center">
-              <span className="text-base font-semibold tracking-tight text-white">ReelDash</span>
-            </Link>
+            <ReelDashLogo href="/" size={22} />
             <span className="text-[11px] font-mono text-zinc-500">Step {step} of 2</span>
           </div>
 
