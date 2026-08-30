@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { processInstagramMessage, igProfileStore, igSavedReelsStore } from "@/lib/instagramBot";
+import { processInstagramMessage, igProfileStore } from "@/lib/instagramBot";
 
 export const dynamic = "force-dynamic";
 
@@ -11,6 +11,7 @@ export async function POST(req: NextRequest) {
       senderIgId = `ig_${Date.now().toString(36)}`,
       message = "https://www.instagram.com/reel/DbZkDwZsHgd/",
       isFollowing = false,
+      postbackPayload,
     } = body;
 
     const result = await processInstagramMessage(
@@ -18,14 +19,15 @@ export async function POST(req: NextRequest) {
       message,
       [],
       isFollowing,
-      username
+      username,
+      postbackPayload
     );
 
     return NextResponse.json({
       success: true,
       senderIgId,
       username,
-      isFollowing,
+      isFollowing: result.isFollowing,
       result,
       allProfilesCount: igProfileStore.size,
     });

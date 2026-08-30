@@ -37,12 +37,20 @@ export async function POST(req: NextRequest) {
         if (!event?.message && !event?.postback) continue;
 
         const senderIgId: string = event.sender?.id;
-        const messageText: string = event.message?.text ?? event.postback?.payload ?? "";
+        const messageText: string = event.message?.text ?? event.postback?.title ?? "";
+        const postbackPayload: string = event.postback?.payload ?? "";
         const attachments = event.message?.attachments ?? [];
 
         if (event.message?.is_echo) continue;
 
-        const processed = await processInstagramMessage(senderIgId, messageText, attachments);
+        const processed = await processInstagramMessage(
+          senderIgId,
+          messageText,
+          attachments,
+          undefined,
+          undefined,
+          postbackPayload
+        );
         results.push(processed);
       }
     }

@@ -54,6 +54,12 @@ interface DmMessage {
   timestamp: string;
   status?: string;
   profileCreated?: boolean;
+  buttons?: Array<{
+    type: "postback" | "web_url";
+    title: string;
+    payload?: string;
+    url?: string;
+  }>;
 }
 
 export default function InstagramIntegrationPage() {
@@ -96,11 +102,7 @@ export default function InstagramIntegrationPage() {
     showToast(`Linked Instagram account @${clean}`);
   };
 
-  const handleSendSimulatedDm = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const text = simMessage.trim();
-    if (!text) return;
-
+  const sendDm = async (text: string, postbackPayload?: string, overrideFollowing?: boolean) => {
     const userMsg: DmMessage = {
       id: `user-${Date.now()}`,
       sender: "user",
@@ -112,6 +114,7 @@ export default function InstagramIntegrationPage() {
     setSimLoading(true);
 
     try {
+      const isFollow = overrideFollowing !== undefined ? overrideFollowing : simIsFollowing;
       const res = await fetch("/api/instagram/bot-simulate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -119,17 +122,23 @@ export default function InstagramIntegrationPage() {
           username: simSender.replace("@", "").trim() || "instagram_user",
           senderIgId: `sim_ig_${simSender.replace(/[^a-zA-Z0-9]/g, "")}`,
           message: text,
-          isFollowing: simIsFollowing,
+          isFollowing: isFollow,
+          postbackPayload,
         }),
       });
 
       const data = await res.json();
       const result = data?.result;
 
+      if (data?.isFollowing && !simIsFollowing) {
+        setSimIsFollowing(true);
+      }
+
       const botReplyText =
+        result?.replyMessage ||
         result?.replySent ||
-        (result?.status === "awaiting_follow"
-          ? "👋 Welcome to ReelDash! Please make sure you are following @reeldash to activate automatic Reel saving."
+        (result?.status === "follow_required"
+          ? "Oh no! You aren't following, so ReelDash sync won't activate. ✨\n\nMake sure you're following so we can auto-save any Reel you send!"
           : "⚡ Saved to your ReelDash library!");
 
       const botMsg: DmMessage = {
@@ -138,7 +147,8 @@ export default function InstagramIntegrationPage() {
         text: botReplyText,
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
         status: result?.status,
-        profileCreated: result?.profileCreated,
+        profileCreated: result?.status === "profile_created" || result?.status === "reel_saved" || result?.isFollowing,
+        buttons: result?.buttons,
       };
 
       setChatHistory((prev) => [...prev, botMsg]);
@@ -146,8 +156,8 @@ export default function InstagramIntegrationPage() {
       // If reel was saved in simulation, also save into active local library
       if (result?.status === "reel_saved" && text.includes("instagram.com")) {
         await saveReel(text, {
-          creator: result.creator,
-          mediaType: result.mediaType,
+          creator: result.username || simSender,
+          mediaType: result.savedReel?.media_type || "reel",
           caption: `Saved via Instagram DM from @${simSender}`,
         });
         showToast("Reel synced to your active dashboard!");
@@ -164,6 +174,27 @@ export default function InstagramIntegrationPage() {
       ]);
     } finally {
       setSimLoading(false);
+    }
+  };
+
+  const handleSendSimulatedDm = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const text = simMessage.trim();
+    if (!text) return;
+    setSimMessage("");
+    await sendDm(text);
+  };
+
+  const handleButtonClick = async (button: { type: "postback" | "web_url"; title: string; payload?: string; url?: string }) => {
+    if (button.type === "web_url" && button.url) {
+      window.open(button.url, "_blank");
+      return;
+    }
+
+    if (button.type === "postback" || button.payload) {
+      // User tapped button e.g. "I followed you! ✅"
+      setSimIsFollowing(true);
+      await sendDm(button.title, button.payload || "CHECK_FOLLOW_STATUS", true);
     }
   };
 
@@ -369,6 +400,23 @@ export default function InstagramIntegrationPage() {
                 }`}
               >
                 {msg.text}
+
+                {/* Interactive Instagram Action Buttons */}
+                {msg.buttons && msg.buttons.length > 0 && (
+                  <div className="mt-2.5 pt-2 border-t border-zinc-800/80 space-y-1.5">
+                    {msg.buttons.map((btn, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => handleButtonClick(btn)}
+                        className="w-full py-2 px-3 bg-zinc-800 hover:bg-zinc-700/90 text-zinc-100 font-semibold text-xs rounded-xl border border-zinc-700/60 flex items-center justify-center space-x-1.5 transition-all shadow-sm active:scale-[0.98] cursor-pointer"
+                      >
+                        <span>{btn.title}</span>
+                        {btn.type === "web_url" && <ExternalLink className="w-3 h-3 text-zinc-400" />}
+                      </button>
+                    ))}
+                  </div>
+                )}
 
                 {msg.profileCreated && (
                   <div className="mt-2 pt-2 border-t border-zinc-800 flex items-center space-x-1.5 text-[10px] text-emerald-400 font-medium">

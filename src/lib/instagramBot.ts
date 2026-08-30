@@ -1,5 +1,12 @@
 import { getSupabaseAdmin } from "./supabase";
 
+export interface BotButton {
+  type: "postback" | "web_url";
+  title: string;
+  payload?: string;
+  url?: string;
+}
+
 export interface UserIgProfile {
   id: string;
   igSenderId: string;
@@ -15,6 +22,7 @@ export interface UserIgProfile {
 export interface ProcessedDMResult {
   status: "follow_required" | "profile_created" | "reel_saved" | "message_received" | "error";
   replyMessage: string;
+  buttons?: BotButton[];
   senderIgId: string;
   username?: string;
   isFollowing: boolean;
@@ -35,22 +43,45 @@ export async function processInstagramMessage(
   messageText: string,
   attachments: any[] = [],
   forceFollowingStatus?: boolean,
-  customUsername?: string
+  customUsername?: string,
+  postbackPayload?: string
 ): Promise<ProcessedDMResult> {
   try {
+    const isFollowCheckClick =
+      postbackPayload === "CHECK_FOLLOW_STATUS" ||
+      messageText?.trim().toLowerCase().includes("i followed you");
+
     // 1. Fetch user info & check follow status
     const igUser = await fetchInstagramUserProfile(senderIgId, customUsername);
-    const isFollowing = forceFollowingStatus !== undefined ? forceFollowingStatus : igUser.isFollowing;
+    let isFollowing = forceFollowingStatus !== undefined ? forceFollowingStatus : igUser.isFollowing;
 
-    // 2. Gate: If user is NOT following @reeldash (or @sweatingcurves)
+    // If user clicked "I followed you!", re-verify or grant access
+    if (isFollowCheckClick) {
+      if (forceFollowingStatus === undefined) {
+        // Re-check live status
+        const recheck = await fetchInstagramUserProfile(senderIgId, customUsername);
+        isFollowing = recheck.isFollowing || true; // activate on confirmation
+      }
+    }
+
+    // 2. Gate: If user is NOT following
     if (!isFollowing) {
-      const followPrompt = `👋 Welcome to ReelDash!\n\nTo activate automatic reel saving, please make sure you follow our account first.\n\nOnce followed, send any reel link here and it will be saved directly into your ReelDash library! ⚡`;
+      const followPrompt = `Oh no! You aren't following, so ReelDash sync won't activate. ✨\n\nMake sure you're following so we can auto-save any Reel you send! (You can always unfollow anytime 🤫)`;
 
-      await sendDMReply(senderIgId, followPrompt);
+      const buttons: BotButton[] = [
+        {
+          type: "postback",
+          title: "I followed you! ✅",
+          payload: "CHECK_FOLLOW_STATUS",
+        },
+      ];
+
+      await sendDMReply(senderIgId, followPrompt, buttons);
 
       return {
         status: "follow_required",
         replyMessage: followPrompt,
+        buttons,
         senderIgId,
         username: igUser.username,
         isFollowing: false,
@@ -102,13 +133,22 @@ export async function processInstagramMessage(
       userProfile.savedReelsCount += 1;
       userProfile.lastActiveAt = new Date().toISOString();
 
-      const successReply = `⚡ Saved to your ReelDash Library!\n\n🎬 ${reelData.creator_handle ? "@" + reelData.creator_handle + "'s Reel" : "Reel"}\n📁 Category: ${reelData.category || "General"}\n\n🔗 View your dashboard: https://reeldash-nine.vercel.app/dashboard`;
+      const successReply = `⚡ Saved to your ReelDash Library!\n\n🎬 ${reelData.creator_handle ? "@" + reelData.creator_handle + "'s Reel" : "Reel"}\n📁 Category: ${reelData.category || "General"}`;
 
-      await sendDMReply(senderIgId, successReply);
+      const buttons: BotButton[] = [
+        {
+          type: "web_url",
+          title: "Open in ReelDash 🚀",
+          url: "https://reeldash-nine.vercel.app/dashboard",
+        },
+      ];
+
+      await sendDMReply(senderIgId, successReply, buttons);
 
       return {
         status: "reel_saved",
         replyMessage: successReply,
+        buttons,
         senderIgId,
         username: userProfile.username,
         isFollowing: true,
@@ -116,14 +156,23 @@ export async function processInstagramMessage(
       };
     }
 
-    // 5. If following and sent a greeting/general message
-    const greetingReply = `👋 Hey @${userProfile.username}!\n\nYour ReelDash sync is active! Whenever you see an Instagram Reel, Post, or Audio you like, simply DM or share the link here and it will be saved to your dashboard instantly. 🚀\n\n🔗 Dashboard: https://reeldash-nine.vercel.app/dashboard`;
+    // 5. If following and sent a greeting/confirmation
+    const greetingReply = `🎁 Awesome! You're all set @${userProfile.username}!\n\nWhenever you see any Reel, Post, or Audio on Instagram, simply DM or share the link here and it will be saved to your dashboard instantly.`;
 
-    await sendDMReply(senderIgId, greetingReply);
+    const buttons: BotButton[] = [
+      {
+        type: "web_url",
+        title: "Open Dashboard 🚀",
+        url: "https://reeldash-nine.vercel.app/dashboard",
+      },
+    ];
+
+    await sendDMReply(senderIgId, greetingReply, buttons);
 
     return {
       status: "message_received",
       replyMessage: greetingReply,
+      buttons,
       senderIgId,
       username: userProfile.username,
       isFollowing: true,
@@ -176,7 +225,7 @@ async function fetchInstagramUserProfile(
           isFollowing: true,
         };
       }
-    } catch (e) {
+    } catch {
       // Continue to next endpoint
     }
 
@@ -334,17 +383,50 @@ function extractInstagramMediaUrl(text: string, attachments: any[] = []): string
 }
 
 /**
- * Send DM Reply via Meta Messenger API / Instagram Messaging API
+ * Send DM Reply with Interactive Buttons via Meta Messenger API
  */
-async function sendDMReply(recipientIgId: string, message: string): Promise<void> {
+async function sendDMReply(
+  recipientIgId: string,
+  message: string,
+  buttons?: BotButton[]
+): Promise<void> {
   if (!IG_PAGE_ACCESS_TOKEN) {
-    console.log(`[Bot DM Reply to ${recipientIgId}]:\n${message}`);
+    console.log(`[Bot DM Reply to ${recipientIgId}]:\n${message}\nButtons:`, buttons);
     return;
+  }
+
+  // If buttons exist, send as Meta Button Template
+  let messagePayload: any = { text: message };
+
+  if (buttons && buttons.length > 0) {
+    messagePayload = {
+      attachment: {
+        type: "template",
+        payload: {
+          template_type: "button",
+          text: message.substring(0, 640), // Meta limit
+          buttons: buttons.map((b) => {
+            if (b.type === "web_url") {
+              return {
+                type: "web_url",
+                url: b.url || "https://reeldash-nine.vercel.app/dashboard",
+                title: b.title.substring(0, 20),
+              };
+            }
+            return {
+              type: "postback",
+              title: b.title.substring(0, 20),
+              payload: b.payload || "USER_ACTION",
+            };
+          }),
+        },
+      },
+    };
   }
 
   const payload = {
     recipient: { id: recipientIgId },
-    message: { text: message },
+    message: messagePayload,
     messaging_type: "RESPONSE",
   };
 
@@ -359,13 +441,13 @@ async function sendDMReply(recipientIgId: string, message: string): Promise<void
       body: JSON.stringify(payload),
     });
     if (res.ok) return;
-  } catch (e) {
-    // Continue to graph.facebook.com
+  } catch {
+    // Fallback
   }
 
   // 2. Try graph.facebook.com
   try {
-    await fetch(`https://graph.facebook.com/v21.0/me/messages`, {
+    const res = await fetch(`https://graph.facebook.com/v21.0/me/messages`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -373,7 +455,26 @@ async function sendDMReply(recipientIgId: string, message: string): Promise<void
       },
       body: JSON.stringify(payload),
     });
-  } catch (e) {
-    console.error("[Instagram Webhook] DM reply failed:", e);
+    if (res.ok) return;
+  } catch {
+    // Fallback to simple text
+  }
+
+  // 3. Fallback: Simple text message
+  try {
+    await fetch(`https://graph.instagram.com/v21.0/me/messages`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${IG_PAGE_ACCESS_TOKEN}`,
+      },
+      body: JSON.stringify({
+        recipient: { id: recipientIgId },
+        message: { text: message },
+        messaging_type: "RESPONSE",
+      }),
+    });
+  } catch (err) {
+    console.error("[Instagram Webhook] DM fallback reply failed:", err);
   }
 }
