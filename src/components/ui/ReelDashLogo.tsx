@@ -9,29 +9,38 @@ interface ReelDashLogoProps {
   showText?: boolean;
   href?: string;
   className?: string;
+  textSize?: string;
 }
 
 export function ReelDashLogo({
-  size = 28,
+  size = 30,
   showText = true,
   href,
   className = "",
+  textSize = "text-[22px]",
 }: ReelDashLogoProps) {
   const content = (
     <div className={`inline-flex items-center space-x-2.5 select-none ${className}`}>
-      <div className="relative flex items-center justify-center shrink-0">
+      {/* Precision Icon Mark */}
+      <div
+        className="relative flex items-center justify-center shrink-0"
+        style={{ width: size, height: size }}
+      >
         <Image
           src="/logo.png"
-          alt="ReelDash Logo"
+          alt="ReelDash"
           width={size}
           height={size}
           priority
-          className="object-contain transition-transform duration-200 group-hover:scale-105"
+          className="object-contain w-full h-full transition-transform duration-200 group-hover:scale-105"
         />
       </div>
 
+      {/* Supahub-Calibrated Bricolage Grotesque Wordmark */}
       {showText && (
-        <span className="text-base font-semibold tracking-tight text-white font-sans">
+        <span
+          className={`font-bricolage font-extrabold ${textSize} tracking-[-0.035em] text-white leading-none flex items-center`}
+        >
           ReelDash
         </span>
       )}
@@ -40,7 +49,7 @@ export function ReelDashLogo({
 
   if (href) {
     return (
-      <Link href={href} className="inline-flex items-center group">
+      <Link href={href} className="inline-flex items-center group transition-opacity hover:opacity-90">
         {content}
       </Link>
     );

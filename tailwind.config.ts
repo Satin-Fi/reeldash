@@ -11,6 +11,7 @@ const config: Config = {
     extend: {
       fontFamily: {
         sans: ["var(--font-geist)", "system-ui", "-apple-system", "sans-serif"],
+        bricolage: ["var(--font-bricolage)", "system-ui", "sans-serif"],
         mono: ["var(--font-geist-mono)", "Fira Code", "monospace"],
       },
       colors: {

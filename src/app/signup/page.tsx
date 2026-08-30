@@ -87,7 +87,7 @@ function SignupContent() {
     <div className="min-h-screen bg-[#050608] text-zinc-100 flex flex-col items-center justify-center p-6 sm:p-8 font-sans selection:bg-white/20 selection:text-white">
       {/* Top Header Logo */}
       <div className="mb-8">
-        <ReelDashLogo href="/" size={28} />
+        <ReelDashLogo href="/" size={32} textSize="text-[24px]" />
       </div>
 
       {/* Main Centered Minimalist Card */}
