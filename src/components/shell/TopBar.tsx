@@ -263,23 +263,6 @@ export function TopBar() {
                   <span>Plans & Pricing</span>
                 </Link>
 
-                <button
-                  role="menuitem"
-                  onClick={() => {
-                    setProfileOpen(false);
-                    setIsCommandPaletteOpen(true);
-                  }}
-                  className="w-full flex items-center justify-between px-2.5 py-2 rounded-[6px] hover:bg-surfaceSecondary-light dark:hover:bg-white/[0.06] text-secondaryText-light dark:text-[#AEB2BF] hover:text-primaryText-light dark:hover:text-white transition-colors cursor-pointer text-left"
-                >
-                  <div className="flex items-center gap-2.5">
-                    <Command className="w-3.5 h-3.5 text-secondaryText-light dark:text-[#777C89]" />
-                    <span>Command Menu</span>
-                  </div>
-                  <span className="font-mono text-[10px] text-secondaryText-light dark:text-[#777C89] px-1 py-0.5 rounded bg-surfaceSecondary-light dark:bg-white/[0.06]">
-                    {isMac ? "⌘K" : "Ctrl K"}
-                  </span>
-                </button>
-
                 <div className="border-t border-borderSubtle-light dark:border-white/[0.06] my-1" />
 
                 <button
