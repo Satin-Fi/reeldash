@@ -51,21 +51,21 @@ export async function processInstagramMessage(
       postbackPayload === "CHECK_FOLLOW_STATUS" ||
       messageText?.trim().toLowerCase().includes("i followed you");
 
-    // 1. Fetch user info & check follow status
+    // 1. Fetch user info & strictly check follower status with Meta
     const igUser = await fetchInstagramUserProfile(senderIgId, customUsername);
     let isFollowing = forceFollowingStatus !== undefined ? forceFollowingStatus : igUser.isFollowing;
 
-    // If user clicked "I followed you!", strictly re-verify follower status
+    // If user clicked "I followed you!", strictly query Meta API again
     if (isFollowCheckClick) {
       if (forceFollowingStatus !== undefined) {
         isFollowing = forceFollowingStatus;
       } else {
-        const recheck = await fetchInstagramUserProfile(senderIgId, customUsername);
-        isFollowing = recheck.isFollowing;
+        const liveCheck = await checkLiveFollowerStatus(senderIgId);
+        isFollowing = liveCheck;
       }
     }
 
-    // 2. Message 1: If user is NOT following (or clicked "I followed you" without actually following)
+    // 2. Message 1: If user is NOT following (Strict Guard)
     if (!isFollowing) {
       const followPrompt = `Oh no! You aren't following, so the link won't send. ✨\n\nMake sure you're following so I can send you the link 🎉(also you won't regret it I promise 🤫 + you can always unfollow)`;
 
@@ -96,7 +96,6 @@ export async function processInstagramMessage(
     const mediaUrl = extractInstagramMediaUrl(messageText, attachments);
 
     if (mediaUrl) {
-      // Extract metadata from our reel-info API or fallback
       let reelData: any = null;
       try {
         const infoRes = await fetch(
@@ -190,6 +189,42 @@ export async function processInstagramMessage(
 }
 
 /**
+ * Strict Live Meta Follower Status Verification
+ */
+async function checkLiveFollowerStatus(senderIgId: string): Promise<boolean> {
+  if (!IG_PAGE_ACCESS_TOKEN) return false;
+
+  // 1. Check graph.facebook.com for is_user_follow_business
+  try {
+    const res = await fetch(
+      `https://graph.facebook.com/v21.0/${senderIgId}?fields=is_user_follow_business&access_token=${IG_PAGE_ACCESS_TOKEN}`
+    );
+    if (res.ok) {
+      const data = await res.json();
+      if (typeof data.is_user_follow_business === "boolean") {
+        return data.is_user_follow_business;
+      }
+    }
+  } catch {}
+
+  // 2. Check graph.instagram.com
+  try {
+    const res = await fetch(
+      `https://graph.instagram.com/v21.0/${senderIgId}?fields=is_user_follow_business&access_token=${IG_PAGE_ACCESS_TOKEN}`
+    );
+    if (res.ok) {
+      const data = await res.json();
+      if (typeof data.is_user_follow_business === "boolean") {
+        return data.is_user_follow_business;
+      }
+    }
+  } catch {}
+
+  // Default to false if Meta cannot confirm they follow
+  return false;
+}
+
+/**
  * Fetch Instagram User Profile & Follower Status
  */
 async function fetchInstagramUserProfile(
@@ -201,60 +236,50 @@ async function fetchInstagramUserProfile(
   avatar: string;
   isFollowing: boolean;
 }> {
-  const existing = igProfileStore.get(senderIgId);
-  if (existing) {
-    return {
-      username: existing.username,
-      fullName: existing.fullName,
-      avatar: existing.avatar,
-      isFollowing: existing.isFollowing,
-    };
-  }
+  let isFollowing = false;
+  let username = customUsername ? customUsername.replace(/^@/, "") : `ig_user_${senderIgId.slice(-4)}`;
+  let fullName = "Instagram User";
+  let avatar = `/api/proxy-image?username=${encodeURIComponent(username)}`;
 
   if (IG_PAGE_ACCESS_TOKEN) {
-    // 1. Try graph.instagram.com for Instagram tokens
-    try {
-      const igRes = await fetch(
-        `https://graph.instagram.com/v21.0/${senderIgId}?fields=name,username,profile_pic&access_token=${IG_PAGE_ACCESS_TOKEN}`
-      );
-      if (igRes.ok) {
-        const data = await igRes.json();
-        return {
-          username: data.username || customUsername || `ig_user_${senderIgId.slice(-4)}`,
-          fullName: data.name || data.username || "Instagram Creator",
-          avatar: data.profile_pic || "",
-          isFollowing: true,
-        };
-      }
-    } catch {
-      // Continue to next endpoint
-    }
-
-    // 2. Try graph.facebook.com
+    // 1. Try graph.facebook.com
     try {
       const res = await fetch(
         `https://graph.facebook.com/v21.0/${senderIgId}?fields=name,username,profile_pic,is_user_follow_business&access_token=${IG_PAGE_ACCESS_TOKEN}`
       );
       if (res.ok) {
         const data = await res.json();
-        return {
-          username: data.username || customUsername || `ig_user_${senderIgId.slice(-4)}`,
-          fullName: data.name || data.username || "Instagram Creator",
-          avatar: data.profile_pic || "",
-          isFollowing: data.is_user_follow_business ?? true,
-        };
+        if (data.username) username = data.username;
+        if (data.name) fullName = data.name;
+        if (data.profile_pic) avatar = data.profile_pic;
+        if (data.is_user_follow_business === true) isFollowing = true;
       }
     } catch (e) {
       console.warn("[Instagram API] User profile lookup notice:", e);
     }
+
+    // 2. Try graph.instagram.com if not already resolved
+    if (!isFollowing) {
+      try {
+        const igRes = await fetch(
+          `https://graph.instagram.com/v21.0/${senderIgId}?fields=name,username,profile_pic,is_user_follow_business&access_token=${IG_PAGE_ACCESS_TOKEN}`
+        );
+        if (igRes.ok) {
+          const data = await igRes.json();
+          if (data.username) username = data.username;
+          if (data.name) fullName = data.name;
+          if (data.profile_pic) avatar = data.profile_pic;
+          if (data.is_user_follow_business === true) isFollowing = true;
+        }
+      } catch {}
+    }
   }
 
-  const cleanHandle = customUsername ? customUsername.replace(/^@/, "") : `ig_user_${senderIgId.slice(-4)}`;
   return {
-    username: cleanHandle,
-    fullName: cleanHandle.charAt(0).toUpperCase() + cleanHandle.slice(1),
-    avatar: `/api/proxy-image?username=${encodeURIComponent(cleanHandle)}`,
-    isFollowing: false,
+    username,
+    fullName,
+    avatar,
+    isFollowing, // STRICT: only true if Meta returned true!
   };
 }
 
@@ -405,7 +430,7 @@ async function sendDMReply(
         type: "template",
         payload: {
           template_type: "button",
-          text: message.substring(0, 640), // Meta limit
+          text: message.substring(0, 640),
           buttons: buttons.map((b) => {
             if (b.type === "web_url") {
               return {
@@ -458,7 +483,7 @@ async function sendDMReply(
     });
     if (res.ok) return;
   } catch {
-    // Fallback to simple text
+    // Fallback
   }
 
   // 3. Fallback: Simple text message
