@@ -314,7 +314,8 @@ async function getOrCreateUserProfile(
   // Persist to Supabase if connected
   try {
     const supabase = getSupabaseAdmin();
-    await supabase.from("profiles").upsert(
+    if (supabase) {
+      await supabase.from("profiles").upsert(
       {
         id: newProfile.id,
         ig_sender_id: senderIgId,
@@ -357,7 +358,8 @@ async function saveReelForUser(userId: string, reel: any) {
   // Persist to Supabase if connected
   try {
     const supabase = getSupabaseAdmin();
-    await supabase.from("reels").upsert(
+    if (supabase) {
+      await supabase.from("reels").upsert(
       {
         user_id: userId,
         shortcode: reel.shortcode,

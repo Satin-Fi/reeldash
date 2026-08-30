@@ -14,6 +14,10 @@ export async function GET(req: NextRequest) {
 
   try {
     const supabase = getSupabaseAdmin();
+    if (!supabase) {
+      return NextResponse.json({ reels: [], fallback: true, message: "Supabase not configured" });
+    }
+
     const { data: reels, error } = await supabase
       .from("reels")
       .select("*")
@@ -78,17 +82,19 @@ export async function POST(req: NextRequest) {
     // If Supabase is connected, persist to DB
     try {
       const supabase = getSupabaseAdmin();
-      const { data, error } = await supabase
-        .from("reels")
-        .upsert(
-          { ...reelPayload, user_id: userId },
-          { onConflict: "user_id,shortcode" }
-        )
-        .select()
-        .single();
+      if (supabase) {
+        const { data, error } = await supabase
+          .from("reels")
+          .upsert(
+            { ...reelPayload, user_id: userId },
+            { onConflict: "user_id,shortcode" }
+          )
+          .select()
+          .single();
 
-      if (!error && data) {
-        return NextResponse.json({ success: true, reel: data, source: "database" });
+        if (!error && data) {
+          return NextResponse.json({ success: true, reel: data, source: "database" });
+        }
       }
     } catch {
       // Continue to local response
@@ -127,9 +133,11 @@ export async function DELETE(req: NextRequest) {
 
   try {
     const supabase = getSupabaseAdmin();
-    const { error } = await supabase.from("reels").delete().eq("id", id);
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+    if (supabase) {
+      const { error } = await supabase.from("reels").delete().eq("id", id);
+      if (error) {
+        return NextResponse.json({ error: error.message }, { status: 500 });
+      }
     }
     return NextResponse.json({ success: true });
   } catch (err: any) {
