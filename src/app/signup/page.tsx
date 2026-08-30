@@ -47,10 +47,8 @@ function SignupContent() {
 
     try {
       signup(name, email, false);
-      setTimeout(() => {
-        setIsSubmitting(false);
-        setStep(2);
-      }, 350);
+      setIsSubmitting(false);
+      setStep(2);
     } catch {
       setIsSubmitting(false);
     }
@@ -61,16 +59,14 @@ function SignupContent() {
     try {
       await signupWithGoogle(
         {
-          name: "Creator",
-          email: "creator@reeldash.app",
+          name: "Alex Rivera",
+          email: "alex@reeldash.app",
           avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
         },
         false
       );
-      setTimeout(() => {
-        setIsGoogleLoading(false);
-        setStep(2);
-      }, 500);
+      setIsGoogleLoading(false);
+      setStep(2);
     } catch {
       setIsGoogleLoading(false);
     }
