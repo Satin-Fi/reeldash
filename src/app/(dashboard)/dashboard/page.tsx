@@ -63,15 +63,25 @@ export default function DashboardPage() {
     ? activeGreetingObj.textAfternoon 
     : activeGreetingObj.textEvening;
 
-  const displayName = user?.name
-    ? user.name.split(" ")[0]
-    : user?.instagramUsername
-    ? `@${user.instagramUsername}`
-    : selectedInstagramAccount
-    ? `@${selectedInstagramAccount}`
-    : "Creator";
-
   const connectedAccounts = user?.connectedAccounts || [];
+
+  const activeAccount = selectedInstagramAccount
+    ? connectedAccounts.find(
+        (a) => a.username.toLowerCase() === selectedInstagramAccount.toLowerCase()
+      )
+    : null;
+
+  // When a specific profile is selected, display that profile's name or handle.
+  // When All Accounts is selected, display the account holder's primary name.
+  const displayName = selectedInstagramAccount
+    ? activeAccount?.displayName && activeAccount.displayName.trim().length > 0
+      ? activeAccount.displayName.trim()
+      : `@${selectedInstagramAccount}`
+    : user?.name
+    ? user.name.split(" ")[0]
+    : user?.email
+    ? user.email.split("@")[0]
+    : "Creator";
 
   const recentlySaved = [...reels].sort(
     (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
@@ -114,7 +124,11 @@ export default function DashboardPage() {
                   {timeGreeting}, {displayName}.
                 </h1>
                 <p className="mt-2 max-w-xl text-xs leading-relaxed text-secondaryText-light dark:text-secondaryText-dark">
-                  Paste any Instagram link or press <kbd className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-white/[0.08] text-[10px] font-mono">⌘K</kbd> to search and capture.
+                  {selectedInstagramAccount
+                    ? `Showing library for @${selectedInstagramAccount}. Paste any Instagram link or press `
+                    : `Showing unified library across all accounts. Paste any Instagram link or press `}
+                  <kbd className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-white/[0.08] text-[10px] font-mono">⌘K</kbd>
+                  {" to search and capture."}
                 </p>
               </div>
 
