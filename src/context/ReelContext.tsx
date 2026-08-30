@@ -320,7 +320,7 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
     showToast(`Updated to ${category}`);
   };
 
-  const createCollection = (name: string, description?: string, icon: string = "📁") => {
+  const createCollection = (name: string, description?: string, icon: string = "") => {
     const newCol: Collection = {
       id: "col-" + Math.random().toString(36).substring(2, 9),
       name: name.trim(),

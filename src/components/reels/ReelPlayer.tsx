@@ -39,10 +39,9 @@ function ReelDashEmbedFrame({ reel, shortcode }: { reel: Reel; shortcode: string
       {/* Top Header */}
       <div className="flex items-center justify-between z-10">
         <div className="flex items-center space-x-2">
-          <div className="w-6 h-6 rounded-md bg-brand-500 text-white flex items-center justify-center text-xs font-bold">
-            ⚡
-          </div>
-          <span className="text-xs font-bold text-white">ReelDash</span>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo.png" alt="ReelDash" className="w-5 h-5 object-contain" />
+          <span className="text-xs font-bold text-white font-bricolage">ReelDash</span>
           <span className="text-[10px] px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-400">
             {isPost ? "Instagram Post" : "Instagram Reel"}
           </span>
@@ -456,7 +455,7 @@ function MultiMediaPostViewer({ reel, coverImageSrc }: { reel: Reel; coverImageS
                 filter === "image" ? "bg-brand-500 text-white" : "text-zinc-400 hover:text-white"
               }`}
             >
-              📸 Photos ({imageCount})
+              Photos ({imageCount})
             </button>
             <button
               onClick={() => {
@@ -467,7 +466,7 @@ function MultiMediaPostViewer({ reel, coverImageSrc }: { reel: Reel; coverImageS
                 filter === "video" ? "bg-brand-500 text-white" : "text-zinc-400 hover:text-white"
               }`}
             >
-              🎬 Videos ({videoCount})
+              Videos ({videoCount})
             </button>
           </div>
         ) : null}

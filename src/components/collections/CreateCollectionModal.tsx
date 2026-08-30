@@ -15,7 +15,7 @@ export function CreateCollectionModal() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
-    createCollection(name.trim(), description.trim(), "📁");
+    createCollection(name.trim(), description.trim(), "");
     setName("");
     setDescription("");
     setIsCreateCollectionModalOpen(false);

@@ -77,7 +77,7 @@ export default function InstagramIntegrationPage() {
     {
       id: "initial-1",
       sender: "bot",
-      text: "⚡ ReelDash Instagram Bot Online. Send any message or Reel link to test the follower check & auto-save flow.",
+      text: "ReelDash Instagram Bot Online. Send any message or Reel link to test the follower check & auto-save flow.",
       timestamp: "Just now",
     },
   ]);
@@ -137,8 +137,8 @@ export default function InstagramIntegrationPage() {
         result?.replyMessage ||
         result?.replySent ||
         (result?.status === "follow_required"
-          ? "Oh no! You aren't following, so ReelDash sync won't activate. ✨\n\nMake sure you're following so we can auto-save any Reel you send!"
-          : "⚡ Saved to your ReelDash library!");
+          ? "You are not following yet, so ReelDash sync will not activate.\n\nMake sure you're following so we can auto-save any Reel you send!"
+          : "Saved to your ReelDash library!");
 
       const botMsg: DmMessage = {
         id: `bot-${Date.now()}`,
@@ -167,7 +167,7 @@ export default function InstagramIntegrationPage() {
         {
           id: `bot-err-${Date.now()}`,
           sender: "bot",
-          text: "❌ Error processing DM event. Please try again.",
+          text: "Error processing DM event. Please try again.",
           timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
         },
       ]);
@@ -327,7 +327,7 @@ export default function InstagramIntegrationPage() {
                 {
                   id: "initial-reset",
                   sender: "bot",
-                  text: "⚡ ReelDash Instagram Bot ready. Send any message or Reel link to test.",
+                  text: "ReelDash Instagram Bot ready. Send any message or Reel link to test.",
                   timestamp: "Just now",
                 },
               ]);
@@ -441,21 +441,21 @@ export default function InstagramIntegrationPage() {
             onClick={() => setSimMessage("https://www.instagram.com/reel/DbZkDwZsHgd/")}
             className="px-2 py-0.5 bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark hover:bg-brand-500/10 hover:text-brand-500 rounded border border-borderSubtle-light dark:border-borderSubtle-dark cursor-pointer truncate max-w-[180px]"
           >
-            🎬 Reel: DbZkDwZsHgd
+            Reel: DbZkDwZsHgd
           </button>
           <button
             type="button"
             onClick={() => setSimMessage("https://www.instagram.com/reels/audio/27987161810943092/")}
             className="px-2 py-0.5 bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark hover:bg-brand-500/10 hover:text-brand-500 rounded border border-borderSubtle-light dark:border-borderSubtle-dark cursor-pointer truncate max-w-[180px]"
           >
-            🎵 Audio: 27987161810943092
+            Audio: 27987161810943092
           </button>
           <button
             type="button"
             onClick={() => setSimMessage("Hey I just followed you!")}
             className="px-2 py-0.5 bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark hover:bg-brand-500/10 hover:text-brand-500 rounded border border-borderSubtle-light dark:border-borderSubtle-dark cursor-pointer"
           >
-            💬 "Hey I just followed you!"
+            "Hey I just followed you!"
           </button>
         </div>
 

@@ -196,8 +196,8 @@ export function Sidebar() {
                     className="flex items-center justify-between px-3 py-1.5 rounded-rd-md text-xs text-secondaryText-light dark:text-secondaryText-dark hover:bg-surfaceSecondary-light dark:hover:bg-surfaceSecondary-dark hover:text-primaryText-light dark:hover:text-primaryText-dark transition-colors"
                   >
                     <span className="truncate flex items-center space-x-2">
-                      <span className="text-[12px]">{col.icon || "📁"}</span>
-                      <span>{col.name}</span>
+                      <Folder className="w-3.5 h-3.5 text-secondaryText-light dark:text-secondaryText-dark shrink-0" strokeWidth={1.75} />
+                      <span className="truncate">{col.name}</span>
                     </span>
                     <span className="text-[10px] font-mono text-mutedText-light dark:text-mutedText-dark">
                       {col.reelCount || 0}

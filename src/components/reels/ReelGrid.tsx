@@ -14,19 +14,16 @@ interface ReelGridProps {
 export function ReelGrid({
   reels,
   viewMode = "grid",
-  emptyTitle = "No Reels found",
-  emptySubtitle = "Save a Reel or change your filter criteria.",
+  emptyTitle = "No items found",
+  emptySubtitle = "Save a link or adjust your filters.",
 }: ReelGridProps) {
   if (reels.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center p-12 text-center border border-dashed border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-lg bg-surface-light/50 dark:bg-surface-dark/50">
-        <div className="w-12 h-12 rounded-full bg-brand-500/10 flex items-center justify-center text-brand-500 mb-3 text-xl font-bold">
-          🎬
-        </div>
-        <h4 className="text-sm font-semibold text-primaryText-light dark:text-primaryText-dark">
+      <div className="flex flex-col items-center justify-center py-16 px-6 text-center border border-dashed border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-lg bg-surface-light/40 dark:bg-surface-dark/40">
+        <h4 className="text-sm font-semibold tracking-tight text-primaryText-light dark:text-primaryText-dark">
           {emptyTitle}
         </h4>
-        <p className="text-xs text-secondaryText-light dark:text-secondaryText-dark max-w-sm mt-1">
+        <p className="text-xs text-secondaryText-light dark:text-secondaryText-dark max-w-sm mt-1.5 leading-relaxed">
           {emptySubtitle}
         </p>
       </div>

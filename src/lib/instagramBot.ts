@@ -67,12 +67,12 @@ export async function processInstagramMessage(
 
     // 2. Message 1: If user is NOT following (Strict Guard)
     if (!isFollowing) {
-      const followPrompt = `Oh no! You aren't following, so the link won't send. ✨\n\nMake sure you're following so I can send you the link 🎉(also you won't regret it I promise 🤫 + you can always unfollow)`;
+      const followPrompt = `You are not following yet, so ReelDash sync cannot activate.\n\nPlease follow to automatically save any Reel or post you send.`;
 
       const buttons: BotButton[] = [
         {
           type: "postback",
-          title: "I followed you! ✅",
+          title: "I followed you",
           payload: "CHECK_FOLLOW_STATUS",
         },
       ];
@@ -152,12 +152,12 @@ export async function processInstagramMessage(
         ? `@${formattedReel.creator_handle}'s Reel`
         : "Reel";
 
-      const successReply = `⚡ Saved to your ReelDash Library!\n\n🎬 ${creatorText}\n📁 Category: ${formattedReel.category || "General"}`;
+      const successReply = `Saved to your ReelDash Library.\n\n${creatorText}\nCategory: ${formattedReel.category || "General"}`;
 
       const buttons: BotButton[] = [
         {
           type: "web_url",
-          title: "Click here! 🚀",
+          title: "Open Library",
           url: "https://reeldash-nine.vercel.app/dashboard",
         },
       ];
@@ -176,12 +176,12 @@ export async function processInstagramMessage(
     }
 
     // 5. Message 2: When user successfully followed & verified
-    const greetingReply = `🎁 Awesome! Here's everything you need!\n\nYour ReelDash sync is active. Whenever you see an Instagram Reel, Post, or Audio, just send or share it here!`;
+    const greetingReply = `Your ReelDash sync is active. Whenever you see an Instagram Reel, Post, or Audio, send or share it here to save it to your library.`;
 
     const buttons: BotButton[] = [
       {
         type: "web_url",
-        title: "Click here! 🚀",
+        title: "Open Library",
         url: "https://reeldash-nine.vercel.app/dashboard",
       },
     ];
