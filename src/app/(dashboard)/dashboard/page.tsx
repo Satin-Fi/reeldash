@@ -18,6 +18,7 @@ import {
   Plus,
   X,
   Instagram,
+  Crown,
 } from "lucide-react";
 
 type DashboardCounts = { reels: number; posts: number; audio: number; favorites: number };
