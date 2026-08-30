@@ -235,8 +235,8 @@ export default function DashboardPage() {
           </div>
         </section>
 
-        {/* Right Rail Library Summary */}
-        <aside className="animate-fade-up delay-1">
+        {/* Right Rail Library Summary (Desktop Only) */}
+        <aside className="hidden lg:block animate-fade-up delay-1">
           <section className="h-full rounded-rd-lg border border-borderSubtle-light bg-surface-light p-5 shadow-rd-subtle dark:border-borderSubtle-dark dark:bg-surface-dark flex flex-col justify-between">
             <div>
               <div className="flex items-center justify-between">
