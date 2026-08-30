@@ -101,9 +101,6 @@ export function TopBar() {
     if (pathname.startsWith("/search")) {
       return { title: "Discovery", icon: Compass };
     }
-    if (pathname.startsWith("/integrations")) {
-      return { title: "Instagram Sync", icon: MessageCircle };
-    }
     if (pathname.startsWith("/settings")) {
       return { title: "Settings", icon: Settings };
     }
@@ -245,29 +242,14 @@ export function TopBar() {
                 </Link>
 
                 <Link
-                  href="/integrations/instagram"
+                  href="/pricing"
                   role="menuitem"
                   onClick={() => setProfileOpen(false)}
                   className="flex items-center gap-2.5 px-2.5 py-2 rounded-[6px] hover:bg-surfaceSecondary-light dark:hover:bg-white/[0.06] text-secondaryText-light dark:text-[#AEB2BF] hover:text-primaryText-light dark:hover:text-white transition-colors"
                 >
-                  <MessageCircle className="w-3.5 h-3.5 text-secondaryText-light dark:text-[#777C89]" />
-                  <span>Instagram DM Setup</span>
+                  <LayoutGrid className="w-3.5 h-3.5 text-secondaryText-light dark:text-[#777C89]" />
+                  <span>Plans & Pricing</span>
                 </Link>
-
-                <button
-                  role="menuitem"
-                  onClick={() => {
-                    setProfileOpen(false);
-                    setIsCommandPaletteOpen(true);
-                  }}
-                  className="w-full flex items-center justify-between px-2.5 py-2 rounded-[6px] hover:bg-surfaceSecondary-light dark:hover:bg-white/[0.06] text-secondaryText-light dark:text-[#AEB2BF] hover:text-primaryText-light dark:hover:text-white transition-colors text-left cursor-pointer"
-                >
-                  <div className="flex items-center gap-2.5">
-                    <Command className="w-3.5 h-3.5 text-secondaryText-light dark:text-[#777C89]" />
-                    <span>Command Menu</span>
-                  </div>
-                  <kbd className="text-[10px] text-secondaryText-light dark:text-[#777C89] font-mono">{isMac ? "⌘K" : "Ctrl+K"}</kbd>
-                </button>
 
                 <a
                   href="https://github.com/Satin-Fi/reeldash"

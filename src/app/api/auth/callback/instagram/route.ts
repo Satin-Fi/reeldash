@@ -13,13 +13,13 @@ export async function GET(req: NextRequest) {
 
   if (error) {
     console.warn("[Instagram OAuth] Error:", error, errorReason, errorDescription);
-    return NextResponse.redirect(`${baseUrl}/integrations/instagram?error=${encodeURIComponent(errorDescription || error)}`);
+    return NextResponse.redirect(`${baseUrl}/settings?error=${encodeURIComponent(errorDescription || error)}`);
   }
 
   if (code) {
     console.log("[Instagram OAuth] Received auth code:", code.substring(0, 10) + "...");
-    return NextResponse.redirect(`${baseUrl}/integrations/instagram?connected=true&code=${encodeURIComponent(code)}`);
+    return NextResponse.redirect(`${baseUrl}/settings?connected=true&code=${encodeURIComponent(code)}`);
   }
 
-  return NextResponse.redirect(`${baseUrl}/integrations/instagram?status=ready`);
+  return NextResponse.redirect(`${baseUrl}/settings`);
 }

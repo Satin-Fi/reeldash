@@ -149,9 +149,30 @@ export function Sidebar() {
               className="w-full flex items-center justify-between px-2.5 py-2 rounded-rd-md hover:bg-surfaceSecondary-light dark:hover:bg-white/[0.05] transition-colors cursor-pointer text-left focus:outline-none group"
             >
               <div className="flex items-center gap-2.5 min-w-0">
-                <div className="w-7 h-7 rounded-lg bg-brand-500/15 flex items-center justify-center shrink-0">
-                  <Instagram className="w-3.5 h-3.5 text-brand-600 dark:text-brand-400" />
-                </div>
+                {selectedInstagramAccount ? (
+                  /* Profile picture for selected account */
+                  <div className="w-7 h-7 rounded-lg overflow-hidden shrink-0 bg-brand-500/15 flex items-center justify-center">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={`/api/instagram/avatar/${encodeURIComponent(selectedInstagramAccount)}`}
+                      alt={selectedInstagramAccount}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        const el = e.currentTarget;
+                        el.style.display = "none";
+                        const parent = el.parentElement;
+                        if (parent) {
+                          parent.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-brand-400"><rect width="20" height="20" x="2" y="2" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" x2="17.51" y1="6.5" y2="6.5"/></svg>`;
+                        }
+                      }}
+                    />
+                  </div>
+                ) : (
+                  /* Instagram icon for All Accounts */
+                  <div className="w-7 h-7 rounded-lg bg-brand-500/15 flex items-center justify-center shrink-0">
+                    <Instagram className="w-3.5 h-3.5 text-brand-600 dark:text-brand-400" />
+                  </div>
+                )}
                 <div className="min-w-0">
                   <span className="block text-xs font-semibold truncate text-primaryText-light dark:text-zinc-200 leading-tight">
                     {selectedInstagramAccount ? `@${selectedInstagramAccount}` : "All Accounts"}
