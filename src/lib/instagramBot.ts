@@ -1,8 +1,5 @@
-import { getSupabaseAdmin } from "@/lib/supabase";
+import { getSupabaseAdmin } from "./supabaseAdmin";
 
-const IG_PAGE_ACCESS_TOKEN = process.env.INSTAGRAM_PAGE_ACCESS_TOKEN;
-
-// In-memory profiles & follower store for serverless environments
 export interface UserIgProfile {
   id: string;
   igSenderId: string;
@@ -15,134 +12,131 @@ export interface UserIgProfile {
   lastActiveAt: string;
 }
 
+export interface ProcessedDMResult {
+  status: "follow_required" | "profile_created" | "reel_saved" | "message_received" | "error";
+  replyMessage: string;
+  senderIgId: string;
+  username?: string;
+  isFollowing: boolean;
+  savedReel?: any;
+}
+
+// In-memory runtime cache
 export const igProfileStore = new Map<string, UserIgProfile>();
 export const igSavedReelsStore = new Map<string, any[]>();
 
+const IG_PAGE_ACCESS_TOKEN = process.env.INSTAGRAM_PAGE_ACCESS_TOKEN;
+
 /**
- * Core Instagram DM Engine: Follower Check -> Profile Auto-Creation -> Reel Extraction & Save -> Automated Reply
+ * Main Handler for Incoming Instagram Messages & Webhook Payloads
  */
 export async function processInstagramMessage(
   senderIgId: string,
   messageText: string,
   attachments: any[] = [],
-  forceFollowState?: boolean,
+  forceFollowingStatus?: boolean,
   customUsername?: string
-) {
-  if (!senderIgId) {
-    return { status: "error", error: "Missing sender IG ID" };
-  }
+): Promise<ProcessedDMResult> {
+  try {
+    // 1. Fetch user info & check follow status
+    const igUser = await fetchInstagramUserProfile(senderIgId, customUsername);
+    const isFollowing = forceFollowingStatus !== undefined ? forceFollowingStatus : igUser.isFollowing;
 
-  // 1. Resolve User Details & Follower Status
-  const igUser = await fetchInstagramUserProfile(senderIgId, customUsername);
-  const isFollowing = forceFollowState !== undefined ? forceFollowState : igUser.isFollowing;
+    // 2. Gate: If user is NOT following @reeldash (or @sweatingcurves)
+    if (!isFollowing) {
+      const followPrompt = `👋 Welcome to ReelDash!\n\nTo activate automatic reel saving, please make sure you follow our account first.\n\nOnce followed, send any reel link here and it will be saved directly into your ReelDash library! ⚡`;
 
-  // 2. If User Is NOT Following @reeldash: Send Follow Prompt
-  if (!isFollowing) {
-    const followReply =
-      `👋 Welcome to ReelDash! ⚡\n\n` +
-      `Please make sure you are following @reeldash to activate automatic Reel saving.\n\n` +
-      `Once you follow us, simply DM or share any Reel, Post, or Audio link here and it will be saved directly into your ReelDash library! 🚀`;
+      await sendDMReply(senderIgId, followPrompt);
 
-    await sendDMReply(senderIgId, followReply);
-
-    return {
-      status: "awaiting_follow",
-      senderIgId,
-      username: igUser.username,
-      replySent: followReply,
-      profileCreated: false,
-    };
-  }
-
-  // 3. User IS Following -> Auto-Create ReelDash Profile if not existing
-  const profile = await getOrCreateUserProfile(senderIgId, igUser);
-
-  // 4. Extract Reel URL from text or attachments
-  const reelUrl = extractInstagramMediaUrl(messageText, attachments);
-
-  // Case A: User sent a Reel link or share
-  if (reelUrl) {
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://reeldash-nine.vercel.app";
-    let reelData: any = {};
-
-    try {
-      const reelInfoRes = await fetch(`${baseUrl}/api/reel-info`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: reelUrl }),
-      });
-      if (reelInfoRes.ok) {
-        reelData = await reelInfoRes.json();
-      }
-    } catch (e) {
-      console.warn("[Webhook] Local reel-info fetch notice:", e);
+      return {
+        status: "follow_required",
+        replyMessage: followPrompt,
+        senderIgId,
+        username: igUser.username,
+        isFollowing: false,
+      };
     }
 
-    const shortcodeMatch = reelUrl.match(/(?:reel|reels|p|stories|audio)\/([A-Za-z0-9_-]+)/);
-    const shortcode = reelData.shortcode || (shortcodeMatch ? shortcodeMatch[1] : `ig_${Date.now().toString(36)}`);
-    const mediaType = reelData.mediaType || (reelUrl.includes("/audio/") ? "audio" : reelUrl.includes("/stories/") ? "story" : reelUrl.includes("/p/") ? "post" : "reel");
-    const creator = reelData.creatorUsername || "creator";
-    const captionSnippet = reelData.caption ? `\n📌 "${reelData.caption.slice(0, 50)}..."` : "";
-    const category = reelData.category || "General";
+    // 3. User is following: Ensure ReelDash Profile exists
+    const userProfile = await getOrCreateUserProfile(senderIgId, igUser);
 
-    // Save Reel in Database / Storage
-    await saveReelForUser(profile.id, {
-      shortcode,
-      url: reelUrl,
-      thumbnail_url: reelData.thumbnailUrl || (shortcode ? `/api/proxy-image?shortcode=${shortcode}` : ""),
-      video_url: reelData.mediaUrl || "",
-      caption: reelData.caption || `Instagram ${mediaType.toUpperCase()}`,
-      creator_handle: creator,
-      creator_name: reelData.creatorFullName || creator,
-      creator_avatar: reelData.creatorAvatar || "",
-      media_type: mediaType,
-      duration: reelData.duration || "",
-      category,
-      tags: reelData.hashtags || [],
-      source: "instagram_dm",
-    });
+    // 4. Check if message contains a Reel / Post / Audio link
+    const mediaUrl = extractInstagramMediaUrl(messageText, attachments);
 
-    profile.savedReelsCount = (profile.savedReelsCount || 0) + 1;
-    igProfileStore.set(senderIgId, profile);
+    if (mediaUrl) {
+      // Extract metadata from our reel-info API or fallback
+      let reelData: any = null;
+      try {
+        const infoRes = await fetch(
+          `${process.env.NEXT_PUBLIC_APP_URL || "https://reeldash-nine.vercel.app"}/api/reel-info?url=${encodeURIComponent(mediaUrl)}`
+        );
+        if (infoRes.ok) {
+          reelData = await infoRes.json();
+        }
+      } catch (err) {
+        console.warn("[Instagram Bot] reel-info fetch fallback:", err);
+      }
 
-    const savedReply =
-      `⚡ Saved to your ReelDash library!\n\n` +
-      `🎬 @${creator}'s ${mediaType.toUpperCase()}${captionSnippet}\n` +
-      `📁 Category: ${category}\n\n` +
-      `🔗 View your library:\nhttps://reeldash-nine.vercel.app/dashboard`;
+      if (!reelData || !reelData.shortcode) {
+        const shortcodeMatch = mediaUrl.match(/\/(?:reel|reels|p|stories|audio)\/([A-Za-z0-9_.-]+)/i);
+        const shortcode = shortcodeMatch ? shortcodeMatch[1] : `ig_${Date.now()}`;
+        const isAudio = mediaUrl.includes("/audio/");
+        reelData = {
+          shortcode,
+          url: mediaUrl,
+          thumbnail_url: `https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600&auto=format&fit=crop&q=80`,
+          video_url: mediaUrl,
+          caption: `Instagram ${isAudio ? "Audio" : "Reel"} shared via Direct Message`,
+          creator_handle: `ig_user_${senderIgId.slice(-4)}`,
+          creator_name: "Instagram Creator",
+          creator_avatar: `/api/proxy-image?username=instagram`,
+          media_type: isAudio ? "audio" : "reel",
+          duration: isAudio ? "0:30" : "0:15",
+          category: isAudio ? "Music" : "General",
+          tags: ["instagram-dm", isAudio ? "audio" : "reel", "auto-save"],
+        };
+      }
 
-    await sendDMReply(senderIgId, savedReply);
+      // Save Reel to user's collection
+      const savedReel = await saveReelForUser(userProfile.id, reelData);
+      userProfile.savedReelsCount += 1;
+      userProfile.lastActiveAt = new Date().toISOString();
+
+      const successReply = `⚡ Saved to your ReelDash Library!\n\n🎬 ${reelData.creator_handle ? "@" + reelData.creator_handle + "'s Reel" : "Reel"}\n📁 Category: ${reelData.category || "General"}\n\n🔗 View your dashboard: https://reeldash-nine.vercel.app/dashboard`;
+
+      await sendDMReply(senderIgId, successReply);
+
+      return {
+        status: "reel_saved",
+        replyMessage: successReply,
+        senderIgId,
+        username: userProfile.username,
+        isFollowing: true,
+        savedReel,
+      };
+    }
+
+    // 5. If following and sent a greeting/general message
+    const greetingReply = `👋 Hey @${userProfile.username}!\n\nYour ReelDash sync is active! Whenever you see an Instagram Reel, Post, or Audio you like, simply DM or share the link here and it will be saved to your dashboard instantly. 🚀\n\n🔗 Dashboard: https://reeldash-nine.vercel.app/dashboard`;
+
+    await sendDMReply(senderIgId, greetingReply);
 
     return {
-      status: "reel_saved",
+      status: "message_received",
+      replyMessage: greetingReply,
       senderIgId,
-      username: profile.username,
-      reelUrl,
-      mediaType,
-      creator,
-      replySent: savedReply,
-      profileCreated: true,
-      profile,
+      username: userProfile.username,
+      isFollowing: true,
+    };
+  } catch (error: any) {
+    console.error("[Instagram Bot] Error processing message:", error);
+    return {
+      status: "error",
+      replyMessage: "Sorry, an error occurred while processing your request.",
+      senderIgId,
+      isFollowing: false,
     };
   }
-
-  // Case B: User sent a normal greeting / follow confirmation
-  const welcomeReply =
-    `✅ You're connected! ⚡\n\n` +
-    `Your ReelDash library profile is active (@${profile.username}).\n\n` +
-    `Whenever you see an Instagram Reel, Post, or Audio you like, just share or DM the link here and it will be saved directly into your ReelDash library! 🚀\n\n` +
-    `🔗 https://reeldash-nine.vercel.app/dashboard`;
-
-  await sendDMReply(senderIgId, welcomeReply);
-
-  return {
-    status: "connected",
-    senderIgId,
-    username: profile.username,
-    replySent: welcomeReply,
-    profileCreated: true,
-    profile,
-  };
 }
 
 /**
@@ -168,9 +162,28 @@ async function fetchInstagramUserProfile(
   }
 
   if (IG_PAGE_ACCESS_TOKEN) {
+    // 1. Try graph.instagram.com for Instagram tokens
+    try {
+      const igRes = await fetch(
+        `https://graph.instagram.com/v21.0/${senderIgId}?fields=name,username,profile_pic&access_token=${IG_PAGE_ACCESS_TOKEN}`
+      );
+      if (igRes.ok) {
+        const data = await igRes.json();
+        return {
+          username: data.username || customUsername || `ig_user_${senderIgId.slice(-4)}`,
+          fullName: data.name || data.username || "Instagram Creator",
+          avatar: data.profile_pic || "",
+          isFollowing: true,
+        };
+      }
+    } catch (e) {
+      // Continue to next endpoint
+    }
+
+    // 2. Try graph.facebook.com
     try {
       const res = await fetch(
-        `https://graph.facebook.com/v20.0/${senderIgId}?fields=name,username,profile_pic,is_user_follow_business&access_token=${IG_PAGE_ACCESS_TOKEN}`
+        `https://graph.facebook.com/v21.0/${senderIgId}?fields=name,username,profile_pic,is_user_follow_business&access_token=${IG_PAGE_ACCESS_TOKEN}`
       );
       if (res.ok) {
         const data = await res.json();
@@ -321,25 +334,44 @@ function extractInstagramMediaUrl(text: string, attachments: any[] = []): string
 }
 
 /**
- * Send DM Reply via Meta Messenger API
+ * Send DM Reply via Meta Messenger API / Instagram Messaging API
  */
 async function sendDMReply(recipientIgId: string, message: string): Promise<void> {
   if (!IG_PAGE_ACCESS_TOKEN) {
     console.log(`[Bot DM Reply to ${recipientIgId}]:\n${message}`);
     return;
   }
+
+  const payload = {
+    recipient: { id: recipientIgId },
+    message: { text: message },
+    messaging_type: "RESPONSE",
+  };
+
+  // 1. Try graph.instagram.com
   try {
-    await fetch(`https://graph.facebook.com/v20.0/me/messages`, {
+    const res = await fetch(`https://graph.instagram.com/v21.0/me/messages`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${IG_PAGE_ACCESS_TOKEN}`,
       },
-      body: JSON.stringify({
-        recipient: { id: recipientIgId },
-        message: { text: message },
-        messaging_type: "RESPONSE",
-      }),
+      body: JSON.stringify(payload),
+    });
+    if (res.ok) return;
+  } catch (e) {
+    // Continue to graph.facebook.com
+  }
+
+  // 2. Try graph.facebook.com
+  try {
+    await fetch(`https://graph.facebook.com/v21.0/me/messages`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${IG_PAGE_ACCESS_TOKEN}`,
+      },
+      body: JSON.stringify(payload),
     });
   } catch (e) {
     console.error("[Instagram Webhook] DM reply failed:", e);
