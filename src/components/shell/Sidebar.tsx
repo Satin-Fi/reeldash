@@ -44,20 +44,41 @@ export function Sidebar() {
   const [isAccountDropdownOpen, setIsAccountDropdownOpen] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
-  // Fetch avatar URL whenever the selected account changes
+  // Multi-tier avatar lookup for instant and robust display
+  const connectedAccountAvatar = user?.connectedAccounts?.find(
+    (a) => a.username?.toLowerCase() === selectedInstagramAccount?.toLowerCase()
+  )?.avatarUrl;
+
+  const libraryCreatorAvatar = reels.find(
+    (r) =>
+      (r.creatorUsername?.toLowerCase() === selectedInstagramAccount?.toLowerCase() ||
+        r.instagramUsername?.toLowerCase() === selectedInstagramAccount?.toLowerCase()) &&
+      Boolean(r.creatorAvatar)
+  )?.creatorAvatar;
+
+  // Fetch avatar URL if not found in local state
   React.useEffect(() => {
     if (!selectedInstagramAccount) {
       setAvatarUrl(null);
       return;
     }
-    setAvatarUrl(null); // reset while loading
+    if (connectedAccountAvatar || libraryCreatorAvatar) {
+      return;
+    }
     fetch(`/api/instagram/avatar/${encodeURIComponent(selectedInstagramAccount)}`)
       .then((r) => r.json())
       .then((data) => {
         if (data?.avatarUrl) setAvatarUrl(data.avatarUrl);
       })
       .catch(() => setAvatarUrl(null));
-  }, [selectedInstagramAccount]);
+  }, [selectedInstagramAccount, connectedAccountAvatar, libraryCreatorAvatar]);
+
+  const rawActiveAvatar = connectedAccountAvatar || libraryCreatorAvatar || avatarUrl;
+  const activeAvatarSrc = rawActiveAvatar
+    ? rawActiveAvatar.startsWith("http") && !rawActiveAvatar.includes("/api/proxy-image")
+      ? `/api/proxy-image?url=${encodeURIComponent(rawActiveAvatar)}`
+      : rawActiveAvatar
+    : null;
 
   const connectedAccounts = user?.connectedAccounts || [];
   const allHandles = Array.from(
@@ -165,12 +186,12 @@ export function Sidebar() {
               className="w-full flex items-center justify-between px-2.5 py-2 rounded-rd-md hover:bg-surfaceSecondary-light dark:hover:bg-white/[0.05] transition-colors cursor-pointer text-left focus:outline-none group"
             >
               <div className="flex items-center gap-2.5 min-w-0">
-                {selectedInstagramAccount && avatarUrl ? (
+                {selectedInstagramAccount && activeAvatarSrc ? (
                   /* Profile picture for selected account */
                   <div className="w-7 h-7 rounded-lg overflow-hidden shrink-0 bg-brand-500/15 flex items-center justify-center">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
-                      src={avatarUrl}
+                      src={activeAvatarSrc}
                       alt={selectedInstagramAccount}
                       className="w-full h-full object-cover"
                       onError={() => setAvatarUrl(null)}
