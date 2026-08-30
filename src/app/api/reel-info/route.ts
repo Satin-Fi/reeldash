@@ -116,8 +116,9 @@ function inferCategory(caption: string, creator: string): string {
 
 // ─── Extract helper used by GET and POST ────────────────────────────
 async function extractMetadata(url: string, startTime: number) {
-  const cleanUrl = url.trim();
-  const lowerUrl = cleanUrl.toLowerCase();
+  try {
+    const cleanUrl = url.trim();
+    const lowerUrl = cleanUrl.toLowerCase();
 
     // 1. Instant regex classification (0ms)
     let mediaType: "reel" | "post" | "audio" | "story" = "reel";
