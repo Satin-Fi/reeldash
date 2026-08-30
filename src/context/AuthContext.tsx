@@ -21,7 +21,7 @@ interface AuthContextType {
   login: (email: string, name?: string) => void;
   loginWithGoogle: () => Promise<void>;
   signup: (name: string, email: string, autoRedirect?: boolean) => UserProfile;
-  signupWithGoogle: (customData?: { name?: string; email?: string; avatar?: string }, autoRedirect?: boolean) => Promise<UserProfile>;
+  signupWithGoogle: (customData?: { name?: string; email?: string; avatar?: string }, autoRedirect?: boolean) => Promise<UserProfile | void>;
   updateUser: (data: Partial<UserProfile>) => void;
   logout: () => void;
 }
@@ -119,32 +119,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const loginWithGoogle = async () => {
     const supabase = getSupabaseClient();
     if (supabase) {
-      try {
-        const { error } = await supabase.auth.signInWithOAuth({
-          provider: "google",
-          options: {
-            redirectTo: `${window.location.origin}/api/auth/callback?next=/dashboard`,
-          },
-        });
-        if (!error) return;
-        console.warn("[Google Auth] Supabase OAuth error:", error);
-      } catch (e) {
-        console.warn("[Google Auth] Exception during Supabase OAuth:", e);
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}/api/auth/callback?next=/dashboard`,
+        },
+      });
+      if (error) {
+        console.error("[Google Auth] Supabase OAuth error:", error);
+        throw error;
+      }
+      if (data?.url) {
+        window.location.href = data.url;
+        return;
       }
     }
-
-    // Fast fallback with verified Google test credentials if Supabase credentials are not set
-    const googleUser: UserProfile = {
-      id: "usr-google-" + Date.now(),
-      name: "Google User",
-      email: "creator@gmail.com",
-      handle: "@creator",
-      avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
-      plan: "Pro Plan",
-    };
-    setUser(googleUser);
-    localStorage.setItem("reeldash_user", JSON.stringify(googleUser));
-    router.push("/dashboard");
   };
 
   const signup = (name: string, email: string, autoRedirect = true): UserProfile => {
@@ -168,40 +157,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signupWithGoogle = async (
     customData?: { name?: string; email?: string; avatar?: string },
     autoRedirect = false
-  ): Promise<UserProfile> => {
+  ): Promise<UserProfile | void> => {
     const supabase = getSupabaseClient();
     if (supabase) {
-      try {
-        const { error } = await supabase.auth.signInWithOAuth({
-          provider: "google",
-          options: {
-            redirectTo: `${window.location.origin}/api/auth/callback?next=/signup?step=instagram`,
-          },
-        });
-        if (!error) {
-          // Handled by redirect to Google
-        }
-      } catch (e) {
-        console.warn("[Google Auth] Supabase OAuth notice:", e);
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}/api/auth/callback?next=/signup?step=instagram`,
+        },
+      });
+      if (error) {
+        console.error("[Google Auth] Supabase OAuth error:", error);
+        throw error;
+      }
+      if (data?.url) {
+        window.location.href = data.url;
+        return;
       }
     }
-
-    const defaultName = customData?.name || "Google Creator";
-    const defaultEmail = customData?.email || "creator@gmail.com";
-    const newUser: UserProfile = {
-      id: "usr-google-" + Date.now(),
-      name: defaultName,
-      email: defaultEmail,
-      handle: `@${defaultEmail.split("@")[0].toLowerCase()}`,
-      avatar: customData?.avatar || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
-      plan: "Pro Plan",
-    };
-    setUser(newUser);
-    localStorage.setItem("reeldash_user", JSON.stringify(newUser));
-    if (autoRedirect) {
-      router.push("/dashboard");
-    }
-    return newUser;
   };
 
   const updateUser = (data: Partial<UserProfile>) => {

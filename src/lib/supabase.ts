@@ -1,18 +1,27 @@
 import { createClient } from "@supabase/supabase-js";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const supabaseUrl =
+  process.env.NEXT_PUBLIC_SUPABASE_URL || "https://knlcmaoazqadlwrqypbo.supabase.co";
+const supabaseAnonKey =
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtubGNtYW9henFhZGx3cnF5cGJvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY3OTQ0MTQsImV4cCI6MjEwMjM3MDQxNH0.D23IgSG7NcTtaiRiXQPLMlLlym4Lxvv-wnGbrzKmcx4";
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 /**
  * Browser/client-side Supabase client (uses anon key).
- * Safe to use in Client Components. Returns null if env variables not configured.
+ * Safe to use in Client Components.
  */
 export function getSupabaseClient() {
   if (!supabaseUrl || !supabaseAnonKey) {
     return null;
   }
-  return createClient(supabaseUrl, supabaseAnonKey);
+  return createClient(supabaseUrl, supabaseAnonKey, {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+    },
+  });
 }
 
 /**
@@ -21,10 +30,11 @@ export function getSupabaseClient() {
  * Never expose to the browser.
  */
 export function getSupabaseAdmin() {
-  if (!supabaseUrl || !supabaseServiceKey) {
+  const key = supabaseServiceKey || supabaseAnonKey;
+  if (!supabaseUrl || !key) {
     return null;
   }
-  return createClient(supabaseUrl, supabaseServiceKey, {
+  return createClient(supabaseUrl, key, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
 }

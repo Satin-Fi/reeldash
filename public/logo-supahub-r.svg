@@ -1,0 +1,12 @@
+<svg width="512" height="512" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Top Curved Arm -->
+  <path
+    d="M 28 18 H 60 C 74.359 18 86 29.641 86 44 C 86 54.5 79.8 63.6 70.8 67.8 C 55 68 46 54 46 44 H 28 V 18 Z"
+    fill="#8B5CF6"
+  />
+  <!-- Bottom Sweeping Tail & Stem -->
+  <path
+    d="M 28 36 V 82 H 46 V 56 C 46 64 54 74 72 82 H 88 C 72 72 62 60 62 48 H 46 V 36 H 28 Z"
+    fill="#8B5CF6"
+  />
+</svg>
