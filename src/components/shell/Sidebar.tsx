@@ -20,6 +20,7 @@ import {
   LogOut,
   Instagram,
   ChevronDown,
+  ChevronsUpDown,
   Check,
   Crown,
 } from "lucide-react";
@@ -140,50 +141,31 @@ export function Sidebar() {
           </Link>
         </div>
 
-        {/* ─── Professional Sidebar Instagram Account Switcher ─── */}
+        {/* ─── Minimalist Instagram Account Selector ─── */}
         {allHandles.length > 0 && (
-          <div className="relative px-0.5 pt-1">
+          <div className="relative pt-1">
             <button
               onClick={() => setIsAccountDropdownOpen(!isAccountDropdownOpen)}
-              className="w-full flex items-center justify-between p-2 rounded-rd-md bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark border border-borderSubtle-light dark:border-borderSubtle-dark hover:border-brand-500/40 transition-all cursor-pointer text-left shadow-rd-subtle"
+              className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-rd-sm border border-borderSubtle-light dark:border-borderSubtle-dark bg-surfaceSecondary-light/60 dark:bg-surfaceSecondary-dark/60 hover:bg-surfaceSecondary-light dark:hover:bg-surfaceSecondary-dark transition-colors cursor-pointer text-left text-xs"
             >
-              <div className="flex items-center space-x-2.5 min-w-0 flex-1">
-                <div className="w-6 h-6 rounded-full overflow-hidden bg-brand-500/10 border border-brand-500/20 text-brand-600 dark:text-brand-400 font-bold text-[9px] flex items-center justify-center shrink-0">
-                  {selectedInstagramAccount ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={`/api/proxy-image?username=${encodeURIComponent(selectedInstagramAccount)}`}
-                      alt=""
-                      onError={(e) => {
-                        (e.target as HTMLElement).style.display = "none";
-                      }}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <span>ALL</span>
-                  )}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <span className="block text-xs font-bold text-primaryText-light dark:text-primaryText-dark truncate font-mono">
-                    {selectedInstagramAccount ? `@${selectedInstagramAccount}` : "All Accounts"}
-                  </span>
-                  <span className="block text-[10px] text-secondaryText-light dark:text-secondaryText-dark truncate">
-                    {selectedInstagramAccount ? "Filtered Feed" : "Unified Library"}
-                  </span>
-                </div>
+              <div className="flex items-center gap-2 min-w-0">
+                <Instagram className="w-3.5 h-3.5 text-brand-600 dark:text-brand-400 shrink-0" />
+                <span className="truncate font-mono font-medium text-primaryText-light dark:text-primaryText-dark">
+                  {selectedInstagramAccount ? `@${selectedInstagramAccount}` : "All Accounts"}
+                </span>
               </div>
-              <ChevronDown className={`w-3.5 h-3.5 text-secondaryText-light dark:text-secondaryText-dark transition-transform shrink-0 ${isAccountDropdownOpen ? "rotate-180" : ""}`} />
+              <ChevronsUpDown className="w-3.5 h-3.5 text-secondaryText-light dark:text-secondaryText-dark shrink-0" />
             </button>
 
             {/* Dropdown Menu */}
             {isAccountDropdownOpen && (
-              <div className="absolute top-full left-0.5 right-0.5 mt-1 z-50 p-1.5 rounded-rd-md bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark shadow-rd-modal space-y-1">
+              <div className="absolute top-full left-0 right-0 mt-1 z-50 p-1 rounded-rd-md bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark shadow-rd-modal space-y-0.5">
                 <button
                   onClick={() => {
                     setSelectedInstagramAccount(null);
                     setIsAccountDropdownOpen(false);
                   }}
-                  className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-rd-sm text-xs transition-colors cursor-pointer text-left ${
+                  className={`w-full flex items-center justify-between px-2 py-1.5 rounded-rd-sm text-xs transition-colors cursor-pointer text-left ${
                     !selectedInstagramAccount
                       ? "bg-brand-500/10 text-brand-600 dark:text-brand-400 font-semibold"
                       : "text-secondaryText-light dark:text-secondaryText-dark hover:bg-surfaceSecondary-light dark:hover:bg-surfaceSecondary-dark hover:text-primaryText-light dark:hover:text-primaryText-dark"
@@ -202,26 +184,23 @@ export function Sidebar() {
                         setSelectedInstagramAccount(handle);
                         setIsAccountDropdownOpen(false);
                       }}
-                      className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-rd-sm text-xs transition-colors cursor-pointer text-left ${
+                      className={`w-full flex items-center justify-between px-2 py-1.5 rounded-rd-sm text-xs transition-colors cursor-pointer text-left ${
                         isSelected
                           ? "bg-brand-500/10 text-brand-600 dark:text-brand-400 font-semibold"
                           : "text-secondaryText-light dark:text-secondaryText-dark hover:bg-surfaceSecondary-light dark:hover:bg-surfaceSecondary-dark hover:text-primaryText-light dark:hover:text-primaryText-dark"
                       }`}
                     >
-                      <div className="flex items-center space-x-2 min-w-0">
-                        <Instagram className="w-3.5 h-3.5 text-brand-500 shrink-0" />
-                        <span className="font-mono truncate">@{handle}</span>
-                      </div>
+                      <span className="font-mono truncate">@{handle}</span>
                       {isSelected && <Check className="w-3 h-3 text-brand-500" />}
                     </button>
                   );
                 })}
 
-                <div className="pt-1 border-t border-borderSubtle-light dark:border-borderSubtle-dark">
+                <div className="pt-1 mt-0.5 border-t border-borderSubtle-light dark:border-borderSubtle-dark">
                   <Link
                     href="/settings"
                     onClick={() => setIsAccountDropdownOpen(false)}
-                    className="w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-rd-sm text-[11px] font-medium text-brand-600 dark:text-brand-400 hover:bg-brand-500/10 transition-colors"
+                    className="w-full flex items-center space-x-2 px-2 py-1.5 rounded-rd-sm text-[11px] font-medium text-brand-600 dark:text-brand-400 hover:bg-brand-500/10 transition-colors"
                   >
                     <Plus className="w-3 h-3" />
                     <span>Manage Accounts</span>
