@@ -7,7 +7,6 @@ import {
   Check,
   Zap,
   Shield,
-  Layers,
   Crown,
   Instagram,
   ArrowRight,

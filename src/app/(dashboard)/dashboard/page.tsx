@@ -115,9 +115,6 @@ export default function DashboardPage() {
             <div className="flex min-w-0 flex-col p-5 sm:p-7">
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-semibold tracking-[0.08em] text-brand-600 dark:text-brand-400 uppercase">
-                    ReelDash Capture Dock
-                  </span>
                   {selectedInstagramAccount && (
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-brand-500/10 text-brand-500 font-mono text-[11px] font-semibold border border-brand-500/20">
                       <Instagram className="w-3 h-3" />
@@ -125,7 +122,7 @@ export default function DashboardPage() {
                     </span>
                   )}
                 </div>
-                <h1 className="mt-2 max-w-xl text-2xl font-bold leading-tight tracking-tight text-primaryText-light dark:text-primaryText-dark sm:text-3xl">
+                <h1 className="text-2xl font-bold leading-tight tracking-tight text-primaryText-light dark:text-primaryText-dark sm:text-3xl">
                   {timeGreeting}, {displayName}.
                 </h1>
                 <p className="mt-2 max-w-xl text-xs leading-relaxed text-secondaryText-light dark:text-secondaryText-dark">
@@ -267,10 +264,7 @@ export default function DashboardPage() {
         <section className="space-y-4 pt-2">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs font-semibold tracking-[0.08em] text-secondaryText-light dark:text-secondaryText-dark uppercase">
-                {selectedInstagramAccount ? `RECENTLY SAVED • @${selectedInstagramAccount.toUpperCase()}` : "RECENTLY SAVED • ALL ACCOUNTS"}
-              </p>
-              <h2 className="mt-0.5 text-lg font-bold text-primaryText-light dark:text-primaryText-dark">
+              <h2 className="text-lg font-bold text-primaryText-light dark:text-primaryText-dark">
                 Your visual inbox
               </h2>
             </div>
@@ -296,7 +290,7 @@ export default function DashboardPage() {
         <section className="rounded-rd-lg border border-borderSubtle-light bg-surface-light p-5 shadow-rd-subtle dark:border-borderSubtle-dark dark:bg-surface-dark">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs font-semibold tracking-[0.08em] text-secondaryText-light dark:text-secondaryText-dark">LIBRARY PULSE</p>
+              <p className="text-xs font-semibold text-secondaryText-light dark:text-secondaryText-dark">Library Summary</p>
               <p className="mt-1 text-sm font-semibold text-primaryText-light dark:text-primaryText-dark">
                 {selectedInstagramAccount ? `@${selectedInstagramAccount}` : "What you have saved"}
               </p>
@@ -328,7 +322,7 @@ export default function DashboardPage() {
         <section className="border-y border-borderSubtle-light py-5 dark:border-borderSubtle-dark xl:rounded-rd-lg xl:border xl:bg-surface-light xl:px-5 xl:shadow-rd-subtle xl:dark:border-borderSubtle-dark xl:dark:bg-surface-dark">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs font-semibold tracking-[0.08em] text-secondaryText-light dark:text-secondaryText-dark">COLLECTIONS</p>
+              <p className="text-xs font-semibold text-secondaryText-light dark:text-secondaryText-dark">Collections</p>
               <p className="mt-1 text-sm font-semibold text-primaryText-light dark:text-primaryText-dark">Places for your ideas</p>
             </div>
             <Link href="/collections" aria-label="Open collections" className="text-brand-600 hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300">

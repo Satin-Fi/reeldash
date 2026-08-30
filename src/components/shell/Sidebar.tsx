@@ -18,7 +18,6 @@ import {
   Settings,
   Plus,
   LogOut,
-  Layers,
   Instagram,
   ChevronDown,
   Check,
@@ -149,7 +148,7 @@ export function Sidebar() {
               className="w-full flex items-center justify-between p-2 rounded-rd-md bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark border border-borderSubtle-light dark:border-borderSubtle-dark hover:border-brand-500/40 transition-all cursor-pointer text-left shadow-rd-subtle"
             >
               <div className="flex items-center space-x-2.5 min-w-0 flex-1">
-                <div className="w-6 h-6 rounded-full overflow-hidden bg-brand-500/10 border border-brand-500/20 text-brand-500 font-bold text-[10px] flex items-center justify-center shrink-0">
+                <div className="w-6 h-6 rounded-full overflow-hidden bg-brand-500/10 border border-brand-500/20 text-brand-600 dark:text-brand-400 font-bold text-[9px] flex items-center justify-center shrink-0">
                   {selectedInstagramAccount ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
@@ -161,7 +160,7 @@ export function Sidebar() {
                       className="w-full h-full object-cover"
                     />
                   ) : (
-                    <Layers className="w-3.5 h-3.5 text-brand-500" />
+                    <span>ALL</span>
                   )}
                 </div>
                 <div className="min-w-0 flex-1">
@@ -190,10 +189,7 @@ export function Sidebar() {
                       : "text-secondaryText-light dark:text-secondaryText-dark hover:bg-surfaceSecondary-light dark:hover:bg-surfaceSecondary-dark hover:text-primaryText-light dark:hover:text-primaryText-dark"
                   }`}
                 >
-                  <div className="flex items-center space-x-2">
-                    <Layers className="w-3.5 h-3.5 text-brand-500" />
-                    <span>All Accounts</span>
-                  </div>
+                  <span className="font-medium">All Accounts</span>
                   <span className="font-mono text-[10px] opacity-75">{counts.all}</span>
                 </button>
 

@@ -13,7 +13,6 @@ import {
   HelpCircle,
   Command,
   ExternalLink,
-  Layers,
   LayoutGrid,
   Film,
   Image as ImageIcon,
@@ -72,7 +71,7 @@ export function TopBar() {
   // Contextual distinct page identity for the Left Zone
   const getContextIdentity = () => {
     if (pathname === "/dashboard") {
-      return { title: "Visual Library", icon: Layers, count: reels.length };
+      return { title: "Visual Library", icon: LayoutGrid, count: reels.length };
     }
     if (pathname === "/reels") {
       if (mediaTypeParam === "reel") {
@@ -114,7 +113,7 @@ export function TopBar() {
     if (pathname.startsWith("/recent")) {
       return { title: "Recently Saved", icon: Clock };
     }
-    return { title: "Visual Library", icon: Layers, count: reels.length };
+    return { title: "Visual Library", icon: LayoutGrid, count: reels.length };
   };
 
   const identity = getContextIdentity();

@@ -6,7 +6,7 @@ import { useReels } from "@/context/ReelContext";
 import { MediaTypeFilter } from "@/types/reel";
 import { FilterToolbar } from "@/components/ui/FilterToolbar";
 import { ReelGrid } from "@/components/reels/ReelGrid";
-import { Plus, Film, Image as ImageIcon, Music2, CircleDashed, Layers } from "lucide-react";
+import { Plus, Film, Image as ImageIcon, Music2, CircleDashed, LayoutGrid } from "lucide-react";
 
 function ReelsContent() {
   const searchParams = useSearchParams();
@@ -126,7 +126,7 @@ function ReelsContent() {
         return {
           title: "All Library",
           description: `${filteredReels.length} total saved items across all media`,
-          icon: Layers,
+          icon: LayoutGrid,
           saveBtnText: "Save Media",
         };
     }
