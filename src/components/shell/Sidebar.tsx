@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useReels } from "@/context/ReelContext";
@@ -12,15 +12,17 @@ import {
   Image as ImageIcon,
   Music2,
   CircleDashed,
-  Layers,
   LayoutGrid,
   Heart,
-  Clock,
   Folder,
   Settings,
   Plus,
   LogOut,
-  Zap,
+  Sparkles,
+  Instagram,
+  ChevronDown,
+  Check,
+  Crown,
 } from "lucide-react";
 
 export function Sidebar() {
@@ -34,9 +36,20 @@ export function Sidebar() {
     setActiveCategory,
     activeMediaType,
     setActiveMediaType,
+    selectedInstagramAccount,
+    setSelectedInstagramAccount,
     setIsCreateCollectionModalOpen,
   } = useReels();
   const { user, logout } = useAuth();
+  const [isAccountDropdownOpen, setIsAccountDropdownOpen] = useState(false);
+
+  const connectedAccounts = user?.connectedAccounts || [];
+  const allHandles = Array.from(
+    new Set([
+      ...connectedAccounts.map((a) => a.username.toLowerCase()),
+      ...(user?.instagramUsername ? [user.instagramUsername.toLowerCase()] : []),
+    ])
+  ).filter(Boolean);
 
   const counts = {
     reel: reels.filter((r) => !r.mediaType || r.mediaType === "reel").length,
@@ -105,30 +118,131 @@ export function Sidebar() {
       isActive: pathname === "/favorites",
       onClick: () => {},
     },
-    {
-      label: "Recently Saved",
-      href: "/recent",
-      icon: Clock,
-      isActive: pathname === "/recent",
-      onClick: () => {},
-    },
   ];
 
-  const userInitial = user?.name ? user.name.charAt(0).toUpperCase() : "U";
+  const userInitial = user?.name
+    ? user.name.charAt(0).toUpperCase()
+    : user?.email
+    ? user.email.charAt(0).toUpperCase()
+    : "U";
 
   return (
-    <aside className="hidden md:flex flex-col w-64 shrink-0 h-screen sticky top-0 bg-surface-light dark:bg-surface-dark border-r border-borderSubtle-light dark:border-borderSubtle-dark p-4 justify-between select-none text-primaryText-light dark:text-primaryText-dark transition-colors duration-200">
-      
-      {/* Top: Logo + Nav */}
-      <div className="flex flex-col space-y-6 min-h-0 overflow-y-auto pr-1 scrollbar-none">
-        
-        {/* Brand Header */}
-        <div className="px-2 py-1.5">
-          <ReelDashLogo href="/dashboard" size={28} textSize="text-[20px]" />
+    <aside className="w-64 border-r border-borderSubtle-light dark:border-borderSubtle-dark bg-surface-light dark:bg-surface-dark flex flex-col justify-between p-4 shrink-0 select-none h-screen sticky top-0">
+      <div className="space-y-4 flex-1 overflow-y-auto pr-1">
+        {/* Brand Logo Header */}
+        <div className="flex items-center justify-between px-2 pt-1">
+          <Link href="/dashboard" className="flex items-center space-x-2">
+            <ReelDashLogo size={24} />
+            <span className="font-bold text-base tracking-tight text-primaryText-light dark:text-primaryText-dark">
+              ReelDash
+            </span>
+          </Link>
+          <Link
+            href="/pricing"
+            className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-brand-500/10 hover:bg-brand-500/20 text-brand-600 dark:text-brand-400 font-semibold text-[10px] transition-colors"
+          >
+            <Crown className="w-3 h-3 text-brand-500" />
+            <span>{user?.plan === "Free Plan" ? "Upgrade" : "Pro"}</span>
+          </Link>
         </div>
 
-        {/* Primary Navigation */}
-        <nav className="space-y-1">
+        {/* ─── Professional Sidebar Instagram Account Switcher ─── */}
+        {allHandles.length > 0 && (
+          <div className="relative px-1 pt-1">
+            <button
+              onClick={() => setIsAccountDropdownOpen(!isAccountDropdownOpen)}
+              className="w-full flex items-center justify-between p-2 rounded-rd-md bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark border border-borderSubtle-light dark:border-borderSubtle-dark hover:border-brand-500/40 transition-all cursor-pointer text-left shadow-rd-subtle"
+            >
+              <div className="flex items-center space-x-2.5 min-w-0">
+                <div className="w-6 h-6 rounded-full overflow-hidden bg-brand-500/10 border border-brand-500/20 text-brand-500 font-bold text-[10px] flex items-center justify-center shrink-0">
+                  {selectedInstagramAccount ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={`/api/proxy-image?username=${encodeURIComponent(selectedInstagramAccount)}`}
+                      alt=""
+                      onError={(e) => {
+                        (e.target as HTMLElement).style.display = "none";
+                      }}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <Sparkles className="w-3.5 h-3.5 text-brand-500" />
+                  )}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <span className="block text-xs font-bold text-primaryText-light dark:text-primaryText-dark truncate font-mono">
+                    {selectedInstagramAccount ? `@${selectedInstagramAccount}` : "All Accounts"}
+                  </span>
+                  <span className="block text-[10px] text-secondaryText-light dark:text-secondaryText-dark truncate">
+                    {selectedInstagramAccount ? "Filtered Feed" : "Unified Library"}
+                  </span>
+                </div>
+              </div>
+              <ChevronDown className={`w-3.5 h-3.5 text-secondaryText-light dark:text-secondaryText-dark transition-transform ${isAccountDropdownOpen ? "rotate-180" : ""}`} />
+            </button>
+
+            {/* Dropdown Menu */}
+            {isAccountDropdownOpen && (
+              <div className="absolute top-full left-1 right-1 mt-1 z-50 p-1.5 rounded-rd-md bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark shadow-rd-modal space-y-1">
+                <button
+                  onClick={() => {
+                    setSelectedInstagramAccount(null);
+                    setIsAccountDropdownOpen(false);
+                  }}
+                  className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-rd-sm text-xs transition-colors cursor-pointer text-left ${
+                    !selectedInstagramAccount
+                      ? "bg-brand-500/10 text-brand-600 dark:text-brand-400 font-semibold"
+                      : "text-secondaryText-light dark:text-secondaryText-dark hover:bg-surfaceSecondary-light dark:hover:bg-surfaceSecondary-dark hover:text-primaryText-light dark:hover:text-primaryText-dark"
+                  }`}
+                >
+                  <div className="flex items-center space-x-2">
+                    <Sparkles className="w-3.5 h-3.5 text-brand-500" />
+                    <span>All Accounts</span>
+                  </div>
+                  <span className="font-mono text-[10px] opacity-75">{counts.all}</span>
+                </button>
+
+                {allHandles.map((handle) => {
+                  const isSelected = selectedInstagramAccount?.toLowerCase() === handle.toLowerCase();
+                  return (
+                    <button
+                      key={handle}
+                      onClick={() => {
+                        setSelectedInstagramAccount(handle);
+                        setIsAccountDropdownOpen(false);
+                      }}
+                      className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-rd-sm text-xs transition-colors cursor-pointer text-left ${
+                        isSelected
+                          ? "bg-brand-500/10 text-brand-600 dark:text-brand-400 font-semibold"
+                          : "text-secondaryText-light dark:text-secondaryText-dark hover:bg-surfaceSecondary-light dark:hover:bg-surfaceSecondary-dark hover:text-primaryText-light dark:hover:text-primaryText-dark"
+                      }`}
+                    >
+                      <div className="flex items-center space-x-2 min-w-0">
+                        <Instagram className="w-3.5 h-3.5 text-brand-500 shrink-0" />
+                        <span className="font-mono truncate">@{handle}</span>
+                      </div>
+                      {isSelected && <Check className="w-3 h-3 text-brand-500" />}
+                    </button>
+                  );
+                })}
+
+                <div className="pt-1 border-t border-borderSubtle-light dark:border-borderSubtle-dark">
+                  <Link
+                    href="/settings"
+                    onClick={() => setIsAccountDropdownOpen(false)}
+                    className="w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-rd-sm text-[11px] font-medium text-brand-600 dark:text-brand-400 hover:bg-brand-500/10 transition-colors"
+                  >
+                    <Plus className="w-3 h-3" />
+                    <span>Manage Accounts</span>
+                  </Link>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Primary Navigation List */}
+        <nav className="space-y-0.5">
           {navItems.map((item) => {
             const Icon = item.icon;
             return (
@@ -136,32 +250,18 @@ export function Sidebar() {
                 key={item.label}
                 href={item.href}
                 onClick={item.onClick}
-                className={`flex items-center justify-between px-3 py-2 rounded-rd-md text-xs font-medium transition-all duration-150 ${
+                className={`w-full flex items-center justify-between px-3 py-2 rounded-rd-md text-xs font-medium transition-colors cursor-pointer ${
                   item.isActive
                     ? "bg-brand-500/10 text-brand-600 dark:text-brand-400 font-semibold"
                     : "text-secondaryText-light dark:text-secondaryText-dark hover:bg-surfaceSecondary-light dark:hover:bg-surfaceSecondary-dark hover:text-primaryText-light dark:hover:text-primaryText-dark"
                 }`}
               >
-                <div className="flex items-center space-x-2.5 min-w-0">
-                  <Icon
-                    className={`w-4 h-4 shrink-0 transition-colors ${
-                      item.isActive
-                        ? "text-brand-600 dark:text-brand-400"
-                        : "text-secondaryText-light dark:text-secondaryText-dark"
-                    }`}
-                    strokeWidth={item.isActive ? 2 : 1.75}
-                  />
-                  <span className="truncate">{item.label}</span>
+                <div className="flex items-center space-x-2.5">
+                  <Icon className="w-4 h-4" strokeWidth={item.isActive ? 2.25 : 1.75} />
+                  <span>{item.label}</span>
                 </div>
-
-                {item.count !== undefined && item.count > 0 && (
-                  <span
-                    className={`px-1.5 py-0.5 text-[10px] font-mono rounded-full leading-none shrink-0 ${
-                      item.isActive
-                        ? "bg-brand-500 text-white"
-                        : "bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark text-secondaryText-light dark:text-secondaryText-dark"
-                    }`}
-                  >
+                {item.count !== undefined && (
+                  <span className="text-[10px] font-mono text-mutedText-light dark:text-mutedText-dark">
                     {item.count}
                   </span>
                 )}
@@ -173,10 +273,7 @@ export function Sidebar() {
         {/* Collections Section */}
         <div className="space-y-2 pt-2 border-t border-borderSubtle-light dark:border-borderSubtle-dark">
           <div className="flex items-center justify-between px-2 text-[11px] font-semibold text-secondaryText-light dark:text-secondaryText-dark uppercase tracking-wider">
-            <div className="flex items-center space-x-1.5">
-              <Folder className="w-3.5 h-3.5" />
-              <span>Collections</span>
-            </div>
+            <span>Collections</span>
             <button
               onClick={() => setIsCreateCollectionModalOpen(true)}
               className="p-1 text-secondaryText-light dark:text-secondaryText-dark hover:text-brand-500 dark:hover:text-brand-400 hover:bg-surfaceSecondary-light dark:hover:bg-surfaceSecondary-dark rounded-rd-sm transition-colors cursor-pointer"
@@ -255,6 +352,18 @@ export function Sidebar() {
 
       {/* Bottom Area: Settings & User Tile */}
       <div className="pt-4 border-t border-borderSubtle-light dark:border-borderSubtle-dark space-y-2 shrink-0">
+        <Link
+          href="/pricing"
+          className={`flex items-center space-x-2.5 px-3 py-2 rounded-rd-md text-xs font-medium transition-colors ${
+            pathname === "/pricing"
+              ? "bg-brand-500/10 text-brand-600 dark:text-brand-400 font-semibold"
+              : "text-secondaryText-light dark:text-secondaryText-dark hover:bg-surfaceSecondary-light dark:hover:bg-surfaceSecondary-dark hover:text-primaryText-light dark:hover:text-primaryText-dark"
+          }`}
+        >
+          <Crown className="w-4 h-4 text-brand-500" strokeWidth={1.75} />
+          <span>Plans & Pricing</span>
+        </Link>
+
         <Link
           href="/settings"
           className={`flex items-center space-x-2.5 px-3 py-2 rounded-rd-md text-xs font-medium transition-colors ${

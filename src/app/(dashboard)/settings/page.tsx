@@ -7,25 +7,21 @@ import {
   User,
   Sun,
   Moon,
-  Bell,
   Download,
-  ShieldCheck,
-  MessageCircle,
   Instagram,
   Plus,
   Trash2,
   CheckCircle2,
-  Sparkles,
-  ExternalLink,
+  Crown,
+  ArrowRight,
   Loader2,
 } from "lucide-react";
 import Link from "next/link";
-import Image from "next/image";
 
 export default function SettingsPage() {
   const { theme, toggleTheme, reels, showToast } = useReels();
   const { user, updateUser, addInstagramAccount, removeInstagramAccount, refreshAccounts } = useAuth();
-  const [activeTab, setActiveTab] = useState<"accounts" | "profile" | "appearance" | "export">("accounts");
+  const [activeTab, setActiveTab] = useState<"accounts" | "profile" | "plans" | "appearance" | "export">("accounts");
 
   const [name, setName] = useState(user?.name || "");
   const [email, setEmail] = useState(user?.email || "");
@@ -55,7 +51,7 @@ export default function SettingsPage() {
       const res = await addInstagramAccount(clean);
       if (res.success) {
         setNewHandle("");
-        showToast(`@${clean} connected successfully`, "Reels sent from this handle will save to your library");
+        showToast(`@${clean} connected successfully`);
       } else {
         showToast("Could not link account", res.error);
       }
@@ -116,7 +112,7 @@ export default function SettingsPage() {
           Settings & Preferences
         </h1>
         <p className="text-xs text-secondaryText-light dark:text-secondaryText-dark mt-0.5">
-          Manage your connected Instagram handles, profile, appearance, and export options.
+          Manage your connected Instagram handles, workspace plans, profile, and export options.
         </p>
       </div>
 
@@ -133,6 +129,17 @@ export default function SettingsPage() {
           >
             <Instagram className="w-4 h-4" />
             <span>Instagram Accounts</span>
+          </button>
+          <button
+            onClick={() => setActiveTab("plans")}
+            className={`w-full flex items-center space-x-2.5 px-3 py-2 rounded-rd-sm text-xs font-medium transition-colors cursor-pointer text-left ${
+              activeTab === "plans"
+                ? "bg-brand-500/10 text-brand-600 dark:text-brand-400 font-semibold"
+                : "text-secondaryText-light dark:text-secondaryText-dark hover:bg-surfaceSecondary-light dark:hover:bg-surfaceSecondary-dark"
+            }`}
+          >
+            <Crown className="w-4 h-4 text-brand-500" />
+            <span>Plans & Billing</span>
           </button>
           <button
             onClick={() => setActiveTab("profile")}
@@ -180,19 +187,22 @@ export default function SettingsPage() {
                     Connected Instagram Accounts
                   </h3>
                   <p className="text-secondaryText-light dark:text-secondaryText-dark mt-0.5">
-                    Any Reel, Post, or Audio sent to <strong className="text-brand-500">@reeldash_app</strong> from these handles will auto-save to your library.
+                    Manage the handles you use to capture reels and media references.
                   </p>
                 </div>
-                <div className="px-2.5 py-1 rounded-full bg-brand-500/10 border border-brand-500/20 text-brand-500 font-medium">
+                <Link
+                  href="/pricing"
+                  className="px-2.5 py-1 rounded-full bg-brand-500/10 hover:bg-brand-500/20 border border-brand-500/20 text-brand-500 font-medium transition-colors"
+                >
                   {connectedAccounts.length} of {maxLimit} accounts ({user?.plan || "Pro Plan"})
-                </div>
+                </Link>
               </div>
 
               {/* Connected Accounts List */}
-              <div className="space-y-3">
+              <div className="space-y-2.5">
                 {connectedAccounts.length === 0 ? (
                   <div className="p-4 rounded-rd-md border border-dashed border-borderSubtle-light dark:border-borderSubtle-dark text-center text-secondaryText-light dark:text-secondaryText-dark">
-                    No Instagram accounts connected yet. Add your handle below to start saving from DMs.
+                    No Instagram accounts connected yet. Add your handle below to start saving references.
                   </div>
                 ) : (
                   connectedAccounts.map((acc) => (
@@ -200,32 +210,42 @@ export default function SettingsPage() {
                       key={acc.id || acc.username}
                       className="flex items-center justify-between p-3.5 rounded-rd-md border border-borderSubtle-light dark:border-borderSubtle-dark bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark"
                     >
-                      <div className="flex items-center space-x-3">
-                        <div className="w-10 h-10 rounded-full overflow-hidden bg-brand-500/10 border border-brand-500/20 flex items-center justify-center font-bold text-brand-500">
-                          {acc.avatarUrl ? (
-                            <img src={acc.avatarUrl} alt={acc.username} className="w-full h-full object-cover" />
-                          ) : (
-                            acc.username.charAt(0).toUpperCase()
-                          )}
+                      <div className="flex items-center space-x-3 min-w-0">
+                        <div className="w-10 h-10 rounded-full overflow-hidden bg-brand-500/10 border border-brand-500/20 flex items-center justify-center font-bold text-brand-500 shrink-0">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={`/api/proxy-image?username=${encodeURIComponent(acc.username)}`}
+                            alt={acc.username}
+                            referrerPolicy="no-referrer"
+                            onError={(e) => {
+                              (e.target as HTMLElement).style.display = "none";
+                            }}
+                            className="w-full h-full object-cover"
+                          />
+                          <span className="text-xs uppercase font-mono">
+                            {acc.username.replace(/^_/, "").charAt(0) || acc.username.charAt(0)}
+                          </span>
                         </div>
-                        <div>
-                          <div className="flex items-center space-x-1.5">
-                            <span className="font-bold text-primaryText-light dark:text-primaryText-dark font-mono text-sm">
+                        <div className="min-w-0">
+                          <div className="flex items-center space-x-2">
+                            <span className="font-bold text-primaryText-light dark:text-primaryText-dark font-mono text-sm truncate">
                               @{acc.username}
                             </span>
-                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 shrink-0">
                               <CheckCircle2 className="w-3 h-3 mr-0.5" /> Active
                             </span>
                           </div>
-                          <p className="text-[11px] text-secondaryText-light dark:text-secondaryText-dark">
-                            {acc.displayName ? `${acc.displayName} • ` : ""}DM sync enabled
-                          </p>
+                          {acc.displayName && (
+                            <p className="text-[11px] text-secondaryText-light dark:text-secondaryText-dark truncate mt-0.5">
+                              {acc.displayName}
+                            </p>
+                          )}
                         </div>
                       </div>
 
                       <button
                         onClick={() => handleRemoveAccount(acc.id, acc.username)}
-                        className="p-2 text-mutedText-light dark:text-mutedText-dark hover:text-red-500 dark:hover:text-red-400 hover:bg-red-500/10 rounded-rd-sm transition-colors cursor-pointer"
+                        className="p-2 text-mutedText-light dark:text-mutedText-dark hover:text-red-500 dark:hover:text-red-400 hover:bg-red-500/10 rounded-rd-sm transition-colors cursor-pointer shrink-0"
                         title="Unlink account"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -280,133 +300,149 @@ export default function SettingsPage() {
                       Upgrade to connect more Instagram accounts and unlock team workspaces.
                     </p>
                   </div>
+                  <Link
+                    href="/pricing"
+                    className="px-3 py-1.5 rounded-rd-md bg-brand-500 hover:bg-brand-600 text-white font-semibold text-xs flex items-center gap-1 shrink-0"
+                  >
+                    <span>Upgrade</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </Link>
                 </div>
               )}
             </div>
           )}
 
-          {/* Profile Tab */}
+          {/* Plans & Billing Tab */}
+          {activeTab === "plans" && (
+            <div className="space-y-6 text-xs">
+              <div className="flex items-center justify-between pb-4 border-b border-borderSubtle-light dark:border-borderSubtle-dark">
+                <div>
+                  <h3 className="text-sm font-bold text-primaryText-light dark:text-primaryText-dark">
+                    Current Workspace Plan
+                  </h3>
+                  <p className="text-secondaryText-light dark:text-secondaryText-dark mt-0.5">
+                    Your active subscription and library capacity.
+                  </p>
+                </div>
+                <span className="px-3 py-1 rounded-full bg-brand-500/10 border border-brand-500/20 text-brand-500 font-bold">
+                  {user?.plan || "Pro Plan"}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="p-4 rounded-rd-md bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark border border-borderSubtle-light dark:border-borderSubtle-dark space-y-1.5">
+                  <span className="text-secondaryText-light dark:text-secondaryText-dark">Instagram Accounts</span>
+                  <p className="text-base font-bold text-primaryText-light dark:text-primaryText-dark font-mono">
+                    {connectedAccounts.length} / {maxLimit} Connected
+                  </p>
+                </div>
+                <div className="p-4 rounded-rd-md bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark border border-borderSubtle-light dark:border-borderSubtle-dark space-y-1.5">
+                  <span className="text-secondaryText-light dark:text-secondaryText-dark">Saved Media Capacity</span>
+                  <p className="text-base font-bold text-primaryText-light dark:text-primaryText-dark font-mono">
+                    {user?.plan === "Free Plan" ? "50 Reels Limit" : "Unlimited Reels"}
+                  </p>
+                </div>
+              </div>
+
+              <div className="pt-2">
+                <Link
+                  href="/pricing"
+                  className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-rd-md bg-brand-600 hover:bg-brand-700 text-white font-semibold text-xs shadow-rd-glow transition-all"
+                >
+                  <Crown className="w-4 h-4" />
+                  <span>Compare All Plans & Upgrades</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </Link>
+              </div>
+            </div>
+          )}
+
+          {/* Profile Form */}
           {activeTab === "profile" && (
             <form onSubmit={handleSaveProfile} className="space-y-4 text-xs">
               <h3 className="text-sm font-bold text-primaryText-light dark:text-primaryText-dark">
                 Account Information
               </h3>
-              
-              <div className="space-y-3 max-w-md">
-                <div>
-                  <label className="block font-medium text-secondaryText-light dark:text-secondaryText-dark mb-1">
-                    Display Name
-                  </label>
-                  <input
-                    type="text"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="Your Name"
-                    className="w-full p-2 bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-sm text-xs text-primaryText-light dark:text-primaryText-dark focus:outline-none focus:border-brand-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-medium text-secondaryText-light dark:text-secondaryText-dark mb-1">
-                    Email Address
-                  </label>
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="you@example.com"
-                    className="w-full p-2 bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-sm text-xs text-primaryText-light dark:text-primaryText-dark focus:outline-none focus:border-brand-500"
-                  />
-                </div>
-
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-brand-500 hover:bg-brand-600 active:scale-95 text-white font-semibold rounded-rd-md shadow-rd-subtle transition-all cursor-pointer"
-                >
-                  Save Profile
-                </button>
+              <div>
+                <label className="block font-medium text-secondaryText-light dark:text-secondaryText-dark mb-1">
+                  Display Name
+                </label>
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="w-full px-3 py-2 bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-sm text-xs text-primaryText-light dark:text-primaryText-dark focus:outline-none focus:border-brand-500"
+                />
               </div>
+              <div>
+                <label className="block font-medium text-secondaryText-light dark:text-secondaryText-dark mb-1">
+                  Email Address
+                </label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full px-3 py-2 bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-sm text-xs text-primaryText-light dark:text-primaryText-dark focus:outline-none focus:border-brand-500"
+                />
+              </div>
+              <button
+                type="submit"
+                className="px-4 py-2 bg-brand-500 hover:bg-brand-600 text-white font-semibold rounded-rd-sm shadow-rd-subtle transition-colors cursor-pointer"
+              >
+                Save Profile
+              </button>
             </form>
           )}
 
-          {/* Appearance Tab */}
+          {/* Appearance Form */}
           {activeTab === "appearance" && (
             <div className="space-y-4 text-xs">
               <h3 className="text-sm font-bold text-primaryText-light dark:text-primaryText-dark">
-                Appearance Settings
+                Theme Customization
               </h3>
-              <p className="text-secondaryText-light dark:text-secondaryText-dark">
-                Select your preferred interface theme.
-              </p>
-
-              <div className="grid grid-cols-2 gap-4 max-w-md pt-2">
+              <div className="flex items-center justify-between p-3 rounded-rd-md bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark border border-borderSubtle-light dark:border-borderSubtle-dark">
+                <div>
+                  <span className="font-semibold text-primaryText-light dark:text-primaryText-dark block">
+                    Dark Mode
+                  </span>
+                  <span className="text-secondaryText-light dark:text-secondaryText-dark text-[11px]">
+                    Toggle between light and dark visual interfaces.
+                  </span>
+                </div>
                 <button
-                  onClick={() => theme === "dark" && toggleTheme()}
-                  className={`p-4 border rounded-rd-md flex flex-col items-center space-y-2 cursor-pointer transition-all ${
-                    theme === "light"
-                      ? "border-brand-500 bg-brand-500/5 font-semibold text-brand-600 dark:text-brand-400"
-                      : "border-borderSubtle-light dark:border-borderSubtle-dark text-secondaryText-light dark:text-secondaryText-dark hover:border-brand-500/30"
-                  }`}
+                  onClick={toggleTheme}
+                  className="p-2 rounded-full hover:bg-surface-light dark:hover:bg-surface-dark transition-colors cursor-pointer border border-borderSubtle-light dark:border-borderSubtle-dark"
                 >
-                  <Sun className="w-6 h-6" />
-                  <span>Light Mode</span>
-                </button>
-
-                <button
-                  onClick={() => theme === "light" && toggleTheme()}
-                  className={`p-4 border rounded-rd-md flex flex-col items-center space-y-2 cursor-pointer transition-all ${
-                    theme === "dark"
-                      ? "border-brand-500 bg-brand-500/10 font-semibold text-brand-400"
-                      : "border-borderSubtle-light dark:border-borderSubtle-dark text-secondaryText-light dark:text-secondaryText-dark hover:border-brand-500/30"
-                  }`}
-                >
-                  <Moon className="w-6 h-6" />
-                  <span>Dark Mode</span>
+                  {theme === "dark" ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-brand-500" />}
                 </button>
               </div>
             </div>
           )}
 
-          {/* Data Export Tab */}
+          {/* Export Options */}
           {activeTab === "export" && (
             <div className="space-y-4 text-xs">
               <h3 className="text-sm font-bold text-primaryText-light dark:text-primaryText-dark">
-                Data Export & Backup
+                Library Data Backup
               </h3>
               <p className="text-secondaryText-light dark:text-secondaryText-dark">
-                Download your entire visual library, captions, metadata, and collection structures.
+                Download your complete reference library in machine-readable formats.
               </p>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
-                <div className="p-4 border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-md space-y-3 bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark">
-                  <h4 className="font-semibold text-primaryText-light dark:text-primaryText-dark">
-                    Spreadsheet (CSV)
-                  </h4>
-                  <p className="text-secondaryText-light dark:text-secondaryText-dark text-[11px]">
-                    Export all saved reels, creator handles, links, and categories in standard CSV format.
-                  </p>
-                  <button
-                    onClick={handleExportCSV}
-                    className="w-full py-2 bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark hover:border-brand-500 rounded-rd-sm font-medium transition-colors cursor-pointer text-center block"
-                  >
-                    Export CSV
-                  </button>
-                </div>
-
-                <div className="p-4 border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-md space-y-3 bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark">
-                  <h4 className="font-semibold text-primaryText-light dark:text-primaryText-dark">
-                    JSON Backup
-                  </h4>
-                  <p className="text-secondaryText-light dark:text-secondaryText-dark text-[11px]">
-                    Complete backup including notes, timestamps, tags, and all custom metadata.
-                  </p>
-                  <button
-                    onClick={handleExportJSON}
-                    className="w-full py-2 bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark hover:border-brand-500 rounded-rd-sm font-medium transition-colors cursor-pointer text-center block"
-                  >
-                    Export JSON
-                  </button>
-                </div>
+              <div className="flex flex-wrap gap-3 pt-2">
+                <button
+                  onClick={handleExportCSV}
+                  className="flex items-center space-x-2 px-4 py-2.5 bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark hover:bg-brand-500/10 text-primaryText-light dark:text-primaryText-dark border border-borderSubtle-light dark:border-borderSubtle-dark hover:border-brand-500/30 rounded-rd-md transition-all cursor-pointer font-medium"
+                >
+                  <Download className="w-4 h-4 text-brand-500" />
+                  <span>Download CSV</span>
+                </button>
+                <button
+                  onClick={handleExportJSON}
+                  className="flex items-center space-x-2 px-4 py-2.5 bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark hover:bg-brand-500/10 text-primaryText-light dark:text-primaryText-dark border border-borderSubtle-light dark:border-borderSubtle-dark hover:border-brand-500/30 rounded-rd-md transition-all cursor-pointer font-medium"
+                >
+                  <Download className="w-4 h-4 text-brand-500" />
+                  <span>Download JSON</span>
+                </button>
               </div>
             </div>
           )}

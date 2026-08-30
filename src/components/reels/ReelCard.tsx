@@ -53,8 +53,8 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
 
   const mediaType = reel.mediaType || "reel";
   const isMultiCarousel =
-    mediaType === "post" && reel.carouselItems && reel.carouselItems.length > 1;
-  const carouselCount = isMultiCarousel ? reel.carouselItems?.length : null;
+    mediaType === "post" && reel.carouselImages && reel.carouselImages.length > 1;
+  const carouselCount = isMultiCarousel ? reel.carouselImages?.length : null;
 
   // Clean, fallback image source
   const imageSrc =
