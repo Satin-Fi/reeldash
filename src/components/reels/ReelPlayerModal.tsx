@@ -93,17 +93,17 @@ export function ReelPlayerModal({ reel, isOpen, onClose }: ReelPlayerModalProps)
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 md:p-6 bg-black/85 backdrop-blur-md">
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 md:p-6 lg:p-8 bg-black/85 backdrop-blur-md">
         {/* Backdrop Close */}
         <div className="absolute inset-0" onClick={onClose} />
 
         {/* Modal Window: Split Video Player & Personal Library Inspector */}
         <motion.div
-          initial={{ opacity: 0, scale: 0.96 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.96 }}
+          initial={{ opacity: 0, scale: 0.96, y: 8 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.96, y: 8 }}
           transition={{ duration: 0.2 }}
-          className="relative w-full max-w-5xl h-[92vh] max-h-[750px] bg-zinc-950 text-white rounded-xl overflow-hidden shadow-2xl border border-zinc-800 flex flex-col md:flex-row z-10"
+          className="relative w-full max-w-5xl lg:max-w-6xl xl:max-w-7xl h-[92vh] max-h-[880px] bg-zinc-950 text-white rounded-2xl overflow-hidden shadow-2xl border border-zinc-800 flex flex-col md:flex-row z-10"
         >
           {/* Close Button on Mobile */}
           <button
@@ -113,8 +113,8 @@ export function ReelPlayerModal({ reel, isOpen, onClose }: ReelPlayerModalProps)
             <X className="w-5 h-5" />
           </button>
 
-          {/* LEFT COLUMN: Clean 9:16 Vertical Video Player */}
-          <div className="w-full md:w-[48%] lg:w-[50%] h-[55vh] md:h-full min-h-[380px] bg-black flex items-center justify-center relative overflow-hidden border-b md:border-b-0 md:border-r border-zinc-800 shrink-0">
+          {/* LEFT COLUMN: Clean 9:16 Vertical Video Player (Expansive Theater Sizing) */}
+          <div className="w-full md:w-[460px] lg:w-[520px] xl:w-[560px] h-[55vh] md:h-full min-h-[380px] bg-black flex items-center justify-center relative overflow-hidden border-b md:border-b-0 md:border-r border-zinc-800 shrink-0">
             <ReelPlayer
               reel={reel}
               autoPlay={true}
@@ -123,7 +123,7 @@ export function ReelPlayerModal({ reel, isOpen, onClose }: ReelPlayerModalProps)
           </div>
 
           {/* RIGHT COLUMN: Pure Dark Inspector & Library Details */}
-          <div className="w-full md:w-[52%] lg:w-[50%] flex-1 md:h-full flex flex-col bg-zinc-950 text-zinc-100 min-w-0 border-l border-zinc-800/60 overflow-y-auto">
+          <div className="flex-1 md:h-full flex flex-col bg-zinc-950 text-zinc-100 min-w-0 overflow-y-auto">
             {/* 1. TOP CREATOR HEADER */}
             <div className="p-3.5 px-4 flex items-center justify-between border-b border-zinc-800/80 shrink-0 bg-zinc-950">
               <div className="flex items-center space-x-3 min-w-0">

@@ -113,212 +113,215 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="mx-auto grid w-full max-w-7xl gap-5 xl:grid-cols-[minmax(0,1fr)_19rem]">
-      <main className="min-w-0 space-y-6">
+    <div className="w-full space-y-6">
+      {/* Top Layer: Quick Ingest & Overview Bar + Library Summary */}
+      <div className="grid w-full gap-5 lg:grid-cols-[minmax(0,1fr)_19rem]">
         {/* Quick Ingest & Overview Bar */}
         <section className="animate-fade-up delay-0 bezel-outer-polish">
           <div className="overflow-hidden rounded-[calc(1.25rem-6px)] border border-borderSubtle-light bg-surface-light shadow-rd-card dark:border-borderSubtle-dark dark:bg-surface-dark bezel-inner-polish">
-          <div className="grid min-h-[20rem] lg:grid-cols-[minmax(0,1fr)_19rem]">
-            <div className="flex min-w-0 flex-col p-5 sm:p-7">
-              <div>
-                <h1 className="font-bricolage text-[1.85rem] font-bold leading-[1.15] tracking-[-0.03em] text-primaryText-light dark:text-primaryText-dark sm:text-[2.1rem]">
-                  {timeGreeting}, {displayName}.
-                </h1>
-                <p className="mt-2.5 max-w-xl text-[13px] leading-relaxed text-secondaryText-light dark:text-secondaryText-dark" style={{ textWrap: 'balance' } as React.CSSProperties}>
-                  {selectedInstagramAccount
-                    ? `Showing library for @${selectedInstagramAccount}. Paste any Instagram link or press `
-                    : `Showing unified library across all accounts. Paste any Instagram link or press `}
-                  <kbd className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-white/[0.08] text-[10px] font-mono">⌘K</kbd>
-                  {" to search and capture."}
-                </p>
-              </div>
-
-              <form onSubmit={handleQuickSave} className="mt-6 grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
-                <label className="group relative block">
-                  <span className="sr-only">Instagram URL</span>
-                  <Link2 className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-mutedText-light group-focus-within:text-brand-500 dark:text-mutedText-dark" />
-                  <input
-                    type="url"
-                    value={inputUrl}
-                    onChange={(event) => setInputUrl(event.target.value)}
-                    placeholder="Paste an Instagram reel, post, story, or audio link"
-                    className="h-12 w-full rounded-rd-md border border-borderSubtle-light bg-background-light pl-11 pr-11 text-sm text-primaryText-light shadow-rd-inset transition-colors placeholder:text-mutedText-light focus:border-brand-500 focus:outline-none focus:ring-4 focus:ring-brand-500/10 dark:border-borderSubtle-dark dark:bg-background-dark dark:text-primaryText-dark dark:placeholder:text-mutedText-dark"
-                  />
-                  {inputUrl && (
-                    <button
-                      type="button"
-                      onClick={() => setInputUrl("")}
-                      aria-label="Clear Instagram URL"
-                      className="absolute right-3 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-rd-sm text-mutedText-light transition-colors hover:bg-surfaceSecondary-light hover:text-primaryText-light dark:text-mutedText-dark dark:hover:bg-surfaceSecondary-dark dark:hover:text-primaryText-dark"
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
-                  )}
-                </label>
-                <button
-                  type="submit"
-                  disabled={!inputUrl.trim() || isSubmitting}
-                  className="inline-flex h-12 items-center justify-center gap-2 rounded-rd-md bg-brand-600 px-5 text-sm font-semibold text-white transition-colors hover:bg-brand-700 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-50 shadow-rd-glow cursor-pointer"
-                >
-                  {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" strokeWidth={2.5} />}
-                  <span>{isSubmitting ? "Saving" : "Save to library"}</span>
-                </button>
-              </form>
-
-              <div className="mt-auto grid grid-cols-3 divide-x divide-borderSubtle-light pt-6 dark:divide-borderSubtle-dark">
-                <div className="pr-4">
-                  <p className="font-mono text-2xl font-semibold tabular-nums text-primaryText-light dark:text-primaryText-dark">{reels.length}</p>
-                  <p className="mt-0.5 text-xs text-secondaryText-light dark:text-secondaryText-dark">saved items</p>
+            <div className="grid min-h-[20rem] lg:grid-cols-[minmax(0,1fr)_19rem]">
+              <div className="flex min-w-0 flex-col p-5 sm:p-7">
+                <div>
+                  <h1 className="font-bricolage text-[1.85rem] font-bold leading-[1.15] tracking-[-0.03em] text-primaryText-light dark:text-primaryText-dark sm:text-[2.1rem]">
+                    {timeGreeting}, {displayName}.
+                  </h1>
+                  <p className="mt-2.5 max-w-xl text-[13px] leading-relaxed text-secondaryText-light dark:text-secondaryText-dark" style={{ textWrap: 'balance' } as React.CSSProperties}>
+                    {selectedInstagramAccount
+                      ? `Showing library for @${selectedInstagramAccount}. Paste any Instagram link or press `
+                      : `Showing unified library across all accounts. Paste any Instagram link or press `}
+                    <kbd className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-white/[0.08] text-[10px] font-mono">⌘K</kbd>
+                    {" to search and capture."}
+                  </p>
                 </div>
-                <div className="px-4">
-                  <p className="font-mono text-2xl font-semibold tabular-nums text-primaryText-light dark:text-primaryText-dark">{thisWeekCount}</p>
-                  <p className="mt-0.5 text-xs text-secondaryText-light dark:text-secondaryText-dark">saved this week</p>
-                </div>
-                <div className="pl-4">
-                  <p className="font-mono text-2xl font-semibold tabular-nums text-primaryText-light dark:text-primaryText-dark">{collections.length}</p>
-                  <p className="mt-0.5 text-xs text-secondaryText-light dark:text-secondaryText-dark">collections</p>
-                </div>
-              </div>
-            </div>
 
-            <div className="relative hidden overflow-hidden border-l border-borderSubtle-light bg-surfaceSecondary-light p-5 dark:border-borderSubtle-dark dark:bg-surfaceSecondary-dark lg:block">
-              <div className="absolute inset-x-0 top-0 h-[3px] gradient-stripe" />
-              <div className="flex items-center justify-between">
-                <p className="text-xs font-semibold text-secondaryText-light dark:text-secondaryText-dark">Latest capture</p>
-                <Link href="/reels" aria-label="Open full library" className="text-brand-600 hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300">
-                  <ArrowUpRight className="h-4 w-4" />
-                </Link>
-              </div>
-              {featuredItem ? (
-                <div className="mt-5">
-                  <div className="relative mx-auto h-56 w-40">
-                    {previewItems.slice(1).reverse().map((item, index) => (
-                      <div
-                        key={item.id}
-                        className="absolute inset-x-0 top-0 aspect-reel overflow-hidden rounded-rd-md border border-white/40 bg-surfaceTertiary-light shadow-rd-card dark:border-white/10 dark:bg-surfaceTertiary-dark"
-                        style={{ transform: `translate(${(index + 1) * 12}px, ${(index + 1) * 10}px) rotate(${(index + 1) * 3}deg)` }}
+                <form onSubmit={handleQuickSave} className="mt-6 grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
+                  <label className="group relative block">
+                    <span className="sr-only">Instagram URL</span>
+                    <Link2 className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-mutedText-light group-focus-within:text-brand-500 dark:text-mutedText-dark" />
+                    <input
+                      type="url"
+                      value={inputUrl}
+                      onChange={(event) => setInputUrl(event.target.value)}
+                      placeholder="Paste an Instagram reel, post, story, or audio link"
+                      className="h-12 w-full rounded-rd-md border border-borderSubtle-light bg-background-light pl-11 pr-11 text-sm text-primaryText-light shadow-rd-inset transition-colors placeholder:text-mutedText-light focus:border-brand-500 focus:outline-none focus:ring-4 focus:ring-brand-500/10 dark:border-borderSubtle-dark dark:bg-background-dark dark:text-primaryText-dark dark:placeholder:text-mutedText-dark"
+                    />
+                    {inputUrl && (
+                      <button
+                        type="button"
+                        onClick={() => setInputUrl("")}
+                        aria-label="Clear Instagram URL"
+                        className="absolute right-3 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-rd-sm text-mutedText-light transition-colors hover:bg-surfaceSecondary-light hover:text-primaryText-light dark:text-mutedText-dark dark:hover:bg-surfaceSecondary-dark dark:hover:text-primaryText-dark"
                       >
+                        <X className="h-4 w-4" />
+                      </button>
+                    )}
+                  </label>
+                  <button
+                    type="submit"
+                    disabled={!inputUrl.trim() || isSubmitting}
+                    className="inline-flex h-12 items-center justify-center gap-2 rounded-rd-md bg-brand-600 px-5 text-sm font-semibold text-white transition-colors hover:bg-brand-700 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-50 shadow-rd-glow cursor-pointer"
+                  >
+                    {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" strokeWidth={2.5} />}
+                    <span>{isSubmitting ? "Saving" : "Save to library"}</span>
+                  </button>
+                </form>
+
+                <div className="mt-auto grid grid-cols-3 divide-x divide-borderSubtle-light pt-6 dark:divide-borderSubtle-dark">
+                  <div className="pr-4">
+                    <p className="font-mono text-2xl font-semibold tabular-nums text-primaryText-light dark:text-primaryText-dark">{reels.length}</p>
+                    <p className="mt-0.5 text-xs text-secondaryText-light dark:text-secondaryText-dark">saved items</p>
+                  </div>
+                  <div className="px-4">
+                    <p className="font-mono text-2xl font-semibold tabular-nums text-primaryText-light dark:text-primaryText-dark">{thisWeekCount}</p>
+                    <p className="mt-0.5 text-xs text-secondaryText-light dark:text-secondaryText-dark">saved this week</p>
+                  </div>
+                  <div className="pl-4">
+                    <p className="font-mono text-2xl font-semibold tabular-nums text-primaryText-light dark:text-primaryText-dark">{collections.length}</p>
+                    <p className="mt-0.5 text-xs text-secondaryText-light dark:text-secondaryText-dark">collections</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="relative hidden overflow-hidden border-l border-borderSubtle-light bg-surfaceSecondary-light p-5 dark:border-borderSubtle-dark dark:bg-surfaceSecondary-dark lg:block">
+                <div className="absolute inset-x-0 top-0 h-[3px] gradient-stripe" />
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-semibold text-secondaryText-light dark:text-secondaryText-dark">Latest capture</p>
+                  <Link href="/reels" aria-label="Open full library" className="text-brand-600 hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300">
+                    <ArrowUpRight className="h-4 w-4" />
+                  </Link>
+                </div>
+                {featuredItem ? (
+                  <div className="mt-5">
+                    <div className="relative mx-auto h-56 w-40">
+                      {previewItems.slice(1).reverse().map((item, index) => (
+                        <div
+                          key={item.id}
+                          className="absolute inset-x-0 top-0 aspect-reel overflow-hidden rounded-rd-md border border-white/40 bg-surfaceTertiary-light shadow-rd-card dark:border-white/10 dark:bg-surfaceTertiary-dark"
+                          style={{ transform: `translate(${(index + 1) * 12}px, ${(index + 1) * 10}px) rotate(${(index + 1) * 3}deg)` }}
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={item.thumbnailUrl} alt="" className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                        </div>
+                      ))}
+                      <Link href={`/reel/${featuredItem.id}`} className="group absolute inset-0 overflow-hidden rounded-rd-md border border-white/50 bg-surfaceTertiary-light shadow-rd-modal dark:border-white/10 dark:bg-surfaceTertiary-dark">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={item.thumbnailUrl} alt="" className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                        <img
+                          src={featuredItem.thumbnailUrl}
+                          alt={`Open ${featuredItem.creatorUsername}'s saved item`}
+                          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                          referrerPolicy="no-referrer"
+                        />
+                        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 to-transparent px-3 pb-3 pt-9 text-white">
+                          <p className="truncate text-xs font-semibold">@{featuredItem.creatorUsername || "creator"}</p>
+                          <p className="mt-0.5 truncate text-[11px] text-white/75">{featuredItem.category || "Unsorted"}</p>
+                        </div>
+                      </Link>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mt-7 grid grid-cols-3 gap-2 px-2">
+                    {[0, 1, 2].map((item) => (
+                      <div key={item} className="aspect-reel rounded-rd-sm border border-borderDefault-light bg-surface-light p-2 dark:border-borderDefault-dark dark:bg-surface-dark">
+                        <div className="h-full rounded-[3px] border border-dashed border-borderDefault-light dark:border-borderDefault-dark" />
                       </div>
                     ))}
-                    <Link href={`/reel/${featuredItem.id}`} className="group absolute inset-0 overflow-hidden rounded-rd-md border border-white/50 bg-surfaceTertiary-light shadow-rd-modal dark:border-white/10 dark:bg-surfaceTertiary-dark">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={featuredItem.thumbnailUrl}
-                        alt={`Open ${featuredItem.creatorUsername}'s saved item`}
-                        className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                        referrerPolicy="no-referrer"
-                      />
-                      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 to-transparent px-3 pb-3 pt-9 text-white">
-                        <p className="truncate text-xs font-semibold">@{featuredItem.creatorUsername || "creator"}</p>
-                        <p className="mt-0.5 truncate text-[11px] text-white/75">{featuredItem.category || "Unsorted"}</p>
+                  </div>
+                )}
+                <p className="absolute inset-x-5 bottom-5 text-xs leading-5 text-secondaryText-light dark:text-secondaryText-dark">
+                  {featuredItem ? "Your most recent saved reference." : "Your latest saved references will appear here."}
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Right Rail Library Summary */}
+        <aside className="animate-fade-up delay-1">
+          <section className="h-full rounded-rd-lg border border-borderSubtle-light bg-surface-light p-5 shadow-rd-subtle dark:border-borderSubtle-dark dark:bg-surface-dark flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-semibold text-secondaryText-light dark:text-secondaryText-dark">Library Summary</p>
+                  <p className="mt-1 text-sm font-semibold text-primaryText-light dark:text-primaryText-dark">
+                    {selectedInstagramAccount ? `@${selectedInstagramAccount}` : "What you have saved"}
+                  </p>
+                </div>
+              </div>
+              <div className="mt-5 space-y-3.5">
+                {libraryViews.slice(0, 3).map((view) => {
+                  const value = view.getValue(counts);
+                  const percentage = reels.length ? Math.max((value / reels.length) * 100, value ? 8 : 0) : 0;
+                  return (
+                    <Link key={view.label} href={view.href} className="group block">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-secondaryText-light group-hover:text-primaryText-light dark:text-secondaryText-dark dark:group-hover:text-primaryText-dark">
+                          {view.label}
+                        </span>
+                        <span className="font-mono font-semibold tabular-nums text-primaryText-light dark:text-primaryText-dark">
+                          {value}
+                        </span>
+                      </div>
+                      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-surfaceTertiary-light dark:bg-surfaceTertiary-dark">
+                        <div className="h-full rounded-full bg-brand-500 transition-[width] duration-300" style={{ width: `${percentage}%` }} />
                       </div>
                     </Link>
-                  </div>
-                </div>
-              ) : (
-                <div className="mt-7 grid grid-cols-3 gap-2 px-2">
-                  {[0, 1, 2].map((item) => (
-                    <div key={item} className="aspect-reel rounded-rd-sm border border-borderDefault-light bg-surface-light p-2 dark:border-borderDefault-dark dark:bg-surface-dark">
-                      <div className="h-full rounded-[3px] border border-dashed border-borderDefault-light dark:border-borderDefault-dark" />
-                    </div>
-                  ))}
-                </div>
-              )}
-              <p className="absolute inset-x-5 bottom-5 text-xs leading-5 text-secondaryText-light dark:text-secondaryText-dark">
-                {featuredItem ? "Your most recent saved reference." : "Your latest saved references will appear here."}
-              </p>
+                  );
+                })}
+              </div>
             </div>
-          </div>
-          </div>
-        </section>
+          </section>
+        </aside>
+      </div>
 
-        {/* Seamless Library Pulse Views Strip */}
-        <nav aria-label="Library views" className="animate-fade-up delay-1 grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {libraryViews.map((view) => {
-            const Icon = view.icon;
-            const value = view.getValue(counts);
-            return (
-              <Link
-                key={view.label}
-                href={view.href}
-                className="group flex min-h-[4.5rem] items-center gap-3 px-4 py-3.5 rounded-rd-lg border border-borderSubtle-light dark:border-borderSubtle-dark bg-surface-light dark:bg-surface-dark hover:border-brand-500/20 dark:hover:border-brand-500/20 transition-all duration-300 ease-premium active:scale-[0.98]"
-              >
-                <Icon className="h-4 w-4 shrink-0 text-brand-600 dark:text-brand-400" />
-                <span className="min-w-0">
-                  <span className="block font-mono text-xl font-bold tabular-nums text-primaryText-light dark:text-primaryText-dark">
-                    {value}
-                  </span>
-                  <span className="mt-0.5 flex items-center gap-1 text-xs text-secondaryText-light dark:text-secondaryText-dark">
-                    {view.label}
-                    <ArrowRight className="h-3 w-3 opacity-0 transition-opacity group-hover:opacity-100" />
-                  </span>
-                </span>
-              </Link>
-            );
-          })}
-        </nav>
-
-        {/* Visual Inbox Reel Feed */}
-        <section className="animate-fade-up delay-2 space-y-4 pt-2">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-lg font-bold text-primaryText-light dark:text-primaryText-dark">
-                Your visual inbox
-              </h2>
-            </div>
+      {/* Seamless Library Pulse Views Strip - Full Width */}
+      <nav aria-label="Library views" className="animate-fade-up delay-1 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {libraryViews.map((view) => {
+          const Icon = view.icon;
+          const value = view.getValue(counts);
+          return (
             <Link
-              href="/reels"
-              className="group inline-flex items-center gap-1 text-xs font-semibold text-brand-600 hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300"
+              key={view.label}
+              href={view.href}
+              className="group flex min-h-[4.5rem] items-center gap-3 px-4 py-3.5 rounded-rd-lg border border-borderSubtle-light dark:border-borderSubtle-dark bg-surface-light dark:bg-surface-dark hover:border-brand-500/20 dark:hover:border-brand-500/20 transition-all duration-300 ease-premium active:scale-[0.98]"
             >
-              <span>View all</span>
-              <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+              <Icon className="h-4 w-4 shrink-0 text-brand-600 dark:text-brand-400" />
+              <span className="min-w-0">
+                <span className="block font-mono text-xl font-bold tabular-nums text-primaryText-light dark:text-primaryText-dark">
+                  {value}
+                </span>
+                <span className="mt-0.5 flex items-center gap-1 text-xs text-secondaryText-light dark:text-secondaryText-dark">
+                  {view.label}
+                  <ArrowRight className="h-3 w-3 opacity-0 transition-opacity group-hover:opacity-100" />
+                </span>
+              </span>
             </Link>
-          </div>
+          );
+        })}
+      </nav>
 
-          <ReelGrid
-            reels={reels}
-            emptyTitle={selectedInstagramAccount ? `No reels from @${selectedInstagramAccount}` : "No items saved yet"}
-            emptySubtitle={selectedInstagramAccount ? `Send a Reel via DM from @${selectedInstagramAccount} or paste a link.` : "Paste any Instagram link above to start your library."}
-          />
-        </section>
-      </main>
+      {/* Visual Inbox Reel Feed - Full Width */}
+      <section className="animate-fade-up delay-2 space-y-4 pt-2">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-bold text-primaryText-light dark:text-primaryText-dark">
+              Your visual inbox
+            </h2>
+          </div>
+          <Link
+            href="/reels"
+            className="group inline-flex items-center gap-1 text-xs font-semibold text-brand-600 hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300"
+          >
+            <span>View all</span>
+            <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+          </Link>
+        </div>
 
-      {/* Right Rail Overview */}
-      <aside className="animate-fade-up delay-3 space-y-5">
-        <section className="rounded-rd-lg border border-borderSubtle-light bg-surface-light p-5 shadow-rd-subtle dark:border-borderSubtle-dark dark:bg-surface-dark">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs font-semibold text-secondaryText-light dark:text-secondaryText-dark">Library Summary</p>
-              <p className="mt-1 text-sm font-semibold text-primaryText-light dark:text-primaryText-dark">
-                {selectedInstagramAccount ? `@${selectedInstagramAccount}` : "What you have saved"}
-              </p>
-            </div>
-          </div>
-          <div className="mt-5 space-y-3.5">
-            {libraryViews.slice(0, 3).map((view) => {
-              const value = view.getValue(counts);
-              const percentage = reels.length ? Math.max((value / reels.length) * 100, value ? 8 : 0) : 0;
-              return (
-                <Link key={view.label} href={view.href} className="group block">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-secondaryText-light group-hover:text-primaryText-light dark:text-secondaryText-dark dark:group-hover:text-primaryText-dark">
-                      {view.label}
-                    </span>
-                    <span className="font-mono font-semibold tabular-nums text-primaryText-light dark:text-primaryText-dark">
-                      {value}
-                    </span>
-                  </div>
-                  <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-surfaceTertiary-light dark:bg-surfaceTertiary-dark">
-                    <div className="h-full rounded-full bg-brand-500 transition-[width] duration-300" style={{ width: `${percentage}%` }} />
-                  </div>
-                </Link>
-              );
-            })}
-          </div>
-        </section>
-      </aside>
+        <ReelGrid
+          reels={reels}
+          emptyTitle={selectedInstagramAccount ? `No reels from @${selectedInstagramAccount}` : "No items saved yet"}
+          emptySubtitle={selectedInstagramAccount ? `Send a Reel via DM from @${selectedInstagramAccount} or paste a link.` : "Paste any Instagram link above to start your library."}
+        />
+      </section>
     </div>
   );
 }
