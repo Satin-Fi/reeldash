@@ -127,7 +127,7 @@ export function Sidebar() {
 
   return (
     <aside className="hidden md:flex w-64 min-w-[16rem] max-w-[16rem] border-r border-borderSubtle-light dark:border-borderSubtle-dark bg-surface-light dark:bg-surface-dark flex-col justify-between p-4 shrink-0 select-none h-screen sticky top-0 overflow-x-hidden">
-      <div className="space-y-4 flex-1 overflow-y-auto overflow-x-hidden pr-0.5">
+      <div className="space-y-4 flex-1 overflow-y-auto overflow-x-hidden scrollbar-none no-scrollbar pr-0.5">
         {/* Brand Logo Header */}
         <div className="flex items-center justify-between px-1 pt-1">
           <ReelDashLogo href="/dashboard" size={24} showText={true} textSize="text-base" />
