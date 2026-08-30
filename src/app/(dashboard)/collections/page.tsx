@@ -4,7 +4,7 @@ import React from "react";
 import { useReels } from "@/context/ReelContext";
 import Image from "next/image";
 import Link from "next/link";
-import { Plus, ArrowRight, Folder } from "lucide-react";
+import { Plus, ArrowRight, Folder, Film } from "lucide-react";
 
 export default function CollectionsPage() {
   const { collections, reels, setActiveCollection, setIsCreateCollectionModalOpen } = useReels();
@@ -65,9 +65,9 @@ export default function CollectionsPage() {
                       {Array.from({ length: Math.max(0, 4 - thumbs.length) }).map((_, i) => (
                         <div
                           key={`empty-${i}`}
-                          className="w-full h-full bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark flex items-center justify-center text-mutedText-light dark:text-mutedText-dark text-xs"
+                          className="w-full h-full bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark flex items-center justify-center text-mutedText-light dark:text-mutedText-dark"
                         >
-                          🎬
+                          <Film className="w-3.5 h-3.5 opacity-20" />
                         </div>
                       ))}
                     </div>
@@ -83,7 +83,7 @@ export default function CollectionsPage() {
                 <div className="p-4 flex flex-col justify-between flex-1 space-y-3">
                   <div>
                     <div className="flex items-center space-x-2">
-                      <span className="text-lg">{col.icon || "📁"}</span>
+                      <Folder className="w-4 h-4 text-brand-500 shrink-0" />
                       <h3 className="text-sm font-bold text-primaryText-light dark:text-primaryText-dark">
                         {col.name}
                       </h3>

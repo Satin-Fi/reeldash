@@ -54,7 +54,9 @@ export default function CollectionDetailPage() {
       <div className="p-6 bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-lg shadow-rd-subtle space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <span className="text-3xl">{collection.icon || "📁"}</span>
+            <div className="w-10 h-10 rounded-lg bg-brand-500/10 flex items-center justify-center text-brand-500 shrink-0">
+              <Folder className="w-5 h-5" />
+            </div>
             <div>
               <h1 className="text-xl font-bold tracking-tight text-primaryText-light dark:text-primaryText-dark">
                 {collection.name}
