@@ -314,8 +314,6 @@ export default function DashboardPage() {
             })}
           </div>
         </section>
-
-        </section>
       </aside>
     </div>
   );
