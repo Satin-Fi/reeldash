@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
 import { useReels } from "@/context/ReelContext";
 import { SortOption, ViewMode, MediaTypeFilter } from "@/types/reel";
 import {
@@ -13,6 +13,7 @@ import {
   CircleDashed,
   ArrowUpDown,
   X,
+  Folder,
 } from "lucide-react";
 
 const mediaTabs: { id: MediaTypeFilter; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
@@ -25,7 +26,6 @@ const mediaTabs: { id: MediaTypeFilter; label: string; icon: React.ComponentType
 
 export function FilterToolbar() {
   const {
-    reels,
     searchQuery,
     setSearchQuery,
     activeCategory,
@@ -45,7 +45,7 @@ export function FilterToolbar() {
   return (
     <div className="flex flex-col space-y-3 mb-5">
       {/* ─── 1. PRIMARY ACTION BAR (Segmented Media Tabs + Search + Controls) ─── */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-2.5 p-1.5 rounded-xl bg-zinc-900/60 dark:bg-[#12141A] border border-zinc-800/80 dark:border-white/[0.07] backdrop-blur-md">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-2.5 p-1.5 rounded-xl bg-surface-light dark:bg-[#12141A] border border-borderSubtle-light dark:border-white/[0.07] shadow-sm">
         
         {/* Left: Quiet Segmented Media Type Tabs */}
         <div className="flex items-center space-x-1 overflow-x-auto pb-0.5 md:pb-0 scrollbar-none">
@@ -59,11 +59,11 @@ export function FilterToolbar() {
                 onClick={() => setActiveMediaType(tab.id)}
                 className={`group flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all duration-150 cursor-pointer shrink-0 ${
                   isActive
-                    ? "bg-white/[0.12] text-white border border-white/[0.1] shadow-xs"
-                    : "text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.04] border border-transparent"
+                    ? "bg-zinc-900 text-white dark:bg-white/[0.12] dark:text-white shadow-xs font-semibold"
+                    : "text-secondaryText-light dark:text-zinc-400 hover:text-primaryText-light dark:hover:text-zinc-200 hover:bg-surfaceSecondary-light dark:hover:bg-white/[0.04] border border-transparent"
                 }`}
               >
-                <Icon className={`w-3.5 h-3.5 transition-colors ${isActive ? "text-white" : "text-zinc-400 group-hover:text-zinc-300"}`} />
+                <Icon className={`w-3.5 h-3.5 transition-colors ${isActive ? "text-white" : "text-secondaryText-light dark:text-zinc-400 group-hover:text-primaryText-light dark:group-hover:text-zinc-300"}`} />
                 <span>{tab.label}</span>
               </button>
             );
@@ -74,18 +74,18 @@ export function FilterToolbar() {
         <div className="flex items-center space-x-2 shrink-0">
           {/* Minimal Search Input */}
           <div className="relative flex-1 md:w-56 flex items-center">
-            <Search className="absolute left-2.5 w-3.5 h-3.5 text-zinc-400 pointer-events-none" />
+            <Search className="absolute left-2.5 w-3.5 h-3.5 text-secondaryText-light dark:text-zinc-400 pointer-events-none" />
             <input
               type="text"
               placeholder="Search library..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-8 pr-7 py-1.5 bg-black/40 dark:bg-black/30 border border-zinc-800 dark:border-white/[0.08] rounded-lg text-xs text-white placeholder:text-zinc-500 focus:outline-none focus:border-zinc-600 transition-colors"
+              className="w-full pl-8 pr-7 py-1.5 bg-surfaceSecondary-light dark:bg-black/30 border border-borderSubtle-light dark:border-white/[0.08] rounded-lg text-xs text-primaryText-light dark:text-white placeholder:text-mutedText-light dark:placeholder:text-zinc-500 focus:outline-none focus:border-brand-500 transition-colors"
             />
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery("")}
-                className="absolute right-2 text-zinc-500 hover:text-zinc-300 cursor-pointer"
+                className="absolute right-2 text-secondaryText-light dark:text-zinc-500 hover:text-primaryText-light dark:hover:text-zinc-300 cursor-pointer"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
@@ -94,11 +94,11 @@ export function FilterToolbar() {
 
           {/* Sort Selector */}
           <div className="relative flex items-center">
-            <ArrowUpDown className="w-3 h-3 text-zinc-400 absolute left-2.5 pointer-events-none" />
+            <ArrowUpDown className="w-3 h-3 text-secondaryText-light dark:text-zinc-400 absolute left-2.5 pointer-events-none" />
             <select
               value={sortOption}
               onChange={(e) => setSortOption(e.target.value as SortOption)}
-              className="pl-7 pr-3 py-1.5 text-xs bg-black/40 dark:bg-black/30 border border-zinc-800 dark:border-white/[0.08] rounded-lg text-zinc-300 hover:text-white focus:outline-none cursor-pointer appearance-none transition-colors"
+              className="pl-7 pr-3 py-1.5 text-xs bg-surfaceSecondary-light dark:bg-black/30 border border-borderSubtle-light dark:border-white/[0.08] rounded-lg text-primaryText-light dark:text-zinc-300 hover:text-primaryText-light dark:hover:text-white focus:outline-none cursor-pointer appearance-none transition-colors"
             >
               <option value="newest">Recently Saved</option>
               <option value="oldest">Oldest First</option>
@@ -109,13 +109,13 @@ export function FilterToolbar() {
           </div>
 
           {/* View Mode Toggle */}
-          <div className="flex items-center bg-black/40 dark:bg-black/30 border border-zinc-800 dark:border-white/[0.08] rounded-lg p-0.5">
+          <div className="flex items-center bg-surfaceSecondary-light dark:bg-black/30 border border-borderSubtle-light dark:border-white/[0.08] rounded-lg p-0.5">
             <button
               onClick={() => setViewMode("grid")}
               className={`p-1.5 rounded-md transition-all cursor-pointer ${
                 viewMode === "grid"
-                  ? "bg-white/[0.12] text-white shadow-xs"
-                  : "text-zinc-500 hover:text-zinc-300"
+                  ? "bg-white text-zinc-900 dark:bg-white/[0.12] dark:text-white shadow-xs"
+                  : "text-secondaryText-light dark:text-zinc-500 hover:text-primaryText-light dark:hover:text-zinc-300"
               }`}
               title="Grid View"
             >
@@ -125,8 +125,8 @@ export function FilterToolbar() {
               onClick={() => setViewMode("compact")}
               className={`p-1.5 rounded-md transition-all cursor-pointer ${
                 viewMode === "compact"
-                  ? "bg-white/[0.12] text-white shadow-xs"
-                  : "text-zinc-500 hover:text-zinc-300"
+                  ? "bg-white text-zinc-900 dark:bg-white/[0.12] dark:text-white shadow-xs"
+                  : "text-secondaryText-light dark:text-zinc-500 hover:text-primaryText-light dark:hover:text-zinc-300"
               }`}
               title="Compact List View"
             >
@@ -147,15 +147,15 @@ export function FilterToolbar() {
             }}
             className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-all cursor-pointer shrink-0 ${
               activeCategory === null && activeCollection === null
-                ? "bg-white/[0.12] text-white border border-white/[0.12]"
-                : "text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.04] border border-transparent"
+                ? "bg-zinc-900 text-white dark:bg-white/[0.12] dark:text-white border border-transparent dark:border-white/[0.12] font-semibold"
+                : "text-secondaryText-light dark:text-zinc-400 hover:text-primaryText-light dark:hover:text-zinc-200 hover:bg-surfaceSecondary-light dark:hover:bg-white/[0.04] border border-transparent"
             }`}
           >
             All Categories
           </button>
 
           {smartCategories.map((cat) => {
-            const isCatActive = activeCategory === cat.name;
+            const isCatActive = activeCategory?.toLowerCase() === cat.name.toLowerCase();
             return (
               <button
                 key={cat.name}
@@ -166,8 +166,8 @@ export function FilterToolbar() {
                 }}
                 className={`group px-2.5 py-1 rounded-md text-[11px] font-medium transition-all cursor-pointer shrink-0 flex items-center space-x-1.5 ${
                   isCatActive
-                    ? "bg-white/[0.12] text-white border border-white/[0.12]"
-                    : "text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.04] border border-transparent"
+                    ? "bg-zinc-900 text-white dark:bg-white/[0.12] dark:text-white border border-transparent dark:border-white/[0.12] font-semibold"
+                    : "text-secondaryText-light dark:text-zinc-400 hover:text-primaryText-light dark:hover:text-zinc-200 hover:bg-surfaceSecondary-light dark:hover:bg-white/[0.04] border border-transparent"
                 }`}
               >
                 <span>{cat.name}</span>
@@ -186,11 +186,12 @@ export function FilterToolbar() {
                 }}
                 className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-all cursor-pointer shrink-0 flex items-center space-x-1.5 ${
                   isColActive
-                    ? "bg-white/[0.12] text-white border border-white/[0.12]"
-                    : "text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.04] border border-transparent"
+                    ? "bg-zinc-900 text-white dark:bg-white/[0.12] dark:text-white border border-transparent dark:border-white/[0.12] font-semibold"
+                    : "text-secondaryText-light dark:text-zinc-400 hover:text-primaryText-light dark:hover:text-zinc-200 hover:bg-surfaceSecondary-light dark:hover:bg-white/[0.04] border border-transparent"
                 }`}
               >
-                <span>{col.icon} {col.name}</span>
+                <Folder className="w-3 h-3 text-secondaryText-light dark:text-zinc-400 inline" />
+                <span>{col.name}</span>
               </button>
             );
           })}

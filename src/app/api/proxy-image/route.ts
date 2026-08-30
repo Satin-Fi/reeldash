@@ -167,7 +167,40 @@ export async function GET(req: NextRequest) {
 
   // 1. AVATAR PROXY BY USERNAME
   if (username) {
-    const fallbackAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(username)}&background=6366F1&color=fff&size=200&bold=true`;
+    const cleanUser = username.replace(/^@/, "").trim().toLowerCase();
+    const fallbackAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(cleanUser)}&background=6366F1&color=fff&size=200&bold=true`;
+
+    // Check Supabase first for authentic stored Meta CDN avatar
+    try {
+      const { getSupabaseAdmin } = await import("@/lib/supabase");
+      const supabase = getSupabaseAdmin();
+      if (supabase) {
+        const { data: acc } = await supabase
+          .from("instagram_accounts")
+          .select("avatar_url")
+          .ilike("username", cleanUser)
+          .limit(1)
+          .single();
+
+        if (acc?.avatar_url && acc.avatar_url.startsWith("http") && !acc.avatar_url.includes("proxy-image")) {
+          return await serveImageBinary(acc.avatar_url, fallbackAvatar);
+        }
+
+        const { data: prof } = await supabase
+          .from("profiles")
+          .select("avatar_url")
+          .ilike("username", cleanUser)
+          .limit(1)
+          .single();
+
+        if (prof?.avatar_url && prof.avatar_url.startsWith("http") && !prof.avatar_url.includes("proxy-image")) {
+          return await serveImageBinary(prof.avatar_url, fallbackAvatar);
+        }
+      }
+    } catch {
+      // Continue
+    }
+
     try {
       const realAvatarUrl = await resolveRealInstagramAvatar(username);
       if (realAvatarUrl) {

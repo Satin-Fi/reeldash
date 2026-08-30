@@ -114,7 +114,7 @@ export default function DashboardPage() {
                   : "bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark text-secondaryText-light dark:text-secondaryText-dark hover:text-primaryText-light dark:hover:text-primaryText-dark border border-borderSubtle-light dark:border-borderSubtle-dark"
               }`}
             >
-              <Sparkles className="w-3 h-3" />
+              <Layers className="w-3 h-3" />
               <span>All Accounts</span>
             </button>
 
