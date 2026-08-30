@@ -316,17 +316,18 @@ async function getOrCreateUserProfile(
     const supabase = getSupabaseAdmin();
     if (supabase) {
       await supabase.from("profiles").upsert(
-      {
-        id: newProfile.id,
-        ig_sender_id: senderIgId,
-        username: newProfile.username,
-        name: newProfile.fullName,
-        avatar_url: newProfile.avatar,
-        is_following_bot: true,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "ig_sender_id" }
-    );
+        {
+          id: newProfile.id,
+          ig_sender_id: senderIgId,
+          username: newProfile.username,
+          name: newProfile.fullName,
+          avatar_url: newProfile.avatar,
+          is_following_bot: true,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "ig_sender_id" }
+      );
+    }
   } catch {
     // Continue in-memory
   }
@@ -360,24 +361,25 @@ async function saveReelForUser(userId: string, reel: any) {
     const supabase = getSupabaseAdmin();
     if (supabase) {
       await supabase.from("reels").upsert(
-      {
-        user_id: userId,
-        shortcode: reel.shortcode,
-        url: reel.url,
-        thumbnail_url: reel.thumbnail_url,
-        video_url: reel.video_url,
-        caption: reel.caption,
-        creator_handle: reel.creator_handle,
-        creator_name: reel.creator_name,
-        creator_avatar: reel.creator_avatar,
-        media_type: reel.media_type,
-        duration: reel.duration,
-        category: reel.category,
-        tags: reel.tags,
-        source: "dm",
-      },
-      { onConflict: "user_id,shortcode" }
-    );
+        {
+          user_id: userId,
+          shortcode: reel.shortcode,
+          url: reel.url,
+          thumbnail_url: reel.thumbnail_url,
+          video_url: reel.video_url,
+          caption: reel.caption,
+          creator_handle: reel.creator_handle,
+          creator_name: reel.creator_name,
+          creator_avatar: reel.creator_avatar,
+          media_type: reel.media_type,
+          duration: reel.duration,
+          category: reel.category,
+          tags: reel.tags,
+          source: "dm",
+        },
+        { onConflict: "user_id,shortcode" }
+      );
+    }
   } catch {
     // Continue
   }

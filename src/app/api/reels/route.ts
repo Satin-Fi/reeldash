@@ -133,11 +133,13 @@ export async function DELETE(req: NextRequest) {
 
   try {
     const supabase = getSupabaseAdmin();
-    if (supabase) {
-      const { error } = await supabase.from("reels").delete().eq("id", id);
-      if (error) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
-      }
+    if (!supabase) {
+      return NextResponse.json({ success: true, localOnly: true });
+    }
+
+    const { error } = await supabase.from("reels").delete().eq("id", id);
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
     }
     return NextResponse.json({ success: true });
   } catch (err: any) {
