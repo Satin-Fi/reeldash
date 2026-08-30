@@ -467,7 +467,7 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
       collections: [],
       hashtags: [],
       isFavorite: false,
-      duration: customDetails?.duration || (mediaType === "audio" ? "Audio" : customDetails?.isCarousel ? `Carousel (${customDetails?.carouselImages?.length || 1})` : "0:30"),
+      duration: customDetails?.duration || (mediaType === "audio" ? "" : customDetails?.isCarousel ? `Carousel (${customDetails?.carouselImages?.length || 1})` : ""),
       audioTitle: customDetails?.audioTitle,
       audioArtist: customDetails?.audioArtist,
       isCarousel: customDetails?.isCarousel,

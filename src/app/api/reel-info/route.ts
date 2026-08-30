@@ -129,11 +129,11 @@ export async function POST(req: NextRequest) {
 
     // 1. Instant regex classification (0ms)
     let mediaType: "reel" | "post" | "audio" | "story" = "reel";
-    let duration = "0:30";
+    let duration = "";
 
     if (lowerUrl.includes("/audio/") || lowerUrl.includes("/reels/audio/")) {
       mediaType = "audio";
-      duration = "2:14";
+      duration = "";
     } else if (lowerUrl.includes("/stories/")) {
       mediaType = "story";
       duration = "Story (24h)";
@@ -142,7 +142,7 @@ export async function POST(req: NextRequest) {
       duration = "Photo Post";
     } else {
       mediaType = "reel";
-      duration = "0:30";
+      duration = "";
     }
 
     // For /reels/audio/{numeric_id}/ URLs the generic regex captures the word "audio" instead of the ID

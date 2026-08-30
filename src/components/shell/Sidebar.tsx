@@ -16,7 +16,6 @@ import {
   Heart,
   Clock,
   Folder,
-  Sparkles,
   Settings,
   Plus,
   LogOut,
@@ -230,8 +229,7 @@ export function Sidebar() {
         {/* Smart Categories */}
         {smartCategories.length > 0 && (
           <div className="space-y-2 pt-2 border-t border-borderSubtle-light dark:border-borderSubtle-dark">
-            <div className="flex items-center space-x-1.5 px-2 text-[11px] font-semibold text-secondaryText-light dark:text-secondaryText-dark uppercase tracking-wider">
-              <Sparkles className="w-3.5 h-3.5 text-brand-500" />
+            <div className="px-2 text-[11px] font-semibold text-secondaryText-light dark:text-secondaryText-dark uppercase tracking-wider">
               <span>Categories</span>
             </div>
 

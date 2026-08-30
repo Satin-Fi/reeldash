@@ -78,20 +78,14 @@ export default function DashboardPage() {
         <section className="overflow-hidden rounded-rd-xl border border-borderSubtle-light bg-surface-light shadow-rd-card dark:border-borderSubtle-dark dark:bg-surface-dark">
           <div className="grid min-h-[20rem] lg:grid-cols-[minmax(0,1fr)_19rem]">
             <div className="flex min-w-0 flex-col p-5 sm:p-7">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <p className="text-xs font-semibold tracking-[0.08em] text-brand-600 dark:text-brand-400">REELDASH CAPTURE DOCK</p>
-                  <h1 className="mt-2 max-w-xl text-2xl font-bold leading-tight tracking-tight text-primaryText-light dark:text-primaryText-dark sm:text-3xl">
-                    {greeting}, {displayName}.
-                  </h1>
-                  <p className="mt-2 max-w-xl text-xs leading-relaxed text-secondaryText-light dark:text-secondaryText-dark">
-                    Paste any Instagram link or press <kbd className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-white/[0.08] text-[10px] font-mono">⌘K</kbd> to search and capture.
-                  </p>
-                </div>
-                <Link href="/integrations/instagram" className="hidden shrink-0 items-center gap-2 text-xs font-semibold text-brand-600 transition-colors hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300 sm:inline-flex">
-                  <MessageCircle className="h-4 w-4" />
-                  DM sync
-                </Link>
+              <div>
+                <p className="text-xs font-semibold tracking-[0.08em] text-brand-600 dark:text-brand-400">REELDASH CAPTURE DOCK</p>
+                <h1 className="mt-2 max-w-xl text-2xl font-bold leading-tight tracking-tight text-primaryText-light dark:text-primaryText-dark sm:text-3xl">
+                  {greeting}, {displayName}.
+                </h1>
+                <p className="mt-2 max-w-xl text-xs leading-relaxed text-secondaryText-light dark:text-secondaryText-dark">
+                  Paste any Instagram link or press <kbd className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-white/[0.08] text-[10px] font-mono">⌘K</kbd> to search and capture.
+                </p>
               </div>
 
               <form onSubmit={handleQuickSave} className="mt-6 grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
