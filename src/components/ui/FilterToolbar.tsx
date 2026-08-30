@@ -162,6 +162,7 @@ export function FilterToolbar() {
                 onClick={() => {
                   setActiveCategory(isCatActive ? null : cat.name);
                   setActiveCollection(null);
+                  setActiveMediaType("all");
                 }}
                 className={`group px-2.5 py-1 rounded-md text-[11px] font-medium transition-all cursor-pointer shrink-0 flex items-center space-x-1.5 ${
                   isCatActive

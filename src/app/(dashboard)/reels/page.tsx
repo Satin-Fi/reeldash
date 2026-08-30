@@ -11,10 +11,12 @@ import { Plus, Film, Image as ImageIcon, Music2, CircleDashed, Layers } from "lu
 function ReelsContent() {
   const searchParams = useSearchParams();
   const typeParam = searchParams.get("type") as MediaTypeFilter | null;
+  const categoryParam = searchParams.get("category");
 
   const {
     reels,
     activeCategory,
+    setActiveCategory,
     activeCollection,
     activeMediaType,
     setActiveMediaType,
@@ -24,15 +26,25 @@ function ReelsContent() {
     setIsSaveModalOpen,
   } = useReels();
 
-  // Sync activeMediaType with URL search parameter if present
+  // Sync activeMediaType & activeCategory with URL search parameters
   useEffect(() => {
     if (typeParam && ["all", "reel", "post", "audio", "story"].includes(typeParam)) {
       setActiveMediaType(typeParam);
     }
-  }, [typeParam, setActiveMediaType]);
+    if (categoryParam) {
+      setActiveCategory(categoryParam);
+      setActiveMediaType("all");
+    }
+  }, [typeParam, categoryParam, setActiveMediaType, setActiveCategory]);
 
   // Filter Reels based on mediaType, search, category, and collection
   let filteredReels = reels.filter((reel) => {
+    // Category match (Case-insensitive)
+    if (activeCategory) {
+      if (!reel.category || reel.category.trim().toLowerCase() !== activeCategory.trim().toLowerCase()) {
+        return false;
+      }
+    }
     // Media type filter
     if (activeMediaType && activeMediaType !== "all") {
       const type = reel.mediaType || "reel";
@@ -43,21 +55,17 @@ function ReelsContent() {
     // Search match
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
-      const matchCaption = reel.caption.toLowerCase().includes(q);
-      const matchCreator = reel.creatorUsername.toLowerCase().includes(q);
-      const matchCategory = reel.category.toLowerCase().includes(q);
+      const matchCaption = reel.caption?.toLowerCase().includes(q);
+      const matchCreator = reel.creatorUsername?.toLowerCase().includes(q);
+      const matchCategory = reel.category?.toLowerCase().includes(q);
       const matchAudio = reel.audioTitle?.toLowerCase().includes(q) || reel.audioArtist?.toLowerCase().includes(q);
       const matchKeywords = reel.aiKeywords?.some((k) => k.toLowerCase().includes(q));
       if (!matchCaption && !matchCreator && !matchCategory && !matchAudio && !matchKeywords) {
         return false;
       }
     }
-    // Category match
-    if (activeCategory && reel.category !== activeCategory) {
-      return false;
-    }
     // Collection match
-    if (activeCollection && !reel.collections.includes(activeCollection)) {
+    if (activeCollection && !reel.collections?.includes(activeCollection)) {
       return false;
     }
     return true;

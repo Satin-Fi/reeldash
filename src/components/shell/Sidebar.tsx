@@ -226,11 +226,15 @@ export function Sidebar() {
 
             <div className="space-y-0.5">
               {smartCategories.map((cat) => {
-                const isSelected = activeCategory === cat.name;
+                const isSelected = isReelsPath && activeCategory === cat.name;
                 return (
-                  <button
+                  <Link
                     key={cat.name}
-                    onClick={() => setActiveCategory(isSelected ? null : cat.name)}
+                    href={isSelected ? "/reels" : `/reels?category=${encodeURIComponent(cat.name)}`}
+                    onClick={() => {
+                      setActiveCategory(isSelected ? null : cat.name);
+                      setActiveMediaType("all");
+                    }}
                     className={`w-full flex items-center justify-between px-3 py-1.5 rounded-rd-md text-xs text-left transition-colors cursor-pointer ${
                       isSelected
                         ? "bg-brand-500/10 text-brand-600 dark:text-brand-400 font-semibold"
@@ -241,7 +245,7 @@ export function Sidebar() {
                     <span className="text-[10px] font-mono text-mutedText-light dark:text-mutedText-dark">
                       {cat.count}
                     </span>
-                  </button>
+                  </Link>
                 );
               })}
             </div>
