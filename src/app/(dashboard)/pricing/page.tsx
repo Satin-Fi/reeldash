@@ -5,7 +5,6 @@ import { useAuth } from "@/context/AuthContext";
 import { useReels } from "@/context/ReelContext";
 import {
   Check,
-  Sparkles,
   Zap,
   Shield,
   Layers,
@@ -101,7 +100,7 @@ export default function PricingPage() {
       {/* Header */}
       <div className="text-center space-y-3 max-w-2xl mx-auto">
         <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-brand-500/10 border border-brand-500/20 text-brand-500 font-semibold text-xs">
-          <Sparkles className="w-3.5 h-3.5" />
+          <Crown className="w-3.5 h-3.5" />
           <span>Transparent Pricing & Plans</span>
         </div>
         <h1 className="text-3xl font-extrabold tracking-tight text-primaryText-light dark:text-primaryText-dark sm:text-4xl">

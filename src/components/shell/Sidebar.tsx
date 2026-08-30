@@ -127,14 +127,14 @@ export function Sidebar() {
     : "U";
 
   return (
-    <aside className="w-64 border-r border-borderSubtle-light dark:border-borderSubtle-dark bg-surface-light dark:bg-surface-dark flex flex-col justify-between p-4 shrink-0 select-none h-screen sticky top-0">
-      <div className="space-y-4 flex-1 overflow-y-auto pr-1">
+    <aside className="hidden md:flex w-64 min-w-[16rem] max-w-[16rem] border-r border-borderSubtle-light dark:border-borderSubtle-dark bg-surface-light dark:bg-surface-dark flex-col justify-between p-4 shrink-0 select-none h-screen sticky top-0 overflow-x-hidden">
+      <div className="space-y-4 flex-1 overflow-y-auto overflow-x-hidden pr-0.5">
         {/* Brand Logo Header */}
-        <div className="flex items-center justify-between px-2 pt-1">
-          <ReelDashLogo href="/dashboard" size={26} textSize="text-[19px]" />
+        <div className="flex items-center justify-between px-1 pt-1">
+          <ReelDashLogo href="/dashboard" size={24} showText={true} textSize="text-base" />
           <Link
             href="/pricing"
-            className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-brand-500/10 hover:bg-brand-500/20 text-brand-600 dark:text-brand-400 font-semibold text-[10px] transition-colors"
+            className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-brand-500/10 hover:bg-brand-500/20 text-brand-600 dark:text-brand-400 font-semibold text-[10px] transition-colors shrink-0"
           >
             <Crown className="w-3 h-3 text-brand-500" />
             <span>{user?.plan === "Free Plan" ? "Upgrade" : "Pro"}</span>
@@ -143,12 +143,12 @@ export function Sidebar() {
 
         {/* ─── Professional Sidebar Instagram Account Switcher ─── */}
         {allHandles.length > 0 && (
-          <div className="relative px-1 pt-1">
+          <div className="relative px-0.5 pt-1">
             <button
               onClick={() => setIsAccountDropdownOpen(!isAccountDropdownOpen)}
               className="w-full flex items-center justify-between p-2 rounded-rd-md bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark border border-borderSubtle-light dark:border-borderSubtle-dark hover:border-brand-500/40 transition-all cursor-pointer text-left shadow-rd-subtle"
             >
-              <div className="flex items-center space-x-2.5 min-w-0">
+              <div className="flex items-center space-x-2.5 min-w-0 flex-1">
                 <div className="w-6 h-6 rounded-full overflow-hidden bg-brand-500/10 border border-brand-500/20 text-brand-500 font-bold text-[10px] flex items-center justify-center shrink-0">
                   {selectedInstagramAccount ? (
                     // eslint-disable-next-line @next/next/no-img-element
@@ -173,12 +173,12 @@ export function Sidebar() {
                   </span>
                 </div>
               </div>
-              <ChevronDown className={`w-3.5 h-3.5 text-secondaryText-light dark:text-secondaryText-dark transition-transform ${isAccountDropdownOpen ? "rotate-180" : ""}`} />
+              <ChevronDown className={`w-3.5 h-3.5 text-secondaryText-light dark:text-secondaryText-dark transition-transform shrink-0 ${isAccountDropdownOpen ? "rotate-180" : ""}`} />
             </button>
 
             {/* Dropdown Menu */}
             {isAccountDropdownOpen && (
-              <div className="absolute top-full left-1 right-1 mt-1 z-50 p-1.5 rounded-rd-md bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark shadow-rd-modal space-y-1">
+              <div className="absolute top-full left-0.5 right-0.5 mt-1 z-50 p-1.5 rounded-rd-md bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark shadow-rd-modal space-y-1">
                 <button
                   onClick={() => {
                     setSelectedInstagramAccount(null);
@@ -251,12 +251,12 @@ export function Sidebar() {
                     : "text-secondaryText-light dark:text-secondaryText-dark hover:bg-surfaceSecondary-light dark:hover:bg-surfaceSecondary-dark hover:text-primaryText-light dark:hover:text-primaryText-dark"
                 }`}
               >
-                <div className="flex items-center space-x-2.5">
-                  <Icon className="w-4 h-4" strokeWidth={item.isActive ? 2.25 : 1.75} />
-                  <span>{item.label}</span>
+                <div className="flex items-center space-x-2.5 min-w-0">
+                  <Icon className="w-4 h-4 shrink-0" strokeWidth={item.isActive ? 2.25 : 1.75} />
+                  <span className="truncate">{item.label}</span>
                 </div>
                 {item.count !== undefined && (
-                  <span className="text-[10px] font-mono text-mutedText-light dark:text-mutedText-dark">
+                  <span className="text-[10px] font-mono text-mutedText-light dark:text-mutedText-dark shrink-0">
                     {item.count}
                   </span>
                 )}
@@ -287,11 +287,11 @@ export function Sidebar() {
                     href="/collections"
                     className="flex items-center justify-between px-3 py-1.5 rounded-rd-md text-xs text-secondaryText-light dark:text-secondaryText-dark hover:bg-surfaceSecondary-light dark:hover:bg-surfaceSecondary-dark hover:text-primaryText-light dark:hover:text-primaryText-dark transition-colors"
                   >
-                    <span className="truncate flex items-center space-x-2">
+                    <span className="truncate flex items-center space-x-2 min-w-0">
                       <Folder className="w-3.5 h-3.5 text-secondaryText-light dark:text-secondaryText-dark shrink-0" strokeWidth={1.75} />
                       <span className="truncate">{col.name}</span>
                     </span>
-                    <span className="text-[10px] font-mono text-mutedText-light dark:text-mutedText-dark">
+                    <span className="text-[10px] font-mono text-mutedText-light dark:text-mutedText-dark shrink-0">
                       {col.reelCount || 0}
                     </span>
                   </Link>
@@ -334,7 +334,7 @@ export function Sidebar() {
                     }`}
                   >
                     <span className="truncate">{cat.name}</span>
-                    <span className="text-[10px] font-mono text-mutedText-light dark:text-mutedText-dark">
+                    <span className="text-[10px] font-mono text-mutedText-light dark:text-mutedText-dark shrink-0">
                       {cat.count}
                     </span>
                   </Link>
@@ -346,7 +346,7 @@ export function Sidebar() {
       </div>
 
       {/* Bottom Area: Settings & User Tile */}
-      <div className="pt-4 border-t border-borderSubtle-light dark:border-borderSubtle-dark space-y-2 shrink-0">
+      <div className="pt-3 border-t border-borderSubtle-light dark:border-borderSubtle-dark space-y-2 shrink-0 overflow-x-hidden">
         <Link
           href="/pricing"
           className={`flex items-center space-x-2.5 px-3 py-2 rounded-rd-md text-xs font-medium transition-colors ${
@@ -355,8 +355,8 @@ export function Sidebar() {
               : "text-secondaryText-light dark:text-secondaryText-dark hover:bg-surfaceSecondary-light dark:hover:bg-surfaceSecondary-dark hover:text-primaryText-light dark:hover:text-primaryText-dark"
           }`}
         >
-          <Crown className="w-4 h-4 text-brand-500" strokeWidth={1.75} />
-          <span>Plans & Pricing</span>
+          <Crown className="w-4 h-4 text-brand-500 shrink-0" strokeWidth={1.75} />
+          <span className="truncate">Plans & Pricing</span>
         </Link>
 
         <Link
@@ -367,8 +367,8 @@ export function Sidebar() {
               : "text-secondaryText-light dark:text-secondaryText-dark hover:bg-surfaceSecondary-light dark:hover:bg-surfaceSecondary-dark hover:text-primaryText-light dark:hover:text-primaryText-dark"
           }`}
         >
-          <Settings className="w-4 h-4" strokeWidth={1.75} />
-          <span>Settings</span>
+          <Settings className="w-4 h-4 shrink-0" strokeWidth={1.75} />
+          <span className="truncate">Settings</span>
         </Link>
 
         {/* User Profile Bar */}
@@ -381,7 +381,7 @@ export function Sidebar() {
               <span className="text-xs font-semibold text-primaryText-light dark:text-primaryText-dark truncate">
                 {user?.name || "User"}
               </span>
-              <span className="text-[10px] text-secondaryText-light dark:text-secondaryText-dark truncate">
+              <span className="text-[10px] text-secondaryText-light dark:text-secondaryText-dark truncate font-mono">
                 {user?.instagramUsername ? `@${user.instagramUsername}` : user?.plan || "Free Plan"}
               </span>
             </div>

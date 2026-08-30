@@ -18,7 +18,6 @@ import {
   Plus,
   X,
   Instagram,
-  Sparkles,
 } from "lucide-react";
 
 type DashboardCounts = { reels: number; posts: number; audio: number; favorites: number };
@@ -363,7 +362,7 @@ export default function DashboardPage() {
           href="/pricing"
           className="group flex items-center gap-3 border-l-2 border-brand-500 bg-brand-500/5 p-4 rounded-rd-md transition-colors hover:bg-brand-500/10"
         >
-          <Sparkles className="h-4 w-4 shrink-0 text-brand-600 dark:text-brand-400" />
+          <Crown className="h-4 w-4 shrink-0 text-brand-600 dark:text-brand-400" />
           <span className="min-w-0 flex-1">
             <span className="block text-sm font-semibold text-primaryText-light dark:text-primaryText-dark">
               {user?.plan || "Pro Plan"} Active
