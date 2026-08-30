@@ -7,9 +7,7 @@ import { useReels } from "@/context/ReelContext";
 import { ReelGrid } from "@/components/reels/ReelGrid";
 import {
   ArrowRight,
-  ArrowUpRight,
   Film,
-  Folder,
   Heart,
   Image as ImageIcon,
   Link2,
@@ -80,7 +78,6 @@ export default function DashboardPage() {
   );
   const previewItems = recentlySaved.slice(0, 3);
   const featuredItem = previewItems[0];
-  const sortedCollections = [...collections].sort((a, b) => b.reelCount - a.reelCount).slice(0, 4);
 
   const counts: DashboardCounts = {
     reels: reels.filter((reel) => !reel.mediaType || reel.mediaType === "reel").length,
@@ -318,37 +315,6 @@ export default function DashboardPage() {
           </div>
         </section>
 
-        <section className="border-y border-borderSubtle-light py-5 dark:border-borderSubtle-dark xl:rounded-rd-lg xl:border xl:bg-surface-light xl:px-5 xl:shadow-rd-subtle xl:dark:border-borderSubtle-dark xl:dark:bg-surface-dark">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs font-semibold text-secondaryText-light dark:text-secondaryText-dark">Collections</p>
-              <p className="mt-1 text-sm font-semibold text-primaryText-light dark:text-primaryText-dark">Places for your ideas</p>
-            </div>
-            <Link href="/collections" aria-label="Open collections" className="text-brand-600 hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300">
-              <ArrowUpRight className="h-4 w-4" />
-            </Link>
-          </div>
-          <div className="mt-4 divide-y divide-borderSubtle-light dark:divide-borderSubtle-dark">
-            {sortedCollections.length > 0 ? (
-              sortedCollections.map((collection) => (
-                <Link key={collection.id} href={`/collections/${collection.id}`} className="group flex items-center gap-3 py-3 first:pt-0 last:pb-0">
-                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-rd-sm bg-surfaceSecondary-light text-sm dark:bg-surfaceSecondary-dark">
-                    {collection.icon || <Folder className="h-4 w-4 text-brand-600 dark:text-brand-400" />}
-                  </span>
-                  <span className="min-w-0 flex-1 truncate text-sm font-medium text-primaryText-light group-hover:text-brand-600 dark:text-primaryText-dark dark:group-hover:text-brand-400">
-                    {collection.name}
-                  </span>
-                  <span className="font-mono text-xs tabular-nums text-secondaryText-light dark:text-secondaryText-dark">
-                    {collection.reelCount}
-                  </span>
-                </Link>
-              ))
-            ) : (
-              <p className="py-2 text-sm leading-6 text-secondaryText-light dark:text-secondaryText-dark">
-                Collections will help you turn saved posts into useful reference sets.
-              </p>
-            )}
-          </div>
         </section>
       </aside>
     </div>
