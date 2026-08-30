@@ -42,11 +42,21 @@ export function Sidebar() {
   } = useReels();
   const { user, logout } = useAuth();
   const [isAccountDropdownOpen, setIsAccountDropdownOpen] = useState(false);
-  const [avatarError, setAvatarError] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
-  // Reset avatar error whenever the selected account changes
+  // Fetch avatar URL whenever the selected account changes
   React.useEffect(() => {
-    setAvatarError(false);
+    if (!selectedInstagramAccount) {
+      setAvatarUrl(null);
+      return;
+    }
+    setAvatarUrl(null); // reset while loading
+    fetch(`/api/instagram/avatar/${encodeURIComponent(selectedInstagramAccount)}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (data?.avatarUrl) setAvatarUrl(data.avatarUrl);
+      })
+      .catch(() => setAvatarUrl(null));
   }, [selectedInstagramAccount]);
 
   const connectedAccounts = user?.connectedAccounts || [];
@@ -155,19 +165,19 @@ export function Sidebar() {
               className="w-full flex items-center justify-between px-2.5 py-2 rounded-rd-md hover:bg-surfaceSecondary-light dark:hover:bg-white/[0.05] transition-colors cursor-pointer text-left focus:outline-none group"
             >
               <div className="flex items-center gap-2.5 min-w-0">
-                {selectedInstagramAccount && !avatarError ? (
+                {selectedInstagramAccount && avatarUrl ? (
                   /* Profile picture for selected account */
                   <div className="w-7 h-7 rounded-lg overflow-hidden shrink-0 bg-brand-500/15 flex items-center justify-center">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
-                      src={`/api/instagram/avatar/${encodeURIComponent(selectedInstagramAccount)}`}
+                      src={avatarUrl}
                       alt={selectedInstagramAccount}
                       className="w-full h-full object-cover"
-                      onError={() => setAvatarError(true)}
+                      onError={() => setAvatarUrl(null)}
                     />
                   </div>
                 ) : (
-                  /* Instagram icon for All Accounts or if avatar fails */
+                  /* Instagram icon for All Accounts or while loading / fallback */
                   <div className="w-7 h-7 rounded-lg bg-brand-500/15 flex items-center justify-center shrink-0">
                     <Instagram className="w-3.5 h-3.5 text-brand-600 dark:text-brand-400" />
                   </div>

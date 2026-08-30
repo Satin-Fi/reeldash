@@ -16,7 +16,6 @@ import {
   Music2,
   Plus,
   X,
-  Instagram,
 } from "lucide-react";
 
 type DashboardCounts = { reels: number; posts: number; audio: number; favorites: number };
@@ -64,12 +63,12 @@ export default function DashboardPage() {
     ? activeGreetingObj.textAfternoon 
     : activeGreetingObj.textEvening;
 
-  const displayName = selectedInstagramAccount
-    ? `@${selectedInstagramAccount}`
-    : user?.name
+  const displayName = user?.name
     ? user.name.split(" ")[0]
     : user?.instagramUsername
     ? `@${user.instagramUsername}`
+    : selectedInstagramAccount
+    ? `@${selectedInstagramAccount}`
     : "Creator";
 
   const connectedAccounts = user?.connectedAccounts || [];
@@ -111,23 +110,11 @@ export default function DashboardPage() {
           <div className="grid min-h-[20rem] lg:grid-cols-[minmax(0,1fr)_19rem]">
             <div className="flex min-w-0 flex-col p-5 sm:p-7">
               <div>
-                <div className="flex items-center gap-2">
-                  {selectedInstagramAccount && (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-brand-500/10 text-brand-500 font-mono text-[11px] font-semibold border border-brand-500/20" spellCheck={false}>
-                      <Instagram className="w-3 h-3" />
-                      @{selectedInstagramAccount}
-                    </span>
-                  )}
-                </div>
                 <h1 className="text-2xl font-bold leading-tight tracking-tight text-primaryText-light dark:text-primaryText-dark sm:text-3xl">
                   {timeGreeting}, {displayName}.
                 </h1>
                 <p className="mt-2 max-w-xl text-xs leading-relaxed text-secondaryText-light dark:text-secondaryText-dark">
-                  {selectedInstagramAccount ? (
-                    <>Showing saved reels from <strong className="text-brand-500 font-mono">@{selectedInstagramAccount}</strong>. Paste links below or send DMs directly on Instagram.</>
-                  ) : (
-                    <>Showing unified feed across all connected accounts. Paste any Instagram link or press <kbd className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-white/[0.08] text-[10px] font-mono">⌘K</kbd> to search and capture.</>
-                  )}
+                  Paste any Instagram link or press <kbd className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-white/[0.08] text-[10px] font-mono">⌘K</kbd> to search and capture.
                 </p>
               </div>
 
