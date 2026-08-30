@@ -191,7 +191,7 @@ export function Sidebar() {
                   }`}
                 >
                   <div className="flex items-center space-x-2">
-                    <Sparkles className="w-3.5 h-3.5 text-brand-500" />
+                    <Layers className="w-3.5 h-3.5 text-brand-500" />
                     <span>All Accounts</span>
                   </div>
                   <span className="font-mono text-[10px] opacity-75">{counts.all}</span>
