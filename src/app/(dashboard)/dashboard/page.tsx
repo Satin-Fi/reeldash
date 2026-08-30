@@ -113,7 +113,7 @@ export default function DashboardPage() {
               <div>
                 <div className="flex items-center gap-2">
                   {selectedInstagramAccount && (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-brand-500/10 text-brand-500 font-mono text-[11px] font-semibold border border-brand-500/20">
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-brand-500/10 text-brand-500 font-mono text-[11px] font-semibold border border-brand-500/20" spellCheck={false}>
                       <Instagram className="w-3 h-3" />
                       @{selectedInstagramAccount}
                     </span>
