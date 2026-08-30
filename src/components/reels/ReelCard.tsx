@@ -139,7 +139,7 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
         /* Standard 9:16 Grid Card View */
         <div
           onClick={handleCardClick}
-          className="group relative flex flex-col bg-surface-light dark:bg-[#111419] border border-borderSubtle-light dark:border-white/[0.07] hover:border-borderDefault-light dark:hover:border-white/[0.16] rounded-[12px] overflow-hidden shadow-rd-card hover:-translate-y-0.5 transition-all duration-200 cursor-pointer select-none"
+          className="reel-card group relative flex flex-col bg-surface-light dark:bg-[#111419] border border-borderSubtle-light dark:border-white/[0.07] hover:border-brand-500/20 dark:hover:border-brand-500/25 rounded-[12px] overflow-hidden shadow-rd-card hover:-translate-y-0.5 transition-all duration-300 ease-premium cursor-pointer select-none active:scale-[0.98]"
         >
           {/* 9:16 Clean Image Thumbnail Container */}
           <div className="relative aspect-reel w-full overflow-hidden bg-surfaceSecondary-light dark:bg-[#0D0F12]">
@@ -149,7 +149,7 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
               alt={displayCaption}
               referrerPolicy="no-referrer"
               onError={() => setImageError(true)}
-              className="w-full h-full object-cover group-hover:scale-103 transition-transform duration-300 ease-out"
+              className="w-full h-full object-cover group-hover:scale-[1.04] transition-transform duration-500 ease-premium"
             />
             {/* Subtle Clean Vignette */}
             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-black/25 opacity-50 group-hover:opacity-75 transition-opacity" />

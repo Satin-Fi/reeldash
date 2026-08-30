@@ -287,7 +287,7 @@ export function TopBar() {
       <div className="flex-1 flex justify-center px-2 sm:px-4 max-w-2xl">
         <button
           onClick={() => setIsCommandPaletteOpen(true)}
-          className="group w-full max-w-[420px] h-[36px] sm:h-[38px] px-2.5 sm:px-3 bg-surfaceSecondary-light dark:bg-[#111419] hover:bg-surfaceTertiary-light dark:hover:bg-[#13161B] border border-borderSubtle-light dark:border-white/[0.07] hover:border-borderDefault-light dark:hover:border-white/[0.12] focus:border-brand-500 rounded-[10px] flex items-center justify-between transition-all duration-150 cursor-pointer text-left outline-none"
+          className="group w-full max-w-[420px] h-[36px] sm:h-[38px] px-2.5 sm:px-3 bg-surfaceSecondary-light dark:bg-[#111419] hover:bg-surfaceTertiary-light dark:hover:bg-[#13161B] border border-borderSubtle-light dark:border-white/[0.07] hover:border-borderDefault-light dark:hover:border-white/[0.12] focus:border-brand-500 rounded-[10px] flex items-center justify-between transition-all duration-150 cursor-pointer text-left outline-none hover:ring-1 hover:ring-brand-500/15"
           title={`Search reels, creators, or command shortcuts (${isMac ? "⌘K" : "Ctrl+K"})`}
           aria-label="Global search and command palette"
         >
@@ -314,7 +314,7 @@ export function TopBar() {
         {/* Theme Toggle */}
         <button
           onClick={toggleTheme}
-          className="w-[32px] sm:w-[36px] h-[32px] sm:h-[36px] rounded-[8px] bg-transparent hover:bg-surfaceSecondary-light dark:hover:bg-white/[0.06] flex items-center justify-center text-secondaryText-light dark:text-[#A8ACB8] hover:text-primaryText-light dark:hover:text-white transition-all duration-150 cursor-pointer outline-none"
+          className="w-[32px] sm:w-[36px] h-[32px] sm:h-[36px] rounded-[8px] bg-transparent hover:bg-surfaceSecondary-light dark:hover:bg-white/[0.06] flex items-center justify-center text-secondaryText-light dark:text-[#A8ACB8] hover:text-primaryText-light dark:hover:text-white transition-all duration-150 cursor-pointer outline-none active:scale-[0.92]"
           title="Toggle theme"
           aria-label="Toggle theme"
         >
@@ -341,7 +341,7 @@ export function TopBar() {
             whileHover={{ scale: 1.03 }}
             whileTap={{ scale: 0.97 }}
             onClick={() => setProfileOpen((v) => !v)}
-            className="w-[32px] sm:w-[34px] h-[32px] sm:h-[34px] rounded-full aspect-square overflow-hidden bg-gradient-to-tr from-[#5B52E8] to-[#7B73F6] border border-white/10 flex items-center justify-center text-[13px] font-semibold text-white cursor-pointer select-none outline-none shadow-sm relative"
+            className="w-[32px] sm:w-[34px] h-[32px] sm:h-[34px] rounded-full aspect-square overflow-hidden bg-gradient-to-tr from-[#5B52E8] to-[#7B73F6] border border-white/10 flex items-center justify-center text-[13px] font-semibold text-white cursor-pointer select-none outline-none shadow-sm relative ring-2 ring-transparent hover:ring-brand-500/20 transition-all"
             aria-expanded={profileOpen}
             aria-haspopup="menu"
             aria-label="User profile menu"

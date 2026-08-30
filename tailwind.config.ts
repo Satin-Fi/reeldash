@@ -55,16 +55,16 @@ const config: Config = {
         },
         // Brand — Electric Indigo
         brand: {
-          50:  "#EEF2FF",
-          100: "#E0E7FF",
-          200: "#C7D2FE",
-          300: "#A5B4FC",
-          400: "#818CF8",
-          500: "#6366F1",
-          600: "#4F46E5",
-          700: "#4338CA",
-          800: "#3730A3",
-          900: "#312E81",
+          50:  "#EDF1FE",
+          100: "#DDE4FD",
+          200: "#BCC9FB",
+          300: "#93A8F7",
+          400: "#6E87F2",
+          500: "#4F6AE8",
+          600: "#3D55D4",
+          700: "#3347B8",
+          800: "#2B3A96",
+          900: "#253278",
         },
       },
       borderRadius: {
@@ -90,8 +90,8 @@ const config: Config = {
         reel: "9/16",
       },
       backgroundImage: {
-        "brand-gradient": "linear-gradient(135deg, #6366F1 0%, #818CF8 100%)",
-        "dark-mesh": "radial-gradient(ellipse 80% 50% at 50% -20%, rgba(99,102,241,0.08) 0%, transparent 60%)",
+        "brand-gradient": "linear-gradient(135deg, #4F6AE8 0%, #6E87F2 100%)",
+        "dark-mesh": "radial-gradient(ellipse 80% 50% at 50% -20%, rgba(79,106,232,0.10) 0%, transparent 60%)",
         "card-shine": "linear-gradient(135deg, rgba(255,255,255,0.08) 0%, transparent 100%)",
       },
       transitionTimingFunction: {

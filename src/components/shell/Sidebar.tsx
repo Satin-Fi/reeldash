@@ -193,7 +193,7 @@ export function Sidebar() {
 
             {/* Dropdown Menu */}
             {isAccountDropdownOpen && (
-              <div className="absolute top-full left-0 right-0 mt-1 z-50 p-1 rounded-rd-md bg-surface-light dark:bg-zinc-900 border border-borderSubtle-light dark:border-white/[0.08] shadow-xl shadow-black/20 space-y-0.5">
+              <div className="absolute top-full left-0 right-0 mt-1 z-50 p-1 rounded-rd-md bg-surface-light dark:bg-zinc-900 border border-borderSubtle-light dark:border-white/[0.08] shadow-xl shadow-black/20 space-y-0.5 animate-slide-down">
                 <button
                   onClick={() => {
                     setSelectedInstagramAccount(null);
@@ -278,7 +278,7 @@ export function Sidebar() {
                 onClick={item.onClick}
                 className={`w-full flex items-center justify-between px-3 py-2 rounded-rd-md text-xs font-medium transition-colors cursor-pointer ${
                   item.isActive
-                    ? "bg-brand-500/10 text-brand-600 dark:text-brand-400 font-semibold"
+                    ? "bg-brand-500/10 text-brand-600 dark:text-brand-400 font-semibold nav-active-indicator"
                     : "text-secondaryText-light dark:text-secondaryText-dark hover:bg-surfaceSecondary-light dark:hover:bg-surfaceSecondary-dark hover:text-primaryText-light dark:hover:text-primaryText-dark"
                 }`}
               >
@@ -403,7 +403,7 @@ export function Sidebar() {
         </Link>
 
         {/* User Profile Bar */}
-        <div className="flex items-center justify-between p-2 rounded-rd-md bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark border border-borderSubtle-light dark:border-borderSubtle-dark">
+        <div className="flex items-center justify-between p-2 rounded-rd-md bg-surfaceSecondary-light/80 dark:bg-surfaceSecondary-dark/80 backdrop-blur-sm border border-borderSubtle-light dark:border-white/[0.06]">
           <Link href="/settings" className="flex items-center space-x-2.5 min-w-0 flex-1 hover:opacity-80 transition-opacity">
             <div className="w-7 h-7 rounded-full overflow-hidden bg-brand-500/15 border border-brand-500/30 text-brand-600 dark:text-brand-400 font-bold text-xs flex items-center justify-center shrink-0 relative">
               {user?.avatar || user?.instagramUsername ? (

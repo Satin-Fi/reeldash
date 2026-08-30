@@ -116,14 +116,15 @@ export default function DashboardPage() {
     <div className="mx-auto grid w-full max-w-7xl gap-5 xl:grid-cols-[minmax(0,1fr)_19rem]">
       <main className="min-w-0 space-y-6">
         {/* Quick Ingest & Overview Bar */}
-        <section className="overflow-hidden rounded-rd-xl border border-borderSubtle-light bg-surface-light shadow-rd-card dark:border-borderSubtle-dark dark:bg-surface-dark">
+        <section className="animate-fade-up delay-0 bezel-outer-polish">
+          <div className="overflow-hidden rounded-[calc(1.25rem-6px)] border border-borderSubtle-light bg-surface-light shadow-rd-card dark:border-borderSubtle-dark dark:bg-surface-dark bezel-inner-polish">
           <div className="grid min-h-[20rem] lg:grid-cols-[minmax(0,1fr)_19rem]">
             <div className="flex min-w-0 flex-col p-5 sm:p-7">
               <div>
-                <h1 className="text-2xl font-bold leading-tight tracking-tight text-primaryText-light dark:text-primaryText-dark sm:text-3xl">
+                <h1 className="font-bricolage text-[1.85rem] font-bold leading-[1.15] tracking-[-0.03em] text-primaryText-light dark:text-primaryText-dark sm:text-[2.1rem]">
                   {timeGreeting}, {displayName}.
                 </h1>
-                <p className="mt-2 max-w-xl text-xs leading-relaxed text-secondaryText-light dark:text-secondaryText-dark">
+                <p className="mt-2.5 max-w-xl text-[13px] leading-relaxed text-secondaryText-light dark:text-secondaryText-dark" style={{ textWrap: 'balance' } as React.CSSProperties}>
                   {selectedInstagramAccount
                     ? `Showing library for @${selectedInstagramAccount}. Paste any Instagram link or press `
                     : `Showing unified library across all accounts. Paste any Instagram link or press `}
@@ -181,7 +182,7 @@ export default function DashboardPage() {
             </div>
 
             <div className="relative hidden overflow-hidden border-l border-borderSubtle-light bg-surfaceSecondary-light p-5 dark:border-borderSubtle-dark dark:bg-surfaceSecondary-dark lg:block">
-              <div className="absolute inset-x-0 top-0 h-1 bg-brand-500" />
+              <div className="absolute inset-x-0 top-0 h-[3px] gradient-stripe" />
               <div className="flex items-center justify-between">
                 <p className="text-xs font-semibold text-secondaryText-light dark:text-secondaryText-dark">Latest capture</p>
                 <Link href="/reels" aria-label="Open full library" className="text-brand-600 hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300">
@@ -230,10 +231,11 @@ export default function DashboardPage() {
               </p>
             </div>
           </div>
+          </div>
         </section>
 
         {/* Seamless Library Pulse Views Strip */}
-        <nav aria-label="Library views" className="grid grid-cols-2 border-y border-borderSubtle-light dark:border-borderSubtle-dark sm:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-borderSubtle-light dark:divide-borderSubtle-dark">
+        <nav aria-label="Library views" className="animate-fade-up delay-1 grid grid-cols-2 gap-3 sm:grid-cols-4">
           {libraryViews.map((view) => {
             const Icon = view.icon;
             const value = view.getValue(counts);
@@ -241,7 +243,7 @@ export default function DashboardPage() {
               <Link
                 key={view.label}
                 href={view.href}
-                className="group flex min-h-[4.5rem] items-center gap-3 px-4 py-3.5 transition-colors hover:bg-surfaceSecondary-light dark:hover:bg-surfaceSecondary-dark"
+                className="group flex min-h-[4.5rem] items-center gap-3 px-4 py-3.5 rounded-rd-lg border border-borderSubtle-light dark:border-borderSubtle-dark bg-surface-light dark:bg-surface-dark hover:border-brand-500/20 dark:hover:border-brand-500/20 transition-all duration-300 ease-premium active:scale-[0.98]"
               >
                 <Icon className="h-4 w-4 shrink-0 text-brand-600 dark:text-brand-400" />
                 <span className="min-w-0">
@@ -259,7 +261,7 @@ export default function DashboardPage() {
         </nav>
 
         {/* Visual Inbox Reel Feed */}
-        <section className="space-y-4 pt-2">
+        <section className="animate-fade-up delay-2 space-y-4 pt-2">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-lg font-bold text-primaryText-light dark:text-primaryText-dark">
@@ -284,7 +286,7 @@ export default function DashboardPage() {
       </main>
 
       {/* Right Rail Overview */}
-      <aside className="space-y-5">
+      <aside className="animate-fade-up delay-3 space-y-5">
         <section className="rounded-rd-lg border border-borderSubtle-light bg-surface-light p-5 shadow-rd-subtle dark:border-borderSubtle-dark dark:bg-surface-dark">
           <div className="flex items-center justify-between">
             <div>
