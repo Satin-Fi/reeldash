@@ -49,7 +49,7 @@ export default function DashboardLayout({
         <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
           <TopBar />
           <div className="flex-1 overflow-y-auto pb-16 md:pb-0 scrollbar-thin">
-            <main className="p-4 md:p-6 lg:p-8 max-w-[1680px] w-full mx-auto">
+            <main className="p-4 md:p-6 lg:p-8 max-w-7xl w-full mx-auto">
               {children}
             </main>
           </div>

@@ -15,7 +15,7 @@ import {
   Disc3,
   Download,
 } from "lucide-react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 
 /**
  * ReelDash-owned Native Fallback View (No broken Instagram iframe popup)
@@ -614,6 +614,194 @@ function StoryViewer({ reel, coverImageSrc }: { reel: Reel; coverImageSrc: strin
   );
 }
 
+function CustomVideoPlayer({
+  src,
+  poster,
+  isMuted,
+  setIsMuted,
+}: {
+  src?: string;
+  poster?: string;
+  isMuted: boolean;
+  setIsMuted: (muted: boolean) => void;
+}) {
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [isPlaying, setIsPlaying] = useState(true);
+  const [progress, setProgress] = useState(0);
+  const [currentTimeStr, setCurrentTimeStr] = useState("0:00");
+  const [durationStr, setDurationStr] = useState("0:00");
+  const [feedbackIcon, setFeedbackIcon] = useState<"play" | "pause" | null>(null);
+  const [showControls, setShowControls] = useState(true);
+  const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const togglePlay = () => {
+    if (!videoRef.current) return;
+    if (videoRef.current.paused) {
+      videoRef.current.play();
+      setIsPlaying(true);
+      setFeedbackIcon("play");
+    } else {
+      videoRef.current.pause();
+      setIsPlaying(false);
+      setFeedbackIcon("pause");
+    }
+    setTimeout(() => setFeedbackIcon(null), 600);
+  };
+
+  const toggleMute = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    if (!videoRef.current) return;
+    const nextMuted = !videoRef.current.muted;
+    videoRef.current.muted = nextMuted;
+    setIsMuted(nextMuted);
+  };
+
+  const toggleFullscreen = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    if (!containerRef.current) return;
+    if (!document.fullscreenElement) {
+      containerRef.current.requestFullscreen().catch(() => {});
+    } else {
+      document.exitFullscreen().catch(() => {});
+    }
+  };
+
+  const handleTimeUpdate = () => {
+    if (!videoRef.current) return;
+    const current = videoRef.current.currentTime;
+    const duration = videoRef.current.duration || 0;
+    if (duration > 0) {
+      setProgress((current / duration) * 100);
+      const cMins = Math.floor(current / 60);
+      const cSecs = Math.floor(current % 60);
+      setCurrentTimeStr(`${cMins}:${cSecs < 10 ? "0" : ""}${cSecs}`);
+
+      const dMins = Math.floor(duration / 60);
+      const dSecs = Math.floor(duration % 60);
+      setDurationStr(`${dMins}:${dSecs < 10 ? "0" : ""}${dSecs}`);
+    }
+  };
+
+  const handleSeek = (e: React.MouseEvent<HTMLDivElement>) => {
+    e.stopPropagation();
+    if (!videoRef.current) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+    const newPct = Math.max(0, Math.min(1, clickX / rect.width));
+    videoRef.current.currentTime = newPct * (videoRef.current.duration || 0);
+    setProgress(newPct * 100);
+  };
+
+  const handleMouseMove = () => {
+    setShowControls(true);
+    if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
+    if (isPlaying) {
+      controlsTimeoutRef.current = setTimeout(() => setShowControls(false), 2500);
+    }
+  };
+
+  return (
+    <div
+      ref={containerRef}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={() => isPlaying && setShowControls(false)}
+      onClick={togglePlay}
+      className="group relative w-full h-full bg-black flex items-center justify-center overflow-hidden cursor-pointer select-none"
+    >
+      {/* Video Element */}
+      <video
+        ref={videoRef}
+        src={src}
+        poster={poster}
+        autoPlay
+        playsInline
+        loop
+        muted={isMuted}
+        onTimeUpdate={handleTimeUpdate}
+        onPlay={() => setIsPlaying(true)}
+        onPause={() => setIsPlaying(false)}
+        className="w-full h-full object-contain"
+      />
+
+      {/* Center Tap Play/Pause Animated Feedback */}
+      <AnimatePresence>
+        {feedbackIcon && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.6 }}
+            animate={{ opacity: 1, scale: 1.1 }}
+            exit={{ opacity: 0, scale: 1.3 }}
+            transition={{ duration: 0.3 }}
+            className="absolute inset-0 m-auto w-16 h-16 rounded-full bg-black/60 backdrop-blur-md border border-white/20 flex items-center justify-center text-white pointer-events-none z-20 shadow-2xl"
+          >
+            {feedbackIcon === "play" ? (
+              <Play className="w-8 h-8 fill-white ml-1" />
+            ) : (
+              <Pause className="w-8 h-8 fill-white" />
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Floating Bottom Custom Controls */}
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className={`absolute inset-x-0 bottom-0 z-30 p-3 pt-8 bg-gradient-to-t from-black/90 via-black/40 to-transparent transition-opacity duration-200 ${
+          showControls || !isPlaying ? "opacity-100" : "opacity-0 pointer-events-none"
+        }`}
+      >
+        {/* Scrub Progress Bar */}
+        <div
+          onClick={handleSeek}
+          className="group/scrub relative w-full h-1.5 hover:h-2.5 bg-white/20 hover:bg-white/30 rounded-full cursor-pointer transition-all mb-2 flex items-center"
+        >
+          <div
+            className="h-full bg-brand-500 rounded-full relative transition-[width] duration-75 ease-linear"
+            style={{ width: `${progress}%` }}
+          >
+            <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-white shadow-md opacity-0 group-hover/scrub:opacity-100 transition-opacity" />
+          </div>
+        </div>
+
+        {/* Control Bar Actions */}
+        <div className="flex items-center justify-between text-white text-xs">
+          {/* Left: Play/Pause + Time Display */}
+          <div className="flex items-center space-x-2.5">
+            <button
+              onClick={togglePlay}
+              className="p-1 text-white hover:text-brand-400 transition-colors cursor-pointer"
+              title={isPlaying ? "Pause" : "Play"}
+            >
+              {isPlaying ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current ml-0.5" />}
+            </button>
+            <span className="font-mono text-[11px] text-zinc-300 tabular-nums">
+              {currentTimeStr} <span className="text-zinc-500">/</span> {durationStr}
+            </span>
+          </div>
+
+          {/* Right: Mute/Volume + Fullscreen */}
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={toggleMute}
+              className="p-1 text-white hover:text-brand-400 transition-colors cursor-pointer"
+              title={isMuted ? "Unmute" : "Mute"}
+            >
+              {isMuted ? <VolumeX className="w-4 h-4 text-rose-400" /> : <Volume2 className="w-4 h-4" />}
+            </button>
+            <button
+              onClick={toggleFullscreen}
+              className="p-1 text-white hover:text-brand-400 transition-colors cursor-pointer"
+              title="Fullscreen"
+            >
+              <Maximize2 className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export type PlaybackStatus = "idle" | "playing" | "loading";
 
 interface ReelPlayerProps {
@@ -751,22 +939,14 @@ export function ReelPlayer({
     <div
       className={`relative aspect-reel w-full overflow-hidden bg-black select-none ${className}`}
     >
-      {/* 1. PLAYING STATE: Native HTML5 Video Player */}
+      {/* 1. PLAYING STATE: Custom High-End Video Player */}
       {status === "playing" && (
-        <div className="relative w-full h-full bg-black flex items-center justify-center overflow-hidden">
-          <div className="relative w-full h-full bg-black">
-            <video
-              ref={videoRef}
-              src={playbackUrl || (shortcode ? `/api/video-stream?shortcode=${shortcode}` : undefined)}
-              poster={coverImageSrc}
-              controls
-              autoPlay
-              playsInline
-              muted={isMuted}
-              className="w-full h-full object-cover cursor-pointer"
-            />
-          </div>
-        </div>
+        <CustomVideoPlayer
+          src={playbackUrl || (shortcode ? `/api/video-stream?shortcode=${shortcode}` : undefined)}
+          poster={coverImageSrc}
+          isMuted={isMuted}
+          setIsMuted={setIsMuted}
+        />
       )}
 
       {/* 2. LOADING STATE */}
