@@ -7,6 +7,7 @@ import { useReels } from "@/context/ReelContext";
 import { ReelGrid } from "@/components/reels/ReelGrid";
 import {
   ArrowRight,
+  ArrowUpRight,
   Film,
   Heart,
   Image as ImageIcon,
