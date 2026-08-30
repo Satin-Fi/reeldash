@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { Reel } from "@/types/reel";
 import { useReels } from "@/context/ReelContext";
 import { ReelPlayer } from "./ReelPlayer";
@@ -45,6 +46,11 @@ export function ReelPlayerModal({ reel, isOpen, onClose }: ReelPlayerModalProps)
   const [isEditingNote, setIsEditingNote] = useState(false);
   const [noteContent, setNoteContent] = useState("");
   const [avatarSrc, setAvatarSrc] = useState<string>("");
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (reel) {
@@ -54,7 +60,7 @@ export function ReelPlayerModal({ reel, isOpen, onClose }: ReelPlayerModalProps)
     }
   }, [reel]);
 
-  if (!isOpen || !reel) return null;
+  if (!isOpen || !reel || !mounted) return null;
 
   const creatorHandle = reel.creatorUsername || "creator";
   const formattedDate = new Date(reel.createdAt).toLocaleDateString("en-US", {
@@ -91,19 +97,19 @@ export function ReelPlayerModal({ reel, isOpen, onClose }: ReelPlayerModalProps)
     });
   };
 
-  return (
+  return createPortal(
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 md:p-6 lg:p-8 bg-black/85 backdrop-blur-md">
+      <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-5 md:p-6 bg-black/85 backdrop-blur-md">
         {/* Backdrop Close */}
         <div className="absolute inset-0" onClick={onClose} />
 
         {/* Modal Window: Split Video Player & Personal Library Inspector */}
         <motion.div
-          initial={{ opacity: 0, scale: 0.96, y: 8 }}
+          initial={{ opacity: 0, scale: 0.95, y: 10 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.96, y: 8 }}
+          exit={{ opacity: 0, scale: 0.95, y: 10 }}
           transition={{ duration: 0.2 }}
-          className="relative w-full max-w-5xl lg:max-w-6xl xl:max-w-7xl h-[92vh] max-h-[880px] bg-zinc-950 text-white rounded-2xl overflow-hidden shadow-2xl border border-zinc-800 flex flex-col md:flex-row z-10"
+          className="relative w-full max-w-[840px] h-[86vh] max-h-[660px] bg-zinc-950 text-white rounded-2xl overflow-hidden shadow-2xl border border-zinc-800 flex flex-col md:flex-row z-10"
         >
           {/* Close Button on Mobile */}
           <button
@@ -113,8 +119,8 @@ export function ReelPlayerModal({ reel, isOpen, onClose }: ReelPlayerModalProps)
             <X className="w-5 h-5" />
           </button>
 
-          {/* LEFT COLUMN: Clean 9:16 Vertical Video Player (Expansive Theater Sizing) */}
-          <div className="w-full md:w-[460px] lg:w-[520px] xl:w-[560px] h-[55vh] md:h-full min-h-[380px] bg-black flex items-center justify-center relative overflow-hidden border-b md:border-b-0 md:border-r border-zinc-800 shrink-0">
+          {/* LEFT COLUMN: Clean 9:16 Vertical Video Player (Optimal compact sizing) */}
+          <div className="w-full md:w-[360px] h-[48vh] md:h-full bg-black flex items-center justify-center relative overflow-hidden border-b md:border-b-0 md:border-r border-zinc-800 shrink-0">
             <ReelPlayer
               reel={reel}
               autoPlay={true}
@@ -469,6 +475,7 @@ export function ReelPlayerModal({ reel, isOpen, onClose }: ReelPlayerModalProps)
           </div>
         </motion.div>
       </div>
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   );
 }
