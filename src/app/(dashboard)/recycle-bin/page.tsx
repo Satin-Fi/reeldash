@@ -119,13 +119,7 @@ export default function RecycleBinPage() {
                 {/* Hover overlay gradient */}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent opacity-60 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none" />
 
-                {/* ─── Top-Left Badge: Removed ─── */}
-                <div className="absolute top-2 left-2 z-10 pointer-events-none">
-                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-[4px] bg-black/60 backdrop-blur-sm text-[10px] font-semibold text-rose-400">
-                    <Trash2 className="w-2.5 h-2.5" />
-                    <span>Removed</span>
-                  </span>
-                </div>
+
 
                 {/* ─── Top-Right Actions: Restore & Permanent Delete ─── */}
                 <div className="absolute top-2 right-2 z-20 flex items-center gap-1.5 pointer-events-auto">
