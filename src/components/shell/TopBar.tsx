@@ -102,30 +102,35 @@ export function TopBar() {
 
   // Contextual distinct page identity for the Left Zone
   const getContextIdentity = () => {
+    const safeReels = reels || [];
+    const safeCategories = smartCategories || [];
+    const safeFavorites = favorites || [];
+    const safeTrash = recycleBin || [];
+
     if (pathname === "/dashboard") {
-      return { title: "Visual Library", icon: LayoutGrid, count: reels.length };
+      return { title: "Visual Library", icon: LayoutGrid, count: safeReels.length };
     }
     if (pathname === "/reels") {
       if (mediaTypeParam === "reel") {
-        const count = reels.filter((r) => !r.mediaType || r.mediaType === "reel").length;
+        const count = safeReels.filter((r) => !r.mediaType || r.mediaType === "reel").length;
         return { title: "Reels", icon: Film, count };
       }
       if (mediaTypeParam === "post") {
-        const count = reels.filter((r) => r.mediaType === "post").length;
+        const count = safeReels.filter((r) => r.mediaType === "post").length;
         return { title: "Posts & Photos", icon: ImageIcon, count };
       }
       if (mediaTypeParam === "audio") {
-        const count = reels.filter((r) => r.mediaType === "audio").length;
+        const count = safeReels.filter((r) => r.mediaType === "audio").length;
         return { title: "Songs & Audio", icon: Music2, count };
       }
       if (mediaTypeParam === "story") {
-        const count = reels.filter((r) => r.mediaType === "story").length;
+        const count = safeReels.filter((r) => r.mediaType === "story").length;
         return { title: "Stories", icon: CircleDashed, count };
       }
-      return { title: "All Library", icon: LayoutGrid, count: reels.length };
+      return { title: "All Library", icon: LayoutGrid, count: safeReels.length };
     }
     if (pathname.startsWith("/categories")) {
-      return { title: "Categories", icon: Folder, count: smartCategories.filter((c) => !c.name.startsWith("#")).length };
+      return { title: "Categories", icon: Folder, count: safeCategories.filter((c) => c.name && !c.name.startsWith("#")).length };
     }
     if (pathname.startsWith("/collections")) {
       return { title: "Collections", icon: Folder };
@@ -140,15 +145,15 @@ export function TopBar() {
       return { title: "Settings", icon: Settings };
     }
     if (pathname.startsWith("/favorites")) {
-      return { title: "Favorites", icon: Heart, count: favorites.length };
+      return { title: "Favorites", icon: Heart, count: safeFavorites.length };
     }
     if (pathname.startsWith("/recycle-bin")) {
-      return { title: "Recycle Bin", icon: Trash2, count: recycleBin.length };
+      return { title: "Recycle Bin", icon: Trash2, count: safeTrash.length };
     }
     if (pathname.startsWith("/recent")) {
       return { title: "Recently Saved", icon: Clock };
     }
-    return { title: "Visual Library", icon: LayoutGrid, count: reels.length };
+    return { title: "Visual Library", icon: LayoutGrid, count: safeReels.length };
   };
 
   const identity = getContextIdentity();

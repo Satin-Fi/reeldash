@@ -320,7 +320,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Category Quick Chips Bar (Mobile & Desktop) */}
-        {smartCategories.length > 0 && (
+        {(smartCategories || []).length > 0 && (
           <div className="flex items-center space-x-1.5 overflow-x-auto pb-2 mb-3 scrollbar-none">
             <button
               onClick={() => setActiveCategory(null)}
@@ -330,39 +330,41 @@ export default function DashboardPage() {
                   : "bg-surfaceSecondary-light dark:bg-white/[0.05] text-secondaryText-light dark:text-zinc-400 hover:text-white hover:bg-white/[0.08] border border-borderSubtle-light dark:border-white/[0.06]"
               }`}
             >
-              All ({reels.length})
+              All ({(reels || []).length})
             </button>
-            {smartCategories.map((cat) => {
-              const isSelected = activeCategory?.toLowerCase() === cat.name.toLowerCase();
-              return (
-                <button
-                  key={cat.name}
-                  onClick={() => setActiveCategory(isSelected ? null : cat.name)}
-                  className={`px-3 py-1 rounded-full text-xs font-medium transition-all cursor-pointer shrink-0 flex items-center space-x-1.5 ${
-                    isSelected
-                      ? "bg-zinc-900 text-white dark:bg-white/[0.14] dark:text-white shadow-xs font-semibold"
-                      : "bg-surfaceSecondary-light dark:bg-white/[0.05] text-secondaryText-light dark:text-zinc-400 hover:text-white hover:bg-white/[0.08] border border-borderSubtle-light dark:border-white/[0.06]"
-                  }`}
-                >
-                  <span>{cat.name}</span>
-                  <span className={`text-[10px] font-mono ${isSelected ? "text-white/80" : "text-zinc-500"}`}>
-                    {cat.count}
-                  </span>
-                </button>
-              );
-            })}
+            {(smartCategories || [])
+              .filter((c) => c.name && !c.name.startsWith("#"))
+              .map((cat) => {
+                const isSelected = activeCategory?.toLowerCase() === cat.name?.toLowerCase();
+                return (
+                  <button
+                    key={cat.name}
+                    onClick={() => setActiveCategory(isSelected ? null : cat.name)}
+                    className={`px-3 py-1 rounded-full text-xs font-medium transition-all cursor-pointer shrink-0 flex items-center space-x-1.5 ${
+                      isSelected
+                        ? "bg-zinc-900 text-white dark:bg-white/[0.14] dark:text-white shadow-xs font-semibold"
+                        : "bg-surfaceSecondary-light dark:bg-white/[0.05] text-secondaryText-light dark:text-zinc-400 hover:text-white hover:bg-white/[0.08] border border-borderSubtle-light dark:border-white/[0.06]"
+                    }`}
+                  >
+                    <span>{cat.name}</span>
+                    <span className={`text-[10px] font-mono ${isSelected ? "text-white/80" : "text-zinc-500"}`}>
+                      {cat.count}
+                    </span>
+                  </button>
+                );
+              })}
           </div>
         )}
 
         <ReelGrid
-          reels={reels.filter((reel) => {
+          reels={(reels || []).filter((reel) => {
             if (activeCategory) {
               const catLower = activeCategory.trim().toLowerCase();
               const allAssigned = reel.categories && reel.categories.length > 0 ? reel.categories : [reel.category || ""];
-              const matchCat = allAssigned.some((c) => c.toLowerCase() === catLower);
-              const matchTags = (Array.isArray(reel.tags) && reel.tags.some((t) => t.toLowerCase() === catLower)) || (Array.isArray(reel.hashtags) && reel.hashtags.some((h) => h.toLowerCase() === catLower));
-              const matchKeywords = Array.isArray(reel.aiKeywords) && reel.aiKeywords.some((k) => k.toLowerCase() === catLower);
-              const matchSub = Array.isArray(reel.subcategories) && reel.subcategories.some((s) => s.toLowerCase() === catLower);
+              const matchCat = allAssigned.some((c) => c && c.toLowerCase() === catLower);
+              const matchTags = (Array.isArray(reel.tags) && reel.tags.some((t) => t && t.toLowerCase() === catLower)) || (Array.isArray(reel.hashtags) && reel.hashtags.some((h) => h && h.toLowerCase() === catLower));
+              const matchKeywords = Array.isArray(reel.aiKeywords) && reel.aiKeywords.some((k) => k && k.toLowerCase() === catLower);
+              const matchSub = Array.isArray(reel.subcategories) && reel.subcategories.some((s) => s && s.toLowerCase() === catLower);
               if (!matchCat && !matchTags && !matchKeywords && !matchSub) {
                 return false;
               }

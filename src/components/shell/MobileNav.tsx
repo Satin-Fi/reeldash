@@ -4,7 +4,7 @@ import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useReels } from "@/context/ReelContext";
-import { House, Search, Plus, Folder, User } from "lucide-react";
+import { Home, Search, Plus, Folder, User } from "lucide-react";
 
 export function MobileNav() {
   const pathname = usePathname();
@@ -18,7 +18,7 @@ export function MobileNav() {
           pathname === "/dashboard" ? "text-brand-500 font-semibold" : "text-secondaryText-light dark:text-secondaryText-dark"
         }`}
       >
-        <House className="w-5 h-5" />
+        <Home className="w-5 h-5" />
         <span className="text-[10px]">Home</span>
       </Link>
 
@@ -40,13 +40,13 @@ export function MobileNav() {
       </button>
 
       <Link
-        href="/collections"
+        href="/categories"
         className={`flex flex-col items-center space-y-1 p-1 ${
-          pathname === "/collections" ? "text-brand-500 font-semibold" : "text-secondaryText-light dark:text-secondaryText-dark"
+          pathname === "/categories" ? "text-brand-500 font-semibold" : "text-secondaryText-light dark:text-secondaryText-dark"
         }`}
       >
         <Folder className="w-5 h-5" />
-        <span className="text-[10px]">Collections</span>
+        <span className="text-[10px]">Categories</span>
       </Link>
 
       <Link

@@ -186,6 +186,57 @@ export async function processInstagramMessage(
         note: note || reelData.note || undefined,
       };
 
+      // Check if this exact shortcode was recently processed (within 25s) for this user to prevent duplicate webhook sends
+      const supabaseAdmin = getSupabaseAdmin();
+      if (supabaseAdmin) {
+        try {
+          const { data: existingRecentReel } = await supabaseAdmin
+            .from("reels")
+            .select("id, category, tags, created_at, updated_at")
+            .eq("user_id", userProfile.id)
+            .eq("shortcode", formattedReel.shortcode)
+            .maybeSingle();
+
+          if (existingRecentReel) {
+            const ageMs = Date.now() - new Date(existingRecentReel.created_at).getTime();
+            if (Math.abs(ageMs) < 25000) {
+              // Duplicate webhook arrival!
+              if (allCategories.length > 0) {
+                // This duplicate payload has the user category (e.g. /car)! Update DB so the polling instance outputs it
+                await supabaseAdmin
+                  .from("reels")
+                  .update({
+                    category: allCategories[0],
+                    tags: [...(existingRecentReel.tags || []), ...allCategories.map((c) => c.toLowerCase())],
+                    updated_at: new Date().toISOString(),
+                  })
+                  .eq("id", existingRecentReel.id);
+
+                return {
+                  status: "category_assigned",
+                  replyMessage: "Category merged into existing reel",
+                  senderIgId,
+                  username: userProfile.username,
+                  isFollowing: true,
+                };
+              } else {
+                // This duplicate payload has NO category (bare attachment duplicate from share sheet).
+                // Skip it completely to prevent double "Saved to ReelDash" confirmation!
+                return {
+                  status: "reel_saved",
+                  replyMessage: "Duplicate webhook ignored",
+                  senderIgId,
+                  username: userProfile.username,
+                  isFollowing: true,
+                };
+              }
+            }
+          }
+        } catch (checkErr) {
+          console.warn("[Instagram Bot] Duplicate shortcode check notice:", checkErr);
+        }
+      }
+
       // Save Reel to user's library and Supabase database immediately
       const saveResult = await saveReelForUser(userProfile.id, formattedReel, allCategories);
       userProfile.savedReelsCount += 1;
