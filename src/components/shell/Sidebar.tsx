@@ -24,7 +24,29 @@ import {
   Check,
   Crown,
   Trash2,
+  Code2,
+  Palette,
+  Compass,
+  Camera,
+  ShoppingBag,
+  Activity,
+  Utensils,
+  Cpu,
 } from "lucide-react";
+
+function getSidebarCategoryIcon(name: string) {
+  const norm = name.toLowerCase().trim();
+  if (norm.includes("tech") || norm.includes("dev") || norm.includes("code")) return Code2;
+  if (norm.includes("music") || norm.includes("audio") || norm.includes("song")) return Music2;
+  if (norm.includes("travel") || norm.includes("place")) return Compass;
+  if (norm.includes("design") || norm.includes("art")) return Palette;
+  if (norm.includes("camera") || norm.includes("photo")) return Camera;
+  if (norm.includes("saree") || norm.includes("fashion") || norm.includes("wear")) return ShoppingBag;
+  if (norm.includes("fitness") || norm.includes("yoga") || norm.includes("gym")) return Activity;
+  if (norm.includes("ai") || norm.includes("gpt")) return Cpu;
+  if (norm.includes("recipe") || norm.includes("food")) return Utensils;
+  return Folder;
+}
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -317,6 +339,7 @@ export function Sidebar() {
               .slice(0, 5)
               .map((cat) => {
                 const isSelected = isReelsPath && activeCategory === cat.name;
+                const CatIcon = getSidebarCategoryIcon(cat.name);
                 return (
                   <Link
                     key={cat.name}
@@ -325,16 +348,16 @@ export function Sidebar() {
                       setActiveCategory(isSelected ? null : cat.name);
                       setActiveMediaType("all");
                     }}
-                    className={`w-full flex items-center justify-between px-3 py-1.5 rounded-rd-md text-xs text-left transition-colors cursor-pointer ${
+                    className={`w-full flex items-center justify-between px-3 py-2 rounded-rd-md text-xs font-medium transition-colors cursor-pointer ${
                       isSelected
                         ? "bg-brand-500/10 text-brand-600 dark:text-brand-400 font-semibold nav-active-indicator"
                         : "text-secondaryText-light dark:text-secondaryText-dark hover:bg-surfaceSecondary-light dark:hover:bg-surfaceSecondary-dark hover:text-primaryText-light dark:hover:text-primaryText-dark"
                     }`}
                   >
-                    <span className="truncate flex items-center space-x-2 min-w-0">
-                      <span className="w-1.5 h-1.5 rounded-full bg-brand-500/80 shrink-0 group-hover:scale-125 transition-transform" />
+                    <div className="flex items-center space-x-2.5 min-w-0">
+                      <CatIcon className="w-3.5 h-3.5 text-zinc-400 dark:text-zinc-500 shrink-0" strokeWidth={1.75} />
                       <span className="truncate">{cat.name}</span>
-                    </span>
+                    </div>
                     <span className="text-[10px] font-mono text-mutedText-light dark:text-mutedText-dark shrink-0">
                       {cat.count}
                     </span>

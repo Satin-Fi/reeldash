@@ -220,13 +220,9 @@ export default function CategoriesPage() {
     <div className="space-y-8 max-w-7xl mx-auto pb-24 px-1 sm:px-2">
       {/* ─── Hero / Header ───────────────────────────────────────── */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-borderSubtle-light dark:border-white/[0.06]">
-        <div className="space-y-2">
-          <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-brand-500/10 border border-brand-500/20 text-brand-600 dark:text-brand-400 text-[11px] font-semibold tracking-wider uppercase">
-            <Layers className="w-3.5 h-3.5" />
-            <span>Library Architecture</span>
-          </div>
+        <div className="space-y-1.5">
           <h1 className="font-bricolage text-2xl sm:text-3xl font-bold tracking-tight text-primaryText-light dark:text-white">
-            Visual Categories
+            Categories
           </h1>
           <p className="text-xs sm:text-[13px] text-secondaryText-light dark:text-zinc-400 max-w-xl leading-relaxed">
             Curated collections of your saved reels. Organize via DM commands like <span className="px-1.5 py-0.5 rounded bg-zinc-800 font-mono text-zinc-300 text-[11px]">/yoga</span> or <span className="px-1.5 py-0.5 rounded bg-zinc-800 font-mono text-zinc-300 text-[11px]">/tech</span>, or manage visually below.
