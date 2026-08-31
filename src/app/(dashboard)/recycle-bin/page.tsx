@@ -8,7 +8,6 @@ import {
   ExternalLink,
   Calendar,
   AlertTriangle,
-  Play,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -23,28 +22,20 @@ export default function RecycleBinPage() {
   const [confirmEmpty, setConfirmEmpty] = useState(false);
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto pb-12">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-borderSubtle-light dark:border-borderSubtle-dark pb-5">
-        <div>
-          <div className="flex items-center space-x-2.5">
-            <div className="w-8 h-8 rounded-lg bg-rose-500/10 flex items-center justify-center text-rose-500">
-              <Trash2 className="w-4 h-4" />
-            </div>
-            <h1 className="text-xl font-bold tracking-tight text-primaryText-light dark:text-primaryText-dark">
-              Recycle Bin
-            </h1>
-            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark text-secondaryText-light dark:text-secondaryText-dark border border-borderSubtle-light dark:border-borderSubtle-dark tabular-nums">
-              {recycleBin.length} {recycleBin.length === 1 ? "item" : "items"}
-            </span>
-          </div>
-          <p className="text-xs text-secondaryText-light dark:text-secondaryText-dark mt-1.5 max-w-xl leading-relaxed">
-            Reels removed from your library. You can restore them back anytime or permanently delete them.
-          </p>
+    <div className="space-y-4 max-w-7xl mx-auto pb-12">
+      {/* Header & Action Bar */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-baseline space-x-2">
+          <h1 className="text-xl font-semibold tracking-tight text-primaryText-light dark:text-primaryText-dark">
+            Recycle Bin
+          </h1>
+          <span className="text-xs text-zinc-500 font-normal">
+            · {recycleBin.length} {recycleBin.length === 1 ? "item" : "items"}
+          </span>
         </div>
 
         {recycleBin.length > 0 && (
-          <div className="flex items-center space-x-2">
+          <div>
             {confirmEmpty ? (
               <div className="flex items-center space-x-2">
                 <button
@@ -52,13 +43,13 @@ export default function RecycleBinPage() {
                     emptyRecycleBin();
                     setConfirmEmpty(false);
                   }}
-                  className="px-3 py-1.5 rounded-rd-md bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold transition-colors cursor-pointer"
+                  className="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 active:scale-95 text-white text-xs font-semibold transition-all cursor-pointer"
                 >
                   Confirm Empty All
                 </button>
                 <button
                   onClick={() => setConfirmEmpty(false)}
-                  className="px-3 py-1.5 rounded-rd-md bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark hover:bg-surfaceTertiary-light dark:hover:bg-surfaceTertiary-dark text-secondaryText-light dark:text-secondaryText-dark text-xs font-medium transition-colors cursor-pointer"
+                  className="px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-medium transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>
@@ -66,7 +57,7 @@ export default function RecycleBinPage() {
             ) : (
               <button
                 onClick={() => setConfirmEmpty(true)}
-                className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-rd-md bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark hover:bg-rose-500/10 text-secondaryText-light dark:text-zinc-400 hover:text-rose-500 border border-borderSubtle-light dark:border-white/[0.08] text-xs font-medium transition-all cursor-pointer"
+                className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-zinc-900 hover:bg-rose-500/10 border border-zinc-800 hover:border-rose-500/30 text-zinc-400 hover:text-rose-400 text-xs font-medium transition-all cursor-pointer"
               >
                 <Trash2 className="w-3.5 h-3.5" />
                 <span>Empty Bin</span>
@@ -78,107 +69,112 @@ export default function RecycleBinPage() {
 
       {/* Empty State */}
       {recycleBin.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-24 px-6 text-center border border-dashed border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-xl bg-surface-light/40 dark:bg-surface-dark/40">
-          <div className="w-12 h-12 rounded-full bg-surfaceSecondary-light dark:bg-zinc-800/60 flex items-center justify-center text-secondaryText-light dark:text-zinc-500 mb-3">
-            <Trash2 className="w-6 h-6" />
+        <div className="flex flex-col items-center justify-center py-24 px-6 text-center">
+          <div className="w-12 h-12 rounded-full bg-surfaceSecondary-light dark:bg-zinc-900 flex items-center justify-center text-secondaryText-light dark:text-zinc-500 mb-3 border border-borderSubtle-light dark:border-white/[0.06]">
+            <Trash2 className="w-5 h-5" />
           </div>
-          <h3 className="text-sm font-semibold text-primaryText-light dark:text-primaryText-dark">
+          <p className="text-sm font-semibold text-primaryText-light dark:text-primaryText-dark">
             Recycle Bin is empty
-          </h3>
-          <p className="text-xs text-secondaryText-light dark:text-secondaryText-dark max-w-sm mt-1.5 leading-relaxed">
-            When you remove reels from your library, they will appear here. You can restore them or permanently delete them anytime.
+          </p>
+          <p className="text-xs text-secondaryText-light dark:text-secondaryText-dark max-w-xs mt-1.5 leading-relaxed">
+            Reels removed from your library will appear here for safe keeping.
           </p>
           <Link
             href="/reels"
-            className="mt-5 px-4 py-2 rounded-rd-md bg-brand-600 hover:bg-brand-700 text-white text-xs font-semibold transition-colors"
+            className="mt-5 px-3.5 py-1.5 rounded-lg bg-[#5B52E8] hover:bg-[#4E45D9] active:scale-95 text-white text-xs font-medium transition-all"
           >
-            Go to Library
+            Back to Library
           </Link>
         </div>
       ) : (
-        /* Recycle Bin Grid */
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+        /* Instagram-Style 1px Gutter Wall Grid */
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-[1px] bg-borderSubtle-light dark:bg-black/80">
           {recycleBin.map((reel) => {
             const formattedDeletedDate = reel.deletedAt
               ? new Date(reel.deletedAt).toLocaleDateString("en-US", {
                   month: "short",
                   day: "numeric",
-                  hour: "2-digit",
-                  minute: "2-digit",
                 })
               : "Recently";
+
+            const creatorName = reel.creatorUsername
+              ? `@${reel.creatorUsername.replace(/^@/, "")}`
+              : "Creator";
 
             return (
               <div
                 key={reel.id}
-                className="group relative flex flex-col bg-surface-light dark:bg-[#111419] border border-borderSubtle-light dark:border-white/[0.08] rounded-rd-lg overflow-hidden shadow-rd-card transition-all"
+                className="group relative aspect-[9/16] w-full overflow-hidden bg-black select-none"
               >
-                {/* 9:16 Media Preview */}
-                <div className="relative aspect-[9/16] w-full overflow-hidden bg-black">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={reel.thumbnailUrl}
-                    alt={reel.caption || "Deleted reel"}
-                    className="w-full h-full object-cover opacity-75 group-hover:opacity-90 transition-opacity"
-                    referrerPolicy="no-referrer"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                {/* Full-bleed thumbnail */}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={reel.thumbnailUrl}
+                  alt={reel.caption || "Deleted reel"}
+                  referrerPolicy="no-referrer"
+                  loading="lazy"
+                  className="w-full h-full object-cover transition-transform duration-200 ease-out group-hover:scale-[1.015] opacity-80 group-hover:opacity-95"
+                />
 
-                  {/* Top Deleted Badge */}
-                  <div className="absolute top-2 left-2 right-2 flex items-center justify-between z-10">
-                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-[4px] bg-rose-500/80 backdrop-blur-md text-[9px] font-semibold text-white shadow-sm">
-                      <AlertTriangle className="w-2.5 h-2.5" />
-                      <span>Removed</span>
+                {/* Hover overlay gradient */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent opacity-60 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none" />
+
+                {/* ─── Top-Left Badge: Removed ─── */}
+                <div className="absolute top-2 left-2 z-10 pointer-events-none">
+                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-[4px] bg-black/60 backdrop-blur-sm text-[10px] font-semibold text-rose-400">
+                    <Trash2 className="w-2.5 h-2.5" />
+                    <span>Removed</span>
+                  </span>
+                </div>
+
+                {/* ─── Top-Right Actions: Restore & Permanent Delete ─── */}
+                <div className="absolute top-2 right-2 z-20 flex items-center gap-1.5 pointer-events-auto">
+                  {/* Restore Button */}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      restoreReel(reel.id);
+                    }}
+                    className="w-[30px] h-[30px] rounded-full bg-black/60 backdrop-blur-sm hover:bg-emerald-600 text-white/90 hover:text-white flex items-center justify-center transition-all cursor-pointer active:scale-95 shadow-sm"
+                    title="Restore to Library"
+                    aria-label="Restore to Library"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                  </button>
+
+                  {/* Delete Forever Button */}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      permanentlyDeleteReel(reel.id);
+                    }}
+                    className="w-[30px] h-[30px] rounded-full bg-black/60 backdrop-blur-sm hover:bg-rose-600 text-white/90 hover:text-white flex items-center justify-center transition-all cursor-pointer active:scale-95 shadow-sm"
+                    title="Delete Forever"
+                    aria-label="Delete Forever"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+
+                {/* ─── Bottom Metadata & Quick Action Overlay ─── */}
+                <div className="absolute bottom-0 left-0 right-0 z-10 p-2.5 pb-2.5 pointer-events-auto">
+                  <p className="text-[13px] font-semibold text-white leading-tight truncate drop-shadow-sm">
+                    {creatorName}
+                  </p>
+                  <div className="flex items-center justify-between gap-1.5 mt-1">
+                    <span className="text-[11px] text-white/70 truncate">
+                      {reel.category || "General"} · {formattedDeletedDate}
                     </span>
                     <a
                       href={reel.instagramUrl}
                       target="_blank"
                       rel="noreferrer"
-                      className="p-1 rounded-full bg-black/60 backdrop-blur-sm text-white/80 hover:text-white"
+                      onClick={(e) => e.stopPropagation()}
+                      className="text-[11px] text-zinc-400 hover:text-white transition-colors shrink-0 flex items-center gap-0.5"
                       title="Open on Instagram"
                     >
                       <ExternalLink className="w-3 h-3" />
                     </a>
-                  </div>
-
-                  {/* Bottom Info on Thumbnail */}
-                  <div className="absolute bottom-2 left-2 right-2 z-10">
-                    <p className="text-xs font-semibold text-white truncate">
-                      @{reel.creatorUsername || "creator"}
-                    </p>
-                    <p className="text-[10px] text-white/60 truncate mt-0.5">
-                      {reel.category || "General"}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Bottom Actions Bar */}
-                <div className="p-2 bg-surface-light dark:bg-[#141820] border-t border-borderSubtle-light dark:border-white/[0.06] space-y-1.5">
-                  <div className="flex items-center text-[10px] text-secondaryText-light dark:text-zinc-500">
-                    <Calendar className="w-3 h-3 mr-1 shrink-0" />
-                    <span className="truncate">{formattedDeletedDate}</span>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-1.5 pt-0.5">
-                    {/* Restore Button */}
-                    <button
-                      onClick={() => restoreReel(reel.id)}
-                      className="flex items-center justify-center space-x-1 py-1.5 px-2 rounded-[5px] bg-brand-500/10 hover:bg-brand-500/20 text-brand-600 dark:text-brand-400 font-semibold text-[11px] transition-colors cursor-pointer"
-                      title="Restore to library"
-                    >
-                      <RotateCcw className="w-3 h-3" />
-                      <span>Restore</span>
-                    </button>
-
-                    {/* Delete Permanently Button */}
-                    <button
-                      onClick={() => permanentlyDeleteReel(reel.id)}
-                      className="flex items-center justify-center space-x-1 py-1.5 px-2 rounded-[5px] bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 font-semibold text-[11px] transition-colors cursor-pointer"
-                      title="Delete permanently"
-                    >
-                      <Trash2 className="w-3 h-3" />
-                      <span>Delete</span>
-                    </button>
                   </div>
                 </div>
               </div>
