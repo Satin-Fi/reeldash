@@ -22,7 +22,7 @@ export interface UserIgProfile {
 }
 
 export interface ProcessedDMResult {
-  status: "follow_required" | "profile_created" | "reel_saved" | "message_received" | "error";
+  status: "follow_required" | "profile_created" | "reel_saved" | "category_assigned" | "message_received" | "error";
   replyMessage: string;
   buttons?: BotButton[];
   senderIgId: string;
@@ -210,13 +210,69 @@ export async function processInstagramMessage(
       };
     }
 
-    // 5. Message 2: When user successfully followed & verified
-    const greetingReply = `Your ReelDash sync is active. Whenever you see an Instagram Reel, Post, or Audio, send or share it here to save it to your library.`;
+    // 5. If NO media URL but user sent /<category> command (e.g. follow-up /Saree, /yoga, /fitness)
+    if (!mediaUrl && parsedCmd.categories.length > 0) {
+      const primaryCategory = parsedCmd.primaryCategory!;
+      const allCategories = parsedCmd.categories;
+      const note = parsedCmd.note;
+
+      // Update user's most recent saved reel with this category
+      const updateResult = await updateRecentReelCategoryForUser(
+        userProfile.id,
+        allCategories,
+        note
+      );
+
+      const creatorText = updateResult.reel?.creator_handle && !updateResult.reel.creator_handle.startsWith("ig_user_") && updateResult.reel.creator_handle !== "creator"
+        ? `@${updateResult.reel.creator_handle}'s Reel`
+        : updateResult.reel ? "Reel" : null;
+
+      let categoryLines = "";
+      const catLabel = allCategories.length > 1 ? "Categories" : "Category";
+      categoryLines = `📁 ${catLabel}: ${allCategories.join(", ")}`;
+      if (updateResult.newCategories.length > 0) {
+        if (allCategories.length === 1) {
+          categoryLines += `\n✨ New category created`;
+        } else {
+          categoryLines += `\n✨ New category created: ${updateResult.newCategories.join(", ")}`;
+        }
+      }
+
+      let confirmationReply = "";
+      if (creatorText) {
+        confirmationReply = `⚡ Saved to your ReelDash Library.\n\n🎬 ${creatorText}\n${categoryLines}`;
+      } else {
+        confirmationReply = `📁 ${catLabel}: ${allCategories.join(", ")}${updateResult.newCategories.length > 0 ? "\n✨ New category created" : ""}\n\nWhenever you send a Reel, you can type /${primaryCategory.toLowerCase()} to save it here.`;
+      }
+
+      const buttons: BotButton[] = [
+        {
+          type: "web_url",
+          title: "Open in ReelDash",
+          url: "https://reeldash-nine.vercel.app/dashboard",
+        },
+      ];
+
+      await sendDMReply(senderIgId, confirmationReply, buttons);
+
+      return {
+        status: "category_assigned",
+        replyMessage: confirmationReply,
+        buttons,
+        senderIgId,
+        username: userProfile.username,
+        isFollowing: true,
+        savedReel: updateResult.reel,
+      };
+    }
+
+    // 6. Generic Text Message (e.g. greeting or general query)
+    const greetingReply = `Your ReelDash sync is active. Whenever you see an Instagram Reel, Post, or Audio, send or share it here to save it to your library.\n\n💡 Tip: Type /<category> (e.g. /yoga, /saree, /recipes) to categorize your saves instantly!`;
 
     const buttons: BotButton[] = [
       {
         type: "web_url",
-        title: "Open Library",
+        title: "Open in ReelDash",
         url: "https://reeldash-nine.vercel.app/dashboard",
       },
     ];
@@ -283,7 +339,7 @@ async function checkLiveFollowerStatus(senderIgId: string): Promise<boolean> {
  */
 async function fetchInstagramUserProfile(
   senderIgId: string,
-  customUsername?: string
+  customUsername?: string | { username?: string; fullName?: string; avatar?: string }
 ): Promise<{
   username: string;
   fullName: string;
@@ -291,9 +347,13 @@ async function fetchInstagramUserProfile(
   isFollowing: boolean;
 }> {
   let isFollowing = false;
-  let username = customUsername ? customUsername.replace(/^@/, "") : `ig_user_${senderIgId.slice(-4)}`;
-  let fullName = "Instagram User";
-  let avatar = `/api/proxy-image?username=${encodeURIComponent(username)}`;
+  let username = typeof customUsername === "string"
+    ? customUsername.replace(/^@/, "")
+    : typeof customUsername === "object" && customUsername?.username
+    ? customUsername.username.replace(/^@/, "")
+    : `ig_user_${senderIgId.slice(-4)}`;
+  let fullName = typeof customUsername === "object" && customUsername?.fullName ? customUsername.fullName : "Instagram User";
+  let avatar = typeof customUsername === "object" && customUsername?.avatar ? customUsername.avatar : `/api/proxy-image?username=${encodeURIComponent(username)}`;
 
   if (IG_PAGE_ACCESS_TOKEN) {
     // 1. Try graph.facebook.com
@@ -540,7 +600,138 @@ async function saveReelForUser(
     console.warn("[Instagram Bot] Supabase persistence notice:", dbErr);
   }
 
+  userLastSavedReelStore.set(userId, savedItem);
   return { savedItem, newCategories, assignedCategories };
+}
+
+export const userLastSavedReelStore = new Map<string, any>();
+
+/**
+ * Update the user's most recent saved reel with category commands
+ */
+async function updateRecentReelCategoryForUser(
+  userId: string,
+  categories: string[],
+  note?: string | null
+): Promise<{ reel: any | null; newCategories: string[] }> {
+  const userReels = igSavedReelsStore.get(userId) || [];
+  let recentReel = userLastSavedReelStore.get(userId) || (userReels.length > 0 ? userReels[0] : null);
+
+  const primaryCategory = categories[0];
+
+  // In-Memory User Category Tracking (Scoped to User)
+  let existingUserCats = igUserCategoriesStore.get(userId);
+  if (!existingUserCats) {
+    existingUserCats = new Set<string>();
+    for (const r of userReels) {
+      if (r.category && r.category !== "General" && r.category !== "Music") {
+        existingUserCats.add(r.category);
+      }
+    }
+    igUserCategoriesStore.set(userId, existingUserCats);
+  }
+
+  const newCategories: string[] = [];
+  for (const cat of categories) {
+    const catLower = cat.toLowerCase();
+    let alreadyExists = false;
+    for (const existing of existingUserCats) {
+      if (existing.toLowerCase() === catLower) {
+        alreadyExists = true;
+        break;
+      }
+    }
+    if (!alreadyExists) {
+      existingUserCats.add(cat);
+      newCategories.push(cat);
+    }
+  }
+
+  if (recentReel) {
+    const currentTags = Array.isArray(recentReel.tags) ? [...recentReel.tags] : [];
+    for (const cat of categories) {
+      if (!currentTags.includes(cat.toLowerCase())) {
+        currentTags.push(cat.toLowerCase());
+      }
+    }
+
+    recentReel.category = primaryCategory;
+    recentReel.tags = currentTags;
+    if (note) recentReel.note = note;
+
+    userLastSavedReelStore.set(userId, recentReel);
+
+    // Update in igSavedReelsStore
+    const idx = userReels.findIndex((r) => r.id === recentReel.id || r.shortcode === recentReel.shortcode);
+    if (idx >= 0) {
+      userReels[idx] = recentReel;
+      igSavedReelsStore.set(userId, userReels);
+    }
+
+    // Persist category update to Supabase
+    try {
+      const supabase = getSupabaseAdmin();
+      if (supabase) {
+        if (recentReel.shortcode) {
+          await supabase
+            .from("reels")
+            .update({
+              category: primaryCategory,
+              tags: currentTags,
+              note: recentReel.note || null,
+            })
+            .eq("user_id", userId)
+            .eq("shortcode", recentReel.shortcode);
+        }
+      }
+    } catch (err) {
+      console.warn("[Instagram Bot] Supabase update recent reel notice:", err);
+    }
+  } else {
+    // If no recent reel in memory, query Supabase for latest reel of this user
+    try {
+      const supabase = getSupabaseAdmin();
+      if (supabase) {
+        const { data: latestDbReel } = await supabase
+          .from("reels")
+          .select("*")
+          .eq("user_id", userId)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (latestDbReel) {
+          const currentTags = Array.isArray(latestDbReel.tags) ? [...latestDbReel.tags] : [];
+          for (const cat of categories) {
+            if (!currentTags.includes(cat.toLowerCase())) {
+              currentTags.push(cat.toLowerCase());
+            }
+          }
+
+          await supabase
+            .from("reels")
+            .update({
+              category: primaryCategory,
+              tags: currentTags,
+              note: note || latestDbReel.note || null,
+            })
+            .eq("id", latestDbReel.id);
+
+          recentReel = {
+            ...latestDbReel,
+            category: primaryCategory,
+            tags: currentTags,
+            note: note || latestDbReel.note,
+          };
+          userLastSavedReelStore.set(userId, recentReel);
+        }
+      }
+    } catch (err) {
+      console.warn("[Instagram Bot] Supabase lookup latest reel notice:", err);
+    }
+  }
+
+  return { reel: recentReel, newCategories };
 }
 
 /**
