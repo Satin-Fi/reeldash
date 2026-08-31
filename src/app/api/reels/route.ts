@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
+import { getSupabaseAdmin } from "@/lib/supabase";
 import { parseCategoryCommand, formatCategoryDisplayName } from "@/lib/parseCategory";
 
 export const dynamic = "force-dynamic";

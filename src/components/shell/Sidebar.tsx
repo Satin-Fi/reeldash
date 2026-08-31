@@ -298,59 +298,24 @@ export function Sidebar() {
           })}
         </nav>
 
-        {/* Collections Section */}
+        {/* ─── Categories Section (Top 5 + View all) ──────────── */}
         <div className="space-y-2 pt-2 border-t border-borderSubtle-light dark:border-borderSubtle-dark">
           <div className="flex items-center justify-between px-2 text-xs font-medium text-secondaryText-light dark:text-secondaryText-dark">
-            <span>Collections</span>
-            <button
-              onClick={() => setIsCreateCollectionModalOpen(true)}
+            <span className="font-semibold text-primaryText-light dark:text-primaryText-dark">Categories</span>
+            <Link
+              href="/categories"
               className="p-1 text-secondaryText-light dark:text-secondaryText-dark hover:text-brand-500 dark:hover:text-brand-400 hover:bg-surfaceSecondary-light dark:hover:bg-surfaceSecondary-dark rounded-rd-sm transition-colors cursor-pointer"
-              title="Create Collection"
+              title="Create or Manage Categories"
             >
               <Plus className="w-3.5 h-3.5" />
-            </button>
+            </Link>
           </div>
 
           <div className="space-y-0.5">
-            {collections.length > 0 ? (
-              <>
-                {collections.map((col) => (
-                  <Link
-                    key={col.id}
-                    href="/collections"
-                    className="flex items-center justify-between px-3 py-1.5 rounded-rd-md text-xs text-secondaryText-light dark:text-secondaryText-dark hover:bg-surfaceSecondary-light dark:hover:bg-surfaceSecondary-dark hover:text-primaryText-light dark:hover:text-primaryText-dark transition-colors"
-                  >
-                    <span className="truncate flex items-center space-x-2 min-w-0">
-                      <Folder className="w-3.5 h-3.5 text-secondaryText-light dark:text-secondaryText-dark shrink-0" strokeWidth={1.75} />
-                      <span className="truncate">{col.name}</span>
-                    </span>
-                    <span className="text-[10px] font-mono text-mutedText-light dark:text-mutedText-dark shrink-0">
-                      {col.reelCount || 0}
-                    </span>
-                  </Link>
-                ))}
-              </>
-            ) : (
-              <button
-                onClick={() => setIsCreateCollectionModalOpen(true)}
-                className="w-full flex items-center space-x-2 px-3 py-2 rounded-rd-md text-xs text-mutedText-light dark:text-mutedText-dark hover:text-brand-500 dark:hover:text-brand-400 hover:bg-surfaceSecondary-light dark:hover:bg-surfaceSecondary-dark border border-dashed border-borderSubtle-light dark:border-borderSubtle-dark transition-all cursor-pointer text-left"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>New Collection</span>
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Smart Categories */}
-        {smartCategories.length > 0 && (
-          <div className="space-y-2 pt-2 border-t border-borderSubtle-light dark:border-borderSubtle-dark">
-            <div className="px-2 text-xs font-medium text-secondaryText-light dark:text-secondaryText-dark">
-              <span>Categories</span>
-            </div>
-
-            <div className="space-y-0.5">
-              {smartCategories.map((cat) => {
+            {smartCategories
+              .filter((cat) => !cat.name.startsWith("#"))
+              .slice(0, 5)
+              .map((cat) => {
                 const isSelected = isReelsPath && activeCategory === cat.name;
                 return (
                   <Link
@@ -362,20 +327,31 @@ export function Sidebar() {
                     }}
                     className={`w-full flex items-center justify-between px-3 py-1.5 rounded-rd-md text-xs text-left transition-colors cursor-pointer ${
                       isSelected
-                        ? "bg-brand-500/10 text-brand-600 dark:text-brand-400 font-semibold"
+                        ? "bg-brand-500/10 text-brand-600 dark:text-brand-400 font-semibold nav-active-indicator"
                         : "text-secondaryText-light dark:text-secondaryText-dark hover:bg-surfaceSecondary-light dark:hover:bg-surfaceSecondary-dark hover:text-primaryText-light dark:hover:text-primaryText-dark"
                     }`}
                   >
-                    <span className="truncate">{cat.name}</span>
+                    <span className="truncate flex items-center space-x-1.5 min-w-0">
+                      <span className="text-xs">{cat.icon || "📁"}</span>
+                      <span className="truncate">{cat.name}</span>
+                    </span>
                     <span className="text-[10px] font-mono text-mutedText-light dark:text-mutedText-dark shrink-0">
                       {cat.count}
                     </span>
                   </Link>
                 );
               })}
-            </div>
+
+            {/* View all categories link */}
+            <Link
+              href="/categories"
+              className="w-full flex items-center justify-between px-3 py-1.5 rounded-rd-md text-[11px] font-medium text-brand-600 dark:text-brand-400 hover:bg-brand-500/10 transition-colors pt-1"
+            >
+              <span>View all categories</span>
+              <span className="text-xs">→</span>
+            </Link>
           </div>
-        )}
+        </div>
       </div>
 
       {/* Bottom Area: Settings & User Tile */}

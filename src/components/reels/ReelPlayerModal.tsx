@@ -292,17 +292,54 @@ export function ReelPlayerModal({ reel, isOpen, onClose }: ReelPlayerModalProps)
                   </div>
                 ) : null}
 
-                {/* Hashtags list */}
-                {reel.hashtags && reel.hashtags.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5 pt-1">
-                    {reel.hashtags.map((tag, i) => (
+                {/* 1. Assigned Categories */}
+                <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                  <span className="text-[11px] font-semibold text-zinc-400 mr-0.5">Categories:</span>
+                  {(reel.categories && reel.categories.length > 0 ? reel.categories : [reel.category || "General"]).map((catName, idx) => (
+                    <Link
+                      key={idx}
+                      href={`/reels?category=${encodeURIComponent(catName)}`}
+                      onClick={onClose}
+                      className="inline-flex items-center space-x-1 text-[11px] px-2.5 py-0.5 rounded-full bg-brand-500/10 border border-brand-500/25 text-brand-400 font-medium hover:bg-brand-500/20 transition-colors"
+                    >
+                      <span>📁</span>
+                      <span>{catName}</span>
+                    </Link>
+                  ))}
+                </div>
+
+                {/* 2. AI Topics */}
+                {reel.aiTopics && reel.aiTopics.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                    <span className="text-[11px] font-semibold text-zinc-400 mr-0.5">AI Topics:</span>
+                    {reel.aiTopics.map((topic, i) => (
                       <span
                         key={i}
-                        className="text-[11px] px-2 py-0.5 rounded-full bg-zinc-900 border border-zinc-800 text-brand-400 font-medium"
+                        className="text-[11px] px-2 py-0.5 rounded-md bg-purple-500/10 border border-purple-500/20 text-purple-300 font-medium"
                       >
-                        #{tag}
+                        {topic}
                       </span>
                     ))}
+                  </div>
+                )}
+
+                {/* 3. Instagram Hashtags */}
+                {reel.hashtags && reel.hashtags.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                    <span className="text-[11px] font-semibold text-zinc-400 mr-0.5">Hashtags:</span>
+                    {reel.hashtags.map((tag, i) => {
+                      const cleanTag = tag.startsWith("#") ? tag.slice(1) : tag;
+                      return (
+                        <Link
+                          key={i}
+                          href={`/search?q=${encodeURIComponent(`#${cleanTag}`)}`}
+                          onClick={onClose}
+                          className="text-[11px] px-2 py-0.5 rounded-full bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700 font-mono transition-colors"
+                        >
+                          #{cleanTag}
+                        </Link>
+                      );
+                    })}
                   </div>
                 )}
               </div>

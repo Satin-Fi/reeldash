@@ -6,6 +6,7 @@ import {
   Search,
   PlusCircle,
   Heart,
+  Folder,
   FolderPlus,
   LayoutDashboard,
   Settings,
@@ -119,21 +120,21 @@ export function CommandPalette() {
       },
     },
     {
+      id: "categories",
+      label: "Library Categories",
+      icon: Folder,
+      action: () => {
+        setIsCommandPaletteOpen(false);
+        router.push("/categories");
+      },
+    },
+    {
       id: "favorites",
       label: "Open Favorites",
       icon: Heart,
       action: () => {
         setIsCommandPaletteOpen(false);
         router.push("/favorites");
-      },
-    },
-    {
-      id: "create-collection",
-      label: "Create Collection",
-      icon: FolderPlus,
-      action: () => {
-        setIsCommandPaletteOpen(false);
-        setIsCreateCollectionModalOpen(true);
       },
     },
     {

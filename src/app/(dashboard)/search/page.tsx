@@ -89,18 +89,25 @@ function SearchContent() {
   // Filter Reels based on query and selected facets
   const libraryResults = reels.filter((r) => {
     if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase().replace(/^@/, "");
-      const matchCaption = r.caption.toLowerCase().includes(q);
-      const matchCreator = r.creatorUsername.toLowerCase().includes(q);
-      const matchCategory = r.category.toLowerCase().includes(q);
-      const matchNotes = r.notes?.toLowerCase().includes(q);
+      const rawQ = searchQuery.toLowerCase().trim();
+      const q = rawQ.replace(/^[@#]/, "");
+      
+      const matchCaption = r.caption.toLowerCase().includes(rawQ) || r.caption.toLowerCase().includes(q);
+      const matchCreator = r.creatorUsername.toLowerCase().includes(q) || r.creatorFullName?.toLowerCase().includes(q);
+      const matchCategory = (r.categories || [r.category || ""]).some((c) => c.toLowerCase().includes(q));
+      const matchHashtags = (r.hashtags || r.tags || []).some((h) => h.toLowerCase().includes(q) || h.toLowerCase().includes(rawQ));
+      const matchAiTopics = (r.aiTopics || []).some((t) => t.toLowerCase().includes(q));
       const matchKeywords = r.aiKeywords?.some((k) => k.toLowerCase().includes(q));
+      const matchNotes = r.notes?.toLowerCase().includes(q);
 
-      if (!matchCaption && !matchCreator && !matchCategory && !matchNotes && !matchKeywords) {
+      if (!matchCaption && !matchCreator && !matchCategory && !matchHashtags && !matchAiTopics && !matchNotes && !matchKeywords) {
         return false;
       }
     }
-    if (selectedCategory && r.category !== selectedCategory) return false;
+    if (selectedCategory) {
+      const cats = r.categories || [r.category];
+      if (!cats.some((c) => c.toLowerCase() === selectedCategory.toLowerCase())) return false;
+    }
     if (selectedCollection && !r.collections.includes(selectedCollection)) return false;
     if (onlyFavorites && !r.isFavorite) return false;
 

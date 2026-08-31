@@ -42,7 +42,8 @@ function ReelsContent() {
     // Category match (Case-insensitive)
     if (activeCategory) {
       const catLower = activeCategory.trim().toLowerCase();
-      const matchCat = reel.category && reel.category.trim().toLowerCase() === catLower;
+      const allAssigned = reel.categories && reel.categories.length > 0 ? reel.categories : [reel.category || ""];
+      const matchCat = allAssigned.some((c) => c.toLowerCase() === catLower);
       const matchTags = (Array.isArray(reel.tags) && reel.tags.some((t) => t.toLowerCase() === catLower)) || (Array.isArray(reel.hashtags) && reel.hashtags.some((h) => h.toLowerCase() === catLower));
       const matchKeywords = Array.isArray(reel.aiKeywords) && reel.aiKeywords.some((k) => k.toLowerCase() === catLower);
       const matchSub = Array.isArray(reel.subcategories) && reel.subcategories.some((s) => s.toLowerCase() === catLower);

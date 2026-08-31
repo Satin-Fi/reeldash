@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect } from "react";
-import { Reel, Collection, SmartCategory, SortOption, ViewMode, MediaType, MediaTypeFilter } from "@/types/reel";
+import { Reel, Collection, Category, SmartCategory, SortOption, ViewMode, MediaType, MediaTypeFilter } from "@/types/reel";
 import { useAuth } from "@/context/AuthContext";
 import { parseCategoryCommand } from "@/lib/parseCategory";
 
@@ -19,6 +19,7 @@ interface ReelContextType {
   reels: Reel[];
   collections: Collection[];
   favorites: Reel[];
+  userCategories: Category[];
   smartCategories: SmartCategory[];
   activeCategory: string | null;
   activeCollection: string | null;
@@ -32,6 +33,7 @@ interface ReelContextType {
   isSaveModalOpen: boolean;
   isCommandPaletteOpen: boolean;
   isCreateCollectionModalOpen: boolean;
+  isCreateCategoryModalOpen: boolean;
   lastDeletedReel: Reel | null;
   recycleBin: Reel[];
   
@@ -47,6 +49,10 @@ interface ReelContextType {
   setIsSaveModalOpen: (open: boolean) => void;
   setIsCommandPaletteOpen: (open: boolean) => void;
   setIsCreateCollectionModalOpen: (open: boolean) => void;
+  setIsCreateCategoryModalOpen: (open: boolean) => void;
+  createUserCategory: (name: string, icon?: string, description?: string) => Promise<Category | null>;
+  updateUserCategory: (id: string, data: Partial<Category>) => Promise<void>;
+  deleteUserCategory: (id: string) => Promise<void>;
 
   saveReel: (
     url: string,
@@ -92,6 +98,7 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
 
   const [reels, setReels] = useState<Reel[]>([]);
   const [collections, setCollections] = useState<Collection[]>([]);
+  const [userCategories, setUserCategories] = useState<Category[]>([]);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [activeCollection, setActiveCollection] = useState<string | null>(null);
   const [activeMediaType, setActiveMediaType] = useState<MediaTypeFilter>("all");
@@ -104,6 +111,7 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
   const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [isCreateCollectionModalOpen, setIsCreateCollectionModalOpen] = useState(false);
+  const [isCreateCategoryModalOpen, setIsCreateCategoryModalOpen] = useState(false);
   const [lastDeletedReel, setLastDeletedReel] = useState<Reel | null>(null);
   const [recycleBin, setRecycleBin] = useState<Reel[]>([]);
 
@@ -142,10 +150,12 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
       const userReelsKey = `reeldash_reels_${user.id}`;
       const userColsKey = `reeldash_cols_${user.id}`;
       const userTrashKey = `reeldash_trash_${user.id}`;
+      const userCatsKey = `reeldash_categories_${user.id}`;
 
       const savedReels = localStorage.getItem(userReelsKey);
       const savedCols = localStorage.getItem(userColsKey);
       const savedTrash = localStorage.getItem(userTrashKey);
+      const savedCats = localStorage.getItem(userCatsKey);
 
       let parsedReels: Reel[] = [];
       if (savedReels) {
@@ -166,6 +176,17 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
           parsedCols = [];
         }
       }
+
+      let parsedCats: Category[] = [];
+      if (savedCats) {
+        try {
+          parsedCats = JSON.parse(savedCats);
+          if (!Array.isArray(parsedCats)) parsedCats = [];
+        } catch {
+          parsedCats = [];
+        }
+      }
+      setUserCategories(parsedCats);
 
       let parsedTrash: Reel[] = [];
       if (savedTrash) {
@@ -204,7 +225,20 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
       setReels(cleanReels);
       setCollections(parsedCols);
 
-      // Fetch live reels from Supabase database (including DM-saved reels & handle filter)
+      // 1. Fetch live user categories from Supabase
+      fetch(`/api/categories?userId=${encodeURIComponent(user.id)}`)
+        .then((res) => (res.ok ? res.json() : { categories: [] }))
+        .then((data) => {
+          if (data.categories && Array.isArray(data.categories)) {
+            setUserCategories(data.categories);
+            if (user?.id) {
+              localStorage.setItem(userCatsKey, JSON.stringify(data.categories));
+            }
+          }
+        })
+        .catch((err) => console.warn("[ReelContext] fetch categories notice:", err));
+
+      // 2. Fetch live reels from Supabase database (including DM-saved reels & handle filter)
       const accountParam = selectedInstagramAccount && selectedInstagramAccount !== "all" 
         ? `&account=${encodeURIComponent(selectedInstagramAccount)}` 
         : "";
@@ -229,7 +263,11 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
                   creatorFullName: dbR.creator_name || "Instagram Creator",
                   creatorAvatar: dbR.creator_avatar || `/api/proxy-image?username=${encodeURIComponent(dbR.creator_handle || "creator")}`,
                   category: dbR.category || "General",
+                  categories: Array.isArray(dbR.categories) && dbR.categories.length > 0 ? dbR.categories : [dbR.category || "General"],
+                  categoryIds: Array.isArray(dbR.categoryIds) ? dbR.categoryIds : [],
+                  hashtags: Array.isArray(dbR.hashtags) ? dbR.hashtags : Array.isArray(dbR.tags) ? dbR.tags : [],
                   tags: Array.isArray(dbR.tags) ? dbR.tags : [],
+                  aiTopics: Array.isArray(dbR.aiTopics) ? dbR.aiTopics : Array.isArray(dbR.ai_topics) ? dbR.ai_topics : [],
                   notes: dbR.note || "",
                   isFavorite: !!dbR.is_favorite,
                   mediaType: dbR.media_type || "reel",
@@ -248,6 +286,7 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
     } else {
       setReels([]);
       setCollections([]);
+      setUserCategories([]);
       setRecycleBin([]);
     }
   }, [user?.id, user?.instagramUsername, selectedInstagramAccount]);
@@ -273,6 +312,71 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const saveUserCategories = (updatedCats: Category[]) => {
+    setUserCategories(updatedCats);
+    if (user?.id) {
+      localStorage.setItem(`reeldash_categories_${user.id}`, JSON.stringify(updatedCats));
+    }
+  };
+
+  const createUserCategory = async (name: string, icon?: string, description?: string): Promise<Category | null> => {
+    if (!name || !name.trim()) return null;
+    try {
+      const res = await fetch("/api/categories", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: user?.id || "user-default",
+          name: name.trim(),
+          icon: icon || "📁",
+          description: description || "",
+          source: "user",
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.category) {
+          const updated = [...userCategories.filter((c) => c.normalizedName !== data.category.normalizedName), data.category];
+          saveUserCategories(updated);
+          showToast(`Created category "${data.category.name}"`);
+          return data.category;
+        }
+      }
+    } catch (e) {
+      console.warn("Failed to create category:", e);
+    }
+    return null;
+  };
+
+  const updateUserCategory = async (id: string, updates: Partial<Category>): Promise<void> => {
+    try {
+      const res = await fetch("/api/categories", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, ...updates }),
+      });
+      if (res.ok) {
+        const updated = userCategories.map((c) => (c.id === id ? { ...c, ...updates } : c));
+        saveUserCategories(updated);
+        showToast("Category updated");
+      }
+    } catch (e) {
+      console.warn("Failed to update category:", e);
+    }
+  };
+
+  const deleteUserCategory = async (id: string): Promise<void> => {
+    const target = userCategories.find((c) => c.id === id);
+    try {
+      await fetch(`/api/categories?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+      const updated = userCategories.filter((c) => c.id !== id);
+      saveUserCategories(updated);
+      showToast(`Deleted category "${target?.name || ''}"`);
+    } catch (e) {
+      console.warn("Failed to delete category:", e);
+    }
+  };
+
   const showToast = (title: string, subtitle?: string, action?: { label: string; onClick: () => void }) => {
     const id = "toast-" + Math.random().toString(36).substring(2, 9);
     setToasts((prev) => [...prev, { id, title, subtitle, action }]);
@@ -285,38 +389,51 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   };
 
-  const categoryCounts: Record<string, number> = {};
+  // ─── SMART CATEGORIES CALCULATION (Strict separation from Hashtags) ──
+  const categoryCounts: Record<string, { count: number; id?: string; source?: any; icon?: string; slug?: string }> = {};
+
+  // 1. Seed with defined user categories
+  userCategories.forEach((uc) => {
+    if (uc.name && !uc.name.startsWith("#")) {
+      categoryCounts[uc.name] = {
+        count: 0,
+        id: uc.id,
+        source: uc.source,
+        icon: uc.icon || "📁",
+        slug: uc.slug,
+      };
+    }
+  });
+
+  // 2. Count matching active reels
   reels.forEach((r) => {
     const cats = new Set<string>();
-    if (r.category && r.category.trim()) {
+    if (Array.isArray(r.categories)) {
+      r.categories.forEach((c) => {
+        if (c && !c.startsWith("#")) cats.add(c.trim());
+      });
+    }
+    if (r.category && !r.category.startsWith("#")) {
       cats.add(r.category.trim());
     }
-    if (Array.isArray(r.tags)) {
-      r.tags.forEach((t) => {
-        if (t && t.trim()) {
-          const formatted = t.trim().charAt(0).toUpperCase() + t.trim().slice(1);
-          cats.add(formatted);
-        }
-      });
-    }
-    if (Array.isArray(r.subcategories)) {
-      r.subcategories.forEach((s) => {
-        if (s && s.trim()) {
-          const formatted = s.trim().charAt(0).toUpperCase() + s.trim().slice(1);
-          cats.add(formatted);
-        }
-      });
-    }
     cats.forEach((c) => {
-      categoryCounts[c] = (categoryCounts[c] || 0) + 1;
+      if (!categoryCounts[c]) {
+        categoryCounts[c] = { count: 0, icon: "📁" };
+      }
+      categoryCounts[c].count += 1;
     });
   });
 
   const smartCategories: SmartCategory[] = Object.keys(categoryCounts)
-    .sort((a, b) => categoryCounts[b] - categoryCounts[a])
+    .filter((cat) => !cat.startsWith("#"))
+    .sort((a, b) => categoryCounts[b].count - categoryCounts[a].count)
     .map((cat) => ({
       name: cat,
-      count: categoryCounts[cat],
+      count: categoryCounts[cat].count,
+      id: categoryCounts[cat].id,
+      source: categoryCounts[cat].source,
+      icon: categoryCounts[cat].icon,
+      slug: categoryCounts[cat].slug,
     }));
 
   const favorites = reels.filter((r) => r.isFavorite);
@@ -755,6 +872,7 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
         reels,
         collections,
         favorites,
+        userCategories,
         smartCategories,
         activeCategory,
         activeCollection,
@@ -768,6 +886,7 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
         isSaveModalOpen,
         isCommandPaletteOpen,
         isCreateCollectionModalOpen,
+        isCreateCategoryModalOpen,
         lastDeletedReel,
         recycleBin,
         setActiveCategory,
@@ -781,6 +900,10 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
         setIsSaveModalOpen,
         setIsCommandPaletteOpen,
         setIsCreateCollectionModalOpen,
+        setIsCreateCategoryModalOpen,
+        createUserCategory,
+        updateUserCategory,
+        deleteUserCategory,
         saveReel,
         toggleFavorite,
         deleteReel,

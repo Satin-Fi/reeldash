@@ -1,6 +1,6 @@
 import { getSupabaseAdmin } from "./supabase";
-import { parseCategoryCommand } from "./parseCategory";
-export { parseCategoryCommand };
+import { parseCategoryCommand, formatCategoryDisplayName } from "./parseCategory";
+export { parseCategoryCommand, formatCategoryDisplayName };
 
 export interface BotButton {
   type: "postback" | "web_url";

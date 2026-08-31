@@ -36,6 +36,7 @@ export function TopBar() {
   const {
     reels,
     favorites,
+    smartCategories,
     recycleBin,
     setIsCommandPaletteOpen,
     theme,
@@ -122,6 +123,9 @@ export function TopBar() {
         return { title: "Stories", icon: CircleDashed, count };
       }
       return { title: "All Library", icon: LayoutGrid, count: reels.length };
+    }
+    if (pathname.startsWith("/categories")) {
+      return { title: "Categories", icon: Folder, count: smartCategories.filter((c) => !c.name.startsWith("#")).length };
     }
     if (pathname.startsWith("/collections")) {
       return { title: "Collections", icon: Folder };
