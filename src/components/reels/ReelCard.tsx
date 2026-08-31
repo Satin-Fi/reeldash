@@ -176,19 +176,12 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
           </div>
         )}
 
-        {/* ─── Default state: audio indicator ─── */}
+        {/* ─── Default state: audio indicator (top-left) ─── */}
         {mediaType === "audio" && (
           <div className="absolute top-2 left-2 z-10 pointer-events-none">
             <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-[4px] bg-black/50 backdrop-blur-sm text-[10px] font-semibold text-white/90">
               <Music2 className="w-3 h-3" />
             </span>
-          </div>
-        )}
-
-        {/* ─── Default state: favorited heart (top-right, only if favorited) ─── */}
-        {reel.isFavorite && (
-          <div className="absolute top-2 right-2 z-10 group-hover:opacity-0 transition-opacity duration-150 pointer-events-none">
-            <Heart className="w-3.5 h-3.5 fill-rose-500 text-rose-500 drop-shadow-sm" />
           </div>
         )}
 
@@ -207,61 +200,56 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
           </div>
         </div>
 
-        {/* ─── Hover state: top-right controls (fav + menu) — desktop only ─── */}
-        <div className="absolute top-1.5 right-1.5 z-20 hidden sm:flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-auto">
+        {/* ─── TOP-RIGHT CONTROL: Three-dot overflow menu (30-32px) ─── */}
+        <div className="absolute top-2 right-2 z-20 pointer-events-auto">
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setIsMenuOpen(!isMenuOpen);
+            }}
+            className="w-[30px] h-[30px] rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center text-white/90 hover:text-white hover:bg-black/70 transition-all cursor-pointer opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
+            title="Options"
+            aria-label="Reel options"
+          >
+            <MoreVertical className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
+        {/* ─── BOTTOM-RIGHT CONTROL: Favorite heart button (30-32px) ─── */}
+        <div className="absolute bottom-2 right-2 z-20 pointer-events-auto">
           <motion.button
             whileTap={{ scale: 1.3 }}
             onClick={handleFavoriteClick}
-            className="w-7 h-7 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center text-white/90 hover:text-rose-400 transition-colors cursor-pointer"
+            className={`w-[30px] h-[30px] rounded-full backdrop-blur-sm flex items-center justify-center transition-all cursor-pointer ${
+              reel.isFavorite
+                ? "bg-black/60 text-rose-500 opacity-100"
+                : "bg-black/50 text-white/80 hover:text-rose-400 hover:bg-black/70 opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
+            }`}
             title={reel.isFavorite ? "Remove from Favorites" : "Add to Favorites"}
+            aria-label={reel.isFavorite ? "Remove from Favorites" : "Add to Favorites"}
           >
             <Heart
-              className={`w-3.5 h-3.5 transition-all duration-150 ${
+              className={`w-3.5 h-3.5 transition-transform duration-150 ${
                 reel.isFavorite ? "fill-rose-500 text-rose-500" : ""
               }`}
             />
           </motion.button>
-          <button
-            onClick={(e) => { e.preventDefault(); e.stopPropagation(); setIsMenuOpen(!isMenuOpen); }}
-            className="w-7 h-7 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center text-white/90 hover:text-white transition-colors cursor-pointer"
-            title="Options"
-          >
-            <MoreVertical className="w-3.5 h-3.5" />
-          </button>
         </div>
 
-        {/* ─── Mobile: always-visible controls (top-right) ─── */}
-        <div className="absolute top-1.5 right-1.5 z-20 flex flex-col gap-1 sm:hidden pointer-events-auto">
-          <motion.button
-            whileTap={{ scale: 1.3 }}
-            onClick={handleFavoriteClick}
-            className="w-7 h-7 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center text-white/80 cursor-pointer"
-          >
-            <Heart
-              className={`w-3.5 h-3.5 ${reel.isFavorite ? "fill-rose-500 text-rose-500" : ""}`}
-            />
-          </motion.button>
-          <button
-            onClick={(e) => { e.preventDefault(); e.stopPropagation(); setIsMenuOpen(!isMenuOpen); }}
-            className="w-7 h-7 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center text-white/80 cursor-pointer"
-          >
-            <MoreVertical className="w-3.5 h-3.5" />
-          </button>
-        </div>
-
-        {/* ─── Hover state: bottom metadata ─── */}
-        <div className="absolute bottom-0 left-0 right-0 z-10 p-2.5 pb-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none">
+        {/* ─── Hover state: bottom-left metadata (padded right so it never overlaps the heart) ─── */}
+        <div className="absolute bottom-0 left-0 right-10 z-10 p-2.5 pb-2.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none">
           <p className="text-[13px] font-semibold text-white leading-tight truncate drop-shadow-sm">
             {creatorName}
           </p>
           <div className="flex items-center gap-1.5 mt-1">
             {displayCategories.length > 0 && (
               <span className="text-[11px] text-white/70 truncate">
-                {displayCategories.slice(0, 2).join(" \u00b7 ")}
+                {displayCategories.slice(0, 2).join(" · ")}
               </span>
             )}
             {displayCategories.length > 0 && formattedDate && (
-              <span className="text-[11px] text-white/40">\u00b7</span>
+              <span className="text-[11px] text-white/40">·</span>
             )}
             {formattedDate && (
               <span className="text-[11px] text-white/50 shrink-0">{formattedDate}</span>

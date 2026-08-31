@@ -215,7 +215,7 @@ function CreatorReelTile({ item, creatorUsername }: { item: CreatorReelItem; cre
 export function CreatorReelGrid({ items, creatorUsername }: { items: CreatorReelItem[]; creatorUsername?: string }) {
   if (!items || items.length === 0) return null;
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-0">
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-[1px] bg-borderSubtle-light dark:bg-black/80">
       {items.map((it) => (
         <CreatorReelTile key={it.id} item={it} creatorUsername={creatorUsername} />
       ))}

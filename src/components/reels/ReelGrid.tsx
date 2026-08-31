@@ -46,7 +46,7 @@ export function ReelGrid({
   }
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-0">
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-[1px] bg-borderSubtle-light dark:bg-black/80">
       {displayReels.map((reel) => (
         <ReelCard key={reel.id} reel={reel} viewMode="grid" />
       ))}
@@ -54,10 +54,10 @@ export function ReelGrid({
   );
 }
 
-/** Skeleton loader matching the zero-gap grid layout */
+/** Skeleton loader matching the 1px-gap grid layout */
 export function ReelGridSkeleton({ count = 10 }: { count?: number }) {
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-0">
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-[1px] bg-borderSubtle-light dark:bg-black/80">
       {Array.from({ length: count }).map((_, i) => (
         <div
           key={i}
