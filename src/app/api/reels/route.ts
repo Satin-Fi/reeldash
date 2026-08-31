@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { parseCategoryCommand } from "@/lib/parseCategory";
 
 export const dynamic = "force-dynamic";
 
@@ -95,11 +96,16 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { url, userId = "user-default", category, notes, isFavorite } = body;
+    const { url: rawUrl, userId = "user-default", category: bodyCategory, notes, isFavorite } = body;
 
-    if (!url) {
+    if (!rawUrl) {
       return NextResponse.json({ error: "Missing URL parameter" }, { status: 400 });
     }
+
+    // Parse /category <name> or /cat <name> commands from URL
+    const { cleanText, category: urlCategory } = parseCategoryCommand(rawUrl);
+    const url = (cleanText || rawUrl).trim();
+    const requestedCategory = urlCategory || bodyCategory;
 
     // Call internal reel-info extractor
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://reeldash-nine.vercel.app";
@@ -115,6 +121,12 @@ export async function POST(req: NextRequest) {
     const shortcode = infoData.shortcode || (shortcodeMatch ? shortcodeMatch[1] : `sc_${Date.now()}`);
     const mediaType = infoData.mediaType || (url.includes("/audio/") ? "audio" : url.includes("/stories/") ? "story" : url.includes("/p/") ? "post" : "reel");
 
+    const effectiveCategory = requestedCategory || infoData.category || "General";
+    const tags = infoData.hashtags || [];
+    if (requestedCategory && !tags.includes(requestedCategory.toLowerCase())) {
+      tags.push(requestedCategory.toLowerCase());
+    }
+
     const reelPayload = {
       shortcode,
       url,
@@ -128,15 +140,18 @@ export async function POST(req: NextRequest) {
       duration: infoData.duration || "",
       likes_count: infoData.likes || "",
       plays_count: infoData.views || "",
-      category: category || infoData.category || "General",
-      tags: infoData.hashtags || [],
+      category: effectiveCategory,
+      tags,
       note: notes || "",
       is_favorite: !!isFavorite,
       ai_summary: infoData.aiSummary || "",
       source: "manual",
     };
 
-    // If Supabase is connected, persist to DB
+    let isNewCategory = false;
+    let collectionData: any = null;
+
+    // If Supabase is connected, persist to DB with Collection auto-creation
     try {
       const supabase = getSupabaseAdmin();
       if (supabase) {
@@ -150,7 +165,56 @@ export async function POST(req: NextRequest) {
           .single();
 
         if (!error && data) {
-          return NextResponse.json({ success: true, reel: data, source: "database" });
+          // Auto-create and link Collection if category specified
+          if (requestedCategory) {
+            const { data: existingCol } = await supabase
+              .from("collections")
+              .select("id, name")
+              .eq("user_id", userId)
+              .ilike("name", requestedCategory)
+              .limit(1)
+              .maybeSingle();
+
+            let targetColId = existingCol?.id;
+
+            if (!targetColId) {
+              const { data: newCol } = await supabase
+                .from("collections")
+                .insert({
+                  user_id: userId,
+                  name: requestedCategory,
+                  description: `Category created via ReelDash`,
+                  icon: "📁",
+                })
+                .select()
+                .single();
+
+              targetColId = newCol?.id;
+              collectionData = newCol;
+              isNewCategory = true;
+            } else {
+              collectionData = existingCol;
+            }
+
+            if (targetColId) {
+              await supabase.from("reel_collections").upsert(
+                {
+                  reel_id: data.id,
+                  collection_id: targetColId,
+                },
+                { onConflict: "reel_id,collection_id" }
+              );
+            }
+          }
+
+          return NextResponse.json({
+            success: true,
+            reel: data,
+            category: effectiveCategory,
+            collection: collectionData,
+            isNewCategory,
+            source: "database",
+          });
         }
       }
     } catch {

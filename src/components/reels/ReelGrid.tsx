@@ -9,6 +9,8 @@ interface ReelGridProps {
   viewMode?: ViewMode;
   emptyTitle?: string;
   emptySubtitle?: string;
+  /** Maximum number of reels to display */
+  limit?: number;
 }
 
 export function ReelGrid({
@@ -16,14 +18,17 @@ export function ReelGrid({
   viewMode = "grid",
   emptyTitle = "No items found",
   emptySubtitle = "Save a link or adjust your filters.",
+  limit,
 }: ReelGridProps) {
-  if (reels.length === 0) {
+  const displayReels = limit ? reels.slice(0, limit) : reels;
+
+  if (displayReels.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 px-6 text-center border border-dashed border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-lg bg-surface-light/40 dark:bg-surface-dark/40">
-        <h4 className="text-sm font-semibold tracking-tight text-primaryText-light dark:text-primaryText-dark">
+      <div className="flex flex-col items-center justify-center py-20 px-6 text-center">
+        <p className="text-sm font-semibold text-primaryText-light dark:text-primaryText-dark">
           {emptyTitle}
-        </h4>
-        <p className="text-xs text-secondaryText-light dark:text-secondaryText-dark max-w-sm mt-1.5 leading-relaxed">
+        </p>
+        <p className="text-xs text-secondaryText-light dark:text-secondaryText-dark max-w-xs mt-2 leading-relaxed">
           {emptySubtitle}
         </p>
       </div>
@@ -33,7 +38,7 @@ export function ReelGrid({
   if (viewMode === "compact") {
     return (
       <div className="flex flex-col space-y-2">
-        {reels.map((reel) => (
+        {displayReels.map((reel) => (
           <ReelCard key={reel.id} reel={reel} viewMode="compact" />
         ))}
       </div>
@@ -41,9 +46,23 @@ export function ReelGrid({
   }
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-4 md:gap-5">
-      {reels.map((reel) => (
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-0">
+      {displayReels.map((reel) => (
         <ReelCard key={reel.id} reel={reel} viewMode="grid" />
+      ))}
+    </div>
+  );
+}
+
+/** Skeleton loader matching the zero-gap grid layout */
+export function ReelGridSkeleton({ count = 10 }: { count?: number }) {
+  return (
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-0">
+      {Array.from({ length: count }).map((_, i) => (
+        <div
+          key={i}
+          className="aspect-[9/16] w-full bg-zinc-800/50 animate-pulse"
+        />
       ))}
     </div>
   );

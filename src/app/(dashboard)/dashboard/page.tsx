@@ -139,10 +139,10 @@ export default function DashboardPage() {
                     <span className="sr-only">Instagram URL</span>
                     <Link2 className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-mutedText-light group-focus-within:text-brand-500 dark:text-mutedText-dark" />
                     <input
-                      type="url"
+                      type="text"
                       value={inputUrl}
                       onChange={(event) => setInputUrl(event.target.value)}
-                      placeholder="Paste an Instagram reel, post, story, or audio link"
+                      placeholder="Paste link or add /category name (e.g. /category Fitness)"
                       className="h-12 w-full rounded-rd-md border border-borderSubtle-light bg-background-light pl-11 pr-11 text-sm text-primaryText-light shadow-rd-inset transition-colors placeholder:text-mutedText-light focus:border-brand-500 focus:outline-none focus:ring-4 focus:ring-brand-500/10 dark:border-borderSubtle-dark dark:bg-background-dark dark:text-primaryText-dark dark:placeholder:text-mutedText-dark"
                     />
                     {inputUrl && (
@@ -299,9 +299,9 @@ export default function DashboardPage() {
         })}
       </nav>
 
-      {/* Visual Inbox Reel Feed - Full Width */}
-      <section className="animate-fade-up delay-2 space-y-4 pt-2">
-        <div className="flex items-center justify-between">
+      {/* Visual Inbox Reel Feed - Edge-to-Edge Wall */}
+      <section className="animate-fade-up delay-2 pt-2">
+        <div className="flex items-center justify-between mb-4">
           <div>
             <h2 className="text-lg font-bold text-primaryText-light dark:text-primaryText-dark">
               Your visual inbox
@@ -318,6 +318,7 @@ export default function DashboardPage() {
 
         <ReelGrid
           reels={reels}
+          limit={10}
           emptyTitle={selectedInstagramAccount ? `No reels from @${selectedInstagramAccount}` : "No items saved yet"}
           emptySubtitle={selectedInstagramAccount ? `Send a Reel via DM from @${selectedInstagramAccount} or paste a link.` : "Paste any Instagram link above to start your library."}
         />

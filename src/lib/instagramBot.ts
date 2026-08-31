@@ -1,4 +1,6 @@
 import { getSupabaseAdmin } from "./supabase";
+import { parseCategoryCommand } from "./parseCategory";
+export { parseCategoryCommand };
 
 export interface BotButton {
   type: "postback" | "web_url";
@@ -92,8 +94,9 @@ export async function processInstagramMessage(
     // 3. User is VERIFIED following: Auto-provision ReelDash Profile
     const userProfile = await getOrCreateUserProfile(senderIgId, igUser);
 
-    // 4. Check if message contains a Reel / Post / Audio link
-    const mediaUrl = extractInstagramMediaUrl(messageText, attachments);
+    // 4. Check if message contains a command /category <name> or a Reel / Post / Audio link
+    const { cleanText, category: requestedCategory } = parseCategoryCommand(messageText || "");
+    const mediaUrl = extractInstagramMediaUrl(cleanText || messageText, attachments);
 
     if (mediaUrl) {
       let reelData: any = null;
@@ -123,9 +126,15 @@ export async function processInstagramMessage(
           creatorAvatar: `/api/proxy-image?username=instagram`,
           mediaType: isAudio ? "audio" : "reel",
           duration: isAudio ? "0:30" : "0:15",
-          category: isAudio ? "Music" : "General",
+          category: requestedCategory || (isAudio ? "Music" : "General"),
           hashtags: ["instagram-dm", isAudio ? "audio" : "reel", "auto-save"],
         };
+      }
+
+      const effectiveCategory = requestedCategory || reelData.category || "General";
+      const tags = reelData.hashtags || reelData.tags || ["instagram-dm", "auto-save"];
+      if (requestedCategory && !tags.includes(requestedCategory.toLowerCase())) {
+        tags.push(requestedCategory.toLowerCase());
       }
 
       const formattedReel = {
@@ -139,12 +148,12 @@ export async function processInstagramMessage(
         creator_avatar: reelData.creatorAvatar || reelData.creator_avatar || `/api/proxy-image?username=${encodeURIComponent(reelData.creatorUsername || "creator")}`,
         media_type: reelData.mediaType || reelData.media_type || "reel",
         duration: reelData.duration || "0:15",
-        category: reelData.category || "General",
-        tags: reelData.hashtags || reelData.tags || ["instagram-dm", "auto-save"],
+        category: effectiveCategory,
+        tags,
       };
 
-      // Save Reel to user's collection
-      const savedReel = await saveReelForUser(userProfile.id, formattedReel);
+      // Save Reel to user's library and auto-create category/collection if needed
+      const saveResult = await saveReelForUser(userProfile.id, formattedReel, requestedCategory);
       userProfile.savedReelsCount += 1;
       userProfile.lastActiveAt = new Date().toISOString();
 
@@ -152,7 +161,13 @@ export async function processInstagramMessage(
         ? `@${formattedReel.creator_handle}'s Reel`
         : "Reel";
 
-      const successReply = `Saved to your ReelDash Library.\n\n${creatorText}\nCategory: ${formattedReel.category || "General"}`;
+      const categoryStatusText = requestedCategory
+        ? saveResult.isNewCategory
+          ? `📁 Category: ${requestedCategory} (Created new collection)`
+          : `📁 Category: ${requestedCategory} (Saved to collection)`
+        : `Category: ${formattedReel.category || "General"}`;
+
+      const successReply = `Saved to your ReelDash Library.\n\n${creatorText}\n${categoryStatusText}`;
 
       const buttons: BotButton[] = [
         {
@@ -171,7 +186,7 @@ export async function processInstagramMessage(
         senderIgId,
         username: userProfile.username,
         isFollowing: true,
-        savedReel,
+        savedReel: saveResult.savedItem,
       };
     }
 
@@ -391,10 +406,25 @@ async function getOrCreateUserProfile(
   return newProfile;
 }
 
+export interface BotCollection {
+  id: string;
+  userId: string;
+  name: string;
+  icon?: string;
+  reelIds: string[];
+  createdAt: string;
+}
+
+export const igCollectionsStore = new Map<string, BotCollection[]>();
+
 /**
- * Save Reel in Database / Storage for User
+ * Save Reel in Database / Storage for User and auto-create Category / Collection
  */
-async function saveReelForUser(userId: string, reel: any) {
+async function saveReelForUser(
+  userId: string,
+  reel: any,
+  requestedCategory?: string | null
+): Promise<{ savedItem: any; isNewCategory: boolean; categoryName?: string }> {
   const userReels = igSavedReelsStore.get(userId) || [];
   const existingIndex = userReels.findIndex((r) => r.shortcode === reel.shortcode || r.url === reel.url);
 
@@ -412,11 +442,38 @@ async function saveReelForUser(userId: string, reel: any) {
   }
   igSavedReelsStore.set(userId, userReels);
 
-  // Persist to Supabase with instagram_username
+  let isNewCategory = false;
+
+  // In-Memory Collection Management
+  if (requestedCategory) {
+    const userCols = igCollectionsStore.get(userId) || [];
+    let col = userCols.find(
+      (c) => c.name.toLowerCase() === requestedCategory.toLowerCase()
+    );
+    if (!col) {
+      col = {
+        id: `col-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+        userId,
+        name: requestedCategory,
+        icon: "📁",
+        reelIds: [savedItem.id],
+        createdAt: new Date().toISOString(),
+      };
+      userCols.push(col);
+      isNewCategory = true;
+    } else {
+      if (!col.reelIds.includes(savedItem.id)) {
+        col.reelIds.push(savedItem.id);
+      }
+    }
+    igCollectionsStore.set(userId, userCols);
+  }
+
+  // Persist to Supabase Database with Collections & Junction
   try {
     const supabase = getSupabaseAdmin();
     if (supabase) {
-      // Find instagram_account_id if available
+      // 1. Find or verify instagram_account_id
       const { data: acc } = await supabase
         .from("instagram_accounts")
         .select("id")
@@ -424,33 +481,79 @@ async function saveReelForUser(userId: string, reel: any) {
         .limit(1)
         .single();
 
-      await supabase.from("reels").upsert(
-        {
-          user_id: userId,
-          instagram_account_id: acc?.id || null,
-          instagram_username: reel.instagram_username || (igProfileStore.get(userId)?.username) || null,
-          shortcode: reel.shortcode,
-          url: reel.url,
-          thumbnail_url: reel.thumbnail_url,
-          video_url: reel.video_url,
-          caption: reel.caption,
-          creator_handle: reel.creator_handle,
-          creator_name: reel.creator_name,
-          creator_avatar: reel.creator_avatar,
-          media_type: reel.media_type,
-          duration: reel.duration,
-          category: reel.category,
-          tags: reel.tags,
-          source: "dm",
-        },
-        { onConflict: "user_id,shortcode" }
-      );
+      // 2. Upsert Reel Record
+      const { data: insertedReel } = await supabase
+        .from("reels")
+        .upsert(
+          {
+            user_id: userId,
+            instagram_account_id: acc?.id || null,
+            instagram_username: reel.instagram_username || (igProfileStore.get(userId)?.username) || null,
+            shortcode: reel.shortcode,
+            url: reel.url,
+            thumbnail_url: reel.thumbnail_url,
+            video_url: reel.video_url,
+            caption: reel.caption,
+            creator_handle: reel.creator_handle,
+            creator_name: reel.creator_name,
+            creator_avatar: reel.creator_avatar,
+            media_type: reel.media_type,
+            duration: reel.duration,
+            category: reel.category,
+            tags: reel.tags,
+            source: "dm",
+          },
+          { onConflict: "user_id,shortcode" }
+        )
+        .select("id")
+        .single();
+
+      const reelDbId = insertedReel?.id;
+
+      // 3. If requestedCategory, check/create Collection in Supabase
+      if (requestedCategory && reelDbId) {
+        const { data: existingCol } = await supabase
+          .from("collections")
+          .select("id, name")
+          .eq("user_id", userId)
+          .ilike("name", requestedCategory)
+          .limit(1)
+          .maybeSingle();
+
+        let targetColId = existingCol?.id;
+
+        if (!targetColId) {
+          const { data: newCol } = await supabase
+            .from("collections")
+            .insert({
+              user_id: userId,
+              name: requestedCategory,
+              description: `Category created via Instagram DM`,
+              icon: "📁",
+            })
+            .select("id")
+            .single();
+
+          targetColId = newCol?.id;
+          isNewCategory = true;
+        }
+
+        if (targetColId) {
+          await supabase.from("reel_collections").upsert(
+            {
+              reel_id: reelDbId,
+              collection_id: targetColId,
+            },
+            { onConflict: "reel_id,collection_id" }
+          );
+        }
+      }
     }
-  } catch {
-    // Continue
+  } catch (dbErr) {
+    console.warn("[Instagram Bot] Supabase persistence notice:", dbErr);
   }
 
-  return savedItem;
+  return { savedItem, isNewCategory, categoryName: requestedCategory || undefined };
 }
 
 /**

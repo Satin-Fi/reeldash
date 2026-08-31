@@ -13,6 +13,7 @@ export function SaveReelModal() {
   const [caption, setCaption] = useState("");
   const [audioTitle, setAudioTitle] = useState("");
   const [audioArtist, setAudioArtist] = useState("");
+  const [category, setCategory] = useState("");
   const [detectedType, setDetectedType] = useState<MediaType | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -60,6 +61,9 @@ export function SaveReelModal() {
         if (data.caption && !data.caption.includes("Instagram Reel (")) {
           setCaption(data.caption);
         }
+        if (data.category && !category) {
+          setCategory(data.category);
+        }
         if (data.audioTitle) {
           setAudioTitle(data.audioTitle);
         }
@@ -91,6 +95,7 @@ export function SaveReelModal() {
       await saveReel(url.trim(), {
         creator: creator.trim() || undefined,
         caption: caption.trim() || undefined,
+        category: category.trim() || undefined,
         mediaType: currentEffectiveType,
         audioTitle: audioTitle.trim() || (currentEffectiveType === "audio" ? "Original audio" : undefined),
         audioArtist: audioArtist.trim() || (currentEffectiveType === "audio" ? (creator.trim() || undefined) : undefined),
@@ -98,6 +103,7 @@ export function SaveReelModal() {
       setUrl("");
       setCreator("");
       setCaption("");
+      setCategory("");
       setAudioTitle("");
       setAudioArtist("");
       setDetectedType(null);
@@ -176,8 +182,8 @@ export function SaveReelModal() {
               <div className="relative flex items-center">
                 <Link2 className="absolute left-3.5 w-4 h-4 text-[#777C89]" />
                 <input
-                  type="url"
-                  placeholder="https://www.instagram.com/reel/..."
+                  type="text"
+                  placeholder="https://www.instagram.com/reel/... or /category Name"
                   value={url}
                   onChange={(e) => setUrl(e.target.value)}
                   required
@@ -194,6 +200,7 @@ export function SaveReelModal() {
                       setDetectedType(null);
                       setCreator("");
                       setCaption("");
+                      setCategory("");
                       setAudioTitle("");
                       setAudioArtist("");
                     }}
@@ -203,6 +210,20 @@ export function SaveReelModal() {
                   </button>
                 ) : null}
               </div>
+            </div>
+
+            {/* Optional Category Field */}
+            <div>
+              <label className="block text-[11px] font-medium uppercase tracking-wider text-[#8E93A2] mb-1.5">
+                Category / Collection <span className="text-[10px] lowercase font-normal text-[#5A5F6E]">(optional, creates if not exists)</span>
+              </label>
+              <input
+                type="text"
+                placeholder="e.g. Fitness, Marketing, UI Inspiration"
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                className="w-full px-3.5 py-2 bg-[#0B0D10] border border-white/[0.08] hover:border-white/[0.12] focus:border-[#5B52E8] rounded-lg text-sm text-white placeholder-[#5A5F6E] focus:outline-none transition-colors"
+              />
             </div>
 
             {/* Audio Details (Only for Audio links) */}

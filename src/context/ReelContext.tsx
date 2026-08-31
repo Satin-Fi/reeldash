@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { Reel, Collection, SmartCategory, SortOption, ViewMode, MediaType, MediaTypeFilter } from "@/types/reel";
 import { useAuth } from "@/context/AuthContext";
+import { parseCategoryCommand } from "@/lib/parseCategory";
 
 export interface ToastMessage {
   id: string;
@@ -456,7 +457,9 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
       duration?: string;
     }
   ) => {
-    const cleanUrl = url.trim();
+    // Parse /category <name> or /cat <name> commands from input string
+    const { cleanText, category: extractedCategory } = parseCategoryCommand(url);
+    const cleanUrl = (cleanText || url).trim();
     if (!cleanUrl) return;
 
     // Duplicate check
@@ -485,11 +488,51 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
 
     const tempId = `${mediaType}-${Date.now()}`;
     const initialCreator = customDetails?.creator || (shortcode ? `ig_${shortcode.substring(0, 6)}` : "creator");
-    const initialCategory = customDetails?.category || (mediaType === "audio" ? "Music & Audio" : "General");
+    const targetCategory = extractedCategory || customDetails?.category || (mediaType === "audio" ? "Music & Audio" : "General");
     const initialAvatar =
       customDetails?.creatorAvatar || `/api/proxy-image?username=${encodeURIComponent(initialCreator)}`;
     const initialThumbnail =
       customDetails?.thumbnailUrl || (shortcode ? `/api/proxy-image?shortcode=${shortcode}` : "");
+
+    // Handle Category / Collection auto-provisioning
+    let linkedCollectionIds: string[] = [];
+    let isNewCategoryCreated = false;
+
+    if (extractedCategory || customDetails?.category) {
+      const catName = (extractedCategory || customDetails?.category || "").trim();
+      const existingCol = collections.find(
+        (c) => c.name.toLowerCase() === catName.toLowerCase()
+      );
+
+      if (existingCol) {
+        linkedCollectionIds = [existingCol.id];
+        const updatedCols = collections.map((col) =>
+          col.id === existingCol.id && !col.reelIds.includes(tempId)
+            ? {
+                ...col,
+                reelIds: [tempId, ...col.reelIds],
+                reelCount: col.reelCount + 1,
+                updatedAt: "Just now",
+              }
+            : col
+        );
+        saveUserCollections(updatedCols);
+      } else {
+        const newColId = "col-" + Math.random().toString(36).substring(2, 9);
+        const newCol: Collection = {
+          id: newColId,
+          name: catName,
+          description: `Category created for ${catName}`,
+          icon: "📁",
+          reelIds: [tempId],
+          updatedAt: "Just now",
+          reelCount: 1,
+        };
+        saveUserCollections([newCol, ...collections]);
+        linkedCollectionIds = [newColId];
+        isNewCategoryCreated = true;
+      }
+    }
 
     // 1. Optimistic Instant UI Update (0ms)
     const optimisticReel: Reel = {
@@ -505,10 +548,10 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
       mediaUrl: "",
       embedUrl: `https://www.instagram.com/p/${shortcode}/embed/`,
       caption: customDetails?.caption || `Instagram ${mediaType.toUpperCase()}: ${cleanUrl}`,
-      category: initialCategory,
-      subcategories: [initialCategory],
-      collections: [],
-      hashtags: [],
+      category: targetCategory,
+      subcategories: [targetCategory],
+      collections: linkedCollectionIds,
+      hashtags: extractedCategory ? [extractedCategory.toLowerCase()] : [],
       isFavorite: false,
       duration: customDetails?.duration || (mediaType === "audio" ? "" : customDetails?.isCarousel ? `Carousel (${customDetails?.carouselImages?.length || 1})` : ""),
       audioTitle: customDetails?.audioTitle,
@@ -526,7 +569,15 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
     // Prepend immediately
     saveUserReels([optimisticReel, ...reels]);
     setIsSaveModalOpen(false);
-    showToast(`Saved to Library`, `@${initialCreator}'s ${mediaType}`);
+
+    if (extractedCategory || customDetails?.category) {
+      showToast(
+        isNewCategoryCreated ? `Created "${targetCategory}" & Saved` : `Saved to ${targetCategory}`,
+        `@${initialCreator}'s ${mediaType}`
+      );
+    } else {
+      showToast(`Saved to Library`, `@${initialCreator}'s ${mediaType}`);
+    }
 
     // 2. Parallel Fast Metadata Enrichment (< 1s)
     try {
@@ -543,7 +594,7 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
             ? data.creatorUsername
             : customDetails?.creator || initialCreator;
         const finalFullName = data.creatorFullName || customDetails?.creatorFullName || finalCreator;
-        const finalCategory = customDetails?.category || data.category || initialCategory;
+        const finalCategory = customDetails?.category || extractedCategory || data.category || targetCategory;
 
         setReels((prev) => {
           const updated = prev.map((r) => {

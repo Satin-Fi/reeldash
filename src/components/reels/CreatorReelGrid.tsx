@@ -119,7 +119,7 @@ function CreatorReelTile({ item, creatorUsername }: { item: CreatorReelItem; cre
     <>
       <div
         onClick={() => setOpen(true)}
-        className="group relative aspect-reel w-full overflow-hidden rounded-rd-card bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark border border-borderSubtle-light dark:border-borderSubtle-dark shadow-rd-subtle hover:-translate-y-0.5 hover:border-brand-500/40 transition-all duration-200 cursor-pointer"
+        className="group relative aspect-[9/16] w-full overflow-hidden bg-black cursor-pointer select-none"
       >
         {/* Thumbnail Image */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -130,7 +130,7 @@ function CreatorReelTile({ item, creatorUsername }: { item: CreatorReelItem; cre
           onError={(e) => {
             (e.target as HTMLImageElement).src = defaultCover;
           }}
-          className="w-full h-full object-cover group-hover:scale-103 transition-transform duration-300 ease-out"
+          className="w-full h-full object-cover transition-transform duration-200 ease-out group-hover:scale-[1.015]"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/30 opacity-70 group-hover:opacity-90 transition-opacity" />
 
@@ -215,7 +215,7 @@ function CreatorReelTile({ item, creatorUsername }: { item: CreatorReelItem; cre
 export function CreatorReelGrid({ items, creatorUsername }: { items: CreatorReelItem[]; creatorUsername?: string }) {
   if (!items || items.length === 0) return null;
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-5">
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-0">
       {items.map((it) => (
         <CreatorReelTile key={it.id} item={it} creatorUsername={creatorUsername} />
       ))}
