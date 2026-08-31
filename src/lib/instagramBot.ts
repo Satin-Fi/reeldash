@@ -189,9 +189,8 @@ export async function processInstagramMessage(
       // Save Reel to user's library and Supabase database immediately
       const saveResult = await saveReelForUser(userProfile.id, formattedReel, allCategories);
       userProfile.savedReelsCount += 1;
-      userProfile.lastActiveAt = new Date().toISOString();
-
-      let finalCategories = [...allCategories];
+      const initialSavedCategory = formattedReel.category || "General";
+      let finalCategories = allCategories.length > 0 ? [...allCategories] : [initialSavedCategory];
 
       // If user provided NO category with the reel (e.g. native Instagram share sheet),
       // wait a short window (2.5s) polling database across serverless lambdas in case user typed /<category>
@@ -208,7 +207,7 @@ export async function processInstagramMessage(
                 .eq("shortcode", formattedReel.shortcode)
                 .maybeSingle();
 
-              if (dbReel && dbReel.category && dbReel.category !== "General") {
+              if (dbReel && dbReel.category && dbReel.category !== initialSavedCategory) {
                 finalCategories = [dbReel.category];
                 break; // Found follow-up category from concurrent serverless invocation!
               }

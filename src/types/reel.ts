@@ -25,6 +25,7 @@ export interface Reel {
   subcategories: string[];
   collections: string[];
   hashtags: string[];
+  tags?: string[];
   likes?: string;
   commentsCount?: string;
   notes?: string;

@@ -287,15 +287,37 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
 
   const categoryCounts: Record<string, number> = {};
   reels.forEach((r) => {
-    if (r.category) {
-      categoryCounts[r.category] = (categoryCounts[r.category] || 0) + 1;
+    const cats = new Set<string>();
+    if (r.category && r.category.trim()) {
+      cats.add(r.category.trim());
     }
+    if (Array.isArray(r.tags)) {
+      r.tags.forEach((t) => {
+        if (t && t.trim()) {
+          const formatted = t.trim().charAt(0).toUpperCase() + t.trim().slice(1);
+          cats.add(formatted);
+        }
+      });
+    }
+    if (Array.isArray(r.subcategories)) {
+      r.subcategories.forEach((s) => {
+        if (s && s.trim()) {
+          const formatted = s.trim().charAt(0).toUpperCase() + s.trim().slice(1);
+          cats.add(formatted);
+        }
+      });
+    }
+    cats.forEach((c) => {
+      categoryCounts[c] = (categoryCounts[c] || 0) + 1;
+    });
   });
 
-  const smartCategories: SmartCategory[] = Object.keys(categoryCounts).map((cat) => ({
-    name: cat,
-    count: categoryCounts[cat],
-  }));
+  const smartCategories: SmartCategory[] = Object.keys(categoryCounts)
+    .sort((a, b) => categoryCounts[b] - categoryCounts[a])
+    .map((cat) => ({
+      name: cat,
+      count: categoryCounts[cat],
+    }));
 
   const favorites = reels.filter((r) => r.isFavorite);
 

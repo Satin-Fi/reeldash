@@ -37,7 +37,7 @@ export default function CollectionDetailPage() {
   }
 
   // Find all reels in this collection
-  const collectionReels = reels.filter((r) => r.collections.includes(collection.id));
+  const collectionReels = reels.filter((r) => Array.isArray(r.collections) && r.collections.includes(collection.id));
 
   return (
     <div className="space-y-6">

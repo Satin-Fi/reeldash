@@ -44,6 +44,9 @@ export default function DashboardPage() {
     favorites,
     saveReel,
     collections,
+    smartCategories,
+    activeCategory,
+    setActiveCategory,
     selectedInstagramAccount,
   } = useReels();
   const { user } = useAuth();
@@ -301,7 +304,7 @@ export default function DashboardPage() {
 
       {/* Visual Inbox Reel Feed - Edge-to-Edge Wall */}
       <section className="animate-fade-up delay-2 pt-2">
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between mb-3">
           <div>
             <h2 className="text-lg font-bold text-primaryText-light dark:text-primaryText-dark">
               Your visual inbox
@@ -316,11 +319,58 @@ export default function DashboardPage() {
           </Link>
         </div>
 
+        {/* Category Quick Chips Bar (Mobile & Desktop) */}
+        {smartCategories.length > 0 && (
+          <div className="flex items-center space-x-1.5 overflow-x-auto pb-2 mb-3 scrollbar-none">
+            <button
+              onClick={() => setActiveCategory(null)}
+              className={`px-3 py-1 rounded-full text-xs font-semibold transition-all cursor-pointer shrink-0 ${
+                activeCategory === null
+                  ? "bg-zinc-900 text-white dark:bg-white/[0.14] dark:text-white shadow-xs"
+                  : "bg-surfaceSecondary-light dark:bg-white/[0.05] text-secondaryText-light dark:text-zinc-400 hover:text-white hover:bg-white/[0.08] border border-borderSubtle-light dark:border-white/[0.06]"
+              }`}
+            >
+              All ({reels.length})
+            </button>
+            {smartCategories.map((cat) => {
+              const isSelected = activeCategory?.toLowerCase() === cat.name.toLowerCase();
+              return (
+                <button
+                  key={cat.name}
+                  onClick={() => setActiveCategory(isSelected ? null : cat.name)}
+                  className={`px-3 py-1 rounded-full text-xs font-medium transition-all cursor-pointer shrink-0 flex items-center space-x-1.5 ${
+                    isSelected
+                      ? "bg-zinc-900 text-white dark:bg-white/[0.14] dark:text-white shadow-xs font-semibold"
+                      : "bg-surfaceSecondary-light dark:bg-white/[0.05] text-secondaryText-light dark:text-zinc-400 hover:text-white hover:bg-white/[0.08] border border-borderSubtle-light dark:border-white/[0.06]"
+                  }`}
+                >
+                  <span>{cat.name}</span>
+                  <span className={`text-[10px] font-mono ${isSelected ? "text-white/80" : "text-zinc-500"}`}>
+                    {cat.count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
         <ReelGrid
-          reels={reels}
+          reels={reels.filter((reel) => {
+            if (activeCategory) {
+              const catLower = activeCategory.trim().toLowerCase();
+              const matchCat = (reel.category || "").toLowerCase() === catLower;
+              const matchTags = (Array.isArray(reel.tags) && reel.tags.some((t) => t.toLowerCase() === catLower)) || (Array.isArray(reel.hashtags) && reel.hashtags.some((h) => h.toLowerCase() === catLower));
+              const matchKeywords = Array.isArray(reel.aiKeywords) && reel.aiKeywords.some((k) => k.toLowerCase() === catLower);
+              const matchSub = Array.isArray(reel.subcategories) && reel.subcategories.some((s) => s.toLowerCase() === catLower);
+              if (!matchCat && !matchTags && !matchKeywords && !matchSub) {
+                return false;
+              }
+            }
+            return true;
+          })}
           limit={10}
-          emptyTitle={selectedInstagramAccount ? `No reels from @${selectedInstagramAccount}` : "No items saved yet"}
-          emptySubtitle={selectedInstagramAccount ? `Send a Reel via DM from @${selectedInstagramAccount} or paste a link.` : "Paste any Instagram link above to start your library."}
+          emptyTitle={activeCategory ? `No reels in #${activeCategory}` : selectedInstagramAccount ? `No reels from @${selectedInstagramAccount}` : "No items saved yet"}
+          emptySubtitle={activeCategory ? `Save reels with /${activeCategory} or add this category in reel details.` : selectedInstagramAccount ? `Send a Reel via DM from @${selectedInstagramAccount} or paste a link.` : "Paste any Instagram link above to start your library."}
         />
       </section>
     </div>
