@@ -193,10 +193,10 @@ export async function processInstagramMessage(
       let finalCategories = allCategories.length > 0 ? [...allCategories] : [initialSavedCategory];
 
       // If user provided NO category with the reel (e.g. native Instagram share sheet),
-      // wait a short window (2.5s) polling database across serverless lambdas in case user typed /<category>
+      // wait a short window (5.0s) polling database across serverless lambdas in case user typed /<category>
       if (allCategories.length === 0) {
         const supabase = getSupabaseAdmin();
-        for (let i = 0; i < 5; i++) {
+        for (let i = 0; i < 10; i++) {
           await new Promise((r) => setTimeout(r, 500));
           if (supabase) {
             try {
@@ -209,7 +209,7 @@ export async function processInstagramMessage(
 
               if (dbReel && dbReel.category && dbReel.category !== initialSavedCategory) {
                 finalCategories = [dbReel.category];
-                break; // Found follow-up category from concurrent serverless invocation!
+                break; // User typed follow-up command! Break loop immediately and send single combined message.
               }
             } catch {
               // Ignore polling errors
@@ -775,7 +775,7 @@ async function updateRecentReelCategoryForUser(
       if (latestDbReel) {
         const createdAtMs = new Date(latestDbReel.created_at).getTime();
         const ageMs = Date.now() - createdAtMs;
-        if (ageMs >= 0 && ageMs <= 3800) {
+        if (Math.abs(ageMs) <= 12000) {
           isWithinPendingWindow = true;
         }
 
