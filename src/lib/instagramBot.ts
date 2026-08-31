@@ -741,7 +741,7 @@ async function updateRecentReelCategoryForUser(
   userId: string,
   categories: string[],
   note?: string | null
-): Promise<{ reel: any | null; newCategories: string[] }> {
+): Promise<{ reel: any | null; newCategories: string[]; isWithinPendingWindow: boolean }> {
   const userReels = igSavedReelsStore.get(userId) || [];
   let recentReel = userLastSavedReelStore.get(userId) || (userReels.length > 0 ? userReels[0] : null);
 
@@ -759,6 +759,56 @@ async function updateRecentReelCategoryForUser(
     }
   }
 
+  let isWithinPendingWindow = false;
+
+  // Always query Supabase to ensure accurate cross-serverless coordination
+  try {
+    const supabase = getSupabaseAdmin();
+    if (supabase) {
+      const { data: latestDbReel } = await supabase
+        .from("reels")
+        .select("*")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (latestDbReel) {
+        const createdAtMs = new Date(latestDbReel.created_at).getTime();
+        const ageMs = Date.now() - createdAtMs;
+        if (ageMs >= 0 && ageMs <= 3800) {
+          isWithinPendingWindow = true;
+        }
+
+        const currentTags = Array.isArray(latestDbReel.tags) ? [...latestDbReel.tags] : [];
+        for (const cat of categories) {
+          if (!currentTags.includes(cat.toLowerCase())) {
+            currentTags.push(cat.toLowerCase());
+          }
+        }
+
+        await supabase
+          .from("reels")
+          .update({
+            category: primaryCategory,
+            tags: currentTags,
+            note: note || latestDbReel.note || null,
+          })
+          .eq("id", latestDbReel.id);
+
+        recentReel = {
+          ...latestDbReel,
+          category: primaryCategory,
+          tags: currentTags,
+          note: note || latestDbReel.note,
+        };
+        userLastSavedReelStore.set(userId, recentReel);
+      }
+    }
+  } catch (err) {
+    console.warn("[Instagram Bot] Supabase update recent reel error:", err);
+  }
+
   if (recentReel) {
     const currentTags = Array.isArray(recentReel.tags) ? [...recentReel.tags] : [];
     for (const cat of categories) {
@@ -766,84 +816,20 @@ async function updateRecentReelCategoryForUser(
         currentTags.push(cat.toLowerCase());
       }
     }
-
     recentReel.category = primaryCategory;
     recentReel.tags = currentTags;
     if (note) recentReel.note = note;
 
     userLastSavedReelStore.set(userId, recentReel);
 
-    // Update in igSavedReelsStore
     const idx = userReels.findIndex((r) => r.id === recentReel.id || r.shortcode === recentReel.shortcode);
     if (idx >= 0) {
       userReels[idx] = recentReel;
       igSavedReelsStore.set(userId, userReels);
     }
-
-    // Persist category update to Supabase
-    try {
-      const supabase = getSupabaseAdmin();
-      if (supabase) {
-        if (recentReel.shortcode) {
-          await supabase
-            .from("reels")
-            .update({
-              category: primaryCategory,
-              tags: currentTags,
-              note: recentReel.note || null,
-            })
-            .eq("user_id", userId)
-            .eq("shortcode", recentReel.shortcode);
-        }
-      }
-    } catch (err) {
-      console.warn("[Instagram Bot] Supabase update recent reel notice:", err);
-    }
-  } else {
-    // If no recent reel in memory, query Supabase for latest reel of this user
-    try {
-      const supabase = getSupabaseAdmin();
-      if (supabase) {
-        const { data: latestDbReel } = await supabase
-          .from("reels")
-          .select("*")
-          .eq("user_id", userId)
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .maybeSingle();
-
-        if (latestDbReel) {
-          const currentTags = Array.isArray(latestDbReel.tags) ? [...latestDbReel.tags] : [];
-          for (const cat of categories) {
-            if (!currentTags.includes(cat.toLowerCase())) {
-              currentTags.push(cat.toLowerCase());
-            }
-          }
-
-          await supabase
-            .from("reels")
-            .update({
-              category: primaryCategory,
-              tags: currentTags,
-              note: note || latestDbReel.note || null,
-            })
-            .eq("id", latestDbReel.id);
-
-          recentReel = {
-            ...latestDbReel,
-            category: primaryCategory,
-            tags: currentTags,
-            note: note || latestDbReel.note,
-          };
-          userLastSavedReelStore.set(userId, recentReel);
-        }
-      }
-    } catch (err) {
-      console.warn("[Instagram Bot] Supabase lookup latest reel notice:", err);
-    }
   }
 
-  return { reel: recentReel, newCategories };
+  return { reel: recentReel, newCategories, isWithinPendingWindow };
 }
 
 /**
