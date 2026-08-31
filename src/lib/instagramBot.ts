@@ -94,9 +94,12 @@ export async function processInstagramMessage(
     // 3. User is VERIFIED following: Auto-provision ReelDash Profile
     const userProfile = await getOrCreateUserProfile(senderIgId, igUser);
 
-    // 4. Check if message contains a command /category <name> or a Reel / Post / Audio link
-    const { cleanText, category: requestedCategory } = parseCategoryCommand(messageText || "");
-    const mediaUrl = extractInstagramMediaUrl(cleanText || messageText, attachments);
+    // 4. Check if message contains /<category> commands or a Reel / Post / Audio link
+    const parsedCmd = parseCategoryCommand(messageText || "");
+    const mediaUrl = extractInstagramMediaUrl(
+      parsedCmd.cleanUrl || parsedCmd.cleanText || messageText,
+      attachments
+    );
 
     if (mediaUrl) {
       let reelData: any = null;
@@ -110,6 +113,10 @@ export async function processInstagramMessage(
       } catch (err) {
         console.warn("[Instagram Bot] reel-info fetch fallback:", err);
       }
+
+      const primaryCategory = parsedCmd.primaryCategory;
+      const allCategories = parsedCmd.categories;
+      const note = parsedCmd.note;
 
       if (!reelData || !reelData.shortcode) {
         const shortcodeMatch = mediaUrl.match(/\/(?:reel|reels|p|stories|audio)\/([A-Za-z0-9_.-]+)/i);
@@ -126,15 +133,17 @@ export async function processInstagramMessage(
           creatorAvatar: `/api/proxy-image?username=instagram`,
           mediaType: isAudio ? "audio" : "reel",
           duration: isAudio ? "0:30" : "0:15",
-          category: requestedCategory || (isAudio ? "Music" : "General"),
+          category: primaryCategory || (isAudio ? "Music" : "General"),
           hashtags: ["instagram-dm", isAudio ? "audio" : "reel", "auto-save"],
         };
       }
 
-      const effectiveCategory = requestedCategory || reelData.category || "General";
-      const tags = reelData.hashtags || reelData.tags || ["instagram-dm", "auto-save"];
-      if (requestedCategory && !tags.includes(requestedCategory.toLowerCase())) {
-        tags.push(requestedCategory.toLowerCase());
+      const effectiveCategory = primaryCategory || reelData.category || "General";
+      const tags = [...(reelData.hashtags || reelData.tags || ["instagram-dm", "auto-save"])];
+      for (const cat of allCategories) {
+        if (!tags.includes(cat.toLowerCase())) {
+          tags.push(cat.toLowerCase());
+        }
       }
 
       const formattedReel = {
@@ -150,10 +159,11 @@ export async function processInstagramMessage(
         duration: reelData.duration || "0:15",
         category: effectiveCategory,
         tags,
+        note: note || reelData.note || undefined,
       };
 
-      // Save Reel to user's library and auto-create category/collection if needed
-      const saveResult = await saveReelForUser(userProfile.id, formattedReel, requestedCategory);
+      // Save Reel to user's library and auto-track categories (idempotent)
+      const saveResult = await saveReelForUser(userProfile.id, formattedReel, allCategories);
       userProfile.savedReelsCount += 1;
       userProfile.lastActiveAt = new Date().toISOString();
 
@@ -161,18 +171,28 @@ export async function processInstagramMessage(
         ? `@${formattedReel.creator_handle}'s Reel`
         : "Reel";
 
-      const categoryStatusText = requestedCategory
-        ? saveResult.isNewCategory
-          ? `📁 Category: ${requestedCategory} (Created new collection)`
-          : `📁 Category: ${requestedCategory} (Saved to collection)`
-        : `Category: ${formattedReel.category || "General"}`;
+      // Formulate clean, concise confirmation message
+      let categoryLines = "";
+      if (allCategories.length > 0) {
+        const catLabel = allCategories.length > 1 ? "Categories" : "Category";
+        categoryLines = `📁 ${catLabel}: ${allCategories.join(", ")}`;
+        if (saveResult.newCategories.length > 0) {
+          if (allCategories.length === 1) {
+            categoryLines += `\n✨ New category created`;
+          } else {
+            categoryLines += `\n✨ New category created: ${saveResult.newCategories.join(", ")}`;
+          }
+        }
+      } else {
+        categoryLines = `📁 Category: ${formattedReel.category || "General"}`;
+      }
 
-      const successReply = `Saved to your ReelDash Library.\n\n${creatorText}\n${categoryStatusText}`;
+      const successReply = `⚡ Saved to your ReelDash Library.\n\n🎬 ${creatorText}\n${categoryLines}`;
 
       const buttons: BotButton[] = [
         {
           type: "web_url",
-          title: "Open Library",
+          title: "Open in ReelDash",
           url: "https://reeldash-nine.vercel.app/dashboard",
         },
       ];
@@ -417,14 +437,20 @@ export interface BotCollection {
 
 export const igCollectionsStore = new Map<string, BotCollection[]>();
 
+export const igUserCategoriesStore = new Map<string, Set<string>>();
+
 /**
- * Save Reel in Database / Storage for User and auto-create Category / Collection
+ * Save Reel in Database / Storage for User and auto-manage Categories
  */
 async function saveReelForUser(
   userId: string,
   reel: any,
-  requestedCategory?: string | null
-): Promise<{ savedItem: any; isNewCategory: boolean; categoryName?: string }> {
+  requestedCategories: string[] = []
+): Promise<{
+  savedItem: any;
+  newCategories: string[];
+  assignedCategories: string[];
+}> {
   const userReels = igSavedReelsStore.get(userId) || [];
   const existingIndex = userReels.findIndex((r) => r.shortcode === reel.shortcode || r.url === reel.url);
 
@@ -442,34 +468,39 @@ async function saveReelForUser(
   }
   igSavedReelsStore.set(userId, userReels);
 
-  let isNewCategory = false;
-
-  // In-Memory Collection Management
-  if (requestedCategory) {
-    const userCols = igCollectionsStore.get(userId) || [];
-    let col = userCols.find(
-      (c) => c.name.toLowerCase() === requestedCategory.toLowerCase()
-    );
-    if (!col) {
-      col = {
-        id: `col-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
-        userId,
-        name: requestedCategory,
-        icon: "📁",
-        reelIds: [savedItem.id],
-        createdAt: new Date().toISOString(),
-      };
-      userCols.push(col);
-      isNewCategory = true;
-    } else {
-      if (!col.reelIds.includes(savedItem.id)) {
-        col.reelIds.push(savedItem.id);
+  // In-Memory User Category Tracking (Scoped to User)
+  let existingUserCats = igUserCategoriesStore.get(userId);
+  if (!existingUserCats) {
+    existingUserCats = new Set<string>();
+    // Pre-populate from existing in-memory reels for this user
+    for (const r of userReels) {
+      if (r.category && r.category !== "General" && r.category !== "Music") {
+        existingUserCats.add(r.category);
       }
     }
-    igCollectionsStore.set(userId, userCols);
+    igUserCategoriesStore.set(userId, existingUserCats);
   }
 
-  // Persist to Supabase Database with Collections & Junction
+  const newCategories: string[] = [];
+  const assignedCategories: string[] = [];
+
+  for (const cat of requestedCategories) {
+    assignedCategories.push(cat);
+    const catLower = cat.toLowerCase();
+    let alreadyExists = false;
+    for (const existing of existingUserCats) {
+      if (existing.toLowerCase() === catLower) {
+        alreadyExists = true;
+        break;
+      }
+    }
+    if (!alreadyExists) {
+      existingUserCats.add(cat);
+      newCategories.push(cat);
+    }
+  }
+
+  // Persist to Supabase Database
   try {
     const supabase = getSupabaseAdmin();
     if (supabase) {
@@ -482,78 +513,34 @@ async function saveReelForUser(
         .single();
 
       // 2. Upsert Reel Record
-      const { data: insertedReel } = await supabase
-        .from("reels")
-        .upsert(
-          {
-            user_id: userId,
-            instagram_account_id: acc?.id || null,
-            instagram_username: reel.instagram_username || (igProfileStore.get(userId)?.username) || null,
-            shortcode: reel.shortcode,
-            url: reel.url,
-            thumbnail_url: reel.thumbnail_url,
-            video_url: reel.video_url,
-            caption: reel.caption,
-            creator_handle: reel.creator_handle,
-            creator_name: reel.creator_name,
-            creator_avatar: reel.creator_avatar,
-            media_type: reel.media_type,
-            duration: reel.duration,
-            category: reel.category,
-            tags: reel.tags,
-            source: "dm",
-          },
-          { onConflict: "user_id,shortcode" }
-        )
-        .select("id")
-        .single();
-
-      const reelDbId = insertedReel?.id;
-
-      // 3. If requestedCategory, check/create Collection in Supabase
-      if (requestedCategory && reelDbId) {
-        const { data: existingCol } = await supabase
-          .from("collections")
-          .select("id, name")
-          .eq("user_id", userId)
-          .ilike("name", requestedCategory)
-          .limit(1)
-          .maybeSingle();
-
-        let targetColId = existingCol?.id;
-
-        if (!targetColId) {
-          const { data: newCol } = await supabase
-            .from("collections")
-            .insert({
-              user_id: userId,
-              name: requestedCategory,
-              description: `Category created via Instagram DM`,
-              icon: "📁",
-            })
-            .select("id")
-            .single();
-
-          targetColId = newCol?.id;
-          isNewCategory = true;
-        }
-
-        if (targetColId) {
-          await supabase.from("reel_collections").upsert(
-            {
-              reel_id: reelDbId,
-              collection_id: targetColId,
-            },
-            { onConflict: "reel_id,collection_id" }
-          );
-        }
-      }
+      await supabase.from("reels").upsert(
+        {
+          user_id: userId,
+          instagram_account_id: acc?.id || null,
+          instagram_username: reel.instagram_username || (igProfileStore.get(userId)?.username) || null,
+          shortcode: reel.shortcode,
+          url: reel.url,
+          thumbnail_url: reel.thumbnail_url,
+          video_url: reel.video_url,
+          caption: reel.caption,
+          creator_handle: reel.creator_handle,
+          creator_name: reel.creator_name,
+          creator_avatar: reel.creator_avatar,
+          media_type: reel.media_type,
+          duration: reel.duration,
+          category: reel.category,
+          tags: reel.tags,
+          note: reel.note || null,
+          source: "dm",
+        },
+        { onConflict: "user_id,shortcode" }
+      );
     }
   } catch (dbErr) {
     console.warn("[Instagram Bot] Supabase persistence notice:", dbErr);
   }
 
-  return { savedItem, isNewCategory, categoryName: requestedCategory || undefined };
+  return { savedItem, newCategories, assignedCategories };
 }
 
 /**

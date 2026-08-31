@@ -457,9 +457,9 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
       duration?: string;
     }
   ) => {
-    // Parse /category <name> or /cat <name> commands from input string
-    const { cleanText, category: extractedCategory } = parseCategoryCommand(url);
-    const cleanUrl = (cleanText || url).trim();
+    // Parse /<category> shortcuts and notes from input string
+    const parsedCmd = parseCategoryCommand(url);
+    const cleanUrl = (parsedCmd.cleanUrl || parsedCmd.cleanText || url).trim();
     if (!cleanUrl) return;
 
     // Duplicate check
@@ -488,51 +488,22 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
 
     const tempId = `${mediaType}-${Date.now()}`;
     const initialCreator = customDetails?.creator || (shortcode ? `ig_${shortcode.substring(0, 6)}` : "creator");
-    const targetCategory = extractedCategory || customDetails?.category || (mediaType === "audio" ? "Music & Audio" : "General");
+    const primaryCategory = parsedCmd.primaryCategory || customDetails?.category;
+    const allCategories = parsedCmd.categories.length > 0
+      ? parsedCmd.categories
+      : customDetails?.category
+      ? [customDetails.category]
+      : [];
+    const targetCategory = primaryCategory || (mediaType === "audio" ? "Music & Audio" : "General");
     const initialAvatar =
       customDetails?.creatorAvatar || `/api/proxy-image?username=${encodeURIComponent(initialCreator)}`;
     const initialThumbnail =
       customDetails?.thumbnailUrl || (shortcode ? `/api/proxy-image?shortcode=${shortcode}` : "");
 
-    // Handle Category / Collection auto-provisioning
-    let linkedCollectionIds: string[] = [];
-    let isNewCategoryCreated = false;
-
-    if (extractedCategory || customDetails?.category) {
-      const catName = (extractedCategory || customDetails?.category || "").trim();
-      const existingCol = collections.find(
-        (c) => c.name.toLowerCase() === catName.toLowerCase()
-      );
-
-      if (existingCol) {
-        linkedCollectionIds = [existingCol.id];
-        const updatedCols = collections.map((col) =>
-          col.id === existingCol.id && !col.reelIds.includes(tempId)
-            ? {
-                ...col,
-                reelIds: [tempId, ...col.reelIds],
-                reelCount: col.reelCount + 1,
-                updatedAt: "Just now",
-              }
-            : col
-        );
-        saveUserCollections(updatedCols);
-      } else {
-        const newColId = "col-" + Math.random().toString(36).substring(2, 9);
-        const newCol: Collection = {
-          id: newColId,
-          name: catName,
-          description: `Category created for ${catName}`,
-          icon: "📁",
-          reelIds: [tempId],
-          updatedAt: "Just now",
-          reelCount: 1,
-        };
-        saveUserCollections([newCol, ...collections]);
-        linkedCollectionIds = [newColId];
-        isNewCategoryCreated = true;
-      }
-    }
+    // Check if category already existed for user
+    const isCategoryAlreadyPresent = reels.some(
+      (r) => r.category && r.category.toLowerCase() === targetCategory.toLowerCase()
+    );
 
     // 1. Optimistic Instant UI Update (0ms)
     const optimisticReel: Reel = {
@@ -549,9 +520,10 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
       embedUrl: `https://www.instagram.com/p/${shortcode}/embed/`,
       caption: customDetails?.caption || `Instagram ${mediaType.toUpperCase()}: ${cleanUrl}`,
       category: targetCategory,
-      subcategories: [targetCategory],
-      collections: linkedCollectionIds,
-      hashtags: extractedCategory ? [extractedCategory.toLowerCase()] : [],
+      subcategories: allCategories.length > 0 ? allCategories : [targetCategory],
+      collections: [],
+      hashtags: allCategories.map((c) => c.toLowerCase()),
+      notes: parsedCmd.note || undefined,
       isFavorite: false,
       duration: customDetails?.duration || (mediaType === "audio" ? "" : customDetails?.isCarousel ? `Carousel (${customDetails?.carouselImages?.length || 1})` : ""),
       audioTitle: customDetails?.audioTitle,
@@ -570,9 +542,9 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
     saveUserReels([optimisticReel, ...reels]);
     setIsSaveModalOpen(false);
 
-    if (extractedCategory || customDetails?.category) {
+    if (allCategories.length > 0) {
       showToast(
-        isNewCategoryCreated ? `Created "${targetCategory}" & Saved` : `Saved to ${targetCategory}`,
+        !isCategoryAlreadyPresent ? `Created "${targetCategory}" & Saved` : `Saved to ${targetCategory}`,
         `@${initialCreator}'s ${mediaType}`
       );
     } else {
@@ -594,7 +566,7 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
             ? data.creatorUsername
             : customDetails?.creator || initialCreator;
         const finalFullName = data.creatorFullName || customDetails?.creatorFullName || finalCreator;
-        const finalCategory = customDetails?.category || extractedCategory || data.category || targetCategory;
+        const finalCategory = customDetails?.category || primaryCategory || data.category || targetCategory;
 
         setReels((prev) => {
           const updated = prev.map((r) => {

@@ -1,51 +1,195 @@
 /**
- * Category / Collection Slash Command Parser:
- * Matches "/category <name>", "/cat <name>", "/collection <name>", "/col <name>", "/tag <name>", "/c <name>", "#<hashtag>"
+ * REELDASH — Category Slash Command Parser & Registry
+ *
+ * Syntax: /<category> (e.g. /yoga, /fitness, /travel, /saas, /ai)
+ * Multiple categories: /yoga /fitness /mobility
+ * Category with note: /yoga morning routine I want to try
+ * Reserved system commands: /maps, /music, /summary, /transcript, /recipe
  */
-export function parseCategoryCommand(text: string): {
-  cleanText: string;
-  category: string | null;
-} {
-  if (!text) return { cleanText: text, category: null };
 
-  let category: string | null = null;
-  const clean = text;
+export const RESERVED_COMMANDS = new Set([
+  "maps",
+  "map",
+  "music",
+  "audio",
+  "summary",
+  "transcript",
+  "recipe",
+  "recipes_skill",
+  "help",
+  "settings",
+  "export",
+  "download",
+  "search",
+  "favorite",
+  "fav",
+  "status",
+  "start",
+  "stop",
+]);
+
+export function isReservedCommand(cmd: string): boolean {
+  return RESERVED_COMMANDS.has(cmd.toLowerCase().trim());
+}
+
+const SPECIAL_CASE_ACRONYMS: Record<string, string> = {
+  ai: "AI",
+  saas: "SaaS",
+  ui: "UI",
+  ux: "UX",
+  seo: "SEO",
+  api: "API",
+  ios: "iOS",
+  vr: "VR",
+  ar: "AR",
+  ml: "ML",
+  llm: "LLM",
+  gpt: "GPT",
+  diy: "DIY",
+  b2b: "B2B",
+  b2c: "B2C",
+  pr: "PR",
+  hr: "HR",
+  crm: "CRM",
+  nft: "NFT",
+  crypto: "Crypto",
+  vlog: "Vlog",
+  pov: "POV",
+  asmr: "ASMR",
+};
+
+/**
+ * Format clean, elegant canonical display names:
+ * /yoga -> "Yoga"
+ * /saas -> "SaaS"
+ * /ai -> "AI"
+ * /web development -> "Web Development"
+ */
+export function formatCategoryDisplayName(raw: string): string {
+  const trimmed = raw.trim().replace(/^["'\[]+|["'\]]+$/g, "").replace(/\s+/g, " ");
+  if (!trimmed) return "";
+
+  const lower = trimmed.toLowerCase();
+  if (SPECIAL_CASE_ACRONYMS[lower]) {
+    return SPECIAL_CASE_ACRONYMS[lower];
+  }
+
+  return trimmed
+    .split(/[\s_-]+/)
+    .filter(Boolean)
+    .map((word) => {
+      const wLower = word.toLowerCase();
+      if (SPECIAL_CASE_ACRONYMS[wLower]) {
+        return SPECIAL_CASE_ACRONYMS[wLower];
+      }
+      return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+    })
+    .join(" ");
+}
+
+export interface ParsedCategoryResult {
+  cleanText: string;
+  cleanUrl: string | null;
+  categories: string[];
+  primaryCategory: string | null;
+  note: string | null;
+  reservedCommands: string[];
+}
+
+/**
+ * Parse Category Commands:
+ * - Direct shortcut: /yoga, /fitness, /travel, /saas, /ai
+ * - Multiple shortcuts: /yoga /fitness
+ * - Backward compatibility: /category yoga
+ * - Filters out reserved system commands: /maps, /summary, etc.
+ */
+export function parseCategoryCommand(text: string): ParsedCategoryResult & { category: string | null } {
+  if (!text) {
+    return {
+      cleanText: "",
+      cleanUrl: null,
+      categories: [],
+      primaryCategory: null,
+      category: null,
+      note: null,
+      reservedCommands: [],
+    };
+  }
 
   // 1. Extract any full URL first
-  const urlMatch = clean.match(/https?:\/\/[^\s]+/i);
+  const urlMatch = text.match(/https?:\/\/[^\s]+/i);
   const foundUrl = urlMatch ? urlMatch[0] : null;
 
-  // Temporarily remove the URL to avoid slash conflicts
-  const textWithoutUrl = foundUrl ? clean.replace(foundUrl, " ").trim() : clean;
+  // Working text without the URL so slashes in https:// don't get matched
+  let workingText = foundUrl ? text.replace(foundUrl, " ").trim() : text.trim();
 
-  // 2. Match slash command: /category <name>, /cat <name>, /collection <name>, /col <name>, /tag <name>, /c <name>
-  const slashMatch = textWithoutUrl.match(/(?:^|\s)\/(?:category|cat|collection|col|tag|c)\s+([^/\n\r]+)/i);
-  if (slashMatch) {
-    category = slashMatch[1].trim();
+  const detectedCategories: string[] = [];
+  const detectedReserved: string[] = [];
+
+  // 2. Match backward-compatible explicit commands: /category <name>, /cat <name>, /collection <name>, etc.
+  const explicitCategoryMatch = workingText.match(/(?:^|\s)\/(?:category|cat|collection|col|tag|c)\s+([^/\n\r]+)/i);
+  if (explicitCategoryMatch) {
+    const rawCat = explicitCategoryMatch[1].trim();
+    if (rawCat) {
+      const formatted = formatCategoryDisplayName(rawCat);
+      if (formatted && !detectedCategories.some((c) => c.toLowerCase() === formatted.toLowerCase())) {
+        detectedCategories.push(formatted);
+      }
+    }
+    workingText = workingText.replace(explicitCategoryMatch[0], " ").trim();
   }
 
-  // 3. Fallback: match hashtag e.g. #Fitness_Motivation
-  if (!category) {
-    const hashMatch = textWithoutUrl.match(/(?:^|\s)#([A-Za-z0-9_-]+)(?:\s|$)/);
-    if (hashMatch) {
-      category = hashMatch[1].replace(/_/g, " ").trim();
+  // 3. Match /<category> slash shortcuts e.g. /yoga, /fitness, /saas, /ai, /travel
+  const slashCommandRegex = /(?:^|\s)\/([a-zA-Z0-9_.-]+)/g;
+  let match: RegExpExecArray | null;
+
+  while ((match = slashCommandRegex.exec(workingText)) !== null) {
+    const rawCmd = match[1].trim();
+    if (!rawCmd) continue;
+
+    if (isReservedCommand(rawCmd)) {
+      if (!detectedReserved.includes(rawCmd.toLowerCase())) {
+        detectedReserved.push(rawCmd.toLowerCase());
+      }
+    } else {
+      const formatted = formatCategoryDisplayName(rawCmd);
+      if (formatted && !detectedCategories.some((c) => c.toLowerCase() === formatted.toLowerCase())) {
+        detectedCategories.push(formatted);
+      }
     }
   }
 
-  if (category) {
-    // Strip surrounding quotes or brackets
-    category = category.replace(/^["'\[]+|["'\]]+$/g, "").trim();
-    if (category.length > 50) {
-      category = category.substring(0, 50).trim();
+  // Remove all matched slash commands from workingText
+  workingText = workingText.replace(/(?:^|\s)\/[a-zA-Z0-9_.-]+/g, " ").trim();
+
+  // 4. Fallback: match hashtag tokens e.g. #fitness #yoga if no slash categories detected
+  if (detectedCategories.length === 0) {
+    const hashRegex = /(?:^|\s)#([a-zA-Z0-9_]+)/g;
+    let hMatch: RegExpExecArray | null;
+    while ((hMatch = hashRegex.exec(workingText)) !== null) {
+      const rawHash = hMatch[1].replace(/_/g, " ").trim();
+      if (rawHash) {
+        const formatted = formatCategoryDisplayName(rawHash);
+        if (formatted && !detectedCategories.some((c) => c.toLowerCase() === formatted.toLowerCase())) {
+          detectedCategories.push(formatted);
+        }
+      }
     }
-    category = category.replace(/\s+/g, " ");
+    workingText = workingText.replace(/(?:^|\s)#[a-zA-Z0-9_]+/g, " ").trim();
   }
 
-  // Clean text is the found URL if present, otherwise clean stripped text
-  const cleanResult = foundUrl || textWithoutUrl.replace(/(?:^|\s)\/(?:category|cat|collection|col|tag|c)\s+([^/\n\r]+)/i, "").trim();
+  // 5. Clean up any remaining text to use as note / cleanText
+  workingText = workingText.replace(/\s+/g, " ").trim();
+  const note = workingText.length > 0 ? workingText : null;
+  const primaryCategory = detectedCategories.length > 0 ? detectedCategories[0] : null;
 
   return {
-    cleanText: cleanResult,
-    category: category && category.length > 0 ? category : null,
+    cleanText: foundUrl || workingText,
+    cleanUrl: foundUrl,
+    categories: detectedCategories,
+    primaryCategory,
+    category: primaryCategory,
+    note,
+    reservedCommands: detectedReserved,
   };
 }

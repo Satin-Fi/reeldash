@@ -102,10 +102,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing URL parameter" }, { status: 400 });
     }
 
-    // Parse /category <name> or /cat <name> commands from URL
-    const { cleanText, category: urlCategory } = parseCategoryCommand(rawUrl);
-    const url = (cleanText || rawUrl).trim();
-    const requestedCategory = urlCategory || bodyCategory;
+    // Parse /<category> shortcuts and notes from URL
+    const parsedCmd = parseCategoryCommand(rawUrl);
+    const url = (parsedCmd.cleanUrl || parsedCmd.cleanText || rawUrl).trim();
+    const primaryCategory = parsedCmd.primaryCategory || bodyCategory;
+    const allCategories = parsedCmd.categories.length > 0 ? parsedCmd.categories : bodyCategory ? [bodyCategory] : [];
 
     // Call internal reel-info extractor
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://reeldash-nine.vercel.app";
@@ -121,10 +122,12 @@ export async function POST(req: NextRequest) {
     const shortcode = infoData.shortcode || (shortcodeMatch ? shortcodeMatch[1] : `sc_${Date.now()}`);
     const mediaType = infoData.mediaType || (url.includes("/audio/") ? "audio" : url.includes("/stories/") ? "story" : url.includes("/p/") ? "post" : "reel");
 
-    const effectiveCategory = requestedCategory || infoData.category || "General";
-    const tags = infoData.hashtags || [];
-    if (requestedCategory && !tags.includes(requestedCategory.toLowerCase())) {
-      tags.push(requestedCategory.toLowerCase());
+    const effectiveCategory = primaryCategory || infoData.category || (mediaType === "audio" ? "Music & Audio" : "General");
+    const tags = [...(infoData.hashtags || [])];
+    for (const cat of allCategories) {
+      if (!tags.includes(cat.toLowerCase())) {
+        tags.push(cat.toLowerCase());
+      }
     }
 
     const reelPayload = {
@@ -142,16 +145,13 @@ export async function POST(req: NextRequest) {
       plays_count: infoData.views || "",
       category: effectiveCategory,
       tags,
-      note: notes || "",
+      note: parsedCmd.note || notes || "",
       is_favorite: !!isFavorite,
       ai_summary: infoData.aiSummary || "",
       source: "manual",
     };
 
-    let isNewCategory = false;
-    let collectionData: any = null;
-
-    // If Supabase is connected, persist to DB with Collection auto-creation
+    // If Supabase is connected, persist to DB
     try {
       const supabase = getSupabaseAdmin();
       if (supabase) {
@@ -165,54 +165,11 @@ export async function POST(req: NextRequest) {
           .single();
 
         if (!error && data) {
-          // Auto-create and link Collection if category specified
-          if (requestedCategory) {
-            const { data: existingCol } = await supabase
-              .from("collections")
-              .select("id, name")
-              .eq("user_id", userId)
-              .ilike("name", requestedCategory)
-              .limit(1)
-              .maybeSingle();
-
-            let targetColId = existingCol?.id;
-
-            if (!targetColId) {
-              const { data: newCol } = await supabase
-                .from("collections")
-                .insert({
-                  user_id: userId,
-                  name: requestedCategory,
-                  description: `Category created via ReelDash`,
-                  icon: "📁",
-                })
-                .select()
-                .single();
-
-              targetColId = newCol?.id;
-              collectionData = newCol;
-              isNewCategory = true;
-            } else {
-              collectionData = existingCol;
-            }
-
-            if (targetColId) {
-              await supabase.from("reel_collections").upsert(
-                {
-                  reel_id: data.id,
-                  collection_id: targetColId,
-                },
-                { onConflict: "reel_id,collection_id" }
-              );
-            }
-          }
-
           return NextResponse.json({
             success: true,
             reel: data,
             category: effectiveCategory,
-            collection: collectionData,
-            isNewCategory,
+            categories: allCategories,
             source: "database",
           });
         }

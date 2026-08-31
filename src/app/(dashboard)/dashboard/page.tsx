@@ -142,7 +142,7 @@ export default function DashboardPage() {
                       type="text"
                       value={inputUrl}
                       onChange={(event) => setInputUrl(event.target.value)}
-                      placeholder="Paste link or add /category name (e.g. /category Fitness)"
+                      placeholder="Paste link or add /<category> (e.g. /yoga, /fitness, /saas)"
                       className="h-12 w-full rounded-rd-md border border-borderSubtle-light bg-background-light pl-11 pr-11 text-sm text-primaryText-light shadow-rd-inset transition-colors placeholder:text-mutedText-light focus:border-brand-500 focus:outline-none focus:ring-4 focus:ring-brand-500/10 dark:border-borderSubtle-dark dark:bg-background-dark dark:text-primaryText-dark dark:placeholder:text-mutedText-dark"
                     />
                     {inputUrl && (

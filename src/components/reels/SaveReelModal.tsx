@@ -183,7 +183,7 @@ export function SaveReelModal() {
                 <Link2 className="absolute left-3.5 w-4 h-4 text-[#777C89]" />
                 <input
                   type="text"
-                  placeholder="https://www.instagram.com/reel/... or /category Name"
+                  placeholder="https://www.instagram.com/reel/... or /yoga, /fitness"
                   value={url}
                   onChange={(e) => setUrl(e.target.value)}
                   required
@@ -215,11 +215,11 @@ export function SaveReelModal() {
             {/* Optional Category Field */}
             <div>
               <label className="block text-[11px] font-medium uppercase tracking-wider text-[#8E93A2] mb-1.5">
-                Category / Collection <span className="text-[10px] lowercase font-normal text-[#5A5F6E]">(optional, creates if not exists)</span>
+                Category <span className="text-[10px] lowercase font-normal text-[#5A5F6E]">(e.g. Yoga, Fitness, SaaS)</span>
               </label>
               <input
                 type="text"
-                placeholder="e.g. Fitness, Marketing, UI Inspiration"
+                placeholder="e.g. Yoga, Fitness, AI, SaaS"
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
                 className="w-full px-3.5 py-2 bg-[#0B0D10] border border-white/[0.08] hover:border-white/[0.12] focus:border-[#5B52E8] rounded-lg text-sm text-white placeholder-[#5A5F6E] focus:outline-none transition-colors"
