@@ -193,23 +193,28 @@ export async function processInstagramMessage(
       let finalCategories = allCategories.length > 0 ? [...allCategories] : [initialSavedCategory];
 
       // If user provided NO category with the reel (e.g. native Instagram share sheet),
-      // wait a short window (5.0s) polling database across serverless lambdas in case user typed /<category>
+      // wait up to 8.0s polling database across serverless lambdas in case user typed /<category>
       if (allCategories.length === 0) {
         const supabase = getSupabaseAdmin();
-        for (let i = 0; i < 10; i++) {
+        for (let i = 0; i < 16; i++) {
           await new Promise((r) => setTimeout(r, 500));
           if (supabase) {
             try {
               const { data: dbReel } = await supabase
                 .from("reels")
-                .select("category, tags")
+                .select("category, tags, created_at, updated_at")
                 .eq("user_id", userProfile.id)
                 .eq("shortcode", formattedReel.shortcode)
                 .maybeSingle();
 
-              if (dbReel && dbReel.category && dbReel.category !== initialSavedCategory) {
-                finalCategories = [dbReel.category];
-                break; // User typed follow-up command! Break loop immediately and send single combined message.
+              if (dbReel) {
+                const isCatChanged = dbReel.category && dbReel.category !== initialSavedCategory;
+                const isUpdated = dbReel.updated_at && dbReel.created_at && (new Date(dbReel.updated_at).getTime() > new Date(dbReel.created_at).getTime() + 150);
+
+                if (isCatChanged || isUpdated) {
+                  finalCategories = dbReel.category ? [dbReel.category] : finalCategories;
+                  break; // User typed follow-up command! Break loop immediately and send single combined message.
+                }
               }
             } catch {
               // Ignore polling errors
@@ -699,29 +704,106 @@ async function saveReelForUser(
         .limit(1)
         .single();
 
-      // 2. Upsert Reel Record
-      await supabase.from("reels").upsert(
-        {
-          user_id: userId,
-          instagram_account_id: acc?.id || null,
-          instagram_username: reel.instagram_username || (igProfileStore.get(userId)?.username) || null,
-          shortcode: reel.shortcode,
-          url: reel.url,
-          thumbnail_url: reel.thumbnail_url,
-          video_url: reel.video_url,
-          caption: reel.caption,
-          creator_handle: reel.creator_handle,
-          creator_name: reel.creator_name,
-          creator_avatar: reel.creator_avatar,
-          media_type: reel.media_type,
-          duration: reel.duration,
-          category: reel.category,
-          tags: reel.tags,
-          note: reel.note || null,
-          source: "dm",
-        },
-        { onConflict: "user_id,shortcode" }
-      );
+      // 2. Extract caption hashtags
+      const extractedHashtags: string[] = [];
+      if (reel.caption) {
+        const hMatches = reel.caption.match(/#([a-zA-Z0-9_\u0080-\uFFFF]+)/g);
+        if (hMatches) {
+          hMatches.forEach((h: string) => {
+            const lower = h.toLowerCase();
+            if (!extractedHashtags.includes(lower)) extractedHashtags.push(lower);
+          });
+        }
+      }
+      if (Array.isArray(reel.tags)) {
+        reel.tags.forEach((t: string) => {
+          if (t && !extractedHashtags.includes(t.toLowerCase())) {
+            extractedHashtags.push(t.toLowerCase());
+          }
+        });
+      }
+
+      // 3. Upsert Reel Record
+      const { data: savedDbReel } = await supabase
+        .from("reels")
+        .upsert(
+          {
+            user_id: userId,
+            instagram_account_id: acc?.id || null,
+            instagram_username: reel.instagram_username || (igProfileStore.get(userId)?.username) || null,
+            shortcode: reel.shortcode,
+            url: reel.url,
+            thumbnail_url: reel.thumbnail_url,
+            video_url: reel.video_url,
+            caption: reel.caption,
+            creator_handle: reel.creator_handle,
+            creator_name: reel.creator_name,
+            creator_avatar: reel.creator_avatar,
+            media_type: reel.media_type,
+            duration: reel.duration,
+            category: reel.category,
+            tags: extractedHashtags,
+            note: reel.note || null,
+            source: "dm",
+          },
+          { onConflict: "user_id,shortcode" }
+        )
+        .select()
+        .single();
+
+      if (savedDbReel) {
+        // Link Category records in categories & reel_categories
+        for (const catName of requestedCategories) {
+          const formatted = formatCategoryDisplayName(catName);
+          const normalized = formatted.toLowerCase();
+          const slug = normalized.replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+
+          const { data: catRecord } = await supabase
+            .from("categories")
+            .upsert(
+              {
+                user_id: userId,
+                name: formatted,
+                normalized_name: normalized,
+                slug,
+                source: "dm",
+              },
+              { onConflict: "user_id,normalized_name" }
+            )
+            .select("id")
+            .single();
+
+          if (catRecord) {
+            await supabase
+              .from("reel_categories")
+              .upsert(
+                { reel_id: savedDbReel.id, category_id: catRecord.id },
+                { onConflict: "reel_id,category_id" }
+              );
+          }
+        }
+
+        // Link Hashtag records in hashtags & reel_hashtags
+        for (const rawHash of extractedHashtags) {
+          const normHash = rawHash.replace(/^#+/, "").toLowerCase();
+          if (normHash) {
+            const { data: hashRecord } = await supabase
+              .from("hashtags")
+              .upsert({ name: `#${normHash}`, normalized_name: normHash }, { onConflict: "normalized_name" })
+              .select("id")
+              .single();
+
+            if (hashRecord) {
+              await supabase
+                .from("reel_hashtags")
+                .upsert(
+                  { reel_id: savedDbReel.id, hashtag_id: hashRecord.id },
+                  { onConflict: "reel_id,hashtag_id" }
+                );
+            }
+          }
+        }
+      }
     }
   } catch (dbErr) {
     console.warn("[Instagram Bot] Supabase persistence notice:", dbErr);
@@ -775,7 +857,7 @@ async function updateRecentReelCategoryForUser(
       if (latestDbReel) {
         const createdAtMs = new Date(latestDbReel.created_at).getTime();
         const ageMs = Date.now() - createdAtMs;
-        if (Math.abs(ageMs) <= 12000) {
+        if (Math.abs(ageMs) <= 15000) {
           isWithinPendingWindow = true;
         }
 
@@ -786,12 +868,14 @@ async function updateRecentReelCategoryForUser(
           }
         }
 
+        const nowIso = new Date().toISOString();
         await supabase
           .from("reels")
           .update({
             category: primaryCategory,
             tags: currentTags,
             note: note || latestDbReel.note || null,
+            updated_at: nowIso,
           })
           .eq("id", latestDbReel.id);
 
@@ -800,6 +884,7 @@ async function updateRecentReelCategoryForUser(
           category: primaryCategory,
           tags: currentTags,
           note: note || latestDbReel.note,
+          updated_at: nowIso,
         };
         userLastSavedReelStore.set(userId, recentReel);
       }

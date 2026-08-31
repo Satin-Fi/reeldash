@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { processInstagramMessage } from "@/lib/instagramBot";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 30;
 
 const VERIFY_TOKEN = process.env.INSTAGRAM_VERIFY_TOKEN || "reeldash_webhook_2026";
 

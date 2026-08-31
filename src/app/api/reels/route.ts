@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabaseAdmin } from "@/lib/supabase";
-import { parseCategoryCommand } from "@/lib/parseCategory";
+import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
+import { parseCategoryCommand, formatCategoryDisplayName } from "@/lib/parseCategory";
 
 export const dynamic = "force-dynamic";
 
-// ─── GET /api/reels (Fetch user reels) ─────────────────────────────────
+// ─── GET /api/reels (Fetch user reels with categories and hashtags) ─────
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const userId = searchParams.get("userId");
@@ -58,41 +58,107 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    let query = supabase.from("reels").select(`
+      *,
+      reel_categories (
+        category_id,
+        categories (
+          id,
+          name,
+          slug,
+          icon
+        )
+      ),
+      reel_hashtags (
+        hashtag_id,
+        hashtags (
+          id,
+          name,
+          normalized_name
+        )
+      )
+    `);
+
     if (filterAccount && filterAccount !== "all") {
       const cleanFilter = filterAccount.replace(/^@/, "").trim().toLowerCase();
-      const { data: reels, error } = await supabase
-        .from("reels")
-        .select("*")
-        .ilike("instagram_username", cleanFilter)
-        .order("created_at", { ascending: false });
-
-      if (error) {
-        return NextResponse.json({ reels: [], fallback: true, message: error.message });
-      }
-      return NextResponse.json({ reels: reels || [] });
-    }
-
-    if (userIds.length === 0) {
+      query = query.ilike("instagram_username", cleanFilter);
+    } else if (userIds.length > 0) {
+      query = query.in("user_id", userIds);
+    } else {
       return NextResponse.json({ reels: [] });
     }
 
-    const { data: reels, error } = await supabase
-      .from("reels")
-      .select("*")
-      .in("user_id", userIds)
-      .order("created_at", { ascending: false });
+    const { data: rawReels, error } = await query.order("created_at", { ascending: false });
 
     if (error) {
-      return NextResponse.json({ reels: [], fallback: true, message: error.message });
+      console.warn("[API Reels GET query error]:", error);
+      // Fallback simple query if joins fail
+      const { data: simpleReels } = await supabase
+        .from("reels")
+        .select("*")
+        .in("user_id", userIds)
+        .order("created_at", { ascending: false });
+      return NextResponse.json({ reels: simpleReels || [] });
     }
 
-    return NextResponse.json({ reels: reels || [] });
+    // Enrich and transform reels
+    const enrichedReels = (rawReels || []).map((row: any) => {
+      const categoryList: string[] = [];
+      const categoryIdList: string[] = [];
+
+      if (Array.isArray(row.reel_categories)) {
+        row.reel_categories.forEach((rc: any) => {
+          if (rc.categories?.name) {
+            categoryList.push(rc.categories.name);
+            categoryIdList.push(rc.categories.id);
+          }
+        });
+      }
+
+      // If categoryList is empty, fallback to row.category
+      if (categoryList.length === 0 && row.category && !row.category.startsWith("#")) {
+        categoryList.push(row.category);
+      }
+
+      const hashtagList: string[] = [];
+      if (Array.isArray(row.reel_hashtags)) {
+        row.reel_hashtags.forEach((rh: any) => {
+          if (rh.hashtags?.name) {
+            hashtagList.push(rh.hashtags.name);
+          }
+        });
+      }
+
+      // If hashtagList is empty, extract from tags or caption
+      if (hashtagList.length === 0 && Array.isArray(row.tags)) {
+        row.tags.forEach((t: string) => {
+          if (t) {
+            const h = t.startsWith("#") ? t : `#${t}`;
+            if (!hashtagList.includes(h)) hashtagList.push(h);
+          }
+        });
+      }
+
+      return {
+        ...row,
+        category: categoryList[0] || row.category || "General",
+        categories: categoryList.length > 0 ? categoryList : [row.category || "General"],
+        categoryIds: categoryIdList,
+        hashtags: hashtagList,
+        aiTopics: Array.isArray(row.ai_topics) ? row.ai_topics : [],
+        // Clean out raw join artifacts
+        reel_categories: undefined,
+        reel_hashtags: undefined,
+      };
+    });
+
+    return NextResponse.json({ reels: enrichedReels });
   } catch (err: any) {
     return NextResponse.json({ reels: [], fallback: true, error: err?.message });
   }
 }
 
-// ─── POST /api/reels (Save a new reel) ────────────────────────────────
+// ─── POST /api/reels (Save a new reel with categories & hashtags) ──────
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
@@ -105,8 +171,8 @@ export async function POST(req: NextRequest) {
     // Parse /<category> shortcuts and notes from URL
     const parsedCmd = parseCategoryCommand(rawUrl);
     const url = (parsedCmd.cleanUrl || parsedCmd.cleanText || rawUrl).trim();
-    const primaryCategory = parsedCmd.primaryCategory || bodyCategory;
     const allCategories = parsedCmd.categories.length > 0 ? parsedCmd.categories : bodyCategory ? [bodyCategory] : [];
+    const primaryCategory = allCategories.length > 0 ? allCategories[0] : (parsedCmd.primaryCategory || "General");
 
     // Call internal reel-info extractor
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://reeldash-nine.vercel.app";
@@ -122,15 +188,27 @@ export async function POST(req: NextRequest) {
     const shortcode = infoData.shortcode || (shortcodeMatch ? shortcodeMatch[1] : `sc_${Date.now()}`);
     const mediaType = infoData.mediaType || (url.includes("/audio/") ? "audio" : url.includes("/stories/") ? "story" : url.includes("/p/") ? "post" : "reel");
 
-    const effectiveCategory = primaryCategory || infoData.category || (mediaType === "audio" ? "Music & Audio" : "General");
-    const tags = [...(infoData.hashtags || [])];
-    for (const cat of allCategories) {
-      if (!tags.includes(cat.toLowerCase())) {
-        tags.push(cat.toLowerCase());
-      }
+    const effectiveCategory = allCategories.length > 0 ? allCategories[0] : (infoData.category || (mediaType === "audio" ? "Music & Audio" : "General"));
+    
+    // Extract hashtags from caption and infoData
+    const extractedHashtags: string[] = [];
+    const captionText = infoData.caption || "";
+    const hashMatches = captionText.match(/#([a-zA-Z0-9_\u0080-\uFFFF]+)/g);
+    if (hashMatches) {
+      hashMatches.forEach((h: string) => {
+        const lower = h.toLowerCase();
+        if (!extractedHashtags.includes(lower)) extractedHashtags.push(lower);
+      });
+    }
+    if (Array.isArray(infoData.hashtags)) {
+      infoData.hashtags.forEach((h: string) => {
+        const tag = h.startsWith("#") ? h.toLowerCase() : `#${h.toLowerCase()}`;
+        if (!extractedHashtags.includes(tag)) extractedHashtags.push(tag);
+      });
     }
 
     const reelPayload = {
+      user_id: userId,
       shortcode,
       url,
       thumbnail_url: infoData.thumbnailUrl || (shortcode ? `/api/proxy-image?shortcode=${shortcode}` : ""),
@@ -144,83 +222,125 @@ export async function POST(req: NextRequest) {
       likes_count: infoData.likes || "",
       plays_count: infoData.views || "",
       category: effectiveCategory,
-      tags,
+      tags: extractedHashtags,
       note: parsedCmd.note || notes || "",
       is_favorite: !!isFavorite,
       ai_summary: infoData.aiSummary || "",
+      ai_topics: Array.isArray(infoData.aiTopics) ? infoData.aiTopics : [],
       source: "manual",
     };
 
-    // If Supabase is connected, persist to DB
+    // If Supabase is connected, persist to DB and associate categories & hashtags
     try {
       const supabase = getSupabaseAdmin();
       if (supabase) {
-        const { data, error } = await supabase
+        const { data: savedRow, error } = await supabase
           .from("reels")
-          .upsert(
-            { ...reelPayload, user_id: userId },
-            { onConflict: "user_id,shortcode" }
-          )
+          .upsert(reelPayload, { onConflict: "user_id,shortcode" })
           .select()
           .single();
 
-        if (!error && data) {
+        if (!error && savedRow) {
+          // Link categories
+          for (const catName of allCategories) {
+            const formatted = formatCategoryDisplayName(catName);
+            const normalized = formatted.toLowerCase();
+            const slug = normalized.replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+
+            const { data: catRecord } = await supabase
+              .from("categories")
+              .upsert(
+                {
+                  user_id: userId,
+                  name: formatted,
+                  normalized_name: normalized,
+                  slug,
+                  source: "user",
+                },
+                { onConflict: "user_id,normalized_name" }
+              )
+              .select("id")
+              .single();
+
+            if (catRecord) {
+              await supabase
+                .from("reel_categories")
+                .upsert({ reel_id: savedRow.id, category_id: catRecord.id }, { onConflict: "reel_id,category_id" });
+            }
+          }
+
+          // Link hashtags
+          for (const rawHash of extractedHashtags) {
+            const normHash = rawHash.replace(/^#+/, "").toLowerCase();
+            if (normHash) {
+              const { data: hashRecord } = await supabase
+                .from("hashtags")
+                .upsert({ name: `#${normHash}`, normalized_name: normHash }, { onConflict: "normalized_name" })
+                .select("id")
+                .single();
+
+              if (hashRecord) {
+                await supabase
+                  .from("reel_hashtags")
+                  .upsert({ reel_id: savedRow.id, hashtag_id: hashRecord.id }, { onConflict: "reel_id,hashtag_id" });
+              }
+            }
+          }
+
           return NextResponse.json({
-            success: true,
-            reel: data,
-            category: effectiveCategory,
-            categories: allCategories,
-            source: "database",
+            reel: {
+              ...savedRow,
+              categories: allCategories.length > 0 ? allCategories : [savedRow.category || "General"],
+              hashtags: extractedHashtags,
+            },
           });
         }
       }
-    } catch {
-      // Continue to local response
+    } catch (dbErr) {
+      console.warn("[POST /api/reels Supabase notice]:", dbErr);
     }
 
     return NextResponse.json({
-      success: true,
       reel: {
-        id: `${mediaType}-${Date.now()}`,
-        userId,
+        id: `reel_${Date.now()}`,
         ...reelPayload,
-        instagramUrl: url,
-        creatorUsername: reelPayload.creator_handle,
-        creatorFullName: reelPayload.creator_name,
-        thumbnailUrl: reelPayload.thumbnail_url,
-        mediaUrl: reelPayload.video_url,
-        likes: reelPayload.likes_count,
-        hashtags: reelPayload.tags,
-        createdAt: new Date().toISOString(),
+        categories: allCategories.length > 0 ? allCategories : [effectiveCategory],
+        hashtags: extractedHashtags,
       },
-      source: "client_sync",
     });
   } catch (err: any) {
-    return NextResponse.json({ error: err?.message || "Internal server error" }, { status: 500 });
+    return NextResponse.json({ error: err?.message || "Failed to save reel" }, { status: 500 });
   }
 }
 
-// ─── DELETE /api/reels ────────────────────────────────────────────────
+// ─── DELETE /api/reels (Delete a reel permanently) ────────────────────
 export async function DELETE(req: NextRequest) {
-  const { searchParams } = new URL(req.url);
-  const id = searchParams.get("id");
-
-  if (!id) {
-    return NextResponse.json({ error: "Missing reel id parameter" }, { status: 400 });
-  }
-
   try {
-    const supabase = getSupabaseAdmin();
-    if (!supabase) {
-      return NextResponse.json({ success: true, localOnly: true });
+    const { searchParams } = new URL(req.url);
+    const id = searchParams.get("id");
+    const shortcode = searchParams.get("shortcode");
+
+    if (!id && !shortcode) {
+      return NextResponse.json({ error: "id or shortcode parameter is required" }, { status: 400 });
     }
 
-    const { error } = await supabase.from("reels").delete().eq("id", id);
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+    const supabase = getSupabaseAdmin();
+    if (supabase) {
+      let query = supabase.from("reels").delete();
+      if (id) {
+        query = query.eq("id", id);
+      } else if (shortcode) {
+        query = query.eq("shortcode", shortcode);
+      }
+      const { error } = await query;
+      if (error) {
+        console.warn("[DELETE /api/reels error]:", error);
+        return NextResponse.json({ error: error.message }, { status: 500 });
+      }
     }
-    return NextResponse.json({ success: true });
+
+    return NextResponse.json({ success: true, id, shortcode });
   } catch (err: any) {
-    return NextResponse.json({ success: true, localOnly: true });
+    return NextResponse.json({ error: err?.message || "Failed to delete reel" }, { status: 500 });
   }
 }

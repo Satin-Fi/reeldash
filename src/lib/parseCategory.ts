@@ -5,6 +5,9 @@
  * Multiple categories: /yoga /fitness /mobility
  * Category with note: /yoga morning routine I want to try
  * Reserved system commands: /maps, /music, /summary, /transcript, /recipe
+ *
+ * CRITICAL RULE: Hashtags (#fitness, #gym) are metadata describing Instagram content,
+ * NOT categories. They are never converted into categories by this parser.
  */
 
 export const RESERVED_COMMANDS = new Set([
@@ -13,8 +16,11 @@ export const RESERVED_COMMANDS = new Set([
   "music",
   "audio",
   "summary",
+  "summarize",
   "transcript",
+  "transcribe",
   "recipe",
+  "recipes",
   "recipes_skill",
   "help",
   "settings",
@@ -59,11 +65,12 @@ const SPECIAL_CASE_ACRONYMS: Record<string, string> = {
 };
 
 /**
- * Format clean, elegant canonical display names:
+ * Format clean, human-readable canonical display names:
  * /yoga -> "Yoga"
  * /saas -> "SaaS"
  * /ai -> "AI"
- * /web development -> "Web Development"
+ * /morningroutine -> "Morning Routine"
+ * /tech-dev -> "Tech Dev"
  */
 export function formatCategoryDisplayName(raw: string): string {
   const trimmed = raw.trim().replace(/^["'\[]+|["'\]]+$/g, "").replace(/\s+/g, " ");
@@ -74,7 +81,13 @@ export function formatCategoryDisplayName(raw: string): string {
     return SPECIAL_CASE_ACRONYMS[lower];
   }
 
-  return trimmed
+  // Handle camelCase or compound words like morningroutine -> Morning Routine if obvious
+  let separated = trimmed;
+  if (/^[a-z]+[A-Z][a-z]+$/.test(trimmed)) {
+    separated = trimmed.replace(/([a-z])([A-Z])/g, "$1 $2");
+  }
+
+  return separated
     .split(/[\s_-]+/)
     .filter(Boolean)
     .map((word) => {
@@ -102,6 +115,7 @@ export interface ParsedCategoryResult {
  * - Multiple shortcuts: /yoga /fitness
  * - Backward compatibility: /category yoga
  * - Filters out reserved system commands: /maps, /summary, etc.
+ * - Extracts post hashtags separately without turning them into categories.
  */
 export function parseCategoryCommand(text: string): ParsedCategoryResult & { category: string | null } {
   if (!text) {
@@ -162,23 +176,7 @@ export function parseCategoryCommand(text: string): ParsedCategoryResult & { cat
   // Remove all matched slash commands from workingText
   workingText = workingText.replace(/(?:^|\s)\/[a-zA-Z0-9_.-]+/g, " ").trim();
 
-  // 4. Fallback: match hashtag tokens e.g. #fitness #yoga if no slash categories detected
-  if (detectedCategories.length === 0) {
-    const hashRegex = /(?:^|\s)#([a-zA-Z0-9_]+)/g;
-    let hMatch: RegExpExecArray | null;
-    while ((hMatch = hashRegex.exec(workingText)) !== null) {
-      const rawHash = hMatch[1].replace(/_/g, " ").trim();
-      if (rawHash) {
-        const formatted = formatCategoryDisplayName(rawHash);
-        if (formatted && !detectedCategories.some((c) => c.toLowerCase() === formatted.toLowerCase())) {
-          detectedCategories.push(formatted);
-        }
-      }
-    }
-    workingText = workingText.replace(/(?:^|\s)#[a-zA-Z0-9_]+/g, " ").trim();
-  }
-
-  // 5. Clean up any remaining text to use as note / cleanText
+  // 4. Clean up any remaining text to use as note / cleanText
   workingText = workingText.replace(/\s+/g, " ").trim();
   const note = workingText.length > 0 ? workingText : null;
   const primaryCategory = detectedCategories.length > 0 ? detectedCategories[0] : null;

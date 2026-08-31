@@ -7,6 +7,20 @@ export interface CarouselSlide {
   thumbnailUrl?: string;
 }
 
+export interface Category {
+  id: string;
+  userId: string;
+  name: string;
+  normalizedName: string;
+  slug: string;
+  icon?: string;
+  description?: string;
+  source: "user" | "dm" | "ai" | "system";
+  reelCount?: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Reel {
   id: string;
   userId: string;
@@ -21,11 +35,14 @@ export interface Reel {
   mediaUrl?: string;
   embedUrl?: string;
   caption: string;
-  category: string;
+  category: string; // Primary category name for display
+  categories?: string[]; // All assigned categories
+  categoryIds?: string[]; // All assigned category IDs
   subcategories: string[];
   collections: string[];
-  hashtags: string[];
-  tags?: string[];
+  hashtags: string[]; // Instagram post hashtags from caption (e.g. ["#fitness", "#fyp"])
+  tags?: string[]; // Backward-compatibility alias
+  aiTopics?: string[]; // AI-derived semantic topics
   likes?: string;
   commentsCount?: string;
   notes?: string;
@@ -72,8 +89,13 @@ export interface Collection {
 }
 
 export interface SmartCategory {
+  id?: string;
   name: string;
+  slug?: string;
   count: number;
+  source?: "user" | "dm" | "ai" | "system";
+  icon?: string;
+  description?: string;
 }
 
 export type SortOption = "newest" | "oldest" | "recently_viewed" | "most_viewed" | "creator";
@@ -81,4 +103,3 @@ export type SortOption = "newest" | "oldest" | "recently_viewed" | "most_viewed"
 export type ViewMode = "grid" | "compact";
 
 export type MediaTypeFilter = "all" | MediaType;
-
