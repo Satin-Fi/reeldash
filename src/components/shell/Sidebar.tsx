@@ -23,6 +23,7 @@ import {
   ChevronsUpDown,
   Check,
   Crown,
+  Trash2,
 } from "lucide-react";
 
 export function Sidebar() {
@@ -30,6 +31,7 @@ export function Sidebar() {
   const {
     reels,
     favorites,
+    recycleBin,
     collections,
     smartCategories,
     activeCategory,
@@ -388,6 +390,25 @@ export function Sidebar() {
         >
           <Crown className="w-4 h-4 text-brand-500 shrink-0" strokeWidth={1.75} />
           <span className="truncate">Plans & Pricing</span>
+        </Link>
+
+        <Link
+          href="/recycle-bin"
+          className={`flex items-center justify-between px-3 py-2 rounded-rd-md text-xs font-medium transition-colors ${
+            pathname === "/recycle-bin"
+              ? "bg-brand-500/10 text-brand-600 dark:text-brand-400 font-semibold"
+              : "text-secondaryText-light dark:text-secondaryText-dark hover:bg-surfaceSecondary-light dark:hover:bg-surfaceSecondary-dark hover:text-primaryText-light dark:hover:text-primaryText-dark"
+          }`}
+        >
+          <div className="flex items-center space-x-2.5 min-w-0">
+            <Trash2 className="w-4 h-4 shrink-0 text-zinc-400" strokeWidth={1.75} />
+            <span className="truncate">Recycle Bin</span>
+          </div>
+          {recycleBin.length > 0 && (
+            <span className="text-[10px] font-mono font-semibold px-1.5 py-0.2 rounded-full bg-rose-500/15 text-rose-400 shrink-0">
+              {recycleBin.length}
+            </span>
+          )}
         </Link>
 
         <Link

@@ -26,6 +26,7 @@ import {
   Instagram,
   Check,
   ChevronsUpDown,
+  Trash2,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
@@ -35,6 +36,7 @@ export function TopBar() {
   const {
     reels,
     favorites,
+    recycleBin,
     setIsCommandPaletteOpen,
     theme,
     toggleTheme,
@@ -135,6 +137,9 @@ export function TopBar() {
     }
     if (pathname.startsWith("/favorites")) {
       return { title: "Favorites", icon: Heart, count: favorites.length };
+    }
+    if (pathname.startsWith("/recycle-bin")) {
+      return { title: "Recycle Bin", icon: Trash2, count: recycleBin.length };
     }
     if (pathname.startsWith("/recent")) {
       return { title: "Recently Saved", icon: Clock };

@@ -33,23 +33,37 @@ export async function POST(req: NextRequest) {
 
     for (const entry of entries) {
       const messaging = entry?.messaging ?? [];
+
+      // Group messaging events by sender so reel attachment and slash command in the same payload merge into 1 call
+      const senderEvents = new Map<string, { texts: string[]; attachments: any[]; postbackPayload?: string }>();
+
       for (const event of messaging) {
         if (!event?.message && !event?.postback) continue;
-
-        const senderIgId: string = event.sender?.id;
-        const messageText: string = event.message?.text ?? event.postback?.title ?? "";
-        const postbackPayload: string = event.postback?.payload ?? "";
-        const attachments = event.message?.attachments ?? [];
-
         if (event.message?.is_echo) continue;
 
+        const senderIgId: string = event.sender?.id;
+        if (!senderIgId) continue;
+
+        const text = event.message?.text ?? event.postback?.title ?? "";
+        const postbackPayload = event.postback?.payload;
+        const attachments = event.message?.attachments ?? [];
+
+        const existing = senderEvents.get(senderIgId) || { texts: [], attachments: [], postbackPayload: undefined };
+        if (text) existing.texts.push(text);
+        if (attachments.length > 0) existing.attachments.push(...attachments);
+        if (postbackPayload) existing.postbackPayload = postbackPayload;
+        senderEvents.set(senderIgId, existing);
+      }
+
+      for (const [senderIgId, data] of senderEvents) {
+        const combinedText = data.texts.join(" ").trim();
         const processed = await processInstagramMessage(
           senderIgId,
-          messageText,
-          attachments,
+          combinedText,
+          data.attachments,
           undefined,
           undefined,
-          postbackPayload
+          data.postbackPayload
         );
         results.push(processed);
       }

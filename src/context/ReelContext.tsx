@@ -33,6 +33,7 @@ interface ReelContextType {
   isCommandPaletteOpen: boolean;
   isCreateCollectionModalOpen: boolean;
   lastDeletedReel: Reel | null;
+  recycleBin: Reel[];
   
   // Setters & Actions
   setActiveCategory: (cat: string | null) => void;
@@ -69,6 +70,9 @@ interface ReelContextType {
   toggleFavorite: (id: string) => void;
   deleteReel: (id: string) => void;
   undoDelete: () => void;
+  restoreReel: (id: string) => Promise<void>;
+  permanentlyDeleteReel: (id: string) => Promise<void>;
+  emptyRecycleBin: () => Promise<void>;
   updateNote: (id: string, note: string) => void;
   updateCategory: (id: string, category: string) => void;
   createCollection: (name: string, description?: string, icon?: string) => void;
@@ -101,6 +105,7 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [isCreateCollectionModalOpen, setIsCreateCollectionModalOpen] = useState(false);
   const [lastDeletedReel, setLastDeletedReel] = useState<Reel | null>(null);
+  const [recycleBin, setRecycleBin] = useState<Reel[]>([]);
 
   // Initialize theme
   useEffect(() => {
@@ -136,9 +141,11 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
     if (user?.id) {
       const userReelsKey = `reeldash_reels_${user.id}`;
       const userColsKey = `reeldash_cols_${user.id}`;
+      const userTrashKey = `reeldash_trash_${user.id}`;
 
       const savedReels = localStorage.getItem(userReelsKey);
       const savedCols = localStorage.getItem(userColsKey);
+      const savedTrash = localStorage.getItem(userTrashKey);
 
       let parsedReels: Reel[] = [];
       if (savedReels) {
@@ -160,6 +167,17 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
         }
       }
 
+      let parsedTrash: Reel[] = [];
+      if (savedTrash) {
+        try {
+          parsedTrash = JSON.parse(savedTrash);
+          if (!Array.isArray(parsedTrash)) parsedTrash = [];
+        } catch {
+          parsedTrash = [];
+        }
+      }
+      setRecycleBin(parsedTrash);
+
       parsedReels = parsedReels
         .filter((r) => r && r.userId !== "usr-demo" && !r.id?.startsWith("mock-") && !r.id?.startsWith("sample-"))
         .map((r) => {
@@ -179,7 +197,11 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
           };
         });
 
-      setReels(parsedReels);
+      // Filter out anything in recycleBin
+      const trashIds = new Set(parsedTrash.map((t) => t.id));
+      const cleanReels = parsedReels.filter((r) => !trashIds.has(r.id));
+
+      setReels(cleanReels);
       setCollections(parsedCols);
 
       // Fetch live reels from Supabase database (including DM-saved reels & handle filter)
@@ -191,29 +213,31 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
         .then((res) => (res.ok ? res.json() : { reels: [] }))
         .then((data) => {
           if (data.reels && Array.isArray(data.reels) && data.reels.length > 0) {
-            const dbReels: Reel[] = data.reels.map((dbR: any) => {
-              const sc = dbR.shortcode || dbR.url?.match(/(?:reel|reels|p|audio|stories)\/([A-Za-z0-9_-]+)/)?.[1];
-              return {
-                id: dbR.id,
-                userId: user.id,
-                instagramUrl: dbR.url,
-                instagramUsername: dbR.instagram_username || "",
-                instagramAccountId: dbR.instagram_account_id || "",
-                thumbnailUrl: dbR.thumbnail_url || (sc ? `/api/proxy-image?shortcode=${sc}` : ""),
-                caption: dbR.caption || "Saved Reel",
-                creatorUsername: dbR.creator_handle || "creator",
-                creatorFullName: dbR.creator_name || "Instagram Creator",
-                creatorAvatar: dbR.creator_avatar || `/api/proxy-image?username=${encodeURIComponent(dbR.creator_handle || "creator")}`,
-                category: dbR.category || "General",
-                tags: Array.isArray(dbR.tags) ? dbR.tags : [],
-                notes: dbR.note || "",
-                isFavorite: !!dbR.is_favorite,
-                mediaType: dbR.media_type || "reel",
-                duration: dbR.duration || "0:15",
-                likes: dbR.likes_count || "",
-                createdAt: dbR.created_at || new Date().toISOString(),
-              };
-            });
+            const dbReels: Reel[] = data.reels
+              .filter((dbR: any) => !trashIds.has(dbR.id))
+              .map((dbR: any) => {
+                const sc = dbR.shortcode || dbR.url?.match(/(?:reel|reels|p|audio|stories)\/([A-Za-z0-9_-]+)/)?.[1];
+                return {
+                  id: dbR.id,
+                  userId: user.id,
+                  instagramUrl: dbR.url,
+                  instagramUsername: dbR.instagram_username || "",
+                  instagramAccountId: dbR.instagram_account_id || "",
+                  thumbnailUrl: dbR.thumbnail_url || (sc ? `/api/proxy-image?shortcode=${sc}` : ""),
+                  caption: dbR.caption || "Saved Reel",
+                  creatorUsername: dbR.creator_handle || "creator",
+                  creatorFullName: dbR.creator_name || "Instagram Creator",
+                  creatorAvatar: dbR.creator_avatar || `/api/proxy-image?username=${encodeURIComponent(dbR.creator_handle || "creator")}`,
+                  category: dbR.category || "General",
+                  tags: Array.isArray(dbR.tags) ? dbR.tags : [],
+                  notes: dbR.note || "",
+                  isFavorite: !!dbR.is_favorite,
+                  mediaType: dbR.media_type || "reel",
+                  duration: dbR.duration || "0:15",
+                  likes: dbR.likes_count || "",
+                  createdAt: dbR.created_at || new Date().toISOString(),
+                };
+              });
 
             setReels(dbReels);
           } else if (selectedInstagramAccount && selectedInstagramAccount !== "all") {
@@ -224,6 +248,7 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
     } else {
       setReels([]);
       setCollections([]);
+      setRecycleBin([]);
     }
   }, [user?.id, user?.instagramUsername, selectedInstagramAccount]);
 
@@ -231,6 +256,13 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
     setReels(updatedReels);
     if (user?.id) {
       localStorage.setItem(`reeldash_reels_${user.id}`, JSON.stringify(updatedReels));
+    }
+  };
+
+  const saveUserTrash = (updatedTrash: Reel[]) => {
+    setRecycleBin(updatedTrash);
+    if (user?.id) {
+      localStorage.setItem(`reeldash_trash_${user.id}`, JSON.stringify(updatedTrash));
     }
   };
 
@@ -284,14 +316,23 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
   const deleteReel = (id: string) => {
     const target = reels.find((r) => r.id === id);
     if (target) {
+      const deletedItem: Reel = {
+        ...target,
+        deletedAt: new Date().toISOString(),
+      };
       setLastDeletedReel(target);
-      const updated = reels.filter((r) => r.id !== id);
-      saveUserReels(updated);
-      showToast("Reel removed", undefined, {
+      const updatedReels = reels.filter((r) => r.id !== id);
+      const updatedTrash = [deletedItem, ...recycleBin.filter((r) => r.id !== id)];
+      saveUserReels(updatedReels);
+      saveUserTrash(updatedTrash);
+
+      // Permanently remove row from active DB or soft-delete
+      fetch(`/api/reels?id=${encodeURIComponent(id)}`, { method: "DELETE" }).catch(() => {});
+
+      showToast("Moved to Recycle Bin", undefined, {
         label: "Undo",
         onClick: () => {
-          saveUserReels([target, ...reels]);
-          showToast("Reel restored");
+          restoreReel(id);
         },
       });
     }
@@ -299,10 +340,58 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
 
   const undoDelete = () => {
     if (lastDeletedReel) {
-      saveUserReels([lastDeletedReel, ...reels]);
+      restoreReel(lastDeletedReel.id);
       setLastDeletedReel(null);
-      showToast("Reel restored");
     }
+  };
+
+  const restoreReel = async (id: string) => {
+    const target = recycleBin.find((r) => r.id === id) || lastDeletedReel;
+    if (target) {
+      const restoredItem: Reel = {
+        ...target,
+        deletedAt: undefined,
+      };
+      const updatedTrash = recycleBin.filter((r) => r.id !== id);
+      const updatedReels = [restoredItem, ...reels.filter((r) => r.id !== id)];
+      saveUserReels(updatedReels);
+      saveUserTrash(updatedTrash);
+
+      // Re-save to DB so reload keeps it
+      try {
+        fetch("/api/reels", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            url: target.instagramUrl,
+            userId: user?.id,
+            category: target.category,
+            notes: target.notes,
+            isFavorite: target.isFavorite,
+          }),
+        }).catch(() => {});
+      } catch {}
+
+      showToast("Reel restored to library");
+    }
+  };
+
+  const permanentlyDeleteReel = async (id: string) => {
+    const updatedTrash = recycleBin.filter((r) => r.id !== id);
+    saveUserTrash(updatedTrash);
+    try {
+      fetch(`/api/reels?id=${encodeURIComponent(id)}`, { method: "DELETE" }).catch(() => {});
+    } catch {}
+    showToast("Reel permanently deleted");
+  };
+
+  const emptyRecycleBin = async () => {
+    const ids = recycleBin.map((r) => r.id);
+    saveUserTrash([]);
+    for (const id of ids) {
+      fetch(`/api/reels?id=${encodeURIComponent(id)}`, { method: "DELETE" }).catch(() => {});
+    }
+    showToast("Recycle bin emptied");
   };
 
   const updateNote = (id: string, note: string) => {
@@ -658,6 +747,7 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
         isCommandPaletteOpen,
         isCreateCollectionModalOpen,
         lastDeletedReel,
+        recycleBin,
         setActiveCategory,
         setActiveCollection,
         setActiveMediaType,
@@ -673,6 +763,9 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
         toggleFavorite,
         deleteReel,
         undoDelete,
+        restoreReel,
+        permanentlyDeleteReel,
+        emptyRecycleBin,
         updateNote,
         updateCategory,
         createCollection,

@@ -46,6 +46,7 @@ export interface Reel {
   carouselSlides?: CarouselSlide[];
   isCarousel?: boolean;
   storyExpiresAt?: string;
+  deletedAt?: string;
 }
 
 export interface ConnectedInstagramAccount {

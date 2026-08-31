@@ -49,6 +49,24 @@ export async function processInstagramMessage(
   postbackPayload?: string
 ): Promise<ProcessedDMResult> {
   try {
+    const preliminaryParsed = parseCategoryCommand(messageText || "");
+    const preliminaryMediaUrl = extractInstagramMediaUrl(
+      preliminaryParsed.cleanUrl || preliminaryParsed.cleanText || messageText,
+      attachments
+    );
+    if (preliminaryMediaUrl && !activeReelIngestStore.has(senderIgId)) {
+      activeReelIngestStore.set(senderIgId, {
+        userId: "",
+        senderIgId,
+        shortcode: "",
+        creatorText: "Reel",
+        formattedReel: null,
+        assignedCategories: preliminaryParsed.categories.length > 0 ? preliminaryParsed.categories : undefined,
+        note: preliminaryParsed.note || undefined,
+        messageSent: false,
+      });
+    }
+
     const isFollowCheckClick =
       postbackPayload === "CHECK_FOLLOW_STATUS" ||
       messageText?.trim().toLowerCase().includes("i followed you");
@@ -102,6 +120,22 @@ export async function processInstagramMessage(
     );
 
     if (mediaUrl) {
+      const primaryCategory = parsedCmd.primaryCategory;
+      const allCategories = parsedCmd.categories;
+      const note = parsedCmd.note;
+
+      // Register active ingest immediately before any network/async delays
+      activeReelIngestStore.set(senderIgId, {
+        userId: userProfile.id,
+        senderIgId,
+        shortcode: "",
+        creatorText: "Reel",
+        formattedReel: null,
+        assignedCategories: allCategories.length > 0 ? allCategories : undefined,
+        note: note || undefined,
+        messageSent: false,
+      });
+
       let reelData: any = null;
       try {
         const infoRes = await fetch(
@@ -113,10 +147,6 @@ export async function processInstagramMessage(
       } catch (err) {
         console.warn("[Instagram Bot] reel-info fetch fallback:", err);
       }
-
-      const primaryCategory = parsedCmd.primaryCategory;
-      const allCategories = parsedCmd.categories;
-      const note = parsedCmd.note;
 
       if (!reelData || !reelData.shortcode) {
         const shortcodeMatch = mediaUrl.match(/\/(?:reel|reels|p|stories|audio)\/([A-Za-z0-9_.-]+)/i);
@@ -138,9 +168,36 @@ export async function processInstagramMessage(
         };
       }
 
-      const effectiveCategory = primaryCategory || reelData.category || "General";
+      const creatorText = reelData.creatorUsername && !reelData.creatorUsername.startsWith("ig_") && reelData.creatorUsername !== "creator"
+        ? `@${reelData.creatorUsername}'s Reel`
+        : reelData.creator_handle && !reelData.creator_handle.startsWith("ig_") && reelData.creator_handle !== "creator"
+        ? `@${reelData.creator_handle}'s Reel`
+        : "Reel";
+
+      // If user provided NO category with the reel (e.g. native Instagram share sheet),
+      // wait a short window (1.8s) in case the user immediately types /<category>
+      if (allCategories.length === 0) {
+        await new Promise((resolve) => {
+          const timer = setTimeout(resolve, 1800);
+          const entry = activeReelIngestStore.get(senderIgId);
+          if (entry) {
+            entry.timerResolver = () => {
+              clearTimeout(timer);
+              resolve(true);
+            };
+          }
+        });
+      }
+
+      const activeEntry = activeReelIngestStore.get(senderIgId);
+      const finalCategories = activeEntry?.assignedCategories && activeEntry.assignedCategories.length > 0
+        ? activeEntry.assignedCategories
+        : allCategories;
+      const finalNote = activeEntry?.note || note || reelData.note || undefined;
+
+      const effectiveCategory = finalCategories.length > 0 ? finalCategories[0] : (reelData.category || "General");
       const tags = [...(reelData.hashtags || reelData.tags || ["instagram-dm", "auto-save"])];
-      for (const cat of allCategories) {
+      for (const cat of finalCategories) {
         if (!tags.includes(cat.toLowerCase())) {
           tags.push(cat.toLowerCase());
         }
@@ -159,28 +216,36 @@ export async function processInstagramMessage(
         duration: reelData.duration || "0:15",
         category: effectiveCategory,
         tags,
-        note: note || reelData.note || undefined,
+        note: finalNote,
       };
 
-      // Save Reel to user's library and auto-track categories (idempotent)
-      const saveResult = await saveReelForUser(userProfile.id, formattedReel, allCategories);
+      // Save Reel to user's library and Supabase database
+      const saveResult = await saveReelForUser(userProfile.id, formattedReel, finalCategories);
       userProfile.savedReelsCount += 1;
       userProfile.lastActiveAt = new Date().toISOString();
 
-      const creatorText = formattedReel.creator_handle && !formattedReel.creator_handle.startsWith("ig_user_") && formattedReel.creator_handle !== "creator"
-        ? `@${formattedReel.creator_handle}'s Reel`
-        : "Reel";
+      // Accurately determine if categories are new via Database check
+      const newCategories: string[] = [];
+      for (const cat of finalCategories) {
+        const exists = await checkUserCategoryExists(userProfile.id, cat);
+        if (!exists) {
+          newCategories.push(cat);
+          if (!igUserCategoriesStore.has(userProfile.id)) {
+            igUserCategoriesStore.set(userProfile.id, new Set());
+          }
+          igUserCategoriesStore.get(userProfile.id)!.add(cat);
+        }
+      }
 
-      // Formulate clean, concise confirmation message
       let categoryLines = "";
-      if (allCategories.length > 0) {
-        const catLabel = allCategories.length > 1 ? "Categories" : "Category";
-        categoryLines = `📁 ${catLabel}: ${allCategories.join(", ")}`;
-        if (saveResult.newCategories.length > 0) {
-          if (allCategories.length === 1) {
+      if (finalCategories.length > 0) {
+        const catLabel = finalCategories.length > 1 ? "Categories" : "Category";
+        categoryLines = `📁 ${catLabel}: ${finalCategories.join(", ")}`;
+        if (newCategories.length > 0) {
+          if (finalCategories.length === 1) {
             categoryLines += `\n✨ New category created`;
           } else {
-            categoryLines += `\n✨ New category created: ${saveResult.newCategories.join(", ")}`;
+            categoryLines += `\n✨ New category created: ${newCategories.join(", ")}`;
           }
         }
       } else {
@@ -199,6 +264,11 @@ export async function processInstagramMessage(
 
       await sendDMReply(senderIgId, successReply, buttons);
 
+      if (activeEntry) {
+        activeEntry.messageSent = true;
+        activeReelIngestStore.delete(senderIgId);
+      }
+
       return {
         status: "reel_saved",
         replyMessage: successReply,
@@ -216,7 +286,26 @@ export async function processInstagramMessage(
       const allCategories = parsedCmd.categories;
       const note = parsedCmd.note;
 
-      // Update user's most recent saved reel with this category
+      // Check if an active reel ingest is currently waiting for this user
+      const activeIngest = activeReelIngestStore.get(senderIgId);
+      if (activeIngest && !activeIngest.messageSent) {
+        activeIngest.assignedCategories = allCategories;
+        if (note) activeIngest.note = note;
+
+        // Wake up the pending ingest timer so it sends the single combined confirmation now
+        activeIngest.timerResolver?.();
+
+        return {
+          status: "category_assigned",
+          replyMessage: "Assigned category to incoming reel",
+          senderIgId,
+          username: userProfile.username,
+          isFollowing: true,
+        };
+      }
+
+      // Otherwise, the initial reel confirmation was already sent earlier.
+      // Update user's most recent saved reel with this category.
       const updateResult = await updateRecentReelCategoryForUser(
         userProfile.id,
         allCategories,
@@ -225,7 +314,7 @@ export async function processInstagramMessage(
 
       const creatorText = updateResult.reel?.creator_handle && !updateResult.reel.creator_handle.startsWith("ig_user_") && updateResult.reel.creator_handle !== "creator"
         ? `@${updateResult.reel.creator_handle}'s Reel`
-        : updateResult.reel ? "Reel" : null;
+        : null;
 
       let categoryLines = "";
       const catLabel = allCategories.length > 1 ? "Categories" : "Category";
@@ -238,12 +327,9 @@ export async function processInstagramMessage(
         }
       }
 
-      let confirmationReply = "";
-      if (creatorText) {
-        confirmationReply = `⚡ Saved to your ReelDash Library.\n\n🎬 ${creatorText}\n${categoryLines}`;
-      } else {
-        confirmationReply = `📁 ${catLabel}: ${allCategories.join(", ")}${updateResult.newCategories.length > 0 ? "\n✨ New category created" : ""}\n\nWhenever you send a Reel, you can type /${primaryCategory.toLowerCase()} to save it here.`;
-      }
+      const updateReply = creatorText
+        ? `📁 Category updated: ${allCategories.join(", ")}${updateResult.newCategories.length > 0 ? "\n✨ New category created" : ""}`
+        : `📁 ${catLabel}: ${allCategories.join(", ")}${updateResult.newCategories.length > 0 ? "\n✨ New category created" : ""}\n\nWhenever you send a Reel, you can type /${primaryCategory.toLowerCase()} to save it here.`;
 
       const buttons: BotButton[] = [
         {
@@ -253,11 +339,11 @@ export async function processInstagramMessage(
         },
       ];
 
-      await sendDMReply(senderIgId, confirmationReply, buttons);
+      await sendDMReply(senderIgId, updateReply, buttons);
 
       return {
         status: "category_assigned",
-        replyMessage: confirmationReply,
+        replyMessage: updateReply,
         buttons,
         senderIgId,
         username: userProfile.username,
@@ -499,6 +585,81 @@ export const igCollectionsStore = new Map<string, BotCollection[]>();
 
 export const igUserCategoriesStore = new Map<string, Set<string>>();
 
+export interface ActiveReelIngest {
+  userId: string;
+  senderIgId: string;
+  shortcode: string;
+  creatorText: string;
+  formattedReel: any;
+  assignedCategories?: string[];
+  note?: string;
+  timerResolver?: (value?: any) => void;
+  messageSent: boolean;
+}
+
+export const activeReelIngestStore = new Map<string, ActiveReelIngest>();
+
+/**
+ * Check if a category already exists for the user in Supabase or Memory
+ */
+export async function checkUserCategoryExists(userId: string, categoryName: string): Promise<boolean> {
+  const normalized = categoryName.trim().toLowerCase();
+  if (!normalized) return true;
+
+  // 1. Check in-memory cache
+  const userCats = igUserCategoriesStore.get(userId);
+  if (userCats) {
+    for (const c of userCats) {
+      if (c.toLowerCase() === normalized) {
+        return true;
+      }
+    }
+  }
+
+  // 2. Query Supabase Database (reels table)
+  try {
+    const supabase = getSupabaseAdmin();
+    if (supabase) {
+      const { data: matchingReel } = await supabase
+        .from("reels")
+        .select("id")
+        .eq("user_id", userId)
+        .ilike("category", categoryName.trim())
+        .limit(1)
+        .maybeSingle();
+
+      if (matchingReel) {
+        if (!userCats) {
+          igUserCategoriesStore.set(userId, new Set());
+        }
+        igUserCategoriesStore.get(userId)!.add(categoryName.trim());
+        return true;
+      }
+
+      // Also check collections table if any
+      const { data: matchingCol } = await supabase
+        .from("collections")
+        .select("id")
+        .eq("user_id", userId)
+        .ilike("name", categoryName.trim())
+        .limit(1)
+        .maybeSingle();
+
+      if (matchingCol) {
+        if (!userCats) {
+          igUserCategoriesStore.set(userId, new Set());
+        }
+        igUserCategoriesStore.get(userId)!.add(categoryName.trim());
+        return true;
+      }
+    }
+  } catch (err) {
+    console.warn("[Instagram Bot] Database category check error:", err);
+  }
+
+  return false;
+}
+
 /**
  * Save Reel in Database / Storage for User and auto-manage Categories
  */
@@ -528,35 +689,18 @@ async function saveReelForUser(
   }
   igSavedReelsStore.set(userId, userReels);
 
-  // In-Memory User Category Tracking (Scoped to User)
-  let existingUserCats = igUserCategoriesStore.get(userId);
-  if (!existingUserCats) {
-    existingUserCats = new Set<string>();
-    // Pre-populate from existing in-memory reels for this user
-    for (const r of userReels) {
-      if (r.category && r.category !== "General" && r.category !== "Music") {
-        existingUserCats.add(r.category);
-      }
-    }
-    igUserCategoriesStore.set(userId, existingUserCats);
-  }
-
   const newCategories: string[] = [];
   const assignedCategories: string[] = [];
 
   for (const cat of requestedCategories) {
     assignedCategories.push(cat);
-    const catLower = cat.toLowerCase();
-    let alreadyExists = false;
-    for (const existing of existingUserCats) {
-      if (existing.toLowerCase() === catLower) {
-        alreadyExists = true;
-        break;
-      }
-    }
-    if (!alreadyExists) {
-      existingUserCats.add(cat);
+    const exists = await checkUserCategoryExists(userId, cat);
+    if (!exists) {
       newCategories.push(cat);
+      if (!igUserCategoriesStore.has(userId)) {
+        igUserCategoriesStore.set(userId, new Set());
+      }
+      igUserCategoriesStore.get(userId)!.add(cat);
     }
   }
 
@@ -619,31 +763,15 @@ async function updateRecentReelCategoryForUser(
 
   const primaryCategory = categories[0];
 
-  // In-Memory User Category Tracking (Scoped to User)
-  let existingUserCats = igUserCategoriesStore.get(userId);
-  if (!existingUserCats) {
-    existingUserCats = new Set<string>();
-    for (const r of userReels) {
-      if (r.category && r.category !== "General" && r.category !== "Music") {
-        existingUserCats.add(r.category);
-      }
-    }
-    igUserCategoriesStore.set(userId, existingUserCats);
-  }
-
   const newCategories: string[] = [];
   for (const cat of categories) {
-    const catLower = cat.toLowerCase();
-    let alreadyExists = false;
-    for (const existing of existingUserCats) {
-      if (existing.toLowerCase() === catLower) {
-        alreadyExists = true;
-        break;
-      }
-    }
-    if (!alreadyExists) {
-      existingUserCats.add(cat);
+    const exists = await checkUserCategoryExists(userId, cat);
+    if (!exists) {
       newCategories.push(cat);
+      if (!igUserCategoriesStore.has(userId)) {
+        igUserCategoriesStore.set(userId, new Set());
+      }
+      igUserCategoriesStore.get(userId)!.add(cat);
     }
   }
 
