@@ -14,6 +14,7 @@ import {
   ExternalLink,
   Copy,
   Trash2,
+  Folder,
   FolderPlus,
   ThumbsUp,
   MessageSquare,
@@ -300,9 +301,9 @@ export function ReelPlayerModal({ reel, isOpen, onClose }: ReelPlayerModalProps)
                       key={idx}
                       href={`/reels?category=${encodeURIComponent(catName)}`}
                       onClick={onClose}
-                      className="inline-flex items-center space-x-1 text-[11px] px-2.5 py-0.5 rounded-full bg-brand-500/10 border border-brand-500/25 text-brand-400 font-medium hover:bg-brand-500/20 transition-colors"
+                      className="inline-flex items-center space-x-1.5 text-[11px] px-2.5 py-0.5 rounded-full bg-brand-500/10 border border-brand-500/25 text-brand-400 font-medium hover:bg-brand-500/20 transition-colors"
                     >
-                      <span>📁</span>
+                      <Folder className="w-3 h-3 text-brand-400" strokeWidth={2} />
                       <span>{catName}</span>
                     </Link>
                   ))}

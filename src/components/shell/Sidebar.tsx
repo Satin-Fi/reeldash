@@ -331,8 +331,8 @@ export function Sidebar() {
                         : "text-secondaryText-light dark:text-secondaryText-dark hover:bg-surfaceSecondary-light dark:hover:bg-surfaceSecondary-dark hover:text-primaryText-light dark:hover:text-primaryText-dark"
                     }`}
                   >
-                    <span className="truncate flex items-center space-x-1.5 min-w-0">
-                      <span className="text-xs">{cat.icon || "📁"}</span>
+                    <span className="truncate flex items-center space-x-2 min-w-0">
+                      <span className="w-1.5 h-1.5 rounded-full bg-brand-500/80 shrink-0 group-hover:scale-125 transition-transform" />
                       <span className="truncate">{cat.name}</span>
                     </span>
                     <span className="text-[10px] font-mono text-mutedText-light dark:text-mutedText-dark shrink-0">

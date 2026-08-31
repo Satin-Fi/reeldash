@@ -193,10 +193,10 @@ export async function processInstagramMessage(
       let finalCategories = allCategories.length > 0 ? [...allCategories] : [initialSavedCategory];
 
       // If user provided NO category with the reel (e.g. native Instagram share sheet),
-      // wait up to 8.0s polling database across serverless lambdas in case user typed /<category>
+      // wait up to 12.0s polling database across serverless lambdas in case user typed /<category>
       if (allCategories.length === 0) {
         const supabase = getSupabaseAdmin();
-        for (let i = 0; i < 16; i++) {
+        for (let i = 0; i < 24; i++) {
           await new Promise((r) => setTimeout(r, 500));
           if (supabase) {
             try {
@@ -857,7 +857,7 @@ async function updateRecentReelCategoryForUser(
       if (latestDbReel) {
         const createdAtMs = new Date(latestDbReel.created_at).getTime();
         const ageMs = Date.now() - createdAtMs;
-        if (Math.abs(ageMs) <= 15000) {
+        if (Math.abs(ageMs) <= 25000) {
           isWithinPendingWindow = true;
         }
 
