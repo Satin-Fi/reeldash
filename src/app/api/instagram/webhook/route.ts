@@ -96,10 +96,26 @@ export async function POST(req: NextRequest) {
         const attachments = [...(event.message?.attachments ?? [])];
 
         const extraLinks: string[] = [];
+        if (event.message?.attachment) {
+          attachments.push(event.message.attachment);
+        }
         if (event.message?.share) {
           attachments.push({ type: "share", payload: event.message.share });
           if (event.message.share.link) {
             extraLinks.push(event.message.share.link);
+          }
+          if (event.message.share.url) {
+            extraLinks.push(event.message.share.url);
+          }
+        }
+        if (event.message?.shares) {
+          const shares = Array.isArray(event.message.shares)
+            ? event.message.shares
+            : [event.message.shares];
+          for (const s of shares) {
+            attachments.push({ type: "share", payload: s });
+            if (s?.link) extraLinks.push(s.link);
+            if (s?.url) extraLinks.push(s.url);
           }
         }
         if (event.message?.story_share) {
@@ -107,7 +123,14 @@ export async function POST(req: NextRequest) {
           if (event.message.story_share.link) {
             extraLinks.push(event.message.story_share.link);
           }
+          if (event.message.story_share.url) {
+            extraLinks.push(event.message.story_share.url);
+          }
         }
+
+        console.log(
+          `[Instagram Webhook] Event from ${senderIgId}: text="${text}", attachments=${attachments.length}, extraLinks=${extraLinks.length}`
+        );
 
         const existing =
           senderEvents.get(senderIgId) ||

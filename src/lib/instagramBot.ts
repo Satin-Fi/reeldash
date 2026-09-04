@@ -279,12 +279,19 @@ export async function claimPendingReelsForUser(
         const shortcode =
           pending.reel_shortcode || reelData.shortcode || `ig_${Date.now()}`;
         const pendingUrl = pending.reel_url || reelData.url || "";
+        const isAudio =
+          pendingUrl.includes("/audio/") ||
+          pendingUrl.includes("/reels/audio/");
         const isPost =
-          pendingUrl.includes("/p/") ||
-          pendingUrl.includes("/share/p/") ||
-          reelData.mediaType === "post" ||
-          reelData.media_type === "post";
-        const isAudio = pendingUrl.includes("/audio/");
+          !isAudio &&
+          (pendingUrl.includes("/p/") ||
+            pendingUrl.includes("/share/p/") ||
+            pendingUrl.includes("lookaside.fbsbx.com") ||
+            pendingUrl.includes("cdninstagram.com") ||
+            pendingUrl.includes("fbcdn.net") ||
+            pendingUrl.match(/\.(jpg|jpeg|png|webp|gif)($|\?)/i) !== null ||
+            reelData.mediaType === "post" ||
+            reelData.media_type === "post");
 
         // Save to the user's real library
         await supabase.from("reels").upsert(
@@ -1054,40 +1061,78 @@ async function handleReady(
     const allCategories = parsedCmd.categories;
     const note = parsedCmd.note;
 
-    // Fetch reel metadata
-    let reelData: any = null;
-    try {
-      const infoRes = await fetch(
-        `${APP_URL}/api/reel-info?url=${encodeURIComponent(mediaUrl)}`
-      );
-      if (infoRes.ok) {
-        reelData = await infoRes.json();
-      }
-    } catch (err) {
-      console.warn("[Instagram Bot] reel-info fetch fallback:", err);
-    }
-
-    const isAudio = mediaUrl.includes("/audio/");
+    const isAudio =
+      mediaUrl.includes("/audio/") || mediaUrl.includes("/reels/audio/");
     const isPost =
-      mediaUrl.includes("/p/") ||
-      mediaUrl.includes("/share/p/") ||
-      reelData?.mediaType === "post" ||
-      reelData?.media_type === "post";
+      !isAudio &&
+      (mediaUrl.includes("/p/") ||
+        mediaUrl.includes("/share/p/") ||
+        mediaUrl.includes("lookaside.fbsbx.com") ||
+        mediaUrl.includes("cdninstagram.com") ||
+        mediaUrl.includes("fbcdn.net") ||
+        mediaUrl.match(/\.(jpg|jpeg|png|webp|gif)($|\?)/i) !== null ||
+        attachments?.some((a) =>
+          ["image", "share", "ig_post"].includes(a?.type)
+        ) ||
+        reelData?.mediaType === "post" ||
+        reelData?.media_type === "post");
+
+    // Fetch reel metadata if it's an Instagram web URL
+    let reelData: any = null;
+    if (mediaUrl.includes("instagram.com") || mediaUrl.includes("instagr.am")) {
+      try {
+        const infoRes = await fetch(
+          `${APP_URL}/api/reel-info?url=${encodeURIComponent(mediaUrl)}`
+        );
+        if (infoRes.ok) {
+          reelData = await infoRes.json();
+        }
+      } catch (err) {
+        console.warn("[Instagram Bot] reel-info fetch fallback:", err);
+      }
+    }
 
     if (!reelData || !reelData.shortcode) {
       const shortcodeMatch = mediaUrl.match(
         /\/(?:share\/)?(?:reel|reels|p|stories|audio)\/([A-Za-z0-9_.-]+)/i
       );
-      const shortcode = shortcodeMatch ? shortcodeMatch[1] : `ig_${Date.now()}`;
+      const shortcode = shortcodeMatch
+        ? shortcodeMatch[1]
+        : `${isPost ? "post" : isAudio ? "audio" : "reel"}_${Date.now().toString(36)}_${Math.random().toString(36).substring(2, 6)}`;
+
+      const isDirectCdn =
+        mediaUrl.includes("lookaside.fbsbx.com") ||
+        mediaUrl.includes("cdninstagram.com") ||
+        mediaUrl.includes("fbcdn.net") ||
+        mediaUrl.startsWith("http");
+
+      // Check if attachment or message had title / notes
+      const attTitle = attachments?.find(
+        (a) => a?.payload?.title || a?.title
+      )?.payload?.title || attachments?.find((a) => a?.title)?.title;
+
+      const fallbackCaption =
+        attTitle ||
+        parsedCmd.note ||
+        (parsedCmd.cleanText && !parsedCmd.cleanText.startsWith("/")
+          ? parsedCmd.cleanText
+          : `Instagram ${isAudio ? "Audio" : isPost ? "Post" : "Reel"} shared via Direct Message`);
+
+      const thumb = isDirectCdn
+        ? `/api/proxy-image?url=${encodeURIComponent(mediaUrl)}&shortcode=${shortcode}`
+        : `/api/proxy-image?shortcode=${shortcode}`;
+
       reelData = {
         shortcode,
         url: mediaUrl,
-        thumbnailUrl: `/api/proxy-image?shortcode=${shortcode}`,
+        thumbnailUrl: thumb,
         video_url: mediaUrl,
-        caption: `Instagram ${isAudio ? "Audio" : isPost ? "Post" : "Reel"} shared via Direct Message`,
-        creatorUsername: "creator",
-        creator_name: "Instagram Creator",
-        creatorAvatar: `/api/proxy-image?username=instagram`,
+        caption: fallbackCaption,
+        creatorUsername: username || "creator",
+        creator_name: username ? `@${username}` : "Instagram Creator",
+        creatorAvatar: username
+          ? `/api/proxy-image?username=${encodeURIComponent(username)}`
+          : `/api/proxy-image?username=instagram`,
         mediaType: isAudio ? "audio" : isPost ? "post" : "reel",
         duration: isAudio ? "0:30" : isPost ? "Post" : "0:15",
         category: allCategories[0] || (isAudio ? "Music" : "General"),
@@ -1693,18 +1738,44 @@ async function storePendingReel(
       // Fallback — store URL-only
     }
 
-    const isPost = mediaUrl.includes("/p/") || mediaUrl.includes("/share/p/");
-    const isAudio = mediaUrl.includes("/audio/");
+    const isAudio =
+      mediaUrl.includes("/audio/") || mediaUrl.includes("/reels/audio/");
+    const isPost =
+      !isAudio &&
+      (mediaUrl.includes("/p/") ||
+        mediaUrl.includes("/share/p/") ||
+        mediaUrl.includes("lookaside.fbsbx.com") ||
+        mediaUrl.includes("cdninstagram.com") ||
+        mediaUrl.includes("fbcdn.net") ||
+        mediaUrl.match(/\.(jpg|jpeg|png|webp|gif)($|\?)/i) !== null ||
+        attachments?.some((a) =>
+          ["image", "share", "ig_post"].includes(a?.type)
+        ));
+
     if (!reelData || !reelData.shortcode) {
+      const isDirectCdn =
+        mediaUrl.includes("lookaside.fbsbx.com") ||
+        mediaUrl.includes("cdninstagram.com") ||
+        mediaUrl.includes("fbcdn.net") ||
+        mediaUrl.startsWith("http");
+
+      const generatedShortcode =
+        shortcode ||
+        `${isPost ? "post" : isAudio ? "audio" : "reel"}_${Date.now().toString(36)}_${Math.random().toString(36).substring(2, 6)}`;
+
       reelData = {
-        shortcode: shortcode || `ig_${Date.now()}`,
+        shortcode: generatedShortcode,
         url: mediaUrl,
-        thumbnailUrl: `/api/proxy-image?shortcode=${shortcode || `ig_${Date.now()}`}`,
+        thumbnailUrl: isDirectCdn
+          ? `/api/proxy-image?url=${encodeURIComponent(mediaUrl)}&shortcode=${generatedShortcode}`
+          : `/api/proxy-image?shortcode=${generatedShortcode}`,
         video_url: mediaUrl,
         caption: `Instagram ${isAudio ? "Audio" : isPost ? "Post" : "Reel"} shared via Direct Message`,
-        creatorUsername: "creator",
-        creator_name: "Instagram Creator",
-        creatorAvatar: `/api/proxy-image?username=instagram`,
+        creatorUsername: username || "creator",
+        creator_name: username ? `@${username}` : "Instagram Creator",
+        creatorAvatar: username
+          ? `/api/proxy-image?username=${encodeURIComponent(username)}`
+          : `/api/proxy-image?username=instagram`,
         mediaType: isAudio ? "audio" : isPost ? "post" : "reel",
         duration: isAudio ? "0:30" : isPost ? "Post" : "0:15",
         category: "General",
@@ -2072,49 +2143,12 @@ async function fetchInstagramUserProfile(
 // ─── Utility Functions ────────────────────────────────────────────────────────
 
 /**
- * Extract Media URL from text or Instagram attachments
+/**
+ * Extract canonical Instagram media URL from text string
  */
-function extractInstagramMediaUrl(
-  text: string,
-  attachments: any[] = []
-): string | null {
-  // 1. Search all attachments (Meta share payloads, links, targets, fallback, titles)
-  if (Array.isArray(attachments) && attachments.length > 0) {
-    for (const att of attachments) {
-      if (!att) continue;
-      const candidates = [
-        att.payload?.url,
-        att.payload?.link,
-        att.payload?.target,
-        att.payload?.share?.link,
-        att.payload?.share?.url,
-        att.url,
-        att.payload?.title,
-        att.title,
-      ];
-      for (const candidate of candidates) {
-        if (typeof candidate === "string" && candidate.length > 0) {
-          const extracted = extractInstagramMediaUrl(candidate, []);
-          if (extracted) return extracted;
-        }
-      }
-    }
-  }
+function extractCanonicalInstagramUrl(text: string): string | null {
+  if (!text || typeof text !== "string") return null;
 
-  if (!text) return null;
-
-  // 2. Full URL matching including:
-  // - instagram.com/p/SHORTCODE
-  // - instagram.com/reel/SHORTCODE
-  // - instagram.com/reels/SHORTCODE
-  // - instagram.com/share/p/SHORTCODE (Instagram mobile app share format)
-  // - instagram.com/share/reel/SHORTCODE
-  // - instagram.com/username/p/SHORTCODE
-  // - instagram.com/username/reel/SHORTCODE
-  // - instagr.am/p/SHORTCODE
-  // - instagr.am/reel/SHORTCODE
-  // - instagram.com/stories/username/ID
-  // - instagram.com/reels/audio/ID
   const fullUrlMatch = text.match(
     /https?:\/\/(?:www\.)?(?:instagram\.com|instagr\.am)\/(?:share\/)?(?:[A-Za-z0-9_.]+\/)?(reel|reels|p|stories|audio)\/([A-Za-z0-9_.-]+)\/?/i
   );
@@ -2134,7 +2168,6 @@ function extractInstagramMediaUrl(
     return `https://www.instagram.com/reel/${shortcode}/`;
   }
 
-  // 3. Fallback for partial paths like /p/SHORTCODE or /share/p/SHORTCODE or /reel/SHORTCODE
   const shortcodeMatch = text.match(
     /\/(?:share\/)?(reel|reels|p|stories|audio)\/([A-Za-z0-9_.-]+)/i
   );
@@ -2148,6 +2181,65 @@ function extractInstagramMediaUrl(
       return `https://www.instagram.com/reels/audio/${shortcode}/`;
     }
     return `https://www.instagram.com/reel/${shortcode}/`;
+  }
+
+  return null;
+}
+
+/**
+ * Extract Media URL from text or Instagram attachments (handles posts, reels, audio, stories, and direct image/video shares)
+ */
+function extractInstagramMediaUrl(
+  text: string,
+  attachments: any[] = []
+): string | null {
+  // 1. Search all attachments for canonical Instagram URLs first
+  if (Array.isArray(attachments) && attachments.length > 0) {
+    for (const att of attachments) {
+      if (!att) continue;
+      const candidates = [
+        att.payload?.url,
+        att.payload?.link,
+        att.payload?.target,
+        att.payload?.share?.link,
+        att.payload?.share?.url,
+        att.url,
+        att.payload?.title,
+        att.title,
+      ];
+      for (const candidate of candidates) {
+        if (typeof candidate === "string" && candidate.length > 0) {
+          const canonical = extractCanonicalInstagramUrl(candidate);
+          if (canonical) return canonical;
+        }
+      }
+    }
+  }
+
+  // 2. Search message text for canonical Instagram URL
+  if (text) {
+    const canonicalFromText = extractCanonicalInstagramUrl(text);
+    if (canonicalFromText) return canonicalFromText;
+  }
+
+  // 3. Fallback: Search attachments for direct media URLs
+  // (Meta in-app share CDN URLs, lookaside.fbsbx.com, cdninstagram, or direct user-sent photos/images/videos)
+  if (Array.isArray(attachments) && attachments.length > 0) {
+    for (const att of attachments) {
+      if (!att) continue;
+      const directCandidates = [
+        att.payload?.url,
+        att.payload?.link,
+        att.url,
+        att.payload?.share?.url,
+        att.payload?.share?.link,
+      ];
+      for (const candidate of directCandidates) {
+        if (typeof candidate === "string" && candidate.startsWith("http")) {
+          return candidate;
+        }
+      }
+    }
   }
 
   return null;

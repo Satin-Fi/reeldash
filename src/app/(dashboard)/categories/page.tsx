@@ -369,10 +369,14 @@ export default function CategoriesPage() {
             return (
               <div
                 key={cat.id || cat.name}
-                className="group relative flex flex-col justify-between rounded-2xl bg-surface-light dark:bg-[#0E1015] border border-borderSubtle-light dark:border-white/[0.06] hover:border-white/[0.18] shadow-sm hover:shadow-2xl transition-all duration-300 overflow-hidden"
+                className="group relative flex flex-col rounded-2xl bg-surface-light dark:bg-[#0E1015] border border-borderSubtle-light dark:border-white/[0.06] hover:border-white/[0.18] shadow-sm hover:shadow-2xl transition-all duration-300 overflow-hidden"
               >
                 {/* ── Visual Media Header (3-Reel Mosaic / Preview Strip) ── */}
-                <div className="relative h-44 w-full bg-zinc-950/80 overflow-hidden border-b border-borderSubtle-light dark:border-white/[0.06]">
+                <Link
+                  href={`/reels?category=${encodeURIComponent(cat.name)}`}
+                  onClick={() => setActiveCategory(cat.name)}
+                  className="block relative h-44 w-full bg-zinc-950/80 overflow-hidden border-b border-borderSubtle-light dark:border-white/[0.06] cursor-pointer"
+                >
                   {previewReels.length > 0 ? (
                     <div className="grid grid-cols-3 h-full gap-0.5 p-0.5 bg-black/40">
                       {previewReels.map((r, idx) => (
@@ -405,36 +409,38 @@ export default function CategoriesPage() {
 
                   {/* Gradient bottom fog */}
                   <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-[#0E1015] to-transparent pointer-events-none" />
+                </Link>
 
-                  {/* Top-Right Actions */}
-                  {cat.id && (
-                    <div className="absolute top-3 right-3 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-black/60 backdrop-blur-md rounded-lg p-0.5 border border-white/10">
-                      <button
-                        onClick={(e) => {
-                          e.preventDefault();
-                          handleStartEdit(cat);
-                        }}
-                        className="p-1.5 text-zinc-400 hover:text-white rounded-md hover:bg-white/10 transition-colors"
-                        title="Edit Category"
-                      >
-                        <Edit3 className="w-3 h-3" />
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.preventDefault();
-                          setDeletingCatId(cat.id || null);
-                        }}
-                        className="p-1.5 text-zinc-400 hover:text-rose-400 rounded-md hover:bg-rose-500/20 transition-colors"
-                        title="Delete Category"
-                      >
-                        <Trash2 className="w-3 h-3" />
-                      </button>
-                    </div>
-                  )}
-                </div>
+                {/* Top-Right Actions (Overlay) */}
+                {cat.id && (
+                  <div className="absolute top-3 right-3 z-10 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-black/60 backdrop-blur-md rounded-lg p-0.5 border border-white/10">
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleStartEdit(cat);
+                      }}
+                      className="p-1.5 text-zinc-400 hover:text-white rounded-md hover:bg-white/10 transition-colors cursor-pointer"
+                      title="Edit Category"
+                    >
+                      <Edit3 className="w-3 h-3" />
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setDeletingCatId(cat.id || null);
+                      }}
+                      className="p-1.5 text-zinc-400 hover:text-rose-400 rounded-md hover:bg-rose-500/20 transition-colors cursor-pointer"
+                      title="Delete Category"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                  </div>
+                )}
 
                 {/* ── Metadata & Details Body ── */}
-                <div className="p-4 flex-1 flex flex-col justify-between space-y-3">
+                <div className="p-4">
                   {isEditing ? (
                     <div className="space-y-2">
                       <input
@@ -454,34 +460,50 @@ export default function CategoriesPage() {
                       <div className="flex items-center space-x-1.5 pt-1">
                         <button
                           onClick={() => handleSaveEdit(cat.id!)}
-                          className="px-2.5 py-1 rounded bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-semibold"
+                          className="px-2.5 py-1 rounded bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-semibold cursor-pointer"
                         >
                           Save
                         </button>
                         <button
                           onClick={() => setEditingCatId(null)}
-                          className="px-2.5 py-1 rounded bg-zinc-800 text-zinc-400 hover:text-white text-[11px]"
+                          className="px-2.5 py-1 rounded bg-zinc-800 text-zinc-400 hover:text-white text-[11px] cursor-pointer"
                         >
                           Cancel
                         </button>
                       </div>
                     </div>
                   ) : (
-                    <div>
-                      <h3 className="font-bricolage text-base font-bold text-primaryText-light dark:text-white tracking-tight">
-                        {cat.name}
-                      </h3>
-                      {cat.description && (
-                        <p className="text-xs text-secondaryText-light dark:text-zinc-400 mt-1 line-clamp-2 leading-relaxed">
-                          {cat.description}
-                        </p>
-                      )}
-                    </div>
+                    <Link
+                      href={`/reels?category=${encodeURIComponent(cat.name)}`}
+                      onClick={() => setActiveCategory(cat.name)}
+                      className="flex items-center justify-between gap-3 group/link"
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className={`w-8 h-8 rounded-lg ${theme.bg} flex items-center justify-center shrink-0 border border-white/[0.04]`}>
+                          <ThemeIcon className={`w-4 h-4 ${theme.color}`} strokeWidth={2} />
+                        </div>
+                        <div className="min-w-0">
+                          <h3 className="font-bricolage text-base font-bold text-primaryText-light dark:text-white tracking-tight truncate group-hover/link:text-brand-400 group-hover:text-brand-400 transition-colors">
+                            {cat.name}
+                          </h3>
+                          {cat.description && (
+                            <p className="text-xs text-secondaryText-light dark:text-zinc-400 line-clamp-1 leading-relaxed mt-0.5">
+                              {cat.description}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/[0.04] border border-white/[0.08] text-xs font-semibold text-zinc-300 group-hover/link:bg-brand-500/10 group-hover/link:border-brand-500/30 group-hover/link:text-brand-400 group-hover:bg-brand-500/10 group-hover:border-brand-500/30 group-hover:text-brand-400 transition-all">
+                        <span>Explore</span>
+                        <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover/link:translate-x-0.5 group-hover:translate-x-0.5" />
+                      </div>
+                    </Link>
                   )}
 
                   {/* Delete Confirmation Alert */}
                   {isDeleting && (
-                    <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-xs text-rose-300 space-y-2 animate-slide-down">
+                    <div className="mt-3 p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-xs text-rose-300 space-y-2 animate-slide-down">
                       <p className="text-[11px] leading-tight font-medium">
                         Delete &quot;{cat.name}&quot;? Reels will remain safely in your library.
                       </p>
@@ -501,18 +523,6 @@ export default function CategoriesPage() {
                       </div>
                     </div>
                   )}
-
-                  {/* Bottom Footer & CTA */}
-                  <div className="pt-3 border-t border-borderSubtle-light dark:border-white/[0.04] flex items-center justify-end">
-                    <Link
-                      href={`/reels?category=${encodeURIComponent(cat.name)}`}
-                      onClick={() => setActiveCategory(cat.name)}
-                      className="inline-flex items-center gap-1.5 text-xs font-semibold text-brand-600 dark:text-brand-400 group-hover:text-brand-300 transition-colors"
-                    >
-                      <span>Explore</span>
-                      <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-1" />
-                    </Link>
-                  </div>
                 </div>
               </div>
             );

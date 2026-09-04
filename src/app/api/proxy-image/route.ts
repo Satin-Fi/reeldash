@@ -62,7 +62,10 @@ async function serveImageBinary(imageUrl: string, shortcode?: string | null): Pr
   let contentType = "image/jpeg";
 
   // 1. If Meta CDN, wsrv.nl proxy bypasses IP geoblocks & rate limits
-  const isMetaCdn = imageUrl.includes("cdninstagram.com") || imageUrl.includes("fbcdn.net");
+  const isMetaCdn =
+    imageUrl.includes("cdninstagram.com") ||
+    imageUrl.includes("fbcdn.net") ||
+    imageUrl.includes("fbsbx.com");
 
   if (isMetaCdn) {
     try {
