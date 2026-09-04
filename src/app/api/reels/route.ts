@@ -81,7 +81,9 @@ export async function GET(req: NextRequest) {
 
     if (filterAccount && filterAccount !== "all") {
       const cleanFilter = filterAccount.replace(/^@/, "").trim().toLowerCase();
-      query = query.ilike("instagram_username", cleanFilter);
+      query = query
+        .in("user_id", userIds)
+        .or(`instagram_username.ilike.${cleanFilter},instagram_username.is.null,source.eq.manual`);
     } else if (userIds.length > 0) {
       query = query.in("user_id", userIds);
     } else {
@@ -141,6 +143,7 @@ export async function GET(req: NextRequest) {
 
       return {
         ...row,
+        shortcode: row.shortcode,
         category: categoryList[0] || row.category || "General",
         categories: categoryList.length > 0 ? categoryList : [row.category || "General"],
         categoryIds: categoryIdList,
@@ -162,7 +165,38 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { url: rawUrl, userId, category: bodyCategory, notes, isFavorite } = body;
+    const {
+      url: rawUrl,
+      userId,
+      shortcode: clientShortcode,
+      category: bodyCategory,
+      categories: bodyCategories,
+      notes,
+      note,
+      isFavorite,
+      creator,
+      creator_handle,
+      creatorFullName,
+      creator_name,
+      creatorAvatar,
+      creator_avatar,
+      thumbnailUrl,
+      thumbnail_url,
+      videoUrl,
+      video_url,
+      caption: bodyCaption,
+      mediaType: bodyMediaType,
+      media_type,
+      duration: bodyDuration,
+      likes: bodyLikes,
+      likes_count,
+      plays_count,
+      isCarousel,
+      carouselImages,
+      source: bodySource,
+      instagram_username,
+      instagram_account_id,
+    } = body;
 
     if (!rawUrl) {
       return NextResponse.json({ error: "Missing URL parameter" }, { status: 400 });
@@ -175,37 +209,64 @@ export async function POST(req: NextRequest) {
     // Parse /<category> shortcuts and notes from URL
     const parsedCmd = parseCategoryCommand(rawUrl);
     const url = (parsedCmd.cleanUrl || parsedCmd.cleanText || rawUrl).trim();
-    const allCategories = parsedCmd.categories.length > 0 ? parsedCmd.categories : bodyCategory ? [bodyCategory] : [];
+    
+    // Category consolidation
+    let allCategories: string[] = [];
+    if (Array.isArray(bodyCategories) && bodyCategories.length > 0) {
+      allCategories = bodyCategories.filter(Boolean);
+    } else if (parsedCmd.categories.length > 0) {
+      allCategories = parsedCmd.categories;
+    } else if (bodyCategory) {
+      allCategories = [bodyCategory];
+    }
     const primaryCategory = allCategories.length > 0 ? allCategories[0] : (parsedCmd.primaryCategory || "General");
 
-    // Call internal reel-info extractor
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://reeldash-nine.vercel.app";
-    const infoRes = await fetch(`${baseUrl}/api/reel-info`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ url }),
-    });
-
-    const infoData = infoRes.ok ? await infoRes.json() : {};
-
     const shortcodeMatch = url.match(/(?:reel|p|audio|stories)\/([A-Za-z0-9_-]+)/);
-    const shortcode = infoData.shortcode || (shortcodeMatch ? shortcodeMatch[1] : `sc_${Date.now()}`);
-    const mediaType = infoData.mediaType || (url.includes("/audio/") ? "audio" : url.includes("/stories/") ? "story" : url.includes("/p/") ? "post" : "reel");
-
-    const effectiveCategory = allCategories.length > 0 ? allCategories[0] : (infoData.category || (mediaType === "audio" ? "Music & Audio" : "General"));
+    const shortcode = clientShortcode || (shortcodeMatch ? shortcodeMatch[1] : `sc_${Date.now()}`);
     
-    // Extract hashtags from caption and infoData
+    const detectedMediaType = bodyMediaType || media_type || (url.includes("/audio/") ? "audio" : url.includes("/stories/") ? "story" : url.includes("/p/") ? "post" : "reel");
+
+    const effectiveCreatorHandle = creator_handle || creator || "";
+    const effectiveThumbnail = thumbnail_url || thumbnailUrl || "";
+    const effectiveCaption = bodyCaption || "";
+
+    // Only fetch external reel-info if critical fields (creator or thumbnail) are missing
+    let enrichedData: any = {};
+    if (!effectiveCreatorHandle || !effectiveThumbnail) {
+      try {
+        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://reeldash-nine.vercel.app";
+        const infoRes = await fetch(`${baseUrl}/api/reel-info`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url }),
+        });
+        if (infoRes.ok) {
+          enrichedData = await infoRes.json();
+        }
+      } catch (e) {
+        console.warn("[POST /api/reels info fetch notice]:", e);
+      }
+    }
+
+    const finalCreatorHandle = effectiveCreatorHandle || enrichedData.creatorUsername || "creator";
+    const finalCreatorName = creator_name || creatorFullName || enrichedData.creatorFullName || finalCreatorHandle;
+    const finalCreatorAvatar = creator_avatar || creatorAvatar || enrichedData.creatorAvatar || `/api/proxy-image?username=${encodeURIComponent(finalCreatorHandle)}`;
+    const finalThumbnail = effectiveThumbnail || enrichedData.thumbnailUrl || (shortcode ? `/api/proxy-image?shortcode=${shortcode}` : "");
+    const finalCaption = effectiveCaption || enrichedData.caption || `Instagram ${detectedMediaType.toUpperCase()}`;
+    const finalCategory = allCategories.length > 0 ? allCategories[0] : (enrichedData.category || primaryCategory);
+    if (allCategories.length === 0) allCategories = [finalCategory];
+
+    // Extract hashtags
     const extractedHashtags: string[] = [];
-    const captionText = infoData.caption || "";
-    const hashMatches = captionText.match(/#([a-zA-Z0-9_\u0080-\uFFFF]+)/g);
+    const hashMatches = finalCaption.match(/#([a-zA-Z0-9_\u0080-\uFFFF]+)/g);
     if (hashMatches) {
       hashMatches.forEach((h: string) => {
         const lower = h.toLowerCase();
         if (!extractedHashtags.includes(lower)) extractedHashtags.push(lower);
       });
     }
-    if (Array.isArray(infoData.hashtags)) {
-      infoData.hashtags.forEach((h: string) => {
+    if (Array.isArray(enrichedData.hashtags)) {
+      enrichedData.hashtags.forEach((h: string) => {
         const tag = h.startsWith("#") ? h.toLowerCase() : `#${h.toLowerCase()}`;
         if (!extractedHashtags.includes(tag)) extractedHashtags.push(tag);
       });
@@ -215,23 +276,25 @@ export async function POST(req: NextRequest) {
       user_id: userId,
       shortcode,
       url,
-      thumbnail_url: infoData.thumbnailUrl || (shortcode ? `/api/proxy-image?shortcode=${shortcode}` : ""),
-      video_url: infoData.mediaUrl || "",
-      caption: infoData.caption || `Instagram ${mediaType.toUpperCase()}`,
-      creator_handle: infoData.creatorUsername || "creator",
-      creator_name: infoData.creatorFullName || infoData.creatorUsername || "Creator",
-      creator_avatar: infoData.creatorAvatar || "",
-      media_type: mediaType,
-      duration: infoData.duration || "",
-      likes_count: infoData.likes || "",
-      plays_count: infoData.views || "",
-      category: effectiveCategory,
+      thumbnail_url: finalThumbnail,
+      video_url: video_url || videoUrl || enrichedData.mediaUrl || "",
+      caption: finalCaption,
+      creator_handle: finalCreatorHandle,
+      creator_name: finalCreatorName,
+      creator_avatar: finalCreatorAvatar,
+      media_type: detectedMediaType,
+      duration: bodyDuration || enrichedData.duration || (detectedMediaType === "audio" ? "" : isCarousel ? `Carousel (${carouselImages?.length || 1})` : "0:30"),
+      likes_count: likes_count || bodyLikes || enrichedData.likes || "",
+      plays_count: plays_count || enrichedData.views || "",
+      category: finalCategory,
       tags: extractedHashtags,
-      note: parsedCmd.note || notes || "",
+      note: parsedCmd.note || note || notes || "",
       is_favorite: !!isFavorite,
-      ai_summary: infoData.aiSummary || "",
-      ai_topics: Array.isArray(infoData.aiTopics) ? infoData.aiTopics : [],
-      source: "manual",
+      ai_summary: enrichedData.aiSummary || "",
+      ai_topics: Array.isArray(enrichedData.aiTopics) ? enrichedData.aiTopics : [],
+      source: bodySource || "manual",
+      instagram_username: instagram_username || null,
+      instagram_account_id: instagram_account_id || null,
     };
 
     // If Supabase is connected, persist to DB and associate categories & hashtags
@@ -308,7 +371,7 @@ export async function POST(req: NextRequest) {
       reel: {
         id: `reel_${Date.now()}`,
         ...reelPayload,
-        categories: allCategories.length > 0 ? allCategories : [effectiveCategory],
+        categories: allCategories.length > 0 ? allCategories : [finalCategory],
         hashtags: extractedHashtags,
       },
     });

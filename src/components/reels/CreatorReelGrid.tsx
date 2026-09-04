@@ -82,6 +82,7 @@ function CreatorReelTile({ item, creatorUsername }: { item: CreatorReelItem; cre
     setSaving(true);
     try {
       await saveReel(item.instagramUrl, {
+        shortcode: item.shortcode,
         creator: creatorUsername,
         creatorFullName: creatorUsername ? creatorUsername.charAt(0).toUpperCase() + creatorUsername.slice(1) : undefined,
         creatorAvatar: `/api/proxy-image?username=${encodeURIComponent(creatorUsername || "")}`,

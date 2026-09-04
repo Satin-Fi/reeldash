@@ -57,12 +57,14 @@ interface ReelContextType {
   saveReel: (
     url: string,
     customDetails?: {
+      shortcode?: string;
       creator?: string;
       creatorFullName?: string;
       creatorAvatar?: string;
       thumbnailUrl?: string;
       caption?: string;
       category?: string;
+      categories?: string[];
       mediaType?: MediaType;
       audioTitle?: string;
       audioArtist?: string;
@@ -234,7 +236,11 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
 
       // Filter out anything in recycleBin
       const trashIds = new Set(parsedTrash.map((t) => t.id));
-      const cleanReels = parsedReels.filter((r) => !trashIds.has(r.id));
+      const trashUrls = new Set(parsedTrash.map((t) => t.instagramUrl?.replace(/\/$/, "")));
+      const trashShortcodes = new Set(parsedTrash.map((t) => t.shortcode).filter(Boolean));
+      const cleanReels = parsedReels.filter(
+        (r) => !trashIds.has(r.id) && !trashUrls.has(r.instagramUrl?.replace(/\/$/, "")) && (!r.shortcode || !trashShortcodes.has(r.shortcode))
+      );
 
       setReels(cleanReels);
       setCollections(parsedCols);
@@ -273,8 +279,8 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
 
       fetch(`/api/reels?userId=${encodeURIComponent(user.id)}${activeUsernameParam}${accountParam}`)
         .then((res) => (res.ok ? res.json() : { reels: [] }))
-        .then((data) => {
-          if (data.reels && Array.isArray(data.reels) && data.reels.length > 0) {
+        .then(async (data) => {
+          if (data.reels && Array.isArray(data.reels)) {
             const dbReels: Reel[] = data.reels
               .filter((dbR: any) => !trashIds.has(dbR.id))
               .map((dbR: any) => {
@@ -282,6 +288,7 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
                 return {
                   id: dbR.id,
                   userId: user.id,
+                  shortcode: sc || dbR.shortcode,
                   instagramUrl: dbR.url,
                   instagramUsername: dbR.instagram_username || "",
                   instagramAccountId: dbR.instagram_account_id || "",
@@ -305,7 +312,77 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
                 };
               });
 
-            setReels(dbReels);
+            // Map existing DB reels by shortcode and normalized url
+            const dbShortcodes = new Set(dbReels.map((r) => r.shortcode).filter(Boolean));
+            const dbUrls = new Set(dbReels.map((r) => r.instagramUrl?.replace(/\/$/, "")));
+
+            // Identify any local reels not yet present in Supabase (e.g., from creator search or previous sessions)
+            const unsyncedLocalReels = cleanReels.filter((localR) => {
+              const sc = localR.shortcode || localR.instagramUrl?.match(/(?:reel|reels|p|audio|stories)\/([A-Za-z0-9_-]+)/)?.[1];
+              const cleanUrl = localR.instagramUrl ? localR.instagramUrl.replace(/\/$/, "") : "";
+              const inDb = (sc && dbShortcodes.has(sc)) || (cleanUrl && dbUrls.has(cleanUrl));
+              return !inDb;
+            });
+
+            // Unified, flicker-free reels list
+            const mergedReels = [...dbReels, ...unsyncedLocalReels];
+            setReels(mergedReels);
+            if (typeof window !== "undefined" && user?.id) {
+              localStorage.setItem(userReelsKey, JSON.stringify(mergedReels));
+            }
+
+            // Self-Healing Background Sync: Automatically persist any unsynced local reels into Supabase
+            if (unsyncedLocalReels.length > 0) {
+              for (const unsynced of unsyncedLocalReels) {
+                try {
+                  const sc = unsynced.shortcode || unsynced.instagramUrl?.match(/(?:reel|reels|p|audio|stories)\/([A-Za-z0-9_-]+)/)?.[1];
+                  const res = await fetch("/api/reels", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      userId: user.id,
+                      url: unsynced.instagramUrl,
+                      shortcode: sc,
+                      creator: unsynced.creatorUsername,
+                      creatorFullName: unsynced.creatorFullName,
+                      creatorAvatar: unsynced.creatorAvatar,
+                      thumbnailUrl: unsynced.thumbnailUrl,
+                      mediaUrl: unsynced.mediaUrl,
+                      caption: unsynced.caption,
+                      category: unsynced.category || "General",
+                      categories: unsynced.categories || (unsynced.category ? [unsynced.category] : ["General"]),
+                      mediaType: unsynced.mediaType || "reel",
+                      duration: unsynced.duration,
+                      likes: unsynced.likes,
+                      commentsCount: unsynced.commentsCount,
+                      notes: unsynced.notes,
+                      isFavorite: unsynced.isFavorite,
+                      isCarousel: unsynced.isCarousel,
+                      carouselImages: unsynced.carouselImages,
+                      instagram_username: user.instagramUsername || user.connectedAccounts?.[0]?.username || null,
+                      instagram_account_id: user.connectedAccounts?.[0]?.id || null,
+                      source: "manual",
+                    }),
+                  });
+                  if (res.ok) {
+                    const resData = await res.json();
+                    if (resData?.reel?.id) {
+                      setReels((prev) => {
+                        const updated = prev.map((r) =>
+                          r.id === unsynced.id ? { ...r, id: resData.reel.id, shortcode: sc || r.shortcode } : r
+                        );
+                        if (typeof window !== "undefined" && user?.id) {
+                          localStorage.setItem(userReelsKey, JSON.stringify(updated));
+                        }
+                        return updated;
+                      });
+                    }
+                  }
+                } catch (e) {
+                  console.warn("[Auto-sync unsynced reel notice]:", e);
+                }
+              }
+            }
           } else if (isValidAccountFilter) {
             setReels([]);
           }
@@ -693,16 +770,18 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
     return null;
   };
 
-  // ─── High-Speed Optimistic Save ────────────────────────────────────
+  // ─── High-Speed Optimistic Save + Background DB Persistence ────────
   const saveReel = async (
     url: string,
     customDetails?: {
+      shortcode?: string;
       creator?: string;
       creatorFullName?: string;
       creatorAvatar?: string;
       thumbnailUrl?: string;
       caption?: string;
       category?: string;
+      categories?: string[];
       mediaType?: MediaType;
       audioTitle?: string;
       audioArtist?: string;
@@ -721,7 +800,9 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
     // Duplicate check
     const cleanNormalized = cleanUrl.replace(/\/$/, "");
     const alreadyExists = reels.find(
-      (r) => r.instagramUrl.replace(/\/$/, "") === cleanNormalized
+      (r) =>
+        r.instagramUrl.replace(/\/$/, "") === cleanNormalized ||
+        (customDetails?.shortcode && r.shortcode === customDetails.shortcode)
     );
     if (alreadyExists) {
       showToast("Already in your library", `@${alreadyExists.creatorUsername}'s Reel`);
@@ -731,7 +812,7 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
 
     const audioIdMatch = cleanUrl.match(/\/reels\/audio\/(\d+)/);
     const shortcodeMatch = audioIdMatch || cleanUrl.match(/\/(?:reel|p|stories)\/([A-Za-z0-9_-]+)/);
-    const shortcode = shortcodeMatch ? shortcodeMatch[1] : `sc_${Date.now().toString(36)}`;
+    const shortcode = customDetails?.shortcode || (shortcodeMatch ? shortcodeMatch[1] : `sc_${Date.now().toString(36)}`);
     const mediaType: MediaType =
       customDetails?.mediaType ||
       (cleanUrl.includes("/audio/")
@@ -747,6 +828,8 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
     const primaryCategory = parsedCmd.primaryCategory || customDetails?.category;
     const allCategories = parsedCmd.categories.length > 0
       ? parsedCmd.categories
+      : Array.isArray(customDetails?.categories) && customDetails.categories.length > 0
+      ? customDetails.categories
       : customDetails?.category
       ? [customDetails.category]
       : [];
@@ -765,6 +848,7 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
     const optimisticReel: Reel = {
       id: tempId,
       userId: user?.id || "user-1",
+      shortcode,
       mediaType,
       instagramUrl: cleanUrl,
       creatorUsername: initialCreator,
@@ -776,6 +860,7 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
       embedUrl: `https://www.instagram.com/p/${shortcode}/embed/`,
       caption: customDetails?.caption || `Instagram ${mediaType.toUpperCase()}: ${cleanUrl}`,
       category: targetCategory,
+      categories: allCategories.length > 0 ? allCategories : [targetCategory],
       subcategories: allCategories.length > 0 ? allCategories : [targetCategory],
       collections: [],
       hashtags: allCategories.map((c) => c.toLowerCase()),
@@ -807,7 +892,53 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
       showToast(`Saved to Library`, `@${initialCreator}'s ${mediaType}`);
     }
 
-    // 2. Parallel Fast Metadata Enrichment (< 1s)
+    // 2. Persist to Supabase Database (Background / Async)
+    if (user?.id) {
+      fetch("/api/reels", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: user.id,
+          url: cleanUrl,
+          shortcode,
+          creator: initialCreator,
+          creatorFullName: optimisticReel.creatorFullName,
+          creatorAvatar: initialAvatar,
+          thumbnailUrl: initialThumbnail,
+          caption: optimisticReel.caption,
+          category: targetCategory,
+          categories: allCategories.length > 0 ? allCategories : [targetCategory],
+          mediaType,
+          duration: optimisticReel.duration,
+          likes: customDetails?.likes,
+          commentsCount: customDetails?.commentsCount,
+          notes: parsedCmd.note,
+          isFavorite: false,
+          isCarousel: customDetails?.isCarousel,
+          carouselImages: customDetails?.carouselImages,
+          instagram_username: user.instagramUsername || user.connectedAccounts?.[0]?.username || null,
+          instagram_account_id: user.connectedAccounts?.[0]?.id || null,
+          source: "manual",
+        }),
+      })
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (data?.reel?.id) {
+            setReels((prev) => {
+              const updated = prev.map((r) =>
+                r.id === tempId ? { ...r, id: data.reel.id, shortcode: shortcode || r.shortcode } : r
+              );
+              if (user?.id) {
+                localStorage.setItem(`reeldash_reels_${user.id}`, JSON.stringify(updated));
+              }
+              return updated;
+            });
+          }
+        })
+        .catch((err) => console.warn("[saveReel persist error]:", err));
+    }
+
+    // 3. Parallel Fast Metadata Enrichment (< 1s)
     try {
       const res = await fetch("/api/reel-info", {
         method: "POST",
@@ -826,7 +957,7 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
 
         setReels((prev) => {
           const updated = prev.map((r) => {
-            if (r.id === tempId) {
+            if (r.id === tempId || (r.shortcode && r.shortcode === shortcode)) {
               return {
                 ...r,
                 creatorUsername: finalCreator,
