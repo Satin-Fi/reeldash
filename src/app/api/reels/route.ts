@@ -162,10 +162,14 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { url: rawUrl, userId = "user-default", category: bodyCategory, notes, isFavorite } = body;
+    const { url: rawUrl, userId, category: bodyCategory, notes, isFavorite } = body;
 
     if (!rawUrl) {
       return NextResponse.json({ error: "Missing URL parameter" }, { status: 400 });
+    }
+
+    if (!userId) {
+      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
     // Parse /<category> shortcuts and notes from URL

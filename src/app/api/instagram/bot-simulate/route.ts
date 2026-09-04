@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { processInstagramMessage, igProfileStore } from "@/lib/instagramBot";
+import { processInstagramMessage } from "@/lib/instagramBot";
 
 export const dynamic = "force-dynamic";
 
@@ -29,7 +29,6 @@ export async function POST(req: NextRequest) {
       username,
       isFollowing: result.isFollowing,
       result,
-      allProfilesCount: igProfileStore.size,
     });
   } catch (error: any) {
     return NextResponse.json({ error: error.message || "Simulation failed" }, { status: 500 });
@@ -37,9 +36,7 @@ export async function POST(req: NextRequest) {
 }
 
 export async function GET() {
-  const profiles = Array.from(igProfileStore.values());
   return NextResponse.json({
-    activeProfilesCount: profiles.length,
-    profiles,
+    message: "Bot simulate endpoint. Use POST to test.",
   });
 }

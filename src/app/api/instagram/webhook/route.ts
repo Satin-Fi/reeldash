@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { processInstagramMessage } from "@/lib/instagramBot";
+import { getSupabaseAdmin } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
@@ -24,6 +25,11 @@ export async function GET(req: NextRequest) {
 
 /**
  * 2. POST: Receive Instagram DM Events from Meta Messenger API
+ *
+ * Now includes:
+ * - Webhook idempotency via processed_webhook_events table
+ * - Message ID extraction from Meta's message.mid field
+ * - Per-event deduplication before processing
  */
 export async function POST(req: NextRequest) {
   try {
@@ -31,12 +37,22 @@ export async function POST(req: NextRequest) {
     const entries = body?.entry ?? [];
 
     const results = [];
+    const supabase = getSupabaseAdmin();
 
     for (const entry of entries) {
       const messaging = entry?.messaging ?? [];
 
-      // Group messaging events by sender so reel attachment and slash command in the same payload merge into 1 call
-      const senderEvents = new Map<string, { texts: string[]; attachments: any[]; postbackPayload?: string }>();
+      // Group messaging events by sender so reel attachment and slash command
+      // in the same payload merge into 1 call
+      const senderEvents = new Map<
+        string,
+        {
+          texts: string[];
+          attachments: any[];
+          postbackPayload?: string;
+          messageIds: string[];
+        }
+      >();
 
       for (const event of messaging) {
         if (!event?.message && !event?.postback) continue;
@@ -45,14 +61,51 @@ export async function POST(req: NextRequest) {
         const senderIgId: string = event.sender?.id;
         if (!senderIgId) continue;
 
+        // Build a stable idempotency key from Meta's message ID
+        const messageId =
+          event.message?.mid ||
+          `${senderIgId}_${event.timestamp || Date.now()}`;
+
+        // Deduplicate: check if this event was already processed
+        if (supabase) {
+          try {
+            const { data: existing } = await supabase
+              .from("processed_webhook_events")
+              .select("id")
+              .eq("event_id", messageId)
+              .maybeSingle();
+
+            if (existing) {
+              console.log(
+                `[Instagram Webhook] Skipping duplicate event: ${messageId}`
+              );
+              continue;
+            }
+          } catch (checkErr) {
+            // If the check fails, proceed anyway (fail open for availability)
+            console.warn(
+              "[Instagram Webhook] Idempotency check error:",
+              checkErr
+            );
+          }
+        }
+
         const text = event.message?.text ?? event.postback?.title ?? "";
         const postbackPayload = event.postback?.payload;
         const attachments = event.message?.attachments ?? [];
 
-        const existing = senderEvents.get(senderIgId) || { texts: [], attachments: [], postbackPayload: undefined };
+        const existing =
+          senderEvents.get(senderIgId) ||
+          ({
+            texts: [],
+            attachments: [],
+            postbackPayload: undefined,
+            messageIds: [],
+          } as any);
         if (text) existing.texts.push(text);
         if (attachments.length > 0) existing.attachments.push(...attachments);
         if (postbackPayload) existing.postbackPayload = postbackPayload;
+        existing.messageIds.push(messageId);
         senderEvents.set(senderIgId, existing);
       }
 
@@ -67,12 +120,34 @@ export async function POST(req: NextRequest) {
           data.postbackPayload
         );
         results.push(processed);
+
+        // Record all message IDs as processed
+        if (supabase && data.messageIds.length > 0) {
+          try {
+            const rows = data.messageIds.map((mid: string) => ({
+              event_id: mid,
+              sender_ig_id: senderIgId,
+              result_status: processed.status,
+            }));
+            await supabase
+              .from("processed_webhook_events")
+              .upsert(rows, { onConflict: "event_id" });
+          } catch (recordErr) {
+            console.warn(
+              "[Instagram Webhook] Failed to record processed events:",
+              recordErr
+            );
+          }
+        }
       }
     }
 
     return NextResponse.json({ ok: true, results });
   } catch (error: any) {
     console.error("[Instagram Webhook] Error processing event:", error);
-    return NextResponse.json({ error: error.message || "Failed to process webhook" }, { status: 500 });
+    return NextResponse.json(
+      { error: error.message || "Failed to process webhook" },
+      { status: 500 }
+    );
   }
 }

@@ -162,7 +162,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const refreshAccounts = async () => {
     if (!user?.id) return;
     try {
-      const res = await fetch(`/api/instagram/accounts?userId=${encodeURIComponent(user.id)}&plan=${encodeURIComponent(user.plan || "Free Plan")}`);
+      const res = await fetch(`/api/instagram/accounts?plan=${encodeURIComponent(user.plan || "Free Plan")}`);
       if (res.ok) {
         const data = await res.json();
         if (data.accounts) {
@@ -183,33 +183,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const addInstagramAccount = async (username: string): Promise<{ success: boolean; message?: string; error?: string }> => {
-    if (!user?.id) return { success: false, error: "Not authenticated" };
-    try {
-      const res = await fetch("/api/instagram/accounts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId: user.id,
-          username,
-          plan: user.plan || "Free Plan",
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok || data.error) {
-        return { success: false, error: data.error || "Failed to link account" };
-      }
-      await refreshAccounts();
-      return { success: true, message: data.message || "Account connected!" };
-    } catch (e: any) {
-      return { success: false, error: e?.message || "Failed to link account" };
-    }
+  /**
+   * @deprecated Username-only linking is disabled. Use the DM challenge code
+   * flow via /api/instagram/link-code instead.
+   */
+  const addInstagramAccount = async (_username: string): Promise<{ success: boolean; message?: string; error?: string }> => {
+    return {
+      success: false,
+      error: "Username-only linking has been disabled for security. Use DM verification in Settings → Instagram Accounts.",
+    };
   };
 
   const removeInstagramAccount = async (accountId: string): Promise<boolean> => {
     if (!user?.id) return false;
     try {
-      const res = await fetch(`/api/instagram/accounts?accountId=${encodeURIComponent(accountId)}&userId=${encodeURIComponent(user.id)}`, {
+      // Session-based auth — no userId in query params
+      const res = await fetch(`/api/instagram/accounts?accountId=${encodeURIComponent(accountId)}`, {
         method: "DELETE",
       });
       if (res.ok) {

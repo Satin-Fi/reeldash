@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useReels } from "@/context/ReelContext";
 import { useAuth } from "@/context/AuthContext";
 import {
@@ -15,21 +15,35 @@ import {
   Crown,
   ArrowRight,
   Loader2,
+  Copy,
+  RefreshCw,
+  AlertTriangle,
+  Shield,
 } from "lucide-react";
 import Link from "next/link";
 
 export default function SettingsPage() {
   const { theme, toggleTheme, reels, showToast } = useReels();
-  const { user, updateUser, addInstagramAccount, removeInstagramAccount, refreshAccounts } = useAuth();
+  const { user, updateUser, removeInstagramAccount, refreshAccounts } = useAuth();
   const [activeTab, setActiveTab] = useState<"accounts" | "profile" | "plans" | "appearance" | "export">("accounts");
 
   const [name, setName] = useState(user?.name || "");
   const [email, setEmail] = useState(user?.email || "");
-  const [newHandle, setNewHandle] = useState("");
-  const [isAddingHandle, setIsAddingHandle] = useState(false);
+
+  // Challenge code flow state
+  const [showCodeFlow, setShowCodeFlow] = useState(false);
+  const [linkCode, setLinkCode] = useState<string | null>(null);
+  const [isCodeLoading, setIsCodeLoading] = useState(false);
+  const [isCodeExpired, setIsCodeExpired] = useState(false);
+  const [isLinked, setIsLinked] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     refreshAccounts();
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+    };
   }, []);
 
   const handleSaveProfile = (e: React.FormEvent) => {
@@ -41,23 +55,73 @@ export default function SettingsPage() {
     showToast("Profile settings saved");
   };
 
-  const handleAddAccount = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const clean = newHandle.replace(/^@/, "").trim();
-    if (!clean || isAddingHandle) return;
+  const generateCode = useCallback(async () => {
+    setIsCodeLoading(true);
+    setIsCodeExpired(false);
+    setLinkCode(null);
+    setIsLinked(false);
 
-    setIsAddingHandle(true);
     try {
-      const res = await addInstagramAccount(clean);
-      if (res.success) {
-        setNewHandle("");
-        showToast(`@${clean} connected successfully`);
-      } else {
-        showToast("Could not link account", res.error);
+      const res = await fetch("/api/instagram/link-code", { method: "POST" });
+      if (res.ok) {
+        const data = await res.json();
+        setLinkCode(data.code);
+        startPolling();
       }
+    } catch (err) {
+      console.warn("[Settings] Code generation error:", err);
     } finally {
-      setIsAddingHandle(false);
+      setIsCodeLoading(false);
     }
+  }, []);
+
+  const startPolling = useCallback(() => {
+    if (pollRef.current) clearInterval(pollRef.current);
+
+    pollRef.current = setInterval(async () => {
+      try {
+        const res = await fetch("/api/instagram/link-code");
+        if (!res.ok) return;
+        const data = await res.json();
+
+        if (data.linked) {
+          setIsLinked(true);
+          setShowCodeFlow(false);
+          setLinkCode(null);
+          if (pollRef.current) clearInterval(pollRef.current);
+          refreshAccounts();
+          showToast("Instagram account connected!");
+          return;
+        }
+
+        if (data.expired) {
+          setIsCodeExpired(true);
+          setLinkCode(null);
+          if (pollRef.current) clearInterval(pollRef.current);
+        }
+      } catch {}
+    }, 3000);
+  }, [refreshAccounts, showToast]);
+
+  const handleCopyCode = async () => {
+    if (!linkCode) return;
+    try {
+      await navigator.clipboard.writeText(linkCode);
+    } catch {
+      const el = document.createElement("textarea");
+      el.value = linkCode;
+      document.body.appendChild(el);
+      el.select();
+      document.execCommand("copy");
+      document.body.removeChild(el);
+    }
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleConnectClick = () => {
+    setShowCodeFlow(true);
+    generateCode();
   };
 
   const handleRemoveAccount = async (accountId: string, username: string) => {
@@ -187,7 +251,7 @@ export default function SettingsPage() {
                     Connected Instagram Accounts
                   </h3>
                   <p className="text-secondaryText-light dark:text-secondaryText-dark mt-0.5">
-                    Manage the handles you use to capture reels and media references.
+                    Accounts verified via DM code can save Reels to your library.
                   </p>
                 </div>
                 <Link
@@ -202,94 +266,155 @@ export default function SettingsPage() {
               <div className="space-y-2.5">
                 {connectedAccounts.length === 0 ? (
                   <div className="p-4 rounded-rd-md border border-dashed border-borderSubtle-light dark:border-borderSubtle-dark text-center text-secondaryText-light dark:text-secondaryText-dark">
-                    No Instagram accounts connected yet. Add your handle below to start saving references.
+                    No Instagram accounts connected yet. Click below to verify your Instagram via DM.
                   </div>
                 ) : (
-                  connectedAccounts.map((acc) => (
-                    <div
-                      key={acc.id || acc.username}
-                      className="flex items-center justify-between p-3.5 rounded-rd-md border border-borderSubtle-light dark:border-borderSubtle-dark bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark"
-                    >
-                      <div className="flex items-center space-x-3 min-w-0">
-                        <div className="w-10 h-10 rounded-full overflow-hidden bg-brand-500/10 border border-brand-500/20 flex items-center justify-center font-bold text-brand-500 shrink-0">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
-                            src={`/api/proxy-image?username=${encodeURIComponent(acc.username)}`}
-                            alt={acc.username}
-                            referrerPolicy="no-referrer"
-                            onError={(e) => {
-                              (e.target as HTMLElement).style.display = "none";
-                            }}
-                            className="w-full h-full object-cover"
-                          />
-                          <span className="text-xs uppercase font-mono">
-                            {acc.username.replace(/^_/, "").charAt(0) || acc.username.charAt(0)}
-                          </span>
-                        </div>
-                        <div className="min-w-0">
-                          <div className="flex items-center space-x-2">
-                            <span className="font-bold text-primaryText-light dark:text-primaryText-dark font-mono text-sm truncate">
-                              @{acc.username}
-                            </span>
-                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 shrink-0">
-                              <CheckCircle2 className="w-3 h-3 mr-0.5" /> Active
+                  connectedAccounts.map((acc: any) => {
+                    const isVerified = acc.status === "active";
+                    const isLegacy = acc.status === "legacy_unverified";
+
+                    return (
+                      <div
+                        key={acc.id || acc.username}
+                        className="flex items-center justify-between p-3.5 rounded-rd-md border border-borderSubtle-light dark:border-borderSubtle-dark bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark"
+                      >
+                        <div className="flex items-center space-x-3 min-w-0">
+                          <div className="w-10 h-10 rounded-full overflow-hidden bg-brand-500/10 border border-brand-500/20 flex items-center justify-center font-bold text-brand-500 shrink-0">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={`/api/proxy-image?username=${encodeURIComponent(acc.username)}`}
+                              alt={acc.username}
+                              referrerPolicy="no-referrer"
+                              onError={(e) => {
+                                (e.target as HTMLElement).style.display = "none";
+                              }}
+                              className="w-full h-full object-cover"
+                            />
+                            <span className="text-xs uppercase font-mono">
+                              {acc.username.replace(/^_/, "").charAt(0) || acc.username.charAt(0)}
                             </span>
                           </div>
-                          {acc.displayName && (
-                            <p className="text-[11px] text-secondaryText-light dark:text-secondaryText-dark truncate mt-0.5">
-                              {acc.displayName}
-                            </p>
+                          <div className="min-w-0">
+                            <div className="flex items-center space-x-2 flex-wrap gap-y-1">
+                              <span className="font-bold text-primaryText-light dark:text-primaryText-dark font-mono text-sm truncate">
+                                @{acc.username}
+                              </span>
+                              {isVerified ? (
+                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 shrink-0">
+                                  <Shield className="w-3 h-3 mr-0.5" /> Verified
+                                </span>
+                              ) : isLegacy ? (
+                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-500/10 text-amber-500 border border-amber-500/20 shrink-0">
+                                  <AlertTriangle className="w-3 h-3 mr-0.5" /> Unverified
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 shrink-0">
+                                  <CheckCircle2 className="w-3 h-3 mr-0.5" /> Active
+                                </span>
+                              )}
+                            </div>
+                            {isLegacy && (
+                              <p className="text-[10px] text-amber-500/80 mt-1 leading-snug">
+                                Connected before verification was required. New Reels won&apos;t save until verified.
+                              </p>
+                            )}
+                            {acc.displayName && !isLegacy && (
+                              <p className="text-[11px] text-secondaryText-light dark:text-secondaryText-dark truncate mt-0.5">
+                                {acc.displayName}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center space-x-1.5 shrink-0">
+                          {isLegacy && (
+                            <Link
+                              href="/connect-instagram"
+                              className="px-2.5 py-1.5 rounded-rd-sm bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 font-semibold text-[11px] border border-amber-500/20 transition-colors"
+                            >
+                              Verify now
+                            </Link>
                           )}
+                          <button
+                            onClick={() => handleRemoveAccount(acc.id, acc.username)}
+                            className="p-2 text-mutedText-light dark:text-mutedText-dark hover:text-red-500 dark:hover:text-red-400 hover:bg-red-500/10 rounded-rd-sm transition-colors cursor-pointer"
+                            title="Disconnect account"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
                         </div>
                       </div>
-
-                      <button
-                        onClick={() => handleRemoveAccount(acc.id, acc.username)}
-                        className="p-2 text-mutedText-light dark:text-mutedText-dark hover:text-red-500 dark:hover:text-red-400 hover:bg-red-500/10 rounded-rd-sm transition-colors cursor-pointer shrink-0"
-                        title="Unlink account"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
 
-              {/* Add New Account Form */}
+              {/* Connect New Account (Code Flow) */}
               {connectedAccounts.length < maxLimit ? (
-                <form onSubmit={handleAddAccount} className="pt-2 space-y-3">
-                  <label className="block font-medium text-secondaryText-light dark:text-secondaryText-dark">
-                    Connect Another Instagram Account
-                  </label>
-                  <div className="flex gap-2">
-                    <div className="relative flex-1">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-secondaryText-light dark:text-secondaryText-dark font-mono">
-                        @
-                      </span>
-                      <input
-                        type="text"
-                        value={newHandle}
-                        onChange={(e) => setNewHandle(e.target.value)}
-                        placeholder="your_other_instagram_handle"
-                        className="w-full pl-7 pr-3 py-2.5 bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-md text-xs text-primaryText-light dark:text-primaryText-dark font-mono focus:outline-none focus:border-brand-500"
-                      />
-                    </div>
+                <div className="pt-2 space-y-3">
+                  {!showCodeFlow ? (
                     <button
-                      type="submit"
-                      disabled={!newHandle.trim() || isAddingHandle}
-                      className="px-4 py-2.5 bg-brand-500 hover:bg-brand-600 disabled:opacity-50 text-white font-semibold rounded-rd-md shadow-rd-subtle flex items-center space-x-1.5 cursor-pointer transition-all"
+                      onClick={handleConnectClick}
+                      className="w-full px-4 py-2.5 bg-brand-500 hover:bg-brand-600 text-white font-semibold rounded-rd-md shadow-rd-subtle flex items-center justify-center space-x-2 cursor-pointer transition-all text-xs"
                     >
-                      {isAddingHandle ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <>
-                          <Plus className="w-4 h-4" />
-                          <span>Add Handle</span>
-                        </>
-                      )}
+                      <Instagram className="w-4 h-4" />
+                      <span>Connect Instagram Account</span>
                     </button>
-                  </div>
-                </form>
+                  ) : isCodeLoading ? (
+                    <div className="flex items-center justify-center py-6">
+                      <Loader2 className="w-5 h-5 animate-spin text-secondaryText-light dark:text-secondaryText-dark" />
+                      <span className="ml-2 text-secondaryText-light dark:text-secondaryText-dark">Generating code...</span>
+                    </div>
+                  ) : isCodeExpired ? (
+                    <div className="p-4 rounded-rd-md border border-borderSubtle-light dark:border-borderSubtle-dark text-center space-y-3">
+                      <p className="text-secondaryText-light dark:text-secondaryText-dark">Your code has expired.</p>
+                      <button
+                        onClick={generateCode}
+                        className="px-4 py-2 rounded-rd-md bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark hover:bg-brand-500/10 border border-borderSubtle-light dark:border-borderSubtle-dark text-primaryText-light dark:text-primaryText-dark font-medium flex items-center space-x-2 mx-auto cursor-pointer transition-colors"
+                      >
+                        <RefreshCw className="w-3.5 h-3.5" />
+                        <span>Generate new code</span>
+                      </button>
+                    </div>
+                  ) : linkCode ? (
+                    <div className="p-4 rounded-rd-md border border-brand-500/20 bg-brand-500/5 space-y-4">
+                      <p className="text-secondaryText-light dark:text-secondaryText-dark">
+                        Send this code to <span className="font-semibold text-primaryText-light dark:text-primaryText-dark">@ReelDash</span> on Instagram DM:
+                      </p>
+                      <button
+                        onClick={handleCopyCode}
+                        className="w-full group py-3 px-4 bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark hover:bg-surface-light dark:hover:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-md transition-colors cursor-pointer"
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-xl font-mono font-bold tracking-[0.15em] text-primaryText-light dark:text-primaryText-dark">
+                            {linkCode}
+                          </span>
+                          <div className="flex items-center space-x-1.5 text-secondaryText-light dark:text-secondaryText-dark group-hover:text-primaryText-light dark:group-hover:text-primaryText-dark transition-colors">
+                            {copied ? (
+                              <>
+                                <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                                <span className="text-[11px] text-emerald-500">Copied</span>
+                              </>
+                            ) : (
+                              <>
+                                <Copy className="w-4 h-4" strokeWidth={1.5} />
+                                <span className="text-[11px]">Copy</span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </button>
+                      <div className="flex items-center justify-center space-x-2">
+                        <div className="flex space-x-1">
+                          <div className="w-1.5 h-1.5 rounded-full bg-brand-500/40 animate-pulse" style={{ animationDelay: "0ms" }} />
+                          <div className="w-1.5 h-1.5 rounded-full bg-brand-500/40 animate-pulse" style={{ animationDelay: "300ms" }} />
+                          <div className="w-1.5 h-1.5 rounded-full bg-brand-500/40 animate-pulse" style={{ animationDelay: "600ms" }} />
+                        </div>
+                        <span className="text-[11px] text-secondaryText-light dark:text-secondaryText-dark">Waiting for verification</span>
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
               ) : (
                 <div className="p-4 rounded-rd-md bg-brand-500/5 border border-brand-500/20 flex items-center justify-between">
                   <div>
