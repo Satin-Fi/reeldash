@@ -177,16 +177,48 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
         onClick={handleCardClick}
         className="group relative aspect-[9/16] w-full overflow-hidden bg-black cursor-pointer select-none"
       >
-        {/* Full-bleed thumbnail */}
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={imageSrc}
-          alt={displayCaption || "Saved reel"}
-          referrerPolicy="no-referrer"
-          loading="lazy"
-          onError={() => setImageError(true)}
-          className="w-full h-full object-cover transition-transform duration-200 ease-out group-hover:scale-[1.015]"
-        />
+        {/* Full-bleed thumbnail or crisp centered audio/avatar tile */}
+        {mediaType === "audio" || (imageSrc && imageSrc.includes("username=")) ? (
+          <div className="w-full h-full flex flex-col items-center justify-center p-4 bg-gradient-to-b from-zinc-900 via-[#10131a] to-[#08090d] relative overflow-hidden">
+            {/* Ambient blurred glow */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={imageSrc}
+              alt=""
+              aria-hidden="true"
+              className="absolute inset-0 w-full h-full object-cover blur-2xl opacity-25 scale-125 pointer-events-none"
+            />
+            {/* Crisp 1:1 circular avatar badge */}
+            <div className="relative z-10 w-20 h-20 rounded-full overflow-hidden border-2 border-white/15 shadow-xl bg-zinc-800 shrink-0">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={imageSrc}
+                alt={creatorName}
+                className="w-full h-full object-cover"
+                onError={() => setImageError(true)}
+              />
+            </div>
+            {/* Creator / Audio Details */}
+            <p className="relative z-10 mt-3 text-xs font-semibold text-white/90 text-center truncate max-w-[85%] drop-shadow-sm">
+              {creatorName}
+            </p>
+            {reel.audioTitle && (
+              <p className="relative z-10 text-[11px] text-zinc-400 text-center truncate max-w-[85%] mt-0.5">
+                {reel.audioTitle}
+              </p>
+            )}
+          </div>
+        ) : (
+          /* eslint-disable-next-line @next/next/no-img-element */
+          <img
+            src={imageSrc}
+            alt={displayCaption || "Saved reel"}
+            referrerPolicy="no-referrer"
+            loading="lazy"
+            onError={() => setImageError(true)}
+            className="w-full h-full object-cover transition-transform duration-200 ease-out group-hover:scale-[1.015]"
+          />
+        )}
 
         {/* ─── Hover overlay gradient (bottom) ─── */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/0 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200 ease-out pointer-events-none" />

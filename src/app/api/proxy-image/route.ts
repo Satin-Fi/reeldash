@@ -55,8 +55,11 @@ function serveCleanEditorialCardSvg(creator?: string | null, shortcode?: string 
   });
 }
 
-async function serveImageBinary(imageUrl: string): Promise<NextResponse | null> {
+async function serveImageBinary(imageUrl: string, shortcode?: string | null): Promise<NextResponse | null> {
   if (!imageUrl) return null;
+
+  let finalBuffer: Buffer | null = null;
+  let contentType = "image/jpeg";
 
   // 1. If Meta CDN, wsrv.nl proxy bypasses IP geoblocks & rate limits
   const isMetaCdn = imageUrl.includes("cdninstagram.com") || imageUrl.includes("fbcdn.net");
@@ -70,13 +73,7 @@ async function serveImageBinary(imageUrl: string): Promise<NextResponse | null> 
       if (imgRes.ok) {
         const buffer = await imgRes.arrayBuffer();
         if (buffer.byteLength > 200) {
-          return new NextResponse(Buffer.from(buffer), {
-            status: 200,
-            headers: {
-              "Content-Type": "image/jpeg",
-              "Cache-Control": "public, max-age=86400, s-maxage=604800, stale-while-revalidate=2592000",
-            },
-          });
+          finalBuffer = Buffer.from(buffer);
         }
       }
     } catch {
@@ -85,32 +82,62 @@ async function serveImageBinary(imageUrl: string): Promise<NextResponse | null> 
   }
 
   // 2. Direct fetch with Meta referer and mobile UA
-  try {
-    const directRes = await fetch(imageUrl, {
-      headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-        "Referer": "https://www.instagram.com/",
-      },
-      signal: AbortSignal.timeout(3500),
-    });
-    if (directRes.ok) {
-      const buffer = await directRes.arrayBuffer();
-      const contentType = directRes.headers.get("content-type") || "image/jpeg";
-      if (contentType.startsWith("image/") && buffer.byteLength > 200) {
-        return new NextResponse(Buffer.from(buffer), {
-          status: 200,
-          headers: {
-            "Content-Type": contentType,
-            "Cache-Control": "public, max-age=86400, s-maxage=604800, stale-while-revalidate=2592000",
-          },
-        });
+  if (!finalBuffer) {
+    try {
+      const directRes = await fetch(imageUrl, {
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+          "Referer": "https://www.instagram.com/",
+        },
+        signal: AbortSignal.timeout(3500),
+      });
+      if (directRes.ok) {
+        const buffer = await directRes.arrayBuffer();
+        const ct = directRes.headers.get("content-type") || "image/jpeg";
+        if (ct.startsWith("image/") && buffer.byteLength > 200) {
+          finalBuffer = Buffer.from(buffer);
+          contentType = ct;
+        }
       }
+    } catch {
+      // Return null to trigger self-healing recovery
     }
-  } catch {
-    // Return null to trigger self-healing recovery
   }
 
-  return null;
+  if (!finalBuffer) return null;
+
+  // Asynchronously save to Supabase Storage bucket for permanent cloud hosting
+  if (shortcode) {
+    (async () => {
+      try {
+        const { getSupabaseAdmin } = await import("@/lib/supabase");
+        const supabase = getSupabaseAdmin();
+        if (supabase) {
+          const filename = `${shortcode}.jpg`;
+          const { error } = await supabase.storage.from("reel-thumbnails").upload(filename, finalBuffer, {
+            contentType: "image/jpeg",
+            upsert: true,
+          });
+          if (!error) {
+            const { data } = supabase.storage.from("reel-thumbnails").getPublicUrl(filename);
+            if (data?.publicUrl) {
+              await supabase.from("reels").update({ thumbnail_url: data.publicUrl }).eq("shortcode", shortcode);
+            }
+          }
+        }
+      } catch {
+        // Non-blocking
+      }
+    })();
+  }
+
+  return new NextResponse(finalBuffer, {
+    status: 200,
+    headers: {
+      "Content-Type": contentType,
+      "Cache-Control": "public, max-age=31536000, s-maxage=31536000, immutable",
+    },
+  });
 }
 
 /**
@@ -230,7 +257,7 @@ export async function GET(req: NextRequest) {
 
   // 2. DIRECT IMAGE PROXY BY URL
   if (directUrl) {
-    const directRes = await serveImageBinary(directUrl);
+    const directRes = await serveImageBinary(directUrl, shortcode);
     if (directRes) {
       return directRes;
     }
@@ -265,24 +292,8 @@ export async function GET(req: NextRequest) {
     try {
       const freshCoverUrl = await extractCoverByShortcode(shortcode);
       if (freshCoverUrl) {
-        const coverRes = await serveImageBinary(freshCoverUrl);
+        const coverRes = await serveImageBinary(freshCoverUrl, shortcode);
         if (coverRes) {
-          // Asynchronously update Supabase reels table with fresh thumbnail
-          (async () => {
-            try {
-              const { getSupabaseAdmin } = await import("@/lib/supabase");
-              const supabase = getSupabaseAdmin();
-              if (supabase) {
-                const newThumb = `/api/proxy-image?shortcode=${shortcode}${
-                  usernameParam ? `&creator=${encodeURIComponent(usernameParam)}` : ""
-                }&url=${encodeURIComponent(freshCoverUrl)}`;
-                await supabase.from("reels").update({ thumbnail_url: newThumb }).eq("shortcode", shortcode);
-              }
-            } catch {
-              // Ignore background update errors
-            }
-          })();
-
           return coverRes;
         }
       }
