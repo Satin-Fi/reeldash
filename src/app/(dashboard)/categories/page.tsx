@@ -6,7 +6,6 @@ import {
   Folder,
   Plus,
   Search,
-  ArrowRight,
   Edit3,
   Trash2,
   X,
@@ -478,25 +477,19 @@ export default function CategoriesPage() {
                       onClick={() => setActiveCategory(cat.name)}
                       className="flex items-center justify-between gap-3 group/link"
                     >
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <div className={`w-8 h-8 rounded-lg ${theme.bg} flex items-center justify-center shrink-0 border border-white/[0.04]`}>
-                          <ThemeIcon className={`w-4 h-4 ${theme.color}`} strokeWidth={2} />
-                        </div>
-                        <div className="min-w-0">
-                          <h3 className="font-bricolage text-base font-bold text-primaryText-light dark:text-white tracking-tight truncate group-hover/link:text-brand-400 group-hover:text-brand-400 transition-colors">
-                            {cat.name}
-                          </h3>
-                          {cat.description && (
-                            <p className="text-xs text-secondaryText-light dark:text-zinc-400 line-clamp-1 leading-relaxed mt-0.5">
-                              {cat.description}
-                            </p>
-                          )}
-                        </div>
+                      <div className="min-w-0">
+                        <h3 className="font-bricolage text-base font-bold text-primaryText-light dark:text-white tracking-tight truncate group-hover/link:text-brand-400 group-hover:text-brand-400 transition-colors">
+                          {cat.name}
+                        </h3>
+                        {cat.description && (
+                          <p className="text-xs text-secondaryText-light dark:text-zinc-400 line-clamp-1 leading-relaxed mt-0.5">
+                            {cat.description}
+                          </p>
+                        )}
                       </div>
 
-                      <div className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/[0.04] border border-white/[0.08] text-xs font-semibold text-zinc-300 group-hover/link:bg-brand-500/10 group-hover/link:border-brand-500/30 group-hover/link:text-brand-400 group-hover:bg-brand-500/10 group-hover:border-brand-500/30 group-hover:text-brand-400 transition-all">
-                        <span>Explore</span>
-                        <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover/link:translate-x-0.5 group-hover:translate-x-0.5" />
+                      <div className="shrink-0 px-3 py-1.5 rounded-full bg-white/[0.04] border border-white/[0.08] text-xs font-semibold text-zinc-300 group-hover/link:bg-brand-500/10 group-hover/link:border-brand-500/30 group-hover/link:text-brand-400 group-hover:bg-brand-500/10 group-hover:border-brand-500/30 group-hover:text-brand-400 transition-all">
+                        Explore
                       </div>
                     </Link>
                   )}
