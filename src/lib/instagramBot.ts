@@ -647,19 +647,23 @@ export async function redeemDMVerificationCode(
       } else {
         const { data: newAcc } = await supabase
           .from("instagram_accounts")
-          .insert({
-            reeldash_user_id: userId,
-            instagram_user_id: senderIgId,
-            username: igUsername,
-            display_name: igUsername,
-            avatar_url: `/api/proxy-image?username=${encodeURIComponent(igUsername)}`,
-            is_active: true,
-            status: "active",
-            linked_at: now,
-            linked_via: "dm_code",
-          })
+          .upsert(
+            {
+              reeldash_user_id: userId,
+              instagram_user_id: senderIgId,
+              username: igUsername,
+              display_name: igUsername,
+              avatar_url: `/api/proxy-image?username=${encodeURIComponent(igUsername)}`,
+              is_active: true,
+              status: "active",
+              linked_at: now,
+              linked_via: "dm_code",
+              updated_at: now,
+            },
+            { onConflict: "reeldash_user_id, username" }
+          )
           .select("id")
-          .single();
+          .maybeSingle();
         igAccountId = newAcc?.id || null;
       }
     }
@@ -1483,18 +1487,22 @@ async function processLinkCode(
           })
           .eq("id", legacyAccount.id);
       } else {
-        // Create brand new record
-        await supabase.from("instagram_accounts").insert({
-          reeldash_user_id: userId,
-          instagram_user_id: senderIgId,
-          username: igUsername,
-          display_name: igUsername,
-          avatar_url: `/api/proxy-image?username=${encodeURIComponent(igUsername)}`,
-          is_active: true,
-          status: "active",
-          linked_at: now,
-          linked_via: "dm_code",
-        });
+        // Create or update record
+        await supabase.from("instagram_accounts").upsert(
+          {
+            reeldash_user_id: userId,
+            instagram_user_id: senderIgId,
+            username: igUsername,
+            display_name: igUsername,
+            avatar_url: `/api/proxy-image?username=${encodeURIComponent(igUsername)}`,
+            is_active: true,
+            status: "active",
+            linked_at: now,
+            linked_via: "dm_code",
+            updated_at: now,
+          },
+          { onConflict: "reeldash_user_id, username" }
+        );
       }
     }
 

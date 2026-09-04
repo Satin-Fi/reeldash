@@ -116,14 +116,28 @@ export async function getAuthenticatedUser(req?: NextRequest): Promise<{
  */
 export function generateLinkCode(): string {
   const crypto = require("crypto");
-  // Easily readable alphanumeric chars, omitting ambiguous characters (0, O, 1, I)
-  const chars = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
-  const bytes = crypto.randomBytes(6);
-  let code = "";
-  for (let i = 0; i < 6; i++) {
-    code += chars[bytes[i] % chars.length];
+  // Easily readable digits and uppercase letters, omitting ambiguous chars (0, O, 1, I)
+  const digits = "23456789";
+  const letters = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+  const all = digits + letters;
+
+  // Guarantee at least 2 numbers and at least 2 letters in every code
+  const codeChars: string[] = [
+    digits[crypto.randomInt(0, digits.length)],
+    digits[crypto.randomInt(0, digits.length)],
+    letters[crypto.randomInt(0, letters.length)],
+    letters[crypto.randomInt(0, letters.length)],
+    all[crypto.randomInt(0, all.length)],
+    all[crypto.randomInt(0, all.length)],
+  ];
+
+  // Fisher-Yates shuffle
+  for (let i = codeChars.length - 1; i > 0; i--) {
+    const j = crypto.randomInt(0, i + 1);
+    [codeChars[i], codeChars[j]] = [codeChars[j], codeChars[i]];
   }
-  return code;
+
+  return codeChars.join("");
 }
 
 /**
