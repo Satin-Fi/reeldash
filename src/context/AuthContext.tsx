@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { getSupabaseClient } from "@/lib/supabase";
 import { getClientAuthHeaders } from "@/lib/clientAuth";
@@ -72,7 +72,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // 2. Check Supabase OAuth session if Supabase is connected
     const supabase = getSupabaseClient();
     if (supabase) {
-      supabase.auth.getSession().then(({ data: { session } }) => {
+      supabase.auth.getSession().then(({ data }: any) => {
+        const session = data?.session;
         if (session?.user) {
           const meta = session.user.user_metadata || {};
           const email = session.user.email || "user@gmail.com";
@@ -89,6 +90,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           };
 
           setUser((prev) => {
+            if (prev && prev.id === session.user.id && prev.email === email) {
+              return prev;
+            }
             const activeAccs = (prev?.connectedAccounts || []).filter(
               (a: any) => a.status === "active"
             );
@@ -107,7 +111,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       const {
         data: { subscription },
-      } = supabase.auth.onAuthStateChange((event, session) => {
+      } = supabase.auth.onAuthStateChange((event: any, session: any) => {
         if (session?.user) {
           const meta = session.user.user_metadata || {};
           const email = session.user.email || "user@gmail.com";
@@ -115,6 +119,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const avatar = meta.avatar_url || meta.picture || "";
 
           setUser((prev) => {
+            // Prevent re-creating user state if the user session is already identical
+            if (
+              prev &&
+              prev.id === session.user.id &&
+              prev.email === (session.user.email || email) &&
+              (prev.name === fullName || prev.name) &&
+              (prev.avatar === avatar || prev.avatar)
+            ) {
+              return prev;
+            }
             const activeAccs = (prev?.connectedAccounts || []).filter(
               (a: any) => a.status === "active"
             );
@@ -132,13 +146,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             return current;
           });
 
-          // Fetch accounts on auth state change
-          setTimeout(() => refreshAccounts(), 100);
-
+          // Only redirect to /dashboard if the user was on the login or signup pages!
+          // NEVER redirect on tab-focus / visibility-change if already browsing the app!
           const currentPath = typeof window !== "undefined" ? window.location.pathname : "";
           if (
             !currentPath.startsWith("/connect-instagram") &&
-            (currentPath === "/login" || currentPath === "/signup" || event === "SIGNED_IN")
+            (currentPath === "/login" || currentPath === "/signup") &&
+            event === "SIGNED_IN"
           ) {
             router.push("/dashboard");
           }
@@ -149,9 +163,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         subscription.unsubscribe();
       };
     }
-  }, []);
+  }, [router]);
 
-  const refreshAccounts = async () => {
+  const refreshAccounts = useCallback(async () => {
     try {
       const headers = await getClientAuthHeaders(user?.id);
       const res = await fetch(`/api/instagram/accounts?plan=${encodeURIComponent(user?.plan || "Free Plan")}`, {
@@ -166,6 +180,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         setUser((prev) => {
           if (!prev) return prev;
+          const prevAccounts = prev.connectedAccounts || [];
+          const isSame =
+            prevAccounts.length === rawAccounts.length &&
+            prevAccounts.every(
+              (acc, i) =>
+                acc.id === rawAccounts[i]?.id &&
+                acc.status === rawAccounts[i]?.status &&
+                acc.username === rawAccounts[i]?.username
+            );
+          if (isSame && prev.instagramUsername === activeUsername) {
+            return prev;
+          }
           const updated: UserProfile = {
             ...prev,
             connectedAccounts: rawAccounts,
@@ -178,7 +204,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (e) {
       console.warn("[AuthContext] refreshAccounts notice:", e);
     }
-  };
+  }, [user?.id, user?.plan]);
 
   /**
    * @deprecated Username-only linking is disabled. Use the DM challenge code

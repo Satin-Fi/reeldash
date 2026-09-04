@@ -147,6 +147,10 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
+  const connectedAccountsKey = (user?.connectedAccounts || [])
+    .map((a) => `${a.id}:${a.status}:${a.username}`)
+    .join(",");
+
   // Validate selectedInstagramAccount against active connected accounts
   useEffect(() => {
     const activeAccounts = (user?.connectedAccounts || []).filter(
@@ -159,7 +163,7 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
         setSelectedInstagramAccount(null);
       }
     }
-  }, [user?.connectedAccounts, selectedInstagramAccount]);
+  }, [connectedAccountsKey, selectedInstagramAccount]);
 
   // Load user data
   useEffect(() => {
@@ -263,15 +267,23 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
         (r) => !trashIds.has(r.id) && !trashUrls.has(r.instagramUrl?.replace(/\/$/, "")) && (!r.shortcode || !trashShortcodes.has(r.shortcode))
       );
 
-      setReels(cleanReels);
-      setCollections(parsedCols);
+      setReels((prev) => (prev.length === 0 ? cleanReels : prev));
+      setCollections((prev) => (prev.length === 0 ? parsedCols : prev));
 
       // 1. Fetch live categories from database
       fetch(`/api/categories?userId=${encodeURIComponent(user.id)}`)
         .then((res) => (res.ok ? res.json() : { categories: [] }))
         .then((data) => {
           if (data.categories && Array.isArray(data.categories) && data.categories.length > 0) {
-            setUserCategories(data.categories);
+            setUserCategories((prev) => {
+              if (
+                prev.length === data.categories.length &&
+                prev.every((c, idx) => c.id === data.categories[idx]?.id && c.name === data.categories[idx]?.name)
+              ) {
+                return prev;
+              }
+              return data.categories;
+            });
             if (typeof window !== "undefined") {
               localStorage.setItem(userCatsKey, JSON.stringify(data.categories));
             }
@@ -403,7 +415,22 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
 
             // Unified, flicker-free reels list
             const mergedReels = [...dbReels, ...unsyncedLocalReels];
-            setReels(mergedReels);
+            setReels((prev) => {
+              if (
+                prev.length === mergedReels.length &&
+                prev.every(
+                  (r, idx) =>
+                    r.id === mergedReels[idx]?.id &&
+                    r.shortcode === mergedReels[idx]?.shortcode &&
+                    r.isFavorite === mergedReels[idx]?.isFavorite &&
+                    r.category === mergedReels[idx]?.category &&
+                    r.thumbnailUrl === mergedReels[idx]?.thumbnailUrl
+                )
+              ) {
+                return prev;
+              }
+              return mergedReels;
+            });
             if (typeof window !== "undefined" && user?.id) {
               localStorage.setItem(userReelsKey, JSON.stringify(mergedReels));
             }
@@ -471,7 +498,7 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
       setUserCategories([]);
       setRecycleBin([]);
     }
-  }, [user?.id, user?.instagramUsername, user?.connectedAccounts, selectedInstagramAccount]);
+  }, [user?.id, user?.instagramUsername, connectedAccountsKey, selectedInstagramAccount]);
 
   const saveUserReels = (updatedReels: Reel[]) => {
     setReels(updatedReels);

@@ -1,4 +1,4 @@
-import { createClient } from "@supabase/supabase-js";
+import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { createBrowserClient } from "@supabase/ssr";
 
 const supabaseUrl =
@@ -8,18 +8,24 @@ const supabaseAnonKey =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtubGNtYW9henFhZGx3cnF5cGJvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY3OTQ0MTQsImV4cCI6MjEwMjM3MDQxNH0.D23IgSG7NcTtaiRiXQPLMlLlym4Lxvv-wnGbrzKmcx4";
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
+let browserClient: SupabaseClient | null = null;
+
 /**
  * Browser/client-side Supabase client (uses anon key).
  * Uses @supabase/ssr createBrowserClient so cookies are automatically synced to document.cookie.
+ * Uses a singleton pattern to prevent redundant client instantiation and duplicate auth listeners.
  */
-export function getSupabaseClient() {
+export function getSupabaseClient(): SupabaseClient | null {
   if (!supabaseUrl || !supabaseAnonKey) {
     return null;
   }
   if (typeof window === "undefined") {
     return createClient(supabaseUrl, supabaseAnonKey);
   }
-  return createBrowserClient(supabaseUrl, supabaseAnonKey);
+  if (!browserClient) {
+    browserClient = createBrowserClient(supabaseUrl, supabaseAnonKey) as unknown as SupabaseClient;
+  }
+  return browserClient;
 }
 
 /**
