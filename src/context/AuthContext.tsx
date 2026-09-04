@@ -22,7 +22,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (email: string, name?: string) => void;
-  loginWithGoogle: () => Promise<void>;
+  loginWithGoogle: (nextPath?: string) => Promise<void>;
   signup: (name: string, email: string, autoRedirect?: boolean) => UserProfile;
   signupWithGoogle: (customData?: { name?: string; email?: string; avatar?: string }, autoRedirect?: boolean) => Promise<UserProfile | void>;
   updateUser: (data: Partial<UserProfile>) => void;
@@ -134,10 +134,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           // Fetch accounts on auth state change
           setTimeout(() => refreshAccounts(), 100);
 
+          const currentPath = typeof window !== "undefined" ? window.location.pathname : "";
           if (
-            event === "SIGNED_IN" ||
-            window.location.pathname === "/login" ||
-            window.location.pathname === "/signup"
+            !currentPath.startsWith("/connect-instagram") &&
+            (currentPath === "/login" || currentPath === "/signup" || event === "SIGNED_IN")
           ) {
             router.push("/dashboard");
           }
@@ -241,13 +241,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     router.push("/dashboard");
   };
 
-  const loginWithGoogle = async () => {
+  const loginWithGoogle = async (nextPath = "/dashboard") => {
     const supabase = getSupabaseClient();
     if (supabase) {
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${window.location.origin}/api/auth/callback?next=/dashboard`,
+          redirectTo: `${window.location.origin}/api/auth/callback?next=${encodeURIComponent(nextPath)}`,
         },
       });
       if (error) {

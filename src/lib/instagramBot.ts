@@ -466,7 +466,7 @@ async function handleCheckVerification(
     }
   }
 
-  const reply = `🔒 Not connected yet!\n\nTap below to connect your Instagram account with 1 click:\n\n(Code: ${code})`;
+  const reply = `🔒 Not connected yet!\n\nConnect in 2 easy steps:\n1️⃣ Tap '🔗 Connect Account' below\n2️⃣ Sign in with your Google account on ReelDash\n\nYour Instagram connects automatically!\n\n(Code: ${code})`;
   const buttons: BotButton[] = [
     {
       type: "web_url",
@@ -945,8 +945,8 @@ async function handleUnverifiedSender(
   const connectUrl = `${APP_URL}/connect-instagram?code=${code}`;
 
   const msg = mediaUrl
-    ? `🔒 Almost there!\n\nI received your Reel. Connect your Instagram to ReelDash with 1 click to save it:\n\n(Code: ${code})`
-    : `Welcome to ReelDash! 👋\n\nConnect your Instagram with 1 click to auto-save Reels to your personal library:\n\n(Code: ${code})`;
+    ? `🔒 Almost there!\n\nI received your Reel! Connect your Instagram to save it:\n1️⃣ Tap '🔗 Connect Account' below\n2️⃣ Sign in with your Google account on ReelDash\n3️⃣ Reel saved automatically!\n\n(Code: ${code})`
+    : `Welcome to ReelDash! 👋\n\nConnect your Instagram in 2 steps:\n1️⃣ Tap '🔗 Connect Account' below\n2️⃣ Sign in with your Google account on ReelDash\n\n(Code: ${code})`;
 
   const buttons: BotButton[] = [
     {
