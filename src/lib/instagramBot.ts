@@ -1061,6 +1061,21 @@ async function handleReady(
     const allCategories = parsedCmd.categories;
     const note = parsedCmd.note;
 
+    // Fetch reel metadata if it's an Instagram web URL
+    let reelData: any = null;
+    if (mediaUrl.includes("instagram.com") || mediaUrl.includes("instagr.am")) {
+      try {
+        const infoRes = await fetch(
+          `${APP_URL}/api/reel-info?url=${encodeURIComponent(mediaUrl)}`
+        );
+        if (infoRes.ok) {
+          reelData = await infoRes.json();
+        }
+      } catch (err) {
+        console.warn("[Instagram Bot] reel-info fetch fallback:", err);
+      }
+    }
+
     const isAudio =
       mediaUrl.includes("/audio/") || mediaUrl.includes("/reels/audio/");
     const isPost =
@@ -1076,21 +1091,6 @@ async function handleReady(
         ) ||
         reelData?.mediaType === "post" ||
         reelData?.media_type === "post");
-
-    // Fetch reel metadata if it's an Instagram web URL
-    let reelData: any = null;
-    if (mediaUrl.includes("instagram.com") || mediaUrl.includes("instagr.am")) {
-      try {
-        const infoRes = await fetch(
-          `${APP_URL}/api/reel-info?url=${encodeURIComponent(mediaUrl)}`
-        );
-        if (infoRes.ok) {
-          reelData = await infoRes.json();
-        }
-      } catch (err) {
-        console.warn("[Instagram Bot] reel-info fetch fallback:", err);
-      }
-    }
 
     if (!reelData || !reelData.shortcode) {
       const shortcodeMatch = mediaUrl.match(
