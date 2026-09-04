@@ -500,7 +500,7 @@ function buildWelcomeFeaturesMessage(claimedCount: number = 0): string {
   msg +=
     `\n✨ What you can do:\n` +
     `📥 1-Tap Save: Share any Reel to this chat to save it instantly\n` +
-    `🏷️ Tagging: Reply with #category (e.g. #tech, #recipes) to organize\n` +
+    `🏷️ Tagging: Reply with /category (e.g. /tech, /recipes) to organize\n` +
     `🔍 Smart Search: Find reels by creator, audio, caption, or niche\n` +
     `📁 Collections: Group reels into custom folders & boards\n\n` +
     `Send me your next Reel anytime!`;
