@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
   const plan = searchParams.get("plan") || "Pro Plan";
 
   // Session-based auth ONLY — no query param fallback
-  const authUser = await getAuthenticatedUser();
+  const authUser = await getAuthenticatedUser(req);
   if (!authUser) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
@@ -89,7 +89,7 @@ export async function DELETE(req: NextRequest) {
     const accountId = searchParams.get("accountId");
 
     // Session-based auth ONLY
-    const authUser = await getAuthenticatedUser();
+    const authUser = await getAuthenticatedUser(req);
     if (!authUser) {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }

@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { getSupabaseClient } from "@/lib/supabase";
+import { getClientAuthHeaders } from "@/lib/clientAuth";
 import { ConnectedInstagramAccount } from "@/types/reel";
 
 export interface UserProfile {
@@ -79,24 +80,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             return current;
           });
 
-          // Fetch user's connected Instagram accounts from Supabase
-          fetch(`/api/instagram/accounts?userId=${encodeURIComponent(session.user.id)}&plan=Pro Plan`)
-            .then((r) => (r.ok ? r.json() : { accounts: [] }))
-            .then((data) => {
-              if (data.accounts && data.accounts.length > 0) {
-                setUser((prev) => {
-                  if (!prev) return prev;
-                  const updated: UserProfile = {
-                    ...prev,
-                    connectedAccounts: data.accounts,
-                    instagramUsername: data.accounts[0]?.username || prev.instagramUsername,
-                  };
-                  localStorage.setItem("reeldash_user", JSON.stringify(updated));
-                  return updated;
-                });
-              }
-            })
-            .catch(() => {});
+          // Fetch user's connected Instagram accounts
+          setTimeout(() => refreshAccounts(), 100);
         }
       });
 
@@ -125,23 +110,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           });
 
           // Fetch accounts on auth state change
-          fetch(`/api/instagram/accounts?userId=${encodeURIComponent(session.user.id)}&plan=Pro Plan`)
-            .then((r) => (r.ok ? r.json() : { accounts: [] }))
-            .then((data) => {
-              if (data.accounts && data.accounts.length > 0) {
-                setUser((prev) => {
-                  if (!prev) return prev;
-                  const updated: UserProfile = {
-                    ...prev,
-                    connectedAccounts: data.accounts,
-                    instagramUsername: data.accounts[0]?.username || prev.instagramUsername,
-                  };
-                  localStorage.setItem("reeldash_user", JSON.stringify(updated));
-                  return updated;
-                });
-              }
-            })
-            .catch(() => {});
+          setTimeout(() => refreshAccounts(), 100);
 
           if (
             event === "SIGNED_IN" ||
@@ -160,9 +129,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const refreshAccounts = async () => {
-    if (!user?.id) return;
     try {
-      const res = await fetch(`/api/instagram/accounts?plan=${encodeURIComponent(user.plan || "Free Plan")}`);
+      const headers = await getClientAuthHeaders(user?.id);
+      const res = await fetch(`/api/instagram/accounts?plan=${encodeURIComponent(user?.plan || "Free Plan")}`, {
+        headers,
+      });
       if (res.ok) {
         const data = await res.json();
         if (data.accounts) {
@@ -195,11 +166,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const removeInstagramAccount = async (accountId: string): Promise<boolean> => {
-    if (!user?.id) return false;
     try {
-      // Session-based auth — no userId in query params
+      const headers = await getClientAuthHeaders(user?.id);
       const res = await fetch(`/api/instagram/accounts?accountId=${encodeURIComponent(accountId)}`, {
         method: "DELETE",
+        headers,
       });
       if (res.ok) {
         await refreshAccounts();

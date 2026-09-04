@@ -19,7 +19,7 @@ export const dynamic = "force-dynamic";
 export async function POST(req: NextRequest) {
   try {
     // 1. Derive user from session — NOT from request body
-    const authUser = await getAuthenticatedUser();
+    const authUser = await getAuthenticatedUser(req);
     if (!authUser) {
       return NextResponse.json(
         { error: "Not authenticated. Please sign in first." },
@@ -93,7 +93,7 @@ export async function POST(req: NextRequest) {
 export async function GET(req: NextRequest) {
   try {
     // 1. Derive user from session
-    const authUser = await getAuthenticatedUser();
+    const authUser = await getAuthenticatedUser(req);
     if (!authUser) {
       return NextResponse.json(
         { error: "Not authenticated" },

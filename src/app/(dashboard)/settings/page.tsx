@@ -21,6 +21,7 @@ import {
   Shield,
 } from "lucide-react";
 import Link from "next/link";
+import { getClientAuthHeaders } from "@/lib/clientAuth";
 
 export default function SettingsPage() {
   const { theme, toggleTheme, reels, showToast } = useReels();
@@ -35,6 +36,7 @@ export default function SettingsPage() {
   const [linkCode, setLinkCode] = useState<string | null>(null);
   const [isCodeLoading, setIsCodeLoading] = useState(false);
   const [isCodeExpired, setIsCodeExpired] = useState(false);
+  const [codeError, setCodeError] = useState<string | null>(null);
   const [isLinked, setIsLinked] = useState(false);
   const [copied, setCopied] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -55,32 +57,13 @@ export default function SettingsPage() {
     showToast("Profile settings saved");
   };
 
-  const generateCode = useCallback(async () => {
-    setIsCodeLoading(true);
-    setIsCodeExpired(false);
-    setLinkCode(null);
-    setIsLinked(false);
-
-    try {
-      const res = await fetch("/api/instagram/link-code", { method: "POST" });
-      if (res.ok) {
-        const data = await res.json();
-        setLinkCode(data.code);
-        startPolling();
-      }
-    } catch (err) {
-      console.warn("[Settings] Code generation error:", err);
-    } finally {
-      setIsCodeLoading(false);
-    }
-  }, []);
-
   const startPolling = useCallback(() => {
     if (pollRef.current) clearInterval(pollRef.current);
 
     pollRef.current = setInterval(async () => {
       try {
-        const res = await fetch("/api/instagram/link-code");
+        const headers = await getClientAuthHeaders(user?.id);
+        const res = await fetch("/api/instagram/link-code", { headers });
         if (!res.ok) return;
         const data = await res.json();
 
@@ -101,7 +84,37 @@ export default function SettingsPage() {
         }
       } catch {}
     }, 3000);
-  }, [refreshAccounts, showToast]);
+  }, [user?.id, refreshAccounts, showToast]);
+
+  const generateCode = useCallback(async () => {
+    setIsCodeLoading(true);
+    setIsCodeExpired(false);
+    setCodeError(null);
+    setLinkCode(null);
+    setIsLinked(false);
+
+    try {
+      const headers = await getClientAuthHeaders(user?.id);
+      const res = await fetch("/api/instagram/link-code", {
+        method: "POST",
+        headers,
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setLinkCode(data.code);
+        startPolling();
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setCodeError(data?.error || "Failed to generate link code. Please try again.");
+      }
+    } catch (err: any) {
+      console.warn("[Settings] Code generation error:", err);
+      setCodeError(err?.message || "Connection error. Please try again.");
+    } finally {
+      setIsCodeLoading(false);
+    }
+  }, [user?.id, startPolling]);
 
   const handleCopyCode = async () => {
     if (!linkCode) return;
@@ -365,6 +378,28 @@ export default function SettingsPage() {
                       <Loader2 className="w-5 h-5 animate-spin text-secondaryText-light dark:text-secondaryText-dark" />
                       <span className="ml-2 text-secondaryText-light dark:text-secondaryText-dark">Generating code...</span>
                     </div>
+                  ) : codeError ? (
+                    <div className="p-4 rounded-rd-md border border-red-500/20 bg-red-500/5 text-center space-y-3">
+                      <p className="text-xs text-red-400 font-medium">{codeError}</p>
+                      <div className="flex items-center justify-center gap-2">
+                        <button
+                          onClick={generateCode}
+                          className="px-3 py-1.5 rounded-rd-md bg-brand-500 hover:bg-brand-600 text-white text-xs font-medium flex items-center gap-1.5 cursor-pointer transition-colors"
+                        >
+                          <RefreshCw className="w-3.5 h-3.5" />
+                          <span>Retry</span>
+                        </button>
+                        <button
+                          onClick={() => {
+                            setShowCodeFlow(false);
+                            setCodeError(null);
+                          }}
+                          className="px-3 py-1.5 rounded-rd-md border border-borderSubtle-light dark:border-borderSubtle-dark text-xs text-secondaryText-light dark:text-secondaryText-dark hover:text-primaryText-light cursor-pointer"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
                   ) : isCodeExpired ? (
                     <div className="p-4 rounded-rd-md border border-borderSubtle-light dark:border-borderSubtle-dark text-center space-y-3">
                       <p className="text-secondaryText-light dark:text-secondaryText-dark">Your code has expired.</p>
@@ -378,9 +413,20 @@ export default function SettingsPage() {
                     </div>
                   ) : linkCode ? (
                     <div className="p-4 rounded-rd-md border border-brand-500/20 bg-brand-500/5 space-y-4">
-                      <p className="text-secondaryText-light dark:text-secondaryText-dark">
-                        Send this code to <span className="font-semibold text-primaryText-light dark:text-primaryText-dark">@ReelDash</span> on Instagram DM:
-                      </p>
+                      <div className="flex items-center justify-between">
+                        <p className="text-secondaryText-light dark:text-secondaryText-dark text-xs">
+                          Send this code to <span className="font-semibold text-primaryText-light dark:text-primaryText-dark">@ReelDash</span> on Instagram DM:
+                        </p>
+                        <button
+                          onClick={() => {
+                            setShowCodeFlow(false);
+                            setLinkCode(null);
+                          }}
+                          className="text-[11px] text-mutedText-light dark:text-mutedText-dark hover:text-primaryText-light cursor-pointer"
+                        >
+                          Cancel
+                        </button>
+                      </div>
                       <button
                         onClick={handleCopyCode}
                         className="w-full group py-3 px-4 bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark hover:bg-surface-light dark:hover:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-md transition-colors cursor-pointer"
@@ -413,7 +459,26 @@ export default function SettingsPage() {
                         <span className="text-[11px] text-secondaryText-light dark:text-secondaryText-dark">Waiting for verification</span>
                       </div>
                     </div>
-                  ) : null}
+                  ) : (
+                    <div className="p-4 rounded-rd-md border border-borderSubtle-light dark:border-borderSubtle-dark text-center space-y-3">
+                      <p className="text-xs text-secondaryText-light dark:text-secondaryText-dark">Could not load verification code.</p>
+                      <div className="flex items-center justify-center gap-2">
+                        <button
+                          onClick={generateCode}
+                          className="px-3 py-1.5 rounded-rd-md bg-brand-500 text-white text-xs font-medium flex items-center gap-1.5 cursor-pointer"
+                        >
+                          <RefreshCw className="w-3.5 h-3.5" />
+                          <span>Try again</span>
+                        </button>
+                        <button
+                          onClick={() => setShowCodeFlow(false)}
+                          className="px-3 py-1.5 rounded-rd-md border border-borderSubtle-light dark:border-borderSubtle-dark text-xs text-secondaryText-light dark:text-secondaryText-dark hover:text-primaryText-light cursor-pointer"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="p-4 rounded-rd-md bg-brand-500/5 border border-brand-500/20 flex items-center justify-between">

@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
+import { getClientAuthHeaders } from "@/lib/clientAuth";
 import { ReelDashLogo } from "@/components/ui/ReelDashLogo";
 import {
   Copy,
@@ -49,7 +50,11 @@ export default function ConnectInstagramPage() {
     setLinkCode(null);
 
     try {
-      const res = await fetch("/api/instagram/link-code", { method: "POST" });
+      const headers = await getClientAuthHeaders(user?.id);
+      const res = await fetch("/api/instagram/link-code", {
+        method: "POST",
+        headers,
+      });
       if (res.ok) {
         const data = await res.json();
         setLinkCode(data.code);
@@ -62,14 +67,15 @@ export default function ConnectInstagramPage() {
     } finally {
       setIsCodeLoading(false);
     }
-  }, [router]);
+  }, [user?.id, router]);
 
   const startPolling = useCallback(() => {
     if (pollRef.current) clearInterval(pollRef.current);
 
     pollRef.current = setInterval(async () => {
       try {
-        const res = await fetch("/api/instagram/link-code");
+        const headers = await getClientAuthHeaders(user?.id);
+        const res = await fetch("/api/instagram/link-code", { headers });
         if (!res.ok) return;
 
         const data = await res.json();

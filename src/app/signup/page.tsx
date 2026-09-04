@@ -17,6 +17,7 @@ import {
   Instagram,
   RefreshCw,
 } from "lucide-react";
+import { getClientAuthHeaders } from "@/lib/clientAuth";
 
 function SignupContent() {
   const router = useRouter();
@@ -41,7 +42,7 @@ function SignupContent() {
   const [copied, setCopied] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const { signup, signupWithGoogle, isAuthenticated } = useAuth();
+  const { signup, signupWithGoogle, isAuthenticated, user } = useAuth();
 
   useEffect(() => {
     if (searchParams?.get("step") === "instagram") {
@@ -65,7 +66,11 @@ function SignupContent() {
     setLinkCode(null);
 
     try {
-      const res = await fetch("/api/instagram/link-code", { method: "POST" });
+      const headers = await getClientAuthHeaders(user?.id);
+      const res = await fetch("/api/instagram/link-code", {
+        method: "POST",
+        headers,
+      });
       if (res.ok) {
         const data = await res.json();
         setLinkCode(data.code);
@@ -79,7 +84,7 @@ function SignupContent() {
     } finally {
       setIsCodeLoading(false);
     }
-  }, []);
+  }, [user?.id]);
 
   const startPolling = useCallback(() => {
     // Clear any existing poll
@@ -87,7 +92,8 @@ function SignupContent() {
 
     pollRef.current = setInterval(async () => {
       try {
-        const res = await fetch("/api/instagram/link-code");
+        const headers = await getClientAuthHeaders(user?.id);
+        const res = await fetch("/api/instagram/link-code", { headers });
         if (!res.ok) return;
 
         const data = await res.json();

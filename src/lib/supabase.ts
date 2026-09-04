@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { createBrowserClient } from "@supabase/ssr";
 
 const supabaseUrl =
   process.env.NEXT_PUBLIC_SUPABASE_URL || "https://knlcmaoazqadlwrqypbo.supabase.co";
@@ -9,19 +10,16 @@ const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 /**
  * Browser/client-side Supabase client (uses anon key).
- * Safe to use in Client Components.
+ * Uses @supabase/ssr createBrowserClient so cookies are automatically synced to document.cookie.
  */
 export function getSupabaseClient() {
   if (!supabaseUrl || !supabaseAnonKey) {
     return null;
   }
-  return createClient(supabaseUrl, supabaseAnonKey, {
-    auth: {
-      persistSession: true,
-      autoRefreshToken: true,
-      detectSessionInUrl: true,
-    },
-  });
+  if (typeof window === "undefined") {
+    return createClient(supabaseUrl, supabaseAnonKey);
+  }
+  return createBrowserClient(supabaseUrl, supabaseAnonKey);
 }
 
 /**
