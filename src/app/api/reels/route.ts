@@ -144,6 +144,8 @@ export async function GET(req: NextRequest) {
       return {
         ...row,
         shortcode: row.shortcode,
+        isCarousel: row.is_carousel || row.duration?.toLowerCase().includes("carousel") || (Array.isArray(row.carousel_images) && row.carousel_images.length > 1),
+        carouselImages: Array.isArray(row.carousel_images) && row.carousel_images.length > 0 ? row.carousel_images : undefined,
         category: categoryList[0] || row.category || "General",
         categories: categoryList.length > 0 ? categoryList : [row.category || "General"],
         categoryIds: categoryIdList,
@@ -192,7 +194,9 @@ export async function POST(req: NextRequest) {
       likes_count,
       plays_count,
       isCarousel,
+      is_carousel,
       carouselImages,
+      carousel_images,
       source: bodySource,
       instagram_username,
       instagram_account_id,
@@ -256,6 +260,23 @@ export async function POST(req: NextRequest) {
     const finalCategory = allCategories.length > 0 ? allCategories[0] : (enrichedData.category || primaryCategory);
     if (allCategories.length === 0) allCategories = [finalCategory];
 
+    // Check if this post is a carousel
+    const finalCarouselImages: string[] | null =
+      (Array.isArray(carouselImages) && carouselImages.length > 0)
+        ? carouselImages
+        : (Array.isArray(carousel_images) && carousel_images.length > 0)
+        ? carousel_images
+        : (Array.isArray(enrichedData.carouselImages) && enrichedData.carouselImages.length > 0)
+        ? enrichedData.carouselImages
+        : null;
+
+    const isCarouselPost: boolean =
+      !!isCarousel ||
+      !!is_carousel ||
+      (typeof bodyDuration === "string" && bodyDuration.toLowerCase().includes("carousel")) ||
+      (Array.isArray(finalCarouselImages) && finalCarouselImages.length > 1) ||
+      false;
+
     // Extract hashtags
     const extractedHashtags: string[] = [];
     const hashMatches = finalCaption.match(/#([a-zA-Z0-9_\u0080-\uFFFF]+)/g);
@@ -277,13 +298,13 @@ export async function POST(req: NextRequest) {
       shortcode,
       url,
       thumbnail_url: finalThumbnail,
-      video_url: video_url || videoUrl || enrichedData.mediaUrl || "",
+      video_url: isCarouselPost ? "" : (video_url || videoUrl || enrichedData.mediaUrl || ""),
       caption: finalCaption,
       creator_handle: finalCreatorHandle,
       creator_name: finalCreatorName,
       creator_avatar: finalCreatorAvatar,
-      media_type: detectedMediaType,
-      duration: bodyDuration || enrichedData.duration || (detectedMediaType === "audio" ? "" : isCarousel ? `Carousel (${carouselImages?.length || 1})` : "0:30"),
+      media_type: isCarouselPost ? "post" : detectedMediaType,
+      duration: bodyDuration || enrichedData.duration || (detectedMediaType === "audio" ? "" : isCarouselPost ? `Carousel (${finalCarouselImages?.length || ""})` : "0:30"),
       likes_count: likes_count || bodyLikes || enrichedData.likes || "",
       plays_count: plays_count || enrichedData.views || "",
       category: finalCategory,
@@ -292,6 +313,8 @@ export async function POST(req: NextRequest) {
       is_favorite: !!isFavorite,
       ai_summary: enrichedData.aiSummary || "",
       ai_topics: Array.isArray(enrichedData.aiTopics) ? enrichedData.aiTopics : [],
+      is_carousel: isCarouselPost,
+      carousel_images: finalCarouselImages,
       source: bodySource || "manual",
       instagram_username: instagram_username || null,
       instagram_account_id: instagram_account_id || null,

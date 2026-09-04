@@ -1252,12 +1252,16 @@ async function handleReady(
         : isAudio
         ? "audio"
         : reelData.mediaType || reelData.media_type || "reel",
-      duration: isPost
+      duration: (reelData.carouselImages && reelData.carouselImages.length > 1)
+        ? `Carousel (${reelData.carouselImages.length})`
+        : isPost
         ? "Post"
         : reelData.duration || (isAudio ? "0:30" : "0:15"),
       category: effectiveCategory,
       tags,
       note: note || reelData.note || undefined,
+      is_carousel: reelData.isCarousel || reelData.is_carousel || (reelData.carouselImages && reelData.carouselImages.length > 1) || (reelData.duration && reelData.duration.includes("Carousel")) || false,
+      carousel_images: reelData.carouselImages || reelData.carousel_images || null,
     };
 
     // Reel-level deduplication
@@ -1906,6 +1910,8 @@ async function saveReelForUser(
           category: reel.category,
           tags: extractedHashtags,
           note: reel.note || null,
+          is_carousel: reel.is_carousel || false,
+          carousel_images: reel.carousel_images || null,
           source: "dm",
         },
         { onConflict: "user_id,shortcode" }

@@ -344,6 +344,20 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
                   fullName = creator && creator !== "creator" && creator !== "instagram" ? `@${creator}` : "Instagram Creator";
                 }
 
+                const isCarousel =
+                  dbR.is_carousel ||
+                  dbR.isCarousel ||
+                  dbR.duration?.toLowerCase().includes("carousel") ||
+                  (Array.isArray(dbR.carousel_images) && dbR.carousel_images.length > 1) ||
+                  (Array.isArray(dbR.carouselImages) && dbR.carouselImages.length > 1);
+
+                const carouselImages =
+                  Array.isArray(dbR.carousel_images) && dbR.carousel_images.length > 0
+                    ? dbR.carousel_images
+                    : Array.isArray(dbR.carouselImages) && dbR.carouselImages.length > 0
+                    ? dbR.carouselImages
+                    : undefined;
+
                 return {
                   id: dbR.id,
                   userId: user.id,
@@ -364,9 +378,13 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
                   aiTopics: Array.isArray(dbR.aiTopics) ? dbR.aiTopics : Array.isArray(dbR.ai_topics) ? dbR.ai_topics : [],
                   notes: dbR.note || "",
                   isFavorite: !!dbR.is_favorite,
-                  mediaType: dbR.media_type || "reel",
-                  duration: dbR.duration || "0:15",
+                  mediaType: isCarousel ? "post" : (dbR.media_type || "reel"),
+                  duration: dbR.duration || (isCarousel ? `Carousel (${carouselImages?.length || ""})` : "0:15"),
                   likes: dbR.likes_count || "",
+                  videoUrl: isCarousel ? "" : dbR.video_url,
+                  mediaUrl: isCarousel ? "" : dbR.video_url,
+                  isCarousel,
+                  carouselImages,
                   createdAt: dbR.created_at || new Date().toISOString(),
                 };
               });
@@ -974,7 +992,9 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
           notes: parsedCmd.note,
           isFavorite: false,
           isCarousel: customDetails?.isCarousel,
+          is_carousel: customDetails?.isCarousel,
           carouselImages: customDetails?.carouselImages,
+          carousel_images: customDetails?.carouselImages,
           instagram_username: user.instagramUsername || user.connectedAccounts?.[0]?.username || null,
           instagram_account_id: user.connectedAccounts?.[0]?.id || null,
           source: "manual",
