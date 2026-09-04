@@ -111,14 +111,15 @@ export async function getAuthenticatedUser(req?: NextRequest): Promise<{
 /**
  * Generate a cryptographically secure link code.
  *
- * Format: RDX-XXXXXX (6 uppercase alphanumeric characters)
- * Entropy: 36^6 ≈ 2.2 billion combinations
+ * Format: 6 uppercase alphanumeric characters (e.g. 7K4P92)
+ * Entropy: 32^6 ≈ 1.07 billion combinations
  */
 export function generateLinkCode(): string {
   const crypto = require("crypto");
-  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+  // Easily readable alphanumeric chars, omitting ambiguous characters (0, O, 1, I)
+  const chars = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
   const bytes = crypto.randomBytes(6);
-  let code = "RDX-";
+  let code = "";
   for (let i = 0; i < 6; i++) {
     code += chars[bytes[i] % chars.length];
   }
@@ -126,20 +127,25 @@ export function generateLinkCode(): string {
 }
 
 /**
- * Check if a message text looks like a link verification code.
+ * Check if a text looks like a link verification code (6 alphanumeric characters).
  */
 export function isLinkCode(text: string): boolean {
   if (!text) return false;
-  const cleaned = text.trim().toUpperCase().replace(/[\s_]+/g, "-");
-  return /^RDX-[A-Z0-9]{6}$/.test(cleaned);
+  const cleaned = normalizeLinkCode(text);
+  return /^[A-Z0-9]{6}$/.test(cleaned);
 }
 
 /**
  * Clean and normalize a link verification code.
+ * Strips legacy prefixes (e.g. RDX-, REEL-), whitespace, or hyphens.
  */
 export function normalizeLinkCode(text: string): string {
   if (!text) return "";
-  return text.trim().toUpperCase().replace(/[\s_]+/g, "-");
+  return text
+    .trim()
+    .toUpperCase()
+    .replace(/^(?:RDX|REEL)[-_]?/i, "")
+    .replace(/[\s_-]+/g, "");
 }
 
 /**

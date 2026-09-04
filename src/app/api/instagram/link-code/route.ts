@@ -109,7 +109,7 @@ export async function POST(req: NextRequest) {
  *
  * Response:
  *   { linked: true, username: "@personal", linkedAt: "..." }
- *   { linked: false, code: "RDX-7K4P92", expiresAt: "...", expired: false }
+ *   { linked: false, code: "7K4P92", expiresAt: "...", expired: false }
  *   { linked: false, code: null, expired: true }
  */
 export async function GET(req: NextRequest) {

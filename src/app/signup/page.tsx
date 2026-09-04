@@ -471,7 +471,8 @@ function SignupContent() {
                     <form onSubmit={handleRedeemCode} className="flex gap-2">
                       <input
                         type="text"
-                        placeholder="RDX-XXXXXX"
+                        placeholder="e.g. 7K4P92"
+                        maxLength={10}
                         value={dmCode}
                         onChange={(e) => {
                           setDmCode(e.target.value.toUpperCase());

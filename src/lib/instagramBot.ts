@@ -511,7 +511,7 @@ export async function redeemDMVerificationCode(
   if (!isLinkCode(code)) {
     return {
       success: false,
-      error: "Invalid code format. Expected format: RDX-XXXXXX",
+      error: "Invalid code format. Expected a 6-character code (e.g. 7K4P92)",
     };
   }
 
@@ -760,7 +760,20 @@ export async function processInstagramMessage(
     const trimmedText = (messageText || "").trim();
     if (isLinkCode(trimmedText)) {
       const normalizedCode = normalizeLinkCode(trimmedText);
-      return await processLinkCode(senderIgId, normalizedCode, igUser.username);
+      // Ensure it has numbers OR exists in link_codes to avoid intercepting regular 6-letter words like "THANKS"
+      let isConfirmedCode = /\d/.test(normalizedCode);
+      const supabase = getSupabaseAdmin();
+      if (!isConfirmedCode && supabase) {
+        const { data: codeExists } = await supabase
+          .from("link_codes")
+          .select("id")
+          .eq("code", normalizedCode)
+          .maybeSingle();
+        if (codeExists) isConfirmedCode = true;
+      }
+      if (isConfirmedCode) {
+        return await processLinkCode(senderIgId, normalizedCode, igUser.username);
+      }
     }
 
     // ── Step 2.5: Verification Status Check ("I've verified" button or text) ──
@@ -1289,7 +1302,7 @@ async function handleReady(
 // ─── Phase 5: Challenge Code Verification ─────────────────────────────────────
 
 /**
- * Process a DM challenge code (RDX-XXXXXX).
+ * Process a DM challenge code (e.g. 7K4P92).
  *
  * Atomic transaction:
  * 1. Validate code (exists, not expired, not used, not rate-limited)

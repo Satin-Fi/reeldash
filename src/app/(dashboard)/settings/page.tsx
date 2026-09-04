@@ -420,7 +420,8 @@ export default function SettingsPage() {
                     <form onSubmit={handleRedeemCode} className="flex flex-col sm:flex-row gap-2 pt-1">
                       <input
                         type="text"
-                        placeholder="RDX-XXXXXX"
+                        placeholder="e.g. 7K4P92"
+                        maxLength={10}
                         value={dmInputCode}
                         onChange={(e) => {
                           setDmInputCode(e.target.value.toUpperCase());
