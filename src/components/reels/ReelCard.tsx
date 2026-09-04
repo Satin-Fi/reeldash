@@ -54,10 +54,20 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
     }
   };
 
-  const mediaType = reel.mediaType || "reel";
-  const isMultiCarousel =
-    mediaType === "post" && reel.carouselImages && reel.carouselImages.length > 1;
-  const carouselCount = isMultiCarousel ? reel.carouselImages?.length : null;
+  const isCarouselPost =
+    !!reel.isCarousel ||
+    (typeof reel.duration === "string" && reel.duration.toLowerCase().includes("carousel")) ||
+    (Array.isArray(reel.carouselImages) && reel.carouselImages.length > 1) ||
+    (Array.isArray(reel.carouselSlides) && reel.carouselSlides.length > 1);
+
+  const carouselCount =
+    reel.carouselImages?.length ||
+    reel.carouselSlides?.length ||
+    (reel.duration?.match(/Carousel\s*\(([0-9]+)\)/i)?.[1]
+      ? parseInt(reel.duration.match(/Carousel\s*\(([0-9]+)\)/i)![1], 10)
+      : null);
+
+  const mediaType = isCarouselPost ? "post" : (reel.mediaType || "reel");
 
   const resolvedShortcode =
     reel.shortcode ||
@@ -244,18 +254,18 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/0 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200 ease-out pointer-events-none" />
 
         {/* ─── Default state: subtle play indicator (bottom-left) ─── */}
-        {(mediaType === "reel" || (!mediaType && !isMultiCarousel)) && (
+        {!isCarouselPost && mediaType === "reel" && (
           <div className="absolute bottom-2 left-2 z-10 opacity-60 group-hover:opacity-0 transition-opacity duration-150 pointer-events-none">
             <Play className="w-3.5 h-3.5 fill-white text-white drop-shadow-sm" />
           </div>
         )}
 
         {/* ─── Default state: carousel indicator (top-left) ─── */}
-        {isMultiCarousel && carouselCount && carouselCount > 1 && (
+        {isCarouselPost && (
           <div className="absolute top-2 left-2 z-10 pointer-events-none">
             <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-[4px] bg-black/50 backdrop-blur-sm text-[10px] font-semibold text-white/90">
               <Images className="w-3 h-3" />
-              <span className="tabular-nums">{carouselCount}</span>
+              {carouselCount ? <span className="tabular-nums">{carouselCount}</span> : null}
             </span>
           </div>
         )}
@@ -269,12 +279,12 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
           </div>
         )}
 
-        {/* ─── Hover state: center play disk ─── */}
+        {/* ─── Hover state: center disk ─── */}
         <div className="absolute inset-0 hidden sm:flex items-center justify-center z-10 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-200">
           <div className="w-11 h-11 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center transform scale-90 group-hover:scale-100 transition-transform duration-200">
             {mediaType === "audio" ? (
               <Music2 className="w-5 h-5 text-white" />
-            ) : isMultiCarousel ? (
+            ) : isCarouselPost ? (
               <Images className="w-5 h-5 text-white" />
             ) : mediaType === "post" ? (
               <ImageIcon className="w-5 h-5 text-white" />

@@ -448,34 +448,77 @@ function AudioSongPlayer({ reel, coverImageSrc }: { reel: Reel; coverImageSrc: s
  * 2. DEDICATED MULTI-MEDIA POST & CAROUSEL VIEWER (Photos + Video Slides)
  */
 function MultiMediaPostViewer({ reel, coverImageSrc }: { reel: Reel; coverImageSrc: string }) {
-  // Normalize all slides
-  const rawSlides: Array<{ id: string; type: "image" | "video"; url: string }> = [];
+  const computeSlides = () => {
+    const arr: Array<{ id: string; type: "image" | "video"; url: string }> = [];
+    if (reel.carouselSlides && reel.carouselSlides.length > 0) {
+      reel.carouselSlides.forEach((s, idx) => {
+        arr.push({
+          id: s.id || `slide-${idx}`,
+          type: s.type || (s.url.includes(".mp4") ? "video" : "image"),
+          url: s.url,
+        });
+      });
+    } else if (reel.carouselImages && reel.carouselImages.length > 0) {
+      reel.carouselImages.forEach((imgUrl, idx) => {
+        arr.push({
+          id: `slide-${idx}`,
+          type: imgUrl.includes(".mp4") ? "video" : "image",
+          url: imgUrl,
+        });
+      });
+    } else {
+      const isVid = reel.mediaUrl?.includes(".mp4") || reel.mediaType === "reel";
+      arr.push({
+        id: "slide-0",
+        type: isVid ? "video" : "image",
+        url: (isVid && reel.mediaUrl) ? reel.mediaUrl : coverImageSrc,
+      });
+    }
+    return arr;
+  };
 
-  if (reel.carouselSlides && reel.carouselSlides.length > 0) {
-    reel.carouselSlides.forEach((s, idx) => {
-      rawSlides.push({
-        id: s.id || `slide-${idx}`,
-        type: s.type || (s.url.includes(".mp4") ? "video" : "image"),
-        url: s.url,
-      });
-    });
-  } else if (reel.carouselImages && reel.carouselImages.length > 0) {
-    reel.carouselImages.forEach((imgUrl, idx) => {
-      rawSlides.push({
-        id: `slide-${idx}`,
-        type: imgUrl.includes(".mp4") ? "video" : "image",
-        url: imgUrl,
-      });
-    });
-  } else {
-    // Single media post item
-    const isVid = reel.mediaUrl?.includes(".mp4") || reel.mediaType === "reel";
-    rawSlides.push({
-      id: "slide-0",
-      type: isVid ? "video" : "image",
-      url: (isVid && reel.mediaUrl) ? reel.mediaUrl : coverImageSrc,
-    });
-  }
+  const [slides, setSlides] = useState<Array<{ id: string; type: "image" | "video"; url: string }>>(computeSlides);
+
+  useEffect(() => {
+    const updated = computeSlides();
+    if (updated.length > 0) {
+      setSlides(updated);
+    }
+  }, [reel.carouselImages, reel.carouselSlides]);
+
+  // Dynamic fallback: If slides <= 1 but post is a carousel, fetch full slides from creator-reels
+  useEffect(() => {
+    const isCarousel =
+      reel.isCarousel ||
+      (typeof reel.duration === "string" && reel.duration.toLowerCase().includes("carousel"));
+
+    if (slides.length <= 1 && isCarousel) {
+      const sc =
+        reel.shortcode ||
+        reel.instagramUrl?.match(/(?:p|reel|reels)\/([A-Za-z0-9_-]+)/)?.[1];
+      const username = reel.creatorUsername?.replace(/^@/, "");
+
+      if (username) {
+        fetch(`/api/instagram/creator-reels?username=${encodeURIComponent(username)}`)
+          .then((res) => (res.ok ? res.json() : null))
+          .then((data) => {
+            if (data?.reels && Array.isArray(data.reels)) {
+              const matched = data.reels.find((r: any) => r.shortcode === sc || r.id === sc);
+              if (matched?.carouselImages && matched.carouselImages.length > 1) {
+                setSlides(
+                  matched.carouselImages.map((imgUrl: string, idx: number) => ({
+                    id: `slide-${idx}`,
+                    type: imgUrl.includes(".mp4") ? "video" : "image",
+                    url: imgUrl,
+                  }))
+                );
+              }
+            }
+          })
+          .catch(() => {});
+      }
+    }
+  }, [reel.shortcode, reel.creatorUsername, reel.isCarousel, reel.duration, slides.length]);
 
   // Filter modes: 'all' | 'image' | 'video'
   const [filter, setFilter] = useState<"all" | "image" | "video">("all");
@@ -483,16 +526,16 @@ function MultiMediaPostViewer({ reel, coverImageSrc }: { reel: Reel; coverImageS
   const [isSlideMuted, setIsSlideMuted] = useState(false);
   const slideVideoRef = useRef<HTMLVideoElement | null>(null);
 
-  const filteredSlides = rawSlides.filter((s) => {
+  const filteredSlides = slides.filter((s) => {
     if (filter === "image") return s.type === "image";
     if (filter === "video") return s.type === "video";
     return true;
   });
 
-  const activeSlide = filteredSlides[activeIdx] || filteredSlides[0] || rawSlides[0];
+  const activeSlide = filteredSlides[activeIdx] || filteredSlides[0] || slides[0];
 
-  const imageCount = rawSlides.filter((s) => s.type === "image").length;
-  const videoCount = rawSlides.filter((s) => s.type === "video").length;
+  const imageCount = slides.filter((s) => s.type === "image").length;
+  const videoCount = slides.filter((s) => s.type === "video").length;
   const hasMixedMedia = imageCount > 0 && videoCount > 0;
 
   const nextSlide = (e?: React.MouseEvent) => {
@@ -530,7 +573,7 @@ function MultiMediaPostViewer({ reel, coverImageSrc }: { reel: Reel; coverImageS
                 filter === "all" ? "bg-brand-500 text-white" : "text-zinc-400 hover:text-white"
               }`}
             >
-              All ({rawSlides.length})
+              All ({slides.length})
             </button>
             <button
               onClick={() => {
@@ -962,21 +1005,23 @@ export function ReelPlayer({
   }
 
   // 3. PHOTOS & CAROUSELS: Multi-Slide Photo/Carousel Viewer (ONLY for actual photo posts/carousels)
-  const isReelOrVideo =
-    mediaType === "reel" ||
-    reel.instagramUrl?.includes("/reel/") ||
-    reel.instagramUrl?.includes("/reels/") ||
-    (reel.mediaUrl && (reel.mediaUrl.includes(".mp4") || reel.mediaUrl.includes("video-stream")));
-
   const isExplicitCarousel =
-    !isReelOrVideo &&
-    (reel.isCarousel ||
-      (reel.carouselSlides && reel.carouselSlides.length > 1) ||
-      (reel.carouselImages && reel.carouselImages.length > 1));
+    !!reel.isCarousel ||
+    (typeof reel.duration === "string" && reel.duration.toLowerCase().includes("carousel")) ||
+    (Array.isArray(reel.carouselSlides) && reel.carouselSlides.length > 1) ||
+    (Array.isArray(reel.carouselImages) && reel.carouselImages.length > 1);
 
   const isPhotoPost =
-    !isReelOrVideo &&
+    !isExplicitCarousel &&
     (mediaType === "post" || (reel.instagramUrl?.includes("/p/") && !reel.mediaUrl?.includes(".mp4")));
+
+  const isReelOrVideo =
+    !isExplicitCarousel &&
+    !isPhotoPost &&
+    (mediaType === "reel" ||
+      reel.instagramUrl?.includes("/reel/") ||
+      reel.instagramUrl?.includes("/reels/") ||
+      (reel.mediaUrl && (reel.mediaUrl.includes(".mp4") || reel.mediaUrl.includes("video-stream"))));
 
   if (isExplicitCarousel || isPhotoPost) {
     return (
