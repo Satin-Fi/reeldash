@@ -418,9 +418,9 @@ async function handleCheckVerification(
       "Something went wrong checking your verification status. Please try again.";
     const buttons: BotButton[] = [
       {
-        type: "postback",
-        title: "I've verified",
-        payload: "CHECK_VERIFICATION",
+        type: "web_url",
+        title: "🔗 Connect Account",
+        url: `${APP_URL}/connect-instagram`,
       },
     ];
 
@@ -472,11 +472,6 @@ async function handleCheckVerification(
       type: "web_url",
       title: "🔗 Connect Account",
       url: `${APP_URL}/connect-instagram?code=${code}`,
-    },
-    {
-      type: "postback",
-      title: "I've verified",
-      payload: "CHECK_VERIFICATION",
     },
   ];
 
@@ -552,7 +547,7 @@ export async function redeemDMVerificationCode(
         .eq("id", codeRecord.id);
       return {
         success: false,
-        error: "This code has expired. Tap 'I\'ve verified' in Instagram DM to receive a new code.",
+        error: "This code has expired. Send a Reel or message to @ReelDash on Instagram to get a new code.",
       };
     }
 
@@ -563,7 +558,7 @@ export async function redeemDMVerificationCode(
         .eq("id", codeRecord.id);
       return {
         success: false,
-        error: "Too many attempts for this code. Tap 'I\'ve verified' in Instagram DM to receive a new code.",
+        error: "Too many attempts for this code. Send a message to @ReelDash on Instagram to get a new code.",
       };
     }
 
@@ -574,7 +569,7 @@ export async function redeemDMVerificationCode(
       return {
         success: false,
         error:
-          "This code was generated on ReelDash. Send it as a DM to @ReelDash on Instagram, or tap 'I\'ve verified' in Instagram DM to get a code to enter here.",
+          "This code was generated on ReelDash. Send it as a DM to @ReelDash on Instagram to connect your account.",
       };
     }
 
@@ -970,11 +965,6 @@ async function handleUnverifiedSender(
       type: "web_url",
       title: "🔗 Connect Account",
       url: connectUrl,
-    },
-    {
-      type: "postback",
-      title: "I've verified",
-      payload: "CHECK_VERIFICATION",
     },
   ];
 
@@ -2045,46 +2035,75 @@ async function sendDMReply(
     messaging_type: "RESPONSE",
   };
 
-  // Try graph.instagram.com first
+  // Try graph.instagram.com with query token & Bearer header
   try {
-    const res = await fetch(`https://graph.instagram.com/v21.0/me/messages`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${IG_PAGE_ACCESS_TOKEN}`,
-      },
-      body: JSON.stringify(payload),
-    });
-    if (res.ok) return;
-  } catch {}
+    const res = await fetch(
+      `https://graph.instagram.com/v21.0/me/messages?access_token=${encodeURIComponent(IG_PAGE_ACCESS_TOKEN)}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${IG_PAGE_ACCESS_TOKEN}`,
+        },
+        body: JSON.stringify(payload),
+      }
+    );
+    if (res.ok) {
+      console.log(`[sendDMReply] DM sent successfully to ${recipientIgId}`);
+      return;
+    }
+    const errText = await res.text().catch(() => "");
+    console.warn(`[sendDMReply] graph.instagram.com returned ${res.status}:`, errText);
+  } catch (err) {
+    console.warn("[sendDMReply] graph.instagram.com error:", err);
+  }
 
   // Fallback: graph.facebook.com
   try {
-    const res = await fetch(`https://graph.facebook.com/v21.0/me/messages`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${IG_PAGE_ACCESS_TOKEN}`,
-      },
-      body: JSON.stringify(payload),
-    });
-    if (res.ok) return;
-  } catch {}
+    const res = await fetch(
+      `https://graph.facebook.com/v21.0/me/messages?access_token=${encodeURIComponent(IG_PAGE_ACCESS_TOKEN)}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${IG_PAGE_ACCESS_TOKEN}`,
+        },
+        body: JSON.stringify(payload),
+      }
+    );
+    if (res.ok) {
+      console.log(`[sendDMReply] DM sent via Facebook Graph to ${recipientIgId}`);
+      return;
+    }
+    const errText = await res.text().catch(() => "");
+    console.warn(`[sendDMReply] graph.facebook.com returned ${res.status}:`, errText);
+  } catch (err) {
+    console.warn("[sendDMReply] graph.facebook.com error:", err);
+  }
 
-  // Last fallback: simple text
+  // Last fallback: simple plain text message (in case button template was rejected)
   try {
-    await fetch(`https://graph.instagram.com/v21.0/me/messages`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${IG_PAGE_ACCESS_TOKEN}`,
-      },
-      body: JSON.stringify({
-        recipient: { id: recipientIgId },
-        message: { text: message },
-        messaging_type: "RESPONSE",
-      }),
-    });
+    const res = await fetch(
+      `https://graph.instagram.com/v21.0/me/messages?access_token=${encodeURIComponent(IG_PAGE_ACCESS_TOKEN)}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${IG_PAGE_ACCESS_TOKEN}`,
+        },
+        body: JSON.stringify({
+          recipient: { id: recipientIgId },
+          message: { text: message },
+          messaging_type: "RESPONSE",
+        }),
+      }
+    );
+    if (res.ok) {
+      console.log(`[sendDMReply] Plain text fallback succeeded for ${recipientIgId}`);
+      return;
+    }
+    const errText = await res.text().catch(() => "");
+    console.error("[sendDMReply] All DM attempts failed. Last error:", errText);
   } catch (err) {
     console.error("[Instagram Webhook] DM fallback reply failed:", err);
   }
