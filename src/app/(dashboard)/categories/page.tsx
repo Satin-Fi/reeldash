@@ -96,15 +96,10 @@ export default function CategoriesPage() {
   return (
     <div className="space-y-8 max-w-7xl mx-auto pb-24 px-1 sm:px-2">
       {/* ─── Hero / Header ───────────────────────────────────────── */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-borderSubtle-light dark:border-white/[0.06]">
-        <div className="space-y-1.5">
-          <h1 className="font-bricolage text-2xl sm:text-3xl font-bold tracking-tight text-primaryText-light dark:text-white">
-            Categories
-          </h1>
-          <p className="text-xs sm:text-[13px] text-secondaryText-light dark:text-zinc-400 max-w-xl leading-relaxed">
-            Curated collections of your saved reels. Organize via DM commands like <span className="px-1.5 py-0.5 rounded bg-zinc-800 font-mono text-zinc-300 text-[11px]">/yoga</span> or <span className="px-1.5 py-0.5 rounded bg-zinc-800 font-mono text-zinc-300 text-[11px]">/tech</span>, or manage visually below.
-          </p>
-        </div>
+      <div className="flex items-center justify-between gap-6 pb-6 border-b border-borderSubtle-light dark:border-white/[0.06]">
+        <h1 className="font-bricolage text-2xl sm:text-3xl font-bold tracking-tight text-primaryText-light dark:text-white">
+          Categories
+        </h1>
 
         {/* Action Controls */}
         <div className="flex items-center gap-3 shrink-0">
@@ -202,7 +197,7 @@ export default function CategoriesPage() {
         )}
       </AnimatePresence>
 
-      {/* ─── Search & Stats Bar ───────────────────────────────── */}
+      {/* ─── Search Bar ───────────────────────────────────────── */}
       <div className="flex items-center justify-between gap-4">
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400 pointer-events-none" />
@@ -214,10 +209,6 @@ export default function CategoriesPage() {
             className="w-full pl-9 pr-3.5 py-2 rounded-xl bg-surface-light dark:bg-[#0E1015] border border-borderSubtle-light dark:border-white/[0.08] text-xs text-primaryText-light dark:text-white placeholder:text-zinc-500 focus:outline-none focus:border-brand-500 transition-colors"
           />
         </div>
-
-        <span className="text-xs font-mono text-zinc-500">
-          {cleanCategories.length} {cleanCategories.length === 1 ? "Category" : "Categories"} • {reels.length} Reels
-        </span>
       </div>
 
       {/* ─── High-End Visual Categories Grid ──────────────────── */}
