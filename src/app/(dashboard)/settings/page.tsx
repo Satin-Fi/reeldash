@@ -25,11 +25,29 @@ import { getClientAuthHeaders } from "@/lib/clientAuth";
 
 export default function SettingsPage() {
   const { theme, toggleTheme, reels, showToast } = useReels();
-  const { user, updateUser, removeInstagramAccount, refreshAccounts } = useAuth();
+  const { user, updateUser, removeInstagramAccount, refreshAccounts, deleteAccount } = useAuth();
   const [activeTab, setActiveTab] = useState<"accounts" | "profile" | "plans" | "appearance" | "export">("accounts");
 
   const [name, setName] = useState(user?.name || "");
   const [email, setEmail] = useState(user?.email || "");
+
+  // Delete Account State
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  const [deleteAccountError, setDeleteAccountError] = useState<string | null>(null);
+
+  const handleExecuteDeleteAccount = async () => {
+    if (deleteConfirmText !== "DELETE") return;
+    setIsDeletingAccount(true);
+    setDeleteAccountError(null);
+
+    const result = await deleteAccount();
+    if (!result.success) {
+      setDeleteAccountError(result.error || "Failed to delete account. Please try again.");
+      setIsDeletingAccount(false);
+    }
+  };
 
   // Challenge code flow state
   const [showCodeFlow, setShowCodeFlow] = useState(false);
@@ -652,6 +670,37 @@ export default function SettingsPage() {
               >
                 Save Profile
               </button>
+
+              {/* Danger Zone */}
+              <div className="pt-6 mt-6 border-t border-red-500/20 space-y-3">
+                <div className="flex items-center space-x-2">
+                  <AlertTriangle className="w-4 h-4 text-red-500" />
+                  <h4 className="text-xs font-bold text-red-500 uppercase tracking-wider">
+                    Danger Zone
+                  </h4>
+                </div>
+                <div className="p-4 rounded-rd-md bg-red-500/5 border border-red-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <p className="font-semibold text-primaryText-light dark:text-primaryText-dark text-xs">
+                      Delete ReelDash Account
+                    </p>
+                    <p className="text-secondaryText-light dark:text-secondaryText-dark text-[11px] mt-0.5 max-w-md">
+                      Permanently remove your ReelDash account, all saved Reels, collections, and connected Instagram accounts. This action is irreversible.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDeleteConfirmText("");
+                      setDeleteAccountError(null);
+                      setIsDeleteModalOpen(true);
+                    }}
+                    className="px-4 py-2 rounded-rd-md bg-red-600 hover:bg-red-700 text-white font-semibold text-xs transition-colors shrink-0 cursor-pointer shadow-sm"
+                  >
+                    Delete Account
+                  </button>
+                </div>
+              </div>
             </form>
           )}
 
@@ -709,6 +758,80 @@ export default function SettingsPage() {
           )}
         </div>
       </div>
+
+      {/* Delete Account Confirmation Modal */}
+      {isDeleteModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fade-in">
+          <div className="w-full max-w-md bg-surface-light dark:bg-zinc-900 border border-red-500/30 rounded-2xl p-6 shadow-2xl space-y-5">
+            <div className="flex items-start space-x-3">
+              <div className="w-10 h-10 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-5 h-5 text-red-500" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-primaryText-light dark:text-white">
+                  Delete ReelDash Account?
+                </h3>
+                <p className="text-xs text-secondaryText-light dark:text-zinc-400 mt-1">
+                  This action is permanent and cannot be undone.
+                </p>
+              </div>
+            </div>
+
+            <div className="p-3.5 rounded-xl bg-red-500/10 border border-red-500/20 text-xs text-red-400 space-y-1.5">
+              <p className="font-semibold text-red-300">The following will be permanently removed:</p>
+              <ul className="list-disc list-inside space-y-0.5 text-[11px] text-red-400/90">
+                <li>All saved Reels and video bookmarks</li>
+                <li>All collections and category tags</li>
+                <li>All connected Instagram accounts</li>
+                <li>Your ReelDash account and credentials</li>
+              </ul>
+            </div>
+
+            {deleteAccountError && (
+              <p className="text-xs text-red-400 font-medium">{deleteAccountError}</p>
+            )}
+
+            <div className="space-y-2">
+              <label className="block text-xs font-medium text-secondaryText-light dark:text-zinc-400">
+                To confirm, type <span className="font-bold text-red-500 font-mono">DELETE</span> below:
+              </label>
+              <input
+                type="text"
+                value={deleteConfirmText}
+                onChange={(e) => setDeleteConfirmText(e.target.value)}
+                placeholder="DELETE"
+                className="w-full px-3 py-2 bg-surfaceSecondary-light dark:bg-zinc-800 border border-borderSubtle-light dark:border-white/10 rounded-xl text-xs font-mono text-primaryText-light dark:text-white focus:outline-none focus:border-red-500"
+              />
+            </div>
+
+            <div className="flex items-center justify-end space-x-2 pt-2">
+              <button
+                type="button"
+                disabled={isDeletingAccount}
+                onClick={() => setIsDeleteModalOpen(false)}
+                className="px-4 py-2 rounded-xl border border-borderSubtle-light dark:border-white/10 text-xs font-medium text-secondaryText-light dark:text-zinc-300 hover:bg-surfaceSecondary-light dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={deleteConfirmText !== "DELETE" || isDeletingAccount}
+                onClick={handleExecuteDeleteAccount}
+                className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold text-xs flex items-center space-x-1.5 transition-colors cursor-pointer"
+              >
+                {isDeletingAccount ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Deleting...</span>
+                  </>
+                ) : (
+                  <span>Permanently Delete</span>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

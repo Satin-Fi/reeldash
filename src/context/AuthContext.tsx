@@ -30,6 +30,7 @@ interface AuthContextType {
   removeInstagramAccount: (accountId: string) => Promise<boolean>;
   refreshAccounts: () => Promise<void>;
   logout: () => void;
+  deleteAccount: () => Promise<{ success: boolean; error?: string }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -334,6 +335,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     router.push("/login");
   };
 
+  const deleteAccount = async (): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const headers = await getClientAuthHeaders(user?.id);
+      const res = await fetch("/api/auth/delete-account", {
+        method: "DELETE",
+        headers,
+      });
+
+      const data = await res.json().catch(() => null);
+      if (res.ok && data?.success) {
+        setUser(null);
+        localStorage.removeItem("reeldash_user");
+        sessionStorage.clear();
+        const supabase = getSupabaseClient();
+        if (supabase) {
+          await supabase.auth.signOut().catch(() => {});
+        }
+        router.push("/login?deleted=true");
+        return { success: true };
+      }
+      return { success: false, error: data?.error || "Failed to delete account" };
+    } catch (err: any) {
+      return { success: false, error: err?.message || "Failed to delete account" };
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -349,6 +376,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         removeInstagramAccount,
         refreshAccounts,
         logout,
+        deleteAccount,
       }}
     >
       {children}

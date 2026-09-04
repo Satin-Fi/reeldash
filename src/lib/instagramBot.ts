@@ -808,24 +808,14 @@ export async function processInstagramMessage(
     }
 
     if (isFollowCheckClick && isFollowing) {
-      // Follow confirmed! Show next step: signup or connect
-      const msg = `✅ Follow confirmed!\n\nCreate your free ReelDash account and connect this Instagram to start saving Reels.`;
-      const buttons: BotButton[] = [
-        {
-          type: "web_url",
-          title: "Sign up with Google",
-          url: `${APP_URL}/signup?source=instagram`,
-        },
-      ];
-      await sendDMReply(senderIgId, msg, buttons);
-      return {
-        status: "needs_signup",
-        replyMessage: msg,
-        buttons,
+      // Follow confirmed! Proceed immediately to Google connect flow with code & claim any pending reels
+      return await handleUnverifiedSender(
         senderIgId,
-        username: igUser.username,
-        isFollowing: true,
-      };
+        igUser.username,
+        messageText,
+        attachments,
+        true
+      );
     }
 
     // ── Step 4: Resolve authorization state ──
@@ -834,7 +824,12 @@ export async function processInstagramMessage(
     // ── Step 5: Handle each state ──
     switch (resolved.state) {
       case "NOT_FOLLOWING":
-        return await handleNotFollowing(senderIgId, igUser.username);
+        return await handleNotFollowing(
+          senderIgId,
+          igUser.username,
+          messageText,
+          attachments
+        );
 
       case "NEEDS_SIGNUP":
       case "NEEDS_REVERIFICATION":
@@ -884,9 +879,28 @@ export async function processInstagramMessage(
 
 async function handleNotFollowing(
   senderIgId: string,
-  username: string
+  username: string,
+  messageText?: string,
+  attachments: any[] = []
 ): Promise<ProcessedDMResult> {
-  const msg = `👋 Welcome to ReelDash!\n\nFirst follow @ReelDash on Instagram.\n\nThen send DONE here.`;
+  // If user sent a reel, store it as pending so they never lose it
+  const mediaUrl = messageText
+    ? extractInstagramMediaUrl(messageText, attachments)
+    : null;
+  if (mediaUrl) {
+    await storePendingReel(
+      senderIgId,
+      username,
+      mediaUrl,
+      messageText || "",
+      attachments
+    );
+  }
+
+  const msg = mediaUrl
+    ? `👋 Welcome to ReelDash!\n\nI received your Reel! To save it, please follow @ReelDash on Instagram first.\n\nOnce you've followed, tap DONE below!`
+    : `👋 Welcome to ReelDash!\n\nFirst follow @ReelDash on Instagram to use ReelDash.\n\nThen tap DONE below!`;
+
   const buttons: BotButton[] = [
     { type: "postback", title: "DONE", payload: "CHECK_FOLLOW_STATUS" },
   ];
@@ -907,7 +921,8 @@ async function handleUnverifiedSender(
   senderIgId: string,
   username: string,
   messageText: string,
-  attachments: any[]
+  attachments: any[],
+  followJustConfirmed = false
 ): Promise<ProcessedDMResult> {
   const supabase = getSupabaseAdmin();
   // If user sent a reel, store it as pending so they never lose it
@@ -944,7 +959,9 @@ async function handleUnverifiedSender(
 
   const connectUrl = `${APP_URL}/connect-instagram?code=${code}`;
 
-  const msg = mediaUrl
+  const msg = followJustConfirmed
+    ? `✅ Follow confirmed!\n\nNow connect your Instagram to ReelDash with your Google account to save Reels:\n1️⃣ Tap '🔗 Connect Account' below\n2️⃣ Sign in with your Google account on ReelDash\n3️⃣ Reel saved automatically!\n\n(Code: ${code})`
+    : mediaUrl
     ? `🔒 Almost there!\n\nI received your Reel! Connect your Instagram to save it:\n1️⃣ Tap '🔗 Connect Account' below\n2️⃣ Sign in with your Google account on ReelDash\n3️⃣ Reel saved automatically!\n\n(Code: ${code})`
     : `Welcome to ReelDash! 👋\n\nConnect your Instagram in 2 steps:\n1️⃣ Tap '🔗 Connect Account' below\n2️⃣ Sign in with your Google account on ReelDash\n\n(Code: ${code})`;
 
