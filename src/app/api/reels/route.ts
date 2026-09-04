@@ -434,3 +434,51 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ error: err?.message || "Failed to delete reel" }, { status: 500 });
   }
 }
+
+// ─── PATCH /api/reels (Update reel metadata such as creator handle, caption, category) ───
+export async function PATCH(req: NextRequest) {
+  try {
+    const body = await req.json();
+    const { id, creator_handle, creator_name, creator_avatar, caption, category, note } = body;
+
+    if (!id) {
+      return NextResponse.json({ error: "Reel ID is required" }, { status: 400 });
+    }
+
+    const supabase = getSupabaseAdmin();
+    if (!supabase) {
+      return NextResponse.json({ error: "Supabase not configured" }, { status: 500 });
+    }
+
+    const updates: Record<string, any> = {
+      updated_at: new Date().toISOString(),
+    };
+
+    if (creator_handle !== undefined) {
+      const cleanH = creator_handle ? creator_handle.replace(/^@+/, "").trim() : "";
+      updates.creator_handle = cleanH;
+      updates.creator_name = creator_name || (cleanH ? `@${cleanH}` : "Instagram Post");
+      updates.creator_avatar =
+        creator_avatar ||
+        (cleanH ? `/api/proxy-image?username=${encodeURIComponent(cleanH)}` : "");
+    }
+    if (caption !== undefined) updates.caption = caption;
+    if (category !== undefined) updates.category = category;
+    if (note !== undefined) updates.note = note;
+
+    const { data: updatedReel, error } = await supabase
+      .from("reels")
+      .update(updates)
+      .eq("id", id)
+      .select()
+      .single();
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    return NextResponse.json({ success: true, reel: updatedReel });
+  } catch (err: any) {
+    return NextResponse.json({ error: err?.message || "Failed to update reel" }, { status: 500 });
+  }
+}

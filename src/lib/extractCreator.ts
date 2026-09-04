@@ -261,9 +261,9 @@ export function extractCreatorFromPost(
     }
 
     // 3. Explicit attribution patterns:
-    // "via @creator", "credit: @creator", "by: @creator", "c/o @creator", "repost: @creator"
+    // e.g. "via @creator", "credit: @creator", "by: @creator", "c/o @creator", "repost: @creator"
     const attrMatch = fullText.match(
-      /(?:credit|cr|via|by|source|c\/o|from|follow|repost|original\s+post\s+by)\s*[:：-]?\s*@([A-Za-z0-9_.]+)/i
+      /(?:credit|cr|via|by|source|c\/o|from|repost|original\s+post\s+by|shared\s+from|posted\s+by|video\s+by|photo\s+by|meme\s+by|shot\s+by|captured\s+by)\s*[:：-]?\s*@([A-Za-z0-9_.]+)/i
     );
     if (attrMatch && attrMatch[1]) {
       const handle = cleanHandle(attrMatch[1]);
@@ -273,12 +273,16 @@ export function extractCreatorFromPost(
     }
 
     // 4. Meta quote / OpenGraph style header patterns:
-    // e.g. "marvel on Instagram: '...'" or "12,345 likes, 100 comments - marvel on October 12"
+    // e.g. "marvel on Instagram: '...'", "12,345 likes, 100 comments - marvel on October 12",
+    // "creator on Instagram", "title | CreatorName"
     const metaMatch =
       fullText.match(/(?:likes,\s+[0-9.,KMkm]+\s+comments\s*-\s*|\s+-\s*|^)([A-Za-z0-9_.]+)\s+on\s+[A-Za-z]+\s+\d{1,2}/i) ||
       fullText.match(/^([A-Za-z0-9_.]+)\s+on\s+[A-Za-z]+\s+\d{1,2},\s+\d{4}/i) ||
+      fullText.match(/^([A-Za-z0-9_.]+)\s+on\s+Instagram(?:\s*[:：]|\s*["“']|\s*$)/i) ||
+      fullText.match(/^([A-Za-z0-9_.]+)\s*[:：]\s*["“']/i) ||
       fullText.match(/\(@([A-Za-z0-9_.]+)\)/i) ||
-      fullText.match(/(?:Photo|Video|Reel)\s+by\s+@?([A-Za-z0-9_.]+)/i);
+      fullText.match(/(?:Photo|Video|Reel)\s+by\s+@?([A-Za-z0-9_.]+)/i) ||
+      fullText.match(/\s*\|\s*([A-Za-z0-9_.]+)$/);
 
     if (metaMatch && metaMatch[1]) {
       const handle = cleanHandle(metaMatch[1]);
@@ -287,24 +291,14 @@ export function extractCreatorFromPost(
       }
     }
 
-    // 5. First mention @handle in caption (if any, excluding sender and common system names)
-    const mentions = fullText.matchAll(/@([A-Za-z0-9_.]+)/g);
-    for (const m of mentions) {
-      const cand = cleanHandle(m[1]);
-      if (
-        cand &&
-        !RESERVED_IG_PATHS.has(cand) &&
-        (!cleanSender || cand !== cleanSender) &&
-        cand.length >= 2
-      ) {
-        return { handle: cand, name: `@${cand}` };
-      }
-    }
+    // Note: We deliberately DO NOT extract random @mentions from the caption body.
+    // As observed, in-caption mentions are almost always friends, tagged subjects,
+    // models, or brands in the photo — NOT the post's author/creator.
   }
 
-  // 6. Neutral fallback — NEVER attribute to the sender's own handle!
+  // Neutral fallback: Do NOT display @instagram or pretend Instagram created the content.
   return {
-    handle: "instagram",
-    name: "Instagram Creator",
+    handle: "",
+    name: "Instagram Post",
   };
 }

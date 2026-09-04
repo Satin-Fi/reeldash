@@ -17,8 +17,11 @@ import {
   ChevronDown,
   Check,
   Bookmark,
+  Rows,
+  Play,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { ReelPlayerModal } from "@/components/reels/ReelPlayerModal";
 
 const mediaTabs: { id: MediaTypeFilter; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { id: "all", label: "All Media", icon: LayoutGrid },
@@ -52,10 +55,12 @@ export function FilterToolbar() {
     setSortOption,
     viewMode,
     setViewMode,
+    reels,
   } = useReels();
 
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);
   const [isSortOpen, setIsSortOpen] = useState(false);
+  const [isWatchReelsOpen, setIsWatchReelsOpen] = useState(false);
   const categoryRef = useRef<HTMLDivElement>(null);
   const sortRef = useRef<HTMLDivElement>(null);
 
@@ -340,24 +345,35 @@ export function FilterToolbar() {
             </AnimatePresence>
           </div>
 
-          {/* View Mode Toggle */}
+          {/* View Mode Toggle: 3-Col Grid | Feed | Compact */}
           <div className="flex items-center bg-surfaceSecondary-light dark:bg-black/30 border border-borderSubtle-light dark:border-white/[0.08] rounded-lg p-0.5">
             <button
               onClick={() => setViewMode("grid")}
               className={`p-1.5 rounded-md transition-all cursor-pointer ${
                 viewMode === "grid"
-                  ? "bg-white text-zinc-900 dark:bg-white/[0.12] dark:text-white shadow-xs"
+                  ? "bg-white text-zinc-900 dark:bg-white/[0.12] dark:text-white shadow-xs font-semibold"
                   : "text-secondaryText-light dark:text-zinc-500 hover:text-primaryText-light dark:hover:text-zinc-300"
               }`}
-              title="Grid View"
+              title="3-in-a-row Grid View (Hold to Peek & Play)"
             >
               <LayoutGrid className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={() => setViewMode("feed")}
+              className={`p-1.5 rounded-md transition-all cursor-pointer ${
+                viewMode === "feed"
+                  ? "bg-white text-zinc-900 dark:bg-white/[0.12] dark:text-white shadow-xs font-semibold"
+                  : "text-secondaryText-light dark:text-zinc-500 hover:text-primaryText-light dark:hover:text-zinc-300"
+              }`}
+              title="Feed View (Instagram/Facebook format)"
+            >
+              <Rows className="w-3.5 h-3.5" />
             </button>
             <button
               onClick={() => setViewMode("compact")}
               className={`p-1.5 rounded-md transition-all cursor-pointer ${
                 viewMode === "compact"
-                  ? "bg-white text-zinc-900 dark:bg-white/[0.12] dark:text-white shadow-xs"
+                  ? "bg-white text-zinc-900 dark:bg-white/[0.12] dark:text-white shadow-xs font-semibold"
                   : "text-secondaryText-light dark:text-zinc-500 hover:text-primaryText-light dark:hover:text-zinc-300"
               }`}
               title="Compact List View"
@@ -365,9 +381,30 @@ export function FilterToolbar() {
               <List className="w-3.5 h-3.5" />
             </button>
           </div>
+
+          {/* Quick Launch Full-Screen Reels Mode */}
+          {reels.length > 0 && (
+            <button
+              onClick={() => setIsWatchReelsOpen(true)}
+              className="hidden sm:flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg bg-gradient-to-r from-brand-600 to-purple-600 hover:from-brand-500 hover:to-purple-500 text-white text-xs font-semibold shadow-xs active:scale-95 transition-all cursor-pointer shrink-0"
+              title="Watch full-screen Reels (Instagram format)"
+            >
+              <Play className="w-3 h-3 fill-current" />
+              <span>Watch Reels</span>
+            </button>
+          )}
         </div>
 
       </div>
+
+      {/* Watch Reels Modal launcher */}
+      {isWatchReelsOpen && reels.length > 0 && (
+        <ReelPlayerModal
+          isOpen={isWatchReelsOpen}
+          onClose={() => setIsWatchReelsOpen(false)}
+          reel={reels[0]}
+        />
+      )}
     </div>
   );
 }

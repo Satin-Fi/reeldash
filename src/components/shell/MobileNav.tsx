@@ -8,7 +8,7 @@ import { Home, Search, Plus, Folder, User } from "lucide-react";
 
 export function MobileNav() {
   const pathname = usePathname();
-  const { setIsSaveModalOpen, setIsCommandPaletteOpen } = useReels();
+  const { setIsSaveModalOpen } = useReels();
 
   return (
     <div className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-surface-light/90 dark:bg-[#0c0e14]/90 backdrop-blur-xl border-t border-borderSubtle-light dark:border-white/[0.08] px-3 pt-2 pb-[max(0.6rem,env(safe-area-inset-bottom,0.6rem))] flex items-center justify-around text-xs text-primaryText-light dark:text-primaryText-dark shadow-[0_-4px_20px_rgba(0,0,0,0.2)]">
@@ -24,13 +24,17 @@ export function MobileNav() {
         <span className="text-[10px] tracking-tight">Home</span>
       </Link>
 
-      <button
-        onClick={() => setIsCommandPaletteOpen(true)}
-        className="flex flex-col items-center space-y-1 py-1 px-3 rounded-xl text-secondaryText-light dark:text-zinc-400 hover:text-white transition-all active:scale-95 cursor-pointer"
+      <Link
+        href="/search"
+        className={`flex flex-col items-center space-y-1 py-1 px-3 rounded-xl transition-all active:scale-95 ${
+          pathname === "/search"
+            ? "text-brand-500 font-semibold bg-brand-500/10 dark:bg-brand-500/15"
+            : "text-secondaryText-light dark:text-zinc-400 hover:text-white"
+        }`}
       >
         <Search className="w-[18px] h-[18px]" strokeWidth={2} />
         <span className="text-[10px] tracking-tight">Search</span>
-      </button>
+      </Link>
 
       {/* Prominent Save Button */}
       <button

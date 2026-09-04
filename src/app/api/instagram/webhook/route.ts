@@ -66,25 +66,34 @@ export async function POST(req: NextRequest) {
           event.message?.mid ||
           `${senderIgId}_${event.timestamp || Date.now()}`;
 
-        // Deduplicate: check if this event was already processed
+        // Deduplicate: check if this event was already processed or is currently being processed
         if (supabase) {
           try {
             const { data: existing } = await supabase
               .from("processed_webhook_events")
-              .select("id")
+              .select("id, result_status")
               .eq("event_id", messageId)
               .maybeSingle();
 
             if (existing) {
               console.log(
-                `[Instagram Webhook] Skipping duplicate event: ${messageId}`
+                `[Instagram Webhook] Skipping duplicate event (${existing.result_status}): ${messageId}`
               );
               continue;
             }
+
+            // Immediately mark event as processing to block concurrent retries by Meta
+            await supabase
+              .from("processed_webhook_events")
+              .insert({
+                event_id: messageId,
+                sender_ig_id: senderIgId,
+                result_status: "processing",
+              });
           } catch (checkErr) {
-            // If the check fails, proceed anyway (fail open for availability)
+            // If unique constraint violation or error, check if duplicate
             console.warn(
-              "[Instagram Webhook] Idempotency check error:",
+              "[Instagram Webhook] Idempotency reservation notice:",
               checkErr
             );
           }

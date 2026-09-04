@@ -45,8 +45,18 @@ export function ReelGrid({
     );
   }
 
+  if (viewMode === "feed") {
+    return (
+      <div className="flex flex-col space-y-5 max-w-xl mx-auto py-2">
+        {displayReels.map((reel) => (
+          <ReelCard key={reel.id} reel={reel} viewMode="feed" />
+        ))}
+      </div>
+    );
+  }
+
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-[1px] bg-borderSubtle-light dark:bg-black/80">
+    <div className="grid grid-cols-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-[1.5px] bg-borderSubtle-light dark:bg-black/80">
       {displayReels.map((reel) => (
         <ReelCard key={reel.id} reel={reel} viewMode="grid" />
       ))}
@@ -54,10 +64,10 @@ export function ReelGrid({
   );
 }
 
-/** Skeleton loader matching the 1px-gap grid layout */
-export function ReelGridSkeleton({ count = 10 }: { count?: number }) {
+/** Skeleton loader matching the 3-column mobile layout */
+export function ReelGridSkeleton({ count = 12 }: { count?: number }) {
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-[1px] bg-borderSubtle-light dark:bg-black/80">
+    <div className="grid grid-cols-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-[1.5px] bg-borderSubtle-light dark:bg-black/80">
       {Array.from({ length: count }).map((_, i) => (
         <div
           key={i}

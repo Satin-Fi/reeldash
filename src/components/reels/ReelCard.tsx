@@ -1,10 +1,12 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { Reel, ViewMode } from "@/types/reel";
 import { useReels } from "@/context/ReelContext";
 import { ReelPlayerModal } from "@/components/reels/ReelPlayerModal";
+import { ReelPlayer } from "@/components/reels/ReelPlayer";
 import {
   Heart,
   MoreVertical,
@@ -18,6 +20,9 @@ import {
   FileText,
   Image as ImageIcon,
   Folder,
+  Film,
+  User,
+  X,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -27,12 +32,43 @@ interface ReelCardProps {
 }
 
 export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
-  const { toggleFavorite, deleteReel, collections, addReelToCollection, showToast } = useReels();
+  const { toggleFavorite, deleteReel, collections, addReelToCollection, updateReelCreator, showToast } = useReels();
   const [isPlayerOpen, setIsPlayerOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isCollectionPickerOpen, setIsCollectionPickerOpen] = useState(false);
+  const [isEditingCreator, setIsEditingCreator] = useState(false);
+  const [newCreatorInput, setNewCreatorInput] = useState("");
   const [imageError, setImageError] = useState(false);
+  const [isPeeking, setIsPeeking] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const holdTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const didHoldRef = useRef(false);
+
+  useEffect(() => {
+    return () => {
+      if (holdTimerRef.current) clearTimeout(holdTimerRef.current);
+    };
+  }, []);
+
+  const startHold = (e: React.TouchEvent | React.MouseEvent) => {
+    if ("button" in e && e.button !== 0) return;
+    didHoldRef.current = false;
+    if (holdTimerRef.current) clearTimeout(holdTimerRef.current);
+    holdTimerRef.current = setTimeout(() => {
+      didHoldRef.current = true;
+      setIsPeeking(true);
+    }, 280);
+  };
+
+  const endHold = () => {
+    if (holdTimerRef.current) {
+      clearTimeout(holdTimerRef.current);
+      holdTimerRef.current = null;
+    }
+    if (didHoldRef.current) {
+      setIsPeeking(false);
+    }
+  };
 
   const handleFavoriteClick = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -49,6 +85,10 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
   };
 
   const handleCardClick = () => {
+    if (didHoldRef.current) {
+      didHoldRef.current = false;
+      return;
+    }
     if (!isMenuOpen) {
       setIsPlayerOpen(true);
     }
@@ -73,9 +113,16 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
     reel.shortcode ||
     reel.instagramUrl?.match(/(?:reel|reels|p|audio|stories)\/([A-Za-z0-9_-]+)/)?.[1] ||
     "";
-  const cleanUsername = reel.creatorUsername
+  const rawHandle = reel.creatorUsername
     ? reel.creatorUsername.replace(/^@/, "").trim()
     : "";
+  const isGenericCreator =
+    !rawHandle ||
+    rawHandle.toLowerCase() === "instagram" ||
+    rawHandle.toLowerCase() === "creator" ||
+    rawHandle.startsWith("ig_");
+  const cleanUsername = isGenericCreator ? "" : rawHandle;
+  const hasValidCreator = !!cleanUsername;
 
   let imageSrc = reel.thumbnailUrl;
   if (!imageError && imageSrc) {
@@ -107,9 +154,14 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
         : "");
   }
 
-  const creatorName = reel.creatorUsername
-    ? `@${reel.creatorUsername.replace(/^@/, "")}`
-    : "Creator";
+  const creatorDisplay = hasValidCreator
+    ? `@${cleanUsername}`
+    : reel.creatorFullName &&
+      !reel.creatorFullName.includes("Instagram Creator") &&
+      !reel.creatorFullName.startsWith("Ig_")
+    ? reel.creatorFullName
+    : "Instagram Post";
+  const creatorName = creatorDisplay;
 
   const displayCaption = reel.caption?.trim()
     ? reel.caption.replace(/<[^>]*>?/gm, "").slice(0, 80)
@@ -180,12 +232,259 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
     );
   }
 
+  /* ───────── Social Feed View (Facebook / Instagram Feed format) ───────── */
+  if (viewMode === "feed") {
+    return (
+      <>
+        <div className="w-full max-w-xl mx-auto bg-surface-light dark:bg-[#0e1016] border border-borderSubtle-light dark:border-white/[0.08] rounded-2xl overflow-hidden shadow-md transition-all">
+          {/* 1. Header: Creator info + options */}
+          <div className="p-3.5 px-4 flex items-center justify-between border-b border-borderSubtle-light dark:border-white/[0.06]">
+            {hasValidCreator ? (
+              <Link
+                href={`/creator/${cleanUsername}`}
+                className="flex items-center space-x-3 min-w-0 group/creator"
+              >
+                <div className="w-9 h-9 rounded-full overflow-hidden bg-zinc-800 border border-white/10 shrink-0">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={reel.creatorAvatar || `/api/proxy-image?username=${encodeURIComponent(cleanUsername)}`}
+                    alt={cleanUsername}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      (e.target as HTMLElement).style.display = "none";
+                    }}
+                  />
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center space-x-1.5">
+                    <span className="text-xs font-bold text-primaryText-light dark:text-white group-hover/creator:text-brand-500 truncate transition-colors">
+                      @{cleanUsername}
+                    </span>
+                    <span className="px-1.5 py-0.5 rounded text-[9px] uppercase font-mono bg-surfaceSecondary-light dark:bg-white/[0.06] text-secondaryText-light dark:text-zinc-400">
+                      {mediaType}
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-secondaryText-light dark:text-zinc-400">
+                    {formattedDate || "Saved reel"}
+                  </p>
+                </div>
+              </Link>
+            ) : (
+              <div className="flex items-center space-x-3 min-w-0">
+                <div className="w-9 h-9 rounded-full overflow-hidden bg-zinc-800 border border-white/10 shrink-0 flex items-center justify-center text-zinc-400">
+                  <ImageIcon className="w-4 h-4" />
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center space-x-2">
+                    <span className="text-xs font-bold text-primaryText-light dark:text-white truncate">
+                      {creatorDisplay}
+                    </span>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setNewCreatorInput("");
+                        setIsEditingCreator(true);
+                      }}
+                      className="text-[10px] px-1.5 py-0.5 rounded bg-brand-500/10 hover:bg-brand-500/20 text-brand-500 dark:text-brand-400 font-medium transition-colors cursor-pointer"
+                      title="Set creator handle"
+                    >
+                      + Add creator
+                    </button>
+                    <span className="px-1.5 py-0.5 rounded text-[9px] uppercase font-mono bg-surfaceSecondary-light dark:bg-white/[0.06] text-secondaryText-light dark:text-zinc-400">
+                      {mediaType}
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-secondaryText-light dark:text-zinc-400">
+                    {formattedDate || "Saved post"}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            <div className="relative">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsMenuOpen(!isMenuOpen);
+                }}
+                className="p-1.5 rounded-full hover:bg-surfaceSecondary-light dark:hover:bg-white/[0.08] text-secondaryText-light dark:text-zinc-400 hover:text-primaryText-light dark:hover:text-white transition-colors cursor-pointer"
+                title="Options"
+              >
+                <MoreVertical className="w-4 h-4" />
+              </button>
+
+              <AnimatePresence>
+                {isMenuOpen && (
+                  <motion.div
+                    ref={menuRef}
+                    initial={{ opacity: 0, scale: 0.95, y: -4 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95, y: -4 }}
+                    transition={{ duration: 0.12 }}
+                    onClick={(e) => e.stopPropagation()}
+                    className="absolute top-8 right-0 z-30 w-48 bg-zinc-900/95 backdrop-blur-md border border-white/10 rounded-lg shadow-2xl p-1 text-xs text-zinc-200 space-y-0.5"
+                  >
+                    <button
+                      onClick={() => {
+                        setIsPlayerOpen(true);
+                        setIsMenuOpen(false);
+                      }}
+                      className="w-full flex items-center space-x-2 px-2.5 py-2 rounded-md hover:bg-white/[0.08] text-zinc-300 hover:text-white transition-colors text-left cursor-pointer text-xs"
+                    >
+                      <Film className="w-3.5 h-3.5 text-zinc-500" />
+                      <span>Watch in Reels Mode</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setNewCreatorInput(cleanUsername || "");
+                        setIsEditingCreator(true);
+                        setIsMenuOpen(false);
+                      }}
+                      className="w-full flex items-center space-x-2 px-2.5 py-2 rounded-md hover:bg-white/[0.08] text-zinc-300 hover:text-white transition-colors text-left cursor-pointer text-xs"
+                    >
+                      <User className="w-3.5 h-3.5 text-zinc-500" />
+                      <span>{hasValidCreator ? "Edit Creator Handle" : "Set Creator Handle"}</span>
+                    </button>
+                    <button
+                      onClick={handleFavoriteClick}
+                      className="w-full flex items-center space-x-2 px-2.5 py-2 rounded-md hover:bg-white/[0.08] text-zinc-300 hover:text-white transition-colors text-left cursor-pointer text-xs"
+                    >
+                      <Heart className={`w-3.5 h-3.5 ${reel.isFavorite ? "fill-rose-500 text-rose-500" : "text-zinc-500"}`} />
+                      <span>{reel.isFavorite ? "Remove from Favorites" : "Add to Favorites"}</span>
+                    </button>
+                    <button
+                      onClick={handleCopyLink}
+                      className="w-full flex items-center space-x-2 px-2.5 py-2 rounded-md hover:bg-white/[0.08] text-zinc-300 hover:text-white transition-colors text-left cursor-pointer text-xs"
+                    >
+                      <Copy className="w-3.5 h-3.5 text-zinc-500" />
+                      <span>Copy Instagram Link</span>
+                    </button>
+                    <a
+                      href={reel.instagramUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      className="flex items-center space-x-2 px-2.5 py-2 rounded-md hover:bg-white/[0.08] text-zinc-300 hover:text-white transition-colors text-xs"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5 text-zinc-500" />
+                      <span>Open on Instagram</span>
+                    </a>
+                    <div className="my-0.5 border-t border-white/[0.08]" />
+                    <button
+                      onClick={(e) => { e.stopPropagation(); deleteReel(reel.id); setIsMenuOpen(false); }}
+                      className="w-full flex items-center space-x-2 px-2.5 py-2 rounded-md hover:bg-rose-500/15 text-rose-400 transition-colors text-left cursor-pointer font-medium text-xs"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Remove from Library</span>
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          </div>
+
+          {/* 2. Media Player: Full-width media */}
+          <div className="relative w-full aspect-[4/5] sm:aspect-[9/16] max-h-[580px] bg-black overflow-hidden flex items-center justify-center">
+            <ReelPlayer reel={reel} autoPlay={false} className="w-full h-full" />
+          </div>
+
+          {/* 3. Action Bar */}
+          <div className="p-3 px-4 flex items-center justify-between border-t border-borderSubtle-light dark:border-white/[0.06]">
+            <div className="flex items-center space-x-4">
+              <motion.button
+                whileTap={{ scale: 1.3 }}
+                onClick={handleFavoriteClick}
+                className="flex items-center space-x-1.5 text-xs font-semibold text-primaryText-light dark:text-white hover:text-rose-500 transition-colors cursor-pointer"
+              >
+                <Heart className={`w-5 h-5 ${reel.isFavorite ? "fill-rose-500 text-rose-500" : ""}`} />
+                {reel.likes && <span className="text-xs">{reel.likes}</span>}
+              </motion.button>
+
+              <button
+                onClick={() => setIsPlayerOpen(true)}
+                className="flex items-center space-x-1.5 text-xs font-medium text-secondaryText-light dark:text-zinc-400 hover:text-white transition-colors cursor-pointer"
+                title="Watch full-screen Reel"
+              >
+                <Film className="w-4 h-4" />
+                <span className="text-[11px]">Reels View</span>
+              </button>
+
+              <button
+                onClick={() => setIsCollectionPickerOpen(!isCollectionPickerOpen)}
+                className="text-secondaryText-light dark:text-zinc-400 hover:text-white transition-colors cursor-pointer"
+                title="Add to Collection"
+              >
+                <FolderPlus className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={handleCopyLink}
+                className="p-1.5 rounded-full hover:bg-surfaceSecondary-light dark:hover:bg-white/[0.08] text-secondaryText-light dark:text-zinc-400 hover:text-white transition-colors cursor-pointer"
+                title="Copy Link"
+              >
+                <Copy className="w-4 h-4" />
+              </button>
+              <a
+                href={reel.instagramUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="p-1.5 rounded-full hover:bg-surfaceSecondary-light dark:hover:bg-white/[0.08] text-secondaryText-light dark:text-zinc-400 hover:text-white transition-colors"
+                title="Open on Instagram"
+              >
+                <ExternalLink className="w-4 h-4" />
+              </a>
+            </div>
+          </div>
+
+          {/* 4. Caption, Tags & Notes */}
+          <div className="px-4 pb-4 space-y-2 text-xs">
+            {displayCaption && (
+              <p className="text-xs text-primaryText-light dark:text-zinc-200 leading-relaxed">
+                <span className="font-bold mr-1.5 text-primaryText-light dark:text-white">@{cleanUsername}</span>
+                {displayCaption}
+              </p>
+            )}
+
+            {reel.notes && (
+              <div className="p-2.5 rounded-xl bg-surfaceSecondary-light dark:bg-white/[0.04] border border-borderSubtle-light dark:border-white/[0.06] text-xs">
+                <span className="text-[10px] font-semibold text-brand-500 uppercase tracking-wider block mb-0.5">Note</span>
+                <p className="text-xs text-secondaryText-light dark:text-zinc-300">{reel.notes}</p>
+              </div>
+            )}
+
+            {displayCategories.length > 0 && (
+              <div className="flex flex-wrap gap-1 pt-1">
+                {displayCategories.map((cat) => (
+                  <span key={cat} className="px-2 py-0.5 rounded-full text-[10px] bg-brand-500/10 text-brand-600 dark:text-brand-400 border border-brand-500/20 font-medium">
+                    #{cat}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {isPlayerOpen && (
+          <ReelPlayerModal isOpen={isPlayerOpen} onClose={() => setIsPlayerOpen(false)} reel={reel} />
+        )}
+      </>
+    );
+  }
+
   /* ───────── Instagram-Style Grid Tile ───────── */
   return (
     <>
       <div
         onClick={handleCardClick}
-        className="group relative aspect-[9/16] w-full overflow-hidden bg-black cursor-pointer select-none"
+        onTouchStart={startHold}
+        onTouchEnd={endHold}
+        onTouchCancel={endHold}
+        onMouseDown={startHold}
+        onMouseUp={endHold}
+        onMouseLeave={endHold}
+        className="group relative aspect-[9/16] w-full overflow-hidden bg-black cursor-pointer select-none active:scale-[0.98] transition-transform"
       >
         {/* Full-bleed thumbnail or crisp centered audio/avatar tile */}
         {mediaType === "audio" || (imageSrc && imageSrc.includes("username=")) || imageError ? (
@@ -435,6 +734,33 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
           )}
         </AnimatePresence>
       </div>
+
+      {/* Hold and Play (Peek Preview) */}
+      {isPeeking && typeof document !== "undefined" && createPortal(
+        <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md pointer-events-none animate-in fade-in duration-150 select-none">
+          <div className="relative w-full max-w-[320px] aspect-[9/16] bg-black rounded-2xl overflow-hidden shadow-2xl border border-white/20">
+            <ReelPlayer reel={reel} autoPlay={true} className="w-full h-full rounded-2xl" />
+            
+            {/* Top Overlay Badge */}
+            <div className="absolute top-3 inset-x-3 z-30 flex items-center justify-between pointer-events-none drop-shadow-md">
+              <div className="flex items-center space-x-2 px-2.5 py-1 rounded-full bg-black/70 backdrop-blur-md text-white text-xs font-semibold">
+                <span>@{cleanUsername || "creator"}</span>
+              </div>
+              <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-brand-500 text-white shadow-md">
+                Peek &amp; Play
+              </span>
+            </div>
+
+            {/* Bottom Overlay Hint */}
+            <div className="absolute bottom-3 inset-x-3 z-30 text-center pointer-events-none">
+              <span className="px-3 py-1 rounded-full text-[11px] bg-black/70 backdrop-blur-md text-zinc-300 font-medium border border-white/10 shadow-lg">
+                Release finger to close
+              </span>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
 
       {/* ReelPlayer Modal */}
       {isPlayerOpen && (

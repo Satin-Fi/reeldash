@@ -5,15 +5,11 @@ import { useReels } from "@/context/ReelContext";
 import {
   Search,
   PlusCircle,
-  Heart,
-  Folder,
   FolderPlus,
-  LayoutDashboard,
   Settings,
   Film,
   Instagram,
   ExternalLink,
-  Filter,
   BadgeCheck,
   Loader2,
   User,
@@ -94,7 +90,7 @@ export function CommandPalette() {
   const commands = [
     {
       id: "save-reel",
-      label: "Save Reel",
+      label: "Save Reel via URL",
       icon: PlusCircle,
       action: () => {
         setIsCommandPaletteOpen(false);
@@ -102,12 +98,12 @@ export function CommandPalette() {
       },
     },
     {
-      id: "all-reels",
-      label: "All Reels",
-      icon: Film,
+      id: "new-collection",
+      label: "Create New Collection",
+      icon: FolderPlus,
       action: () => {
         setIsCommandPaletteOpen(false);
-        router.push("/reels");
+        setIsCreateCollectionModalOpen(true);
       },
     },
     {
@@ -120,35 +116,8 @@ export function CommandPalette() {
       },
     },
     {
-      id: "categories",
-      label: "Library Categories",
-      icon: Folder,
-      action: () => {
-        setIsCommandPaletteOpen(false);
-        router.push("/categories");
-      },
-    },
-    {
-      id: "favorites",
-      label: "Open Favorites",
-      icon: Heart,
-      action: () => {
-        setIsCommandPaletteOpen(false);
-        router.push("/favorites");
-      },
-    },
-    {
-      id: "dashboard",
-      label: "Go to Dashboard Overview",
-      icon: LayoutDashboard,
-      action: () => {
-        setIsCommandPaletteOpen(false);
-        router.push("/dashboard");
-      },
-    },
-    {
       id: "settings",
-      label: "Open Settings",
+      label: "Account & Settings",
       icon: Settings,
       action: () => {
         setIsCommandPaletteOpen(false);
@@ -157,14 +126,19 @@ export function CommandPalette() {
     },
   ];
 
-  // Find saved creators matching query from local Reels
-  const matchingCreators = Array.from(
-    new Set(
-      reels
-        .filter((r) => r.creatorUsername.toLowerCase().includes(query.toLowerCase().replace(/^@/, "")))
-        .map((r) => r.creatorUsername)
-    )
-  ).slice(0, 3);
+  // Find saved creators matching query from local Reels (only when a query is entered)
+  const matchingCreators =
+    query.trim().length > 0
+      ? Array.from(
+          new Set(
+            reels
+              .filter((r) =>
+                r.creatorUsername.toLowerCase().includes(query.toLowerCase().replace(/^@/, ""))
+              )
+              .map((r) => r.creatorUsername)
+          )
+        ).slice(0, 3)
+      : [];
 
   const filteredCommands = commands.filter((c) =>
     c.label.toLowerCase().includes(query.toLowerCase())

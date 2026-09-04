@@ -103,6 +103,6 @@ export interface SmartCategory {
 
 export type SortOption = "newest" | "oldest" | "recently_viewed" | "most_viewed" | "creator";
 
-export type ViewMode = "grid" | "compact";
+export type ViewMode = "grid" | "feed" | "compact";
 
 export type MediaTypeFilter = "all" | MediaType;

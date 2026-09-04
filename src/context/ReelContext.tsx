@@ -84,6 +84,7 @@ interface ReelContextType {
   emptyRecycleBin: () => Promise<void>;
   updateNote: (id: string, note: string) => void;
   updateCategory: (id: string, category: string) => void;
+  updateReelCreator: (id: string, newHandle: string) => Promise<void>;
   createCollection: (name: string, description?: string, icon?: string) => void;
   deleteCollection: (id: string) => void;
   addReelToCollection: (reelId: string, collectionId: string) => void;
@@ -334,12 +335,12 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
                   if (extracted.handle && extracted.handle !== "instagram") {
                     creator = extracted.handle;
                     fullName = extracted.name;
-                  } else if (dbR.instagram_username && creator.toLowerCase() === dbR.instagram_username.toLowerCase()) {
-                    creator = "instagram";
-                    fullName = "Instagram Creator";
+                  } else {
+                    creator = "";
+                    fullName = "Instagram Post";
                   }
                 } else if (!fullName || fullName === "Instagram Creator") {
-                  fullName = `@${creator}`;
+                  fullName = creator && creator !== "creator" && creator !== "instagram" ? `@${creator}` : "Instagram Post";
                 }
 
                 const cleanQuote = cap.match(/^[A-Za-z0-9_.]+\s+on\s+[A-Za-z]+\s+\d{1,2},\s+\d{4}:\s*"([\s\S]*?)"(?:\.|\s*)$/);
@@ -348,12 +349,12 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
                 }
 
                 let avatar = dbR.creator_avatar;
-                if (!avatar || avatar.includes("ui-avatars.com") || avatar.includes("username=creator") || avatar.includes("username=ig_") || (dbR.instagram_username && avatar.includes(`username=${encodeURIComponent(dbR.instagram_username)}`) && dbR.source === "dm")) {
-                  avatar = `/api/proxy-image?username=${encodeURIComponent(creator || "instagram")}`;
+                if (!avatar || avatar.includes("ui-avatars.com") || avatar.includes("username=creator") || avatar.includes("username=ig_") || avatar.includes("username=instagram") || (dbR.instagram_username && avatar.includes(`username=${encodeURIComponent(dbR.instagram_username)}`) && dbR.source === "dm")) {
+                  avatar = creator ? `/api/proxy-image?username=${encodeURIComponent(creator)}` : (sc ? `/api/proxy-image?shortcode=${sc}` : "");
                 }
 
                 if (!fullName || fullName === "Instagram Creator" || fullName.startsWith("Ig_")) {
-                  fullName = creator && creator !== "creator" && creator !== "instagram" ? `@${creator}` : "Instagram Creator";
+                  fullName = creator && creator !== "creator" && creator !== "instagram" ? `@${creator}` : "Instagram Post";
                 }
 
                 const isCarousel =
@@ -756,6 +757,41 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
     );
     saveUserReels(updated);
     showToast(`Updated to ${category}`);
+  };
+
+  const updateReelCreator = async (id: string, newHandle: string) => {
+    const cleanH = newHandle.replace(/^@+/, "").trim();
+    const newName = cleanH ? `@${cleanH}` : "Instagram Post";
+    const newAvatar = cleanH ? `/api/proxy-image?username=${encodeURIComponent(cleanH)}` : "";
+
+    const updated = reels.map((r) =>
+      r.id === id
+        ? {
+            ...r,
+            creatorUsername: cleanH,
+            creatorFullName: newName,
+            creatorAvatar: newAvatar || r.creatorAvatar,
+            updatedAt: new Date().toISOString(),
+          }
+        : r
+    );
+    saveUserReels(updated);
+    showToast(cleanH ? `Creator set to @${cleanH}` : "Creator cleared");
+
+    try {
+      await fetch("/api/reels", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id,
+          creator_handle: cleanH,
+          creator_name: newName,
+          creator_avatar: newAvatar,
+        }),
+      });
+    } catch (e) {
+      console.warn("[updateReelCreator error]:", e);
+    }
   };
 
   const createCollection = (name: string, description?: string, icon: string = "") => {
@@ -1178,6 +1214,7 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
         emptyRecycleBin,
         updateNote,
         updateCategory,
+        updateReelCreator,
         createCollection,
         deleteCollection,
         addReelToCollection,

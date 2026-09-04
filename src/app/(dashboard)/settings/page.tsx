@@ -242,7 +242,7 @@ export default function SettingsPage() {
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
-      <div>
+      <div className="hidden sm:block">
         <h1 className="text-2xl font-bold tracking-tight text-primaryText-light dark:text-primaryText-dark">
           Settings & Preferences
         </h1>

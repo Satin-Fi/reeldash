@@ -96,7 +96,7 @@ export default function CategoriesPage() {
   return (
     <div className="space-y-6 sm:space-y-8 max-w-7xl mx-auto pb-24 px-2 sm:px-4">
       {/* ─── Hero / Header ───────────────────────────────────────── */}
-      <div className="flex items-center justify-between gap-3 pb-5 sm:pb-6 border-b border-borderSubtle-light dark:border-white/[0.06]">
+      <div className="hidden sm:flex items-center justify-between gap-3 pb-5 sm:pb-6 border-b border-borderSubtle-light dark:border-white/[0.06]">
         <h1 className="font-bricolage text-xl sm:text-2xl md:text-3xl font-bold tracking-tight text-primaryText-light dark:text-white">
           Categories
         </h1>
@@ -198,15 +198,43 @@ export default function CategoriesPage() {
       </AnimatePresence>
 
       {/* ─── Search Bar ───────────────────────────────────────── */}
-      <div className="flex items-center justify-between gap-4">
-        <div className="relative w-full sm:max-w-sm">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-3.5 sm:h-3.5 text-zinc-400 pointer-events-none" />
+      <div className="flex items-center gap-2 sm:hidden">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" />
           <input
             type="text"
             placeholder="Search categories..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-9 py-2.5 sm:py-2 rounded-xl bg-surface-light dark:bg-[#0E1015] border border-borderSubtle-light dark:border-white/[0.08] text-sm sm:text-xs text-primaryText-light dark:text-white placeholder:text-zinc-500 focus:outline-none focus:border-brand-500 transition-colors"
+            className="w-full pl-9 pr-8 py-2 rounded-xl bg-surface-light dark:bg-[#0E1015] border border-borderSubtle-light dark:border-white/[0.08] text-xs text-primaryText-light dark:text-white placeholder:text-zinc-500 focus:outline-none focus:border-brand-500 transition-colors"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery("")}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-zinc-400 hover:text-white rounded"
+            >
+              <X className="w-3 h-3" />
+            </button>
+          )}
+        </div>
+        <button
+          onClick={() => setIsCreating(true)}
+          className="shrink-0 flex items-center space-x-1 px-3 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 active:scale-95 text-white text-xs font-semibold shadow-md shadow-brand-600/20 transition-all cursor-pointer"
+        >
+          <Plus className="w-3.5 h-3.5" />
+          <span>New</span>
+        </button>
+      </div>
+
+      <div className="hidden sm:flex items-center justify-between gap-4">
+        <div className="relative w-full sm:max-w-sm">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400 pointer-events-none" />
+          <input
+            type="text"
+            placeholder="Search categories..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-10 pr-9 py-2 rounded-xl bg-surface-light dark:bg-[#0E1015] border border-borderSubtle-light dark:border-white/[0.08] text-xs text-primaryText-light dark:text-white placeholder:text-zinc-500 focus:outline-none focus:border-brand-500 transition-colors"
           />
           {searchQuery && (
             <button

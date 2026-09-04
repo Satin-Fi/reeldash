@@ -1102,19 +1102,6 @@ async function handleReady(
         reelData?.media_type === "post");
 
     if (!reelData || !reelData.shortcode) {
-      const shortcodeMatch = mediaUrl.match(
-        /\/(?:share\/)?(?:reel|reels|p|stories|audio)\/([A-Za-z0-9_.-]+)/i
-      );
-      const shortcode = shortcodeMatch
-        ? shortcodeMatch[1]
-        : `${isPost ? "post" : isAudio ? "audio" : "reel"}_${Date.now().toString(36)}_${Math.random().toString(36).substring(2, 6)}`;
-
-      const isDirectCdn =
-        mediaUrl.includes("lookaside.fbsbx.com") ||
-        mediaUrl.includes("cdninstagram.com") ||
-        mediaUrl.includes("fbcdn.net") ||
-        mediaUrl.startsWith("http");
-
       // Check if attachment or message had title / notes
       const attTitle = attachments?.find(
         (a) => a?.payload?.title || a?.title
@@ -1126,6 +1113,31 @@ async function handleReady(
         (parsedCmd.cleanText && !parsedCmd.cleanText.startsWith("/")
           ? parsedCmd.cleanText
           : `Instagram ${isAudio ? "Audio" : isPost ? "Post" : "Reel"} shared via Direct Message`);
+
+      const shortcodeMatch = mediaUrl.match(
+        /\/(?:share\/)?(?:reel|reels|p|stories|audio)\/([A-Za-z0-9_.-]+)/i
+      );
+      let shortcode = shortcodeMatch ? shortcodeMatch[1] : "";
+      if (!shortcode) {
+        const assetMatch = mediaUrl.match(/[?&]asset_id=(\d+)/);
+        if (assetMatch && assetMatch[1]) {
+          shortcode = `${isPost ? "post" : isAudio ? "audio" : "reel"}_asset_${assetMatch[1]}`;
+        } else {
+          const str = (mediaUrl + (fallbackCaption || "")).slice(0, 100);
+          let hash = 0;
+          for (let i = 0; i < str.length; i++) {
+            hash = (hash << 5) - hash + str.charCodeAt(i);
+            hash |= 0;
+          }
+          shortcode = `${isPost ? "post" : isAudio ? "audio" : "reel"}_${Math.abs(hash).toString(36)}`;
+        }
+      }
+
+      const isDirectCdn =
+        mediaUrl.includes("lookaside.fbsbx.com") ||
+        mediaUrl.includes("cdninstagram.com") ||
+        mediaUrl.includes("fbcdn.net") ||
+        mediaUrl.startsWith("http");
 
       const thumb = isDirectCdn
         ? `/api/proxy-image?url=${encodeURIComponent(mediaUrl)}&shortcode=${shortcode}`
@@ -1264,42 +1276,68 @@ async function handleReady(
       carousel_images: reelData.carouselImages || reelData.carousel_images || null,
     };
 
-    // Reel-level deduplication
+    // Reel-level deduplication: shortcode, asset_id, or identical caption within 60s
     const supabase = getSupabaseAdmin();
     if (supabase) {
-      const { data: existingReel } = await supabase
-        .from("reels")
-        .select("id, category, tags, created_at, updated_at")
-        .eq("user_id", reeldashUserId)
-        .eq("shortcode", formattedReel.shortcode)
-        .maybeSingle();
+      let existingReel: any = null;
+
+      if (formattedReel.shortcode) {
+        const { data: byShortcode } = await supabase
+          .from("reels")
+          .select("id, category, tags, created_at, updated_at")
+          .eq("user_id", reeldashUserId)
+          .eq("shortcode", formattedReel.shortcode)
+          .maybeSingle();
+        if (byShortcode) existingReel = byShortcode;
+      }
+
+      if (!existingReel && mediaUrl.includes("asset_id=")) {
+        const assetIdMatch = mediaUrl.match(/[?&]asset_id=(\d+)/);
+        if (assetIdMatch && assetIdMatch[1]) {
+          const { data: byAsset } = await supabase
+            .from("reels")
+            .select("id, category, tags, created_at, updated_at")
+            .eq("user_id", reeldashUserId)
+            .ilike("url", `%asset_id=${assetIdMatch[1]}%`)
+            .maybeSingle();
+          if (byAsset) existingReel = byAsset;
+        }
+      }
+
+      if (!existingReel && finalCaption && finalCaption.length > 5) {
+        const oneMinuteAgo = new Date(Date.now() - 60_000).toISOString();
+        const { data: byCaption } = await supabase
+          .from("reels")
+          .select("id, category, tags, created_at, updated_at")
+          .eq("user_id", reeldashUserId)
+          .eq("caption", finalCaption)
+          .gte("created_at", oneMinuteAgo)
+          .maybeSingle();
+        if (byCaption) existingReel = byCaption;
+      }
 
       if (existingReel) {
-        const ageMs =
-          Date.now() - new Date(existingReel.created_at).getTime();
-        if (Math.abs(ageMs) < 25000) {
-          // Duplicate webhook within 25s — merge categories if present
-          if (allCategories.length > 0) {
-            await supabase
-              .from("reels")
-              .update({
-                category: allCategories[0],
-                tags: [
-                  ...(existingReel.tags || []),
-                  ...allCategories.map((c) => c.toLowerCase()),
-                ],
-                updated_at: new Date().toISOString(),
-              })
-              .eq("id", existingReel.id);
-          }
-          return {
-            status: "reel_saved",
-            replyMessage: "Duplicate webhook merged",
-            senderIgId,
-            username,
-            isFollowing: true,
-          };
+        console.log(`[Instagram Bot] Deduplicated post/reel already in library: ${existingReel.id}`);
+        if (allCategories.length > 0) {
+          await supabase
+            .from("reels")
+            .update({
+              category: allCategories[0],
+              tags: [
+                ...(existingReel.tags || []),
+                ...allCategories.map((c) => c.toLowerCase()),
+              ],
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", existingReel.id);
         }
+        return {
+          status: "reel_saved",
+          replyMessage: "Duplicate webhook merged",
+          senderIgId,
+          username,
+          isFollowing: true,
+        };
       }
     }
 
@@ -1312,45 +1350,11 @@ async function handleReady(
       allCategories
     );
 
-    // Wait for follow-up category if no category was provided
-    let finalCategories =
+    // Immediate category resolution — no blocking polling loop to ensure sub-second response
+    const finalCategories =
       allCategories.length > 0
         ? [...allCategories]
         : [formattedReel.category || "General"];
-
-    if (allCategories.length === 0 && supabase) {
-      for (let i = 0; i < 24; i++) {
-        await new Promise((r) => setTimeout(r, 500));
-        try {
-          const { data: dbReel } = await supabase
-            .from("reels")
-            .select("category, tags, created_at, updated_at")
-            .eq("user_id", reeldashUserId)
-            .eq("shortcode", formattedReel.shortcode)
-            .maybeSingle();
-
-          if (dbReel) {
-            const isCatChanged =
-              dbReel.category &&
-              dbReel.category !== (formattedReel.category || "General");
-            const isUpdated =
-              dbReel.updated_at &&
-              dbReel.created_at &&
-              new Date(dbReel.updated_at).getTime() >
-                new Date(dbReel.created_at).getTime() + 150;
-
-            if (isCatChanged || isUpdated) {
-              finalCategories = dbReel.category
-                ? [dbReel.category]
-                : finalCategories;
-              break;
-            }
-          }
-        } catch {
-          // Ignore polling errors
-        }
-      }
-    }
 
     const mediaLabel = isPost ? "Post" : isAudio ? "Audio" : "Reel";
     const mediaIcon = isPost ? "📸" : isAudio ? "🎵" : "🎬";
@@ -1793,9 +1797,21 @@ async function storePendingReel(
         mediaUrl.includes("fbcdn.net") ||
         mediaUrl.startsWith("http");
 
-      const generatedShortcode =
-        shortcode ||
-        `${isPost ? "post" : isAudio ? "audio" : "reel"}_${Date.now().toString(36)}_${Math.random().toString(36).substring(2, 6)}`;
+      let generatedShortcode = shortcode || "";
+      if (!generatedShortcode) {
+        const assetMatch = mediaUrl.match(/[?&]asset_id=(\d+)/);
+        if (assetMatch && assetMatch[1]) {
+          generatedShortcode = `${isPost ? "post" : isAudio ? "audio" : "reel"}_asset_${assetMatch[1]}`;
+        } else {
+          const str = (mediaUrl + (messageText || "")).slice(0, 100);
+          let hash = 0;
+          for (let i = 0; i < str.length; i++) {
+            hash = (hash << 5) - hash + str.charCodeAt(i);
+            hash |= 0;
+          }
+          generatedShortcode = `${isPost ? "post" : isAudio ? "audio" : "reel"}_${Math.abs(hash).toString(36)}`;
+        }
+      }
 
       const attTitle =
         attachments?.find((a) => a?.payload?.title || a?.title)?.payload?.title ||

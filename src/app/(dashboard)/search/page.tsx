@@ -117,7 +117,7 @@ function SearchContent() {
   return (
     <div className="space-y-6 max-w-5xl mx-auto pb-12">
       {/* Header */}
-      <div>
+      <div className="hidden sm:block">
         <h1 className="text-2xl font-bold tracking-tight text-primaryText-light dark:text-primaryText-dark">
           Search
         </h1>
