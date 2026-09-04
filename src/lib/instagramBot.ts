@@ -1063,8 +1063,27 @@ async function handleReady(
       if (!tags.includes(cat.toLowerCase())) tags.push(cat.toLowerCase());
     }
 
-    const creatorHandle =
+    let creatorHandle =
       reelData.creatorUsername || reelData.creator_handle || "creator";
+
+    // If creatorHandle fell back to an ig_ shortcode or "creator", attempt regex extraction from caption
+    if (!creatorHandle || creatorHandle === "creator" || creatorHandle.startsWith("ig_")) {
+      const cap = reelData.caption || "";
+      const capMatch =
+        cap.match(/(?:likes,\s+[0-9.,KMkm]+\s+comments\s*-\s*|\s+-\s*|^)([A-Za-z0-9_.]+)\s+on\s+[A-Za-z]+\s+\d{1,2}/i) ||
+        cap.match(/^([A-Za-z0-9_.]+)\s+on\s+[A-Za-z]+\s+\d{1,2},\s+\d{4}/i) ||
+        cap.match(/\(@([A-Za-z0-9_.]+)\)/i);
+      if (capMatch && capMatch[1] && !["reel", "reels", "p", "stories", "audio", "instagram"].includes(capMatch[1].toLowerCase())) {
+        creatorHandle = capMatch[1].trim();
+      }
+    }
+
+    let finalCaption = reelData.caption || "Saved Instagram Reel";
+    const cleanQuote = finalCaption.match(/^[A-Za-z0-9_.]+\s+on\s+[A-Za-z]+\s+\d{1,2},\s+\d{4}:\s*"([\s\S]*?)"(?:\.|\s*)$/);
+    if (cleanQuote && cleanQuote[1]) {
+      finalCaption = cleanQuote[1].trim();
+    }
+
     const rawThumb =
       reelData.thumbnailUrl ||
       reelData.thumbnail_url ||
@@ -1090,12 +1109,14 @@ async function handleReady(
       url: reelData.url || mediaUrl,
       thumbnail_url: formattedThumbnailUrl,
       video_url: reelData.mediaUrl || reelData.video_url || mediaUrl,
-      caption: reelData.caption || "Saved Instagram Reel",
+      caption: finalCaption,
       creator_handle: creatorHandle,
       creator_name:
         reelData.creatorFullName ||
         reelData.creator_name ||
-        "Instagram Creator",
+        (creatorHandle && !creatorHandle.startsWith("ig_") && creatorHandle !== "creator"
+          ? creatorHandle
+          : "Instagram Creator"),
       creator_avatar:
         reelData.creatorAvatar ||
         reelData.creator_avatar ||
@@ -1972,26 +1993,76 @@ function extractInstagramMediaUrl(
   text: string,
   attachments: any[] = []
 ): string | null {
+  // 1. Search all attachments (Meta share payloads, links, targets, fallback, titles)
   if (Array.isArray(attachments) && attachments.length > 0) {
     for (const att of attachments) {
-      if (att?.payload?.url && att.payload.url.includes("instagram.com")) {
-        return att.payload.url;
+      if (!att) continue;
+      const candidates = [
+        att.payload?.url,
+        att.payload?.link,
+        att.payload?.target,
+        att.payload?.share?.link,
+        att.payload?.share?.url,
+        att.url,
+        att.payload?.title,
+        att.title,
+      ];
+      for (const candidate of candidates) {
+        if (typeof candidate === "string" && candidate.length > 0) {
+          const extracted = extractInstagramMediaUrl(candidate, []);
+          if (extracted) return extracted;
+        }
       }
     }
   }
 
   if (!text) return null;
 
-  const urlMatch = text.match(
-    /https?:\/\/(?:www\.)?instagram\.com\/(?:reel|reels|p|stories|audio)\/[A-Za-z0-9_.-]+\/?/i
+  // 2. Full URL matching including:
+  // - instagram.com/p/SHORTCODE
+  // - instagram.com/reel/SHORTCODE
+  // - instagram.com/reels/SHORTCODE
+  // - instagram.com/share/p/SHORTCODE (Instagram mobile app share format)
+  // - instagram.com/share/reel/SHORTCODE
+  // - instagram.com/username/p/SHORTCODE
+  // - instagram.com/username/reel/SHORTCODE
+  // - instagr.am/p/SHORTCODE
+  // - instagr.am/reel/SHORTCODE
+  // - instagram.com/stories/username/ID
+  // - instagram.com/reels/audio/ID
+  const fullUrlMatch = text.match(
+    /https?:\/\/(?:www\.)?(?:instagram\.com|instagr\.am)\/(?:share\/)?(?:[A-Za-z0-9_.]+\/)?(reel|reels|p|stories|audio)\/([A-Za-z0-9_.-]+)\/?/i
   );
-  if (urlMatch) return urlMatch[0];
 
+  if (fullUrlMatch) {
+    const type = fullUrlMatch[1].toLowerCase();
+    const shortcode = fullUrlMatch[2];
+    if (type === "p") {
+      return `https://www.instagram.com/p/${shortcode}/`;
+    }
+    if (type === "audio") {
+      return `https://www.instagram.com/reels/audio/${shortcode}/`;
+    }
+    if (type === "stories") {
+      return fullUrlMatch[0];
+    }
+    return `https://www.instagram.com/reel/${shortcode}/`;
+  }
+
+  // 3. Fallback for partial paths like /p/SHORTCODE or /share/p/SHORTCODE or /reel/SHORTCODE
   const shortcodeMatch = text.match(
-    /\/(?:reel|reels|p|stories|audio)\/([A-Za-z0-9_.-]+)/i
+    /\/(?:share\/)?(reel|reels|p|stories|audio)\/([A-Za-z0-9_.-]+)/i
   );
   if (shortcodeMatch) {
-    return `https://www.instagram.com/reel/${shortcodeMatch[1]}/`;
+    const type = shortcodeMatch[1].toLowerCase();
+    const shortcode = shortcodeMatch[2];
+    if (type === "p") {
+      return `https://www.instagram.com/p/${shortcode}/`;
+    }
+    if (type === "audio") {
+      return `https://www.instagram.com/reels/audio/${shortcode}/`;
+    }
+    return `https://www.instagram.com/reel/${shortcode}/`;
   }
 
   return null;

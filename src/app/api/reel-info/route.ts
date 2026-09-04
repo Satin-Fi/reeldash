@@ -188,23 +188,57 @@ async function extractMetadata(url: string, startTime: number) {
       extractionTasks.push(
         fetchOpenGraphMeta(shortcode, mediaType, controller.signal)
           .then((og) => {
-            if (og.title && !creatorFullName) {
-              const titleMatch = og.title.match(/^(.+?)\s+on\s+Instagram\s*:/i);
-              if (titleMatch) creatorFullName = titleMatch[1].trim();
+            if (og.title) {
+              const handleInTitle = og.title.match(/\(@([A-Za-z0-9_.]+)\)/i);
+              if (handleInTitle && handleInTitle[1] && (!creatorUsername || creatorUsername.startsWith("ig_"))) {
+                creatorUsername = handleInTitle[1].trim();
+              }
+              const titleMatch = og.title.match(/^(.+?)\s+on\s+Instagram\s*:/i) || og.title.match(/^(.+?)\s+on\s+Instagram$/i);
+              if (titleMatch && titleMatch[1]) {
+                const rawName = titleMatch[1].trim();
+                if (!rawName.toLowerCase().includes("see instagram photos") && rawName.length < 80) {
+                  if (!creatorFullName) creatorFullName = rawName;
+                  if ((!creatorUsername || creatorUsername.startsWith("ig_")) && /^[A-Za-z0-9_.]+$/.test(rawName)) {
+                    creatorUsername = rawName;
+                  }
+                }
+              }
             }
+
             if (og.description) {
               const statsMatch = og.description.match(/^([0-9.,KMkm]+)\s+likes,\s+([0-9.,KMkm]+)\s+comments/i);
               if (statsMatch) {
                 if (!likes) likes = statsMatch[1];
                 if (!commentsCount) commentsCount = statsMatch[2];
               }
+
+              // Robust username extraction from description (handles leading, embedded, and trailing underscores/dots)
+              if (!creatorUsername || creatorUsername.startsWith("ig_")) {
+                const userMatch =
+                  og.description.match(/(?:likes,\s+[0-9.,KMkm]+\s+comments\s*-\s*|\s+-\s*|^)([A-Za-z0-9_.]+)\s+on\s+[A-Za-z]+\s+\d{1,2}/i) ||
+                  og.description.match(/^([A-Za-z0-9_.]+)\s+on\s+[A-Za-z]+\s+\d{1,2},\s+\d{4}/i) ||
+                  og.description.match(/\(@([A-Za-z0-9_.]+)\)/i) ||
+                  og.description.match(/(?:Photo|Video|Reel)\s+by\s+([A-Za-z0-9_.]+)\s+on/i);
+
+                if (userMatch && userMatch[1]) {
+                  const cand = userMatch[1].trim();
+                  if (!["reel", "reels", "p", "stories", "audio", "instagram"].includes(cand.toLowerCase())) {
+                    creatorUsername = cand;
+                  }
+                }
+              }
+
               const descCreatorMatch = og.description.match(/on\s+Instagram:\s*"([\s\S]*)"$/i);
+              const descQuoteMatch = og.description.match(/:\s*"([\s\S]*?)"(?:\.|\s*)$/);
               if (descCreatorMatch && !caption) {
                 caption = descCreatorMatch[1].trim();
+              } else if (descQuoteMatch && !caption) {
+                caption = descQuoteMatch[1].trim();
               } else if (!caption) {
                 caption = og.description.replace(/^[0-9.,KMkm]+\s+likes,\s+[0-9.,KMkm]+\s+comments\s*-\s*/, "").trim();
               }
             }
+
             if (og.image && (!thumbnailUrl || thumbnailUrl.includes("/api/proxy-image"))) {
               thumbnailUrl = og.image;
             }
@@ -335,12 +369,44 @@ async function extractMetadata(url: string, startTime: number) {
               creatorAvatar = `/api/proxy-image?url=${encodeURIComponent(meta.image)}`;
             }
           } else {
-            if (meta.title && !creatorFullName) {
-              const titleMatch = meta.title.match(/^(.+?)\s+on\s+Instagram\s*:/i);
-              if (titleMatch) creatorFullName = titleMatch[1].trim();
+            if (meta.title) {
+              const handleInTitle = meta.title.match(/\(@([A-Za-z0-9_.]+)\)/i);
+              if (handleInTitle && handleInTitle[1] && (!creatorUsername || creatorUsername.startsWith("ig_"))) {
+                creatorUsername = handleInTitle[1].trim();
+              }
+              const titleMatch = meta.title.match(/^(.+?)\s+on\s+Instagram\s*:/i) || meta.title.match(/^(.+?)\s+on\s+Instagram$/i);
+              if (titleMatch && titleMatch[1]) {
+                const rawName = titleMatch[1].trim();
+                if (!rawName.toLowerCase().includes("see instagram photos") && rawName.length < 80) {
+                  if (!creatorFullName) creatorFullName = rawName;
+                  if ((!creatorUsername || creatorUsername.startsWith("ig_")) && /^[A-Za-z0-9_.]+$/.test(rawName)) {
+                    creatorUsername = rawName;
+                  }
+                }
+              }
             }
-            if (meta.description && !caption) {
-              caption = meta.description;
+            if (meta.description) {
+              if (!creatorUsername || creatorUsername.startsWith("ig_")) {
+                const userMatch =
+                  meta.description.match(/(?:likes,\s+[0-9.,KMkm]+\s+comments\s*-\s*|\s+-\s*|^)([A-Za-z0-9_.]+)\s+on\s+[A-Za-z]+\s+\d{1,2}/i) ||
+                  meta.description.match(/^([A-Za-z0-9_.]+)\s+on\s+[A-Za-z]+\s+\d{1,2},\s+\d{4}/i) ||
+                  meta.description.match(/\(@([A-Za-z0-9_.]+)\)/i) ||
+                  meta.description.match(/(?:Photo|Video|Reel)\s+by\s+([A-Za-z0-9_.]+)\s+on/i);
+
+                if (userMatch && userMatch[1]) {
+                  const cand = userMatch[1].trim();
+                  if (!["reel", "reels", "p", "stories", "audio", "instagram"].includes(cand.toLowerCase())) {
+                    creatorUsername = cand;
+                  }
+                }
+              }
+
+              const descQuoteMatch = meta.description.match(/:\s*"([\s\S]*?)"(?:\.|\s*)$/);
+              if (descQuoteMatch && !caption) {
+                caption = descQuoteMatch[1].trim();
+              } else if (!caption) {
+                caption = meta.description;
+              }
             }
             if (meta.image && (!thumbnailUrl || thumbnailUrl.includes("/api/proxy-image?shortcode"))) {
               thumbnailUrl = `/api/proxy-image?url=${encodeURIComponent(meta.image)}`;
@@ -354,7 +420,30 @@ async function extractMetadata(url: string, startTime: number) {
     await Promise.allSettled(extractionTasks);
     clearTimeout(timeoutId);
 
-    // 3. Defaults & Sanitization
+    // 3. Fallback extraction & caption sanitization
+    if (!creatorUsername || creatorUsername.startsWith("ig_")) {
+      if (caption) {
+        const capUserMatch =
+          caption.match(/(?:likes,\s+[0-9.,KMkm]+\s+comments\s*-\s*|\s+-\s*|^)([A-Za-z0-9_.]+)\s+on\s+[A-Za-z]+\s+\d{1,2}/i) ||
+          caption.match(/\(@([A-Za-z0-9_.]+)\)/i) ||
+          caption.match(/^([A-Za-z0-9_.]+)\s+on\s+[A-Za-z]+\s+\d{1,2},\s+\d{4}/i);
+        if (capUserMatch && capUserMatch[1]) {
+          const cand = capUserMatch[1].trim();
+          if (!["reel", "reels", "p", "stories", "audio", "instagram"].includes(cand.toLowerCase())) {
+            creatorUsername = cand;
+          }
+        }
+      }
+    }
+
+    // Clean caption if it starts with "username on Date: "quote""
+    if (caption) {
+      const cleanQuote = caption.match(/^[A-Za-z0-9_.]+\s+on\s+[A-Za-z]+\s+\d{1,2},\s+\d{4}:\s*"([\s\S]*?)"(?:\.|\s*)$/);
+      if (cleanQuote && cleanQuote[1]) {
+        caption = cleanQuote[1].trim();
+      }
+    }
+
     if (!creatorUsername) {
       if (mediaType === "audio") {
         creatorUsername = "instagram_audio";
@@ -375,6 +464,10 @@ async function extractMetadata(url: string, startTime: number) {
       } else {
         caption = `Instagram ${mediaType.toUpperCase()} by @${creatorUsername}`;
       }
+    }
+
+    if (!creatorAvatar && creatorUsername && !creatorUsername.startsWith("ig_")) {
+      creatorAvatar = `/api/proxy-image?username=${encodeURIComponent(creatorUsername)}`;
     }
 
     // Extract hashtags from caption

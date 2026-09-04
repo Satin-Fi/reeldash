@@ -93,7 +93,21 @@ export async function POST(req: NextRequest) {
         const text = event.message?.text ?? event.postback?.title ?? "";
         const postbackPayload =
           event.postback?.payload ?? event.message?.quick_reply?.payload;
-        const attachments = event.message?.attachments ?? [];
+        const attachments = [...(event.message?.attachments ?? [])];
+
+        const extraLinks: string[] = [];
+        if (event.message?.share) {
+          attachments.push({ type: "share", payload: event.message.share });
+          if (event.message.share.link) {
+            extraLinks.push(event.message.share.link);
+          }
+        }
+        if (event.message?.story_share) {
+          attachments.push({ type: "story_share", payload: event.message.story_share });
+          if (event.message.story_share.link) {
+            extraLinks.push(event.message.story_share.link);
+          }
+        }
 
         const existing =
           senderEvents.get(senderIgId) ||
@@ -104,6 +118,7 @@ export async function POST(req: NextRequest) {
             messageIds: [],
           } as any);
         if (text) existing.texts.push(text);
+        if (extraLinks.length > 0) existing.texts.push(...extraLinks);
         if (attachments.length > 0) existing.attachments.push(...attachments);
         if (postbackPayload) existing.postbackPayload = postbackPayload;
         existing.messageIds.push(messageId);

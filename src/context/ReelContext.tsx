@@ -219,16 +219,36 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
         .filter((r) => r && r.userId !== "usr-demo" && !r.id?.startsWith("mock-") && !r.id?.startsWith("sample-"))
         .map((r) => {
           let thumb = r.thumbnailUrl;
-          const sc = r.instagramUrl?.match(/(?:reel|reels|p|audio|stories)\/([A-Za-z0-9_-]+)/)?.[1];
+          const sc = r.shortcode || r.instagramUrl?.match(/(?:reel|reels|p|audio|stories)\/([A-Za-z0-9_-]+)/)?.[1];
           if (!thumb || thumb.includes("unsplash.com") || thumb.includes("ui-avatars.com") || thumb.includes("username=")) {
             thumb = sc ? `/api/proxy-image?shortcode=${sc}` : thumb;
           }
+
+          let creator = r.creatorUsername || "creator";
+          let cap = r.caption || "";
+          if ((!creator || creator === "creator" || creator.startsWith("ig_")) && cap) {
+            const userMatch =
+              cap.match(/(?:likes,\s+[0-9.,KMkm]+\s+comments\s*-\s*|\s+-\s*|^)([A-Za-z0-9_.]+)\s+on\s+[A-Za-z]+\s+\d{1,2}/i) ||
+              cap.match(/^([A-Za-z0-9_.]+)\s+on\s+[A-Za-z]+\s+\d{1,2},\s+\d{4}/i);
+            if (userMatch && userMatch[1] && !["reel", "reels", "p", "stories", "audio", "instagram"].includes(userMatch[1].toLowerCase())) {
+              creator = userMatch[1].trim();
+            }
+          }
+
+          const cleanQuote = cap.match(/^[A-Za-z0-9_.]+\s+on\s+[A-Za-z]+\s+\d{1,2},\s+\d{4}:\s*"([\s\S]*?)"(?:\.|\s*)$/);
+          if (cleanQuote && cleanQuote[1]) {
+            cap = cleanQuote[1].trim();
+          }
+
           let avatar = r.creatorAvatar;
-          if (!avatar || avatar.includes("ui-avatars.com")) {
-            avatar = `/api/proxy-image?username=${encodeURIComponent(r.creatorUsername || "creator")}`;
+          if (!avatar || avatar.includes("ui-avatars.com") || (!r.creatorUsername && creator !== "creator")) {
+            avatar = `/api/proxy-image?username=${encodeURIComponent(creator)}`;
           }
           return {
             ...r,
+            creatorUsername: creator,
+            creatorFullName: r.creatorFullName && !r.creatorFullName.startsWith("Ig_") ? r.creatorFullName : (creator !== "creator" ? creator : "Instagram Creator"),
+            caption: cap,
             thumbnailUrl: thumb,
             creatorAvatar: avatar,
           };
@@ -285,6 +305,32 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
               .filter((dbR: any) => !trashIds.has(dbR.id))
               .map((dbR: any) => {
                 const sc = dbR.shortcode || dbR.url?.match(/(?:reel|reels|p|audio|stories)\/([A-Za-z0-9_-]+)/)?.[1];
+                let creator = dbR.creator_handle || "creator";
+                let cap = dbR.caption || "Saved Reel";
+                if ((!creator || creator === "creator" || creator.startsWith("ig_")) && cap) {
+                  const userMatch =
+                    cap.match(/(?:likes,\s+[0-9.,KMkm]+\s+comments\s*-\s*|\s+-\s*|^)([A-Za-z0-9_.]+)\s+on\s+[A-Za-z]+\s+\d{1,2}/i) ||
+                    cap.match(/^([A-Za-z0-9_.]+)\s+on\s+[A-Za-z]+\s+\d{1,2},\s+\d{4}/i);
+                  if (userMatch && userMatch[1] && !["reel", "reels", "p", "stories", "audio", "instagram"].includes(userMatch[1].toLowerCase())) {
+                    creator = userMatch[1].trim();
+                  }
+                }
+
+                const cleanQuote = cap.match(/^[A-Za-z0-9_.]+\s+on\s+[A-Za-z]+\s+\d{1,2},\s+\d{4}:\s*"([\s\S]*?)"(?:\.|\s*)$/);
+                if (cleanQuote && cleanQuote[1]) {
+                  cap = cleanQuote[1].trim();
+                }
+
+                let avatar = dbR.creator_avatar;
+                if (!avatar || avatar.includes("ui-avatars.com") || avatar.includes("username=creator") || avatar.includes("username=ig_")) {
+                  avatar = `/api/proxy-image?username=${encodeURIComponent(creator)}`;
+                }
+
+                let fullName = dbR.creator_name || "Instagram Creator";
+                if ((!fullName || fullName === "Instagram Creator" || fullName.startsWith("Ig_")) && creator !== "creator") {
+                  fullName = creator;
+                }
+
                 return {
                   id: dbR.id,
                   userId: user.id,
@@ -293,10 +339,10 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
                   instagramUsername: dbR.instagram_username || "",
                   instagramAccountId: dbR.instagram_account_id || "",
                   thumbnailUrl: dbR.thumbnail_url || (sc ? `/api/proxy-image?shortcode=${sc}` : ""),
-                  caption: dbR.caption || "Saved Reel",
-                  creatorUsername: dbR.creator_handle || "creator",
-                  creatorFullName: dbR.creator_name || "Instagram Creator",
-                  creatorAvatar: dbR.creator_avatar || `/api/proxy-image?username=${encodeURIComponent(dbR.creator_handle || "creator")}`,
+                  caption: cap,
+                  creatorUsername: creator,
+                  creatorFullName: fullName,
+                  creatorAvatar: avatar,
                   category: dbR.category || "General",
                   categories: Array.isArray(dbR.categories) && dbR.categories.length > 0 ? dbR.categories : [dbR.category || "General"],
                   categoryIds: Array.isArray(dbR.categoryIds) ? dbR.categoryIds : [],
