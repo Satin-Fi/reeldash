@@ -9,132 +9,10 @@ import {
   Edit3,
   Trash2,
   X,
-  Code2,
-  Music2,
-  Compass,
-  Palette,
-  Camera,
-  Layers,
-  Sparkles,
-  ShoppingBag,
-  Activity,
-  Film,
-  Utensils,
-  Cpu,
-  Check,
-  type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
-import { Category, Reel } from "@/types/reel";
-
-// Curated category themes for high-end agency aesthetic
-interface CategoryTheme {
-  icon: LucideIcon;
-  color: string;
-  bg: string;
-  border: string;
-  glow: string;
-}
-
-const CATEGORY_THEMES: Record<string, CategoryTheme> = {
-  "tech & dev": {
-    icon: Code2,
-    color: "text-blue-400",
-    bg: "bg-blue-500/10",
-    border: "border-blue-500/20 hover:border-blue-500/40",
-    glow: "rgba(59, 130, 246, 0.15)",
-  },
-  "music & audio": {
-    icon: Music2,
-    color: "text-pink-400",
-    bg: "bg-pink-500/10",
-    border: "border-pink-500/20 hover:border-pink-500/40",
-    glow: "rgba(236, 72, 153, 0.15)",
-  },
-  "travel & places": {
-    icon: Compass,
-    color: "text-emerald-400",
-    bg: "bg-emerald-500/10",
-    border: "border-emerald-500/20 hover:border-emerald-500/40",
-    glow: "rgba(16, 185, 129, 0.15)",
-  },
-  "design & art": {
-    icon: Palette,
-    color: "text-purple-400",
-    bg: "bg-purple-500/10",
-    border: "border-purple-500/20 hover:border-purple-500/40",
-    glow: "rgba(168, 85, 247, 0.15)",
-  },
-  "camera": {
-    icon: Camera,
-    color: "text-amber-400",
-    bg: "bg-amber-500/10",
-    border: "border-amber-500/20 hover:border-amber-500/40",
-    glow: "rgba(245, 158, 11, 0.15)",
-  },
-  "saree": {
-    icon: ShoppingBag,
-    color: "text-rose-400",
-    bg: "bg-rose-500/10",
-    border: "border-rose-500/20 hover:border-rose-500/40",
-    glow: "rgba(244, 63, 94, 0.15)",
-  },
-  "fashion": {
-    icon: ShoppingBag,
-    color: "text-rose-400",
-    bg: "bg-rose-500/10",
-    border: "border-rose-500/20 hover:border-rose-500/40",
-    glow: "rgba(244, 63, 94, 0.15)",
-  },
-  "fitness": {
-    icon: Activity,
-    color: "text-cyan-400",
-    bg: "bg-cyan-500/10",
-    border: "border-cyan-500/20 hover:border-cyan-500/40",
-    glow: "rgba(6, 182, 212, 0.15)",
-  },
-  "yoga": {
-    icon: Activity,
-    color: "text-teal-400",
-    bg: "bg-teal-500/10",
-    border: "border-teal-500/20 hover:border-teal-500/40",
-    glow: "rgba(20, 184, 166, 0.15)",
-  },
-  "ai": {
-    icon: Cpu,
-    color: "text-indigo-400",
-    bg: "bg-indigo-500/10",
-    border: "border-indigo-500/20 hover:border-indigo-500/40",
-    glow: "rgba(99, 102, 241, 0.15)",
-  },
-  "recipes": {
-    icon: Utensils,
-    color: "text-orange-400",
-    bg: "bg-orange-500/10",
-    border: "border-orange-500/20 hover:border-orange-500/40",
-    glow: "rgba(249, 115, 22, 0.15)",
-  },
-};
-
-function getCategoryTheme(name: string): CategoryTheme {
-  const norm = name.toLowerCase().trim();
-  if (CATEGORY_THEMES[norm]) return CATEGORY_THEMES[norm];
-  
-  // Partial matches
-  for (const [key, theme] of Object.entries(CATEGORY_THEMES)) {
-    if (norm.includes(key) || key.includes(norm)) return theme;
-  }
-
-  // Default elegant neutral theme
-  return {
-    icon: Folder,
-    color: "text-brand-400",
-    bg: "bg-brand-500/10",
-    border: "border-brand-500/20 hover:border-brand-500/40",
-    glow: "rgba(79, 106, 232, 0.15)",
-  };
-}
+import { Reel } from "@/types/reel";
 
 export default function CategoriesPage() {
   const {
@@ -356,10 +234,8 @@ export default function CategoriesPage() {
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredCategories.map((cat) => {
-            const theme = getCategoryTheme(cat.name);
-            const ThemeIcon = theme.icon;
             const catReels = reelsByCategory.get(cat.name) || [];
             const previewReels = catReels.slice(0, 3);
             const isEditing = editingCatId === cat.id;
@@ -368,51 +244,60 @@ export default function CategoriesPage() {
             return (
               <div
                 key={cat.id || cat.name}
-                className="group relative flex flex-col rounded-2xl bg-surface-light dark:bg-[#0E1015] border border-borderSubtle-light dark:border-white/[0.06] hover:border-white/[0.18] shadow-sm hover:shadow-2xl transition-all duration-300 overflow-hidden"
+                className="group relative flex flex-col rounded-2xl bg-[#0c0e14] border border-white/[0.08] hover:border-white/20 shadow-md hover:shadow-[0_16px_40px_rgba(0,0,0,0.5)] transition-all duration-300 overflow-hidden"
               >
-                {/* ── Visual Media Header (3-Reel Mosaic / Preview Strip) ── */}
+                {/* Top Subtle Hairline Highlight */}
+                <div className="absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-white/10 to-transparent pointer-events-none z-10" />
+
+                {/* ── Visual Media Header (Dynamic Responsive Collage) ── */}
                 <Link
                   href={`/reels?category=${encodeURIComponent(cat.name)}`}
                   onClick={() => setActiveCategory(cat.name)}
-                  className="block relative h-44 w-full bg-zinc-950/80 overflow-hidden border-b border-borderSubtle-light dark:border-white/[0.06] cursor-pointer"
+                  className="block relative h-48 w-full bg-zinc-950 overflow-hidden border-b border-white/[0.06] cursor-pointer"
                 >
                   {previewReels.length > 0 ? (
-                    <div className="grid grid-cols-3 h-full gap-0.5 p-0.5 bg-black/40">
+                    <div
+                      className={`grid h-full gap-0.5 p-0.5 bg-black/40 ${
+                        previewReels.length === 1
+                          ? "grid-cols-1"
+                          : previewReels.length === 2
+                          ? "grid-cols-2"
+                          : "grid-cols-3"
+                      }`}
+                    >
                       {previewReels.map((r, idx) => (
-                        <div key={r.id || idx} className="relative h-full w-full overflow-hidden bg-zinc-900 group-hover:brightness-105 transition-all">
+                        <div
+                          key={r.id || idx}
+                          className="relative h-full w-full overflow-hidden bg-zinc-900"
+                        >
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img
                             src={r.thumbnailUrl || `/api/proxy-image?shortcode=${r.shortcode}`}
                             alt=""
-                            className="h-full w-full object-cover"
+                            className="h-full w-full object-cover group-hover:scale-[1.04] transition-transform duration-500 ease-out"
                             onError={(e) => {
                               (e.target as HTMLElement).style.display = "none";
                             }}
                           />
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent pointer-events-none" />
-                        </div>
-                      ))}
-                      {/* Filler slots if less than 3 reels */}
-                      {Array.from({ length: Math.max(0, 3 - previewReels.length) }).map((_, i) => (
-                        <div key={i} className="h-full w-full bg-white/[0.02] flex items-center justify-center text-zinc-800">
-                          <Film className="w-5 h-5 opacity-20" />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent pointer-events-none" />
                         </div>
                       ))}
                     </div>
                   ) : (
-                    <div className="h-full w-full flex flex-col items-center justify-center gap-2 bg-gradient-to-br from-white/[0.02] to-transparent text-zinc-600">
-                      <ThemeIcon className="w-8 h-8 opacity-30" strokeWidth={1.5} />
-                      <span className="text-[11px] font-mono text-zinc-600">Empty Category</span>
+                    <div className="h-full w-full flex flex-col items-center justify-center gap-1.5 bg-gradient-to-b from-white/[0.02] to-transparent text-zinc-600">
+                      <span className="text-xs font-medium text-zinc-500 tracking-wide">
+                        No reels saved yet
+                      </span>
                     </div>
                   )}
 
-                  {/* Gradient bottom fog */}
-                  <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-[#0E1015] to-transparent pointer-events-none" />
+                  {/* Subtle Gradient bottom fog */}
+                  <div className="absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-[#0c0e14] to-transparent pointer-events-none" />
                 </Link>
 
-                {/* Top-Right Actions (Overlay) */}
+                {/* Top-Right Actions (Overlay on hover) */}
                 {cat.id && (
-                  <div className="absolute top-3 right-3 z-10 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-black/60 backdrop-blur-md rounded-lg p-0.5 border border-white/10">
+                  <div className="absolute top-3 right-3 z-20 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-black/70 backdrop-blur-md rounded-lg p-1 border border-white/10 shadow-lg">
                     <button
                       onClick={(e) => {
                         e.preventDefault();
@@ -422,7 +307,7 @@ export default function CategoriesPage() {
                       className="p-1.5 text-zinc-400 hover:text-white rounded-md hover:bg-white/10 transition-colors cursor-pointer"
                       title="Edit Category"
                     >
-                      <Edit3 className="w-3 h-3" />
+                      <Edit3 className="w-3.5 h-3.5" />
                     </button>
                     <button
                       onClick={(e) => {
@@ -433,13 +318,13 @@ export default function CategoriesPage() {
                       className="p-1.5 text-zinc-400 hover:text-rose-400 rounded-md hover:bg-rose-500/20 transition-colors cursor-pointer"
                       title="Delete Category"
                     >
-                      <Trash2 className="w-3 h-3" />
+                      <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 )}
 
                 {/* ── Metadata & Details Body ── */}
-                <div className="p-4">
+                <div className="p-4 bg-[#0c0e14]">
                   {isEditing ? (
                     <div className="space-y-2">
                       <input
@@ -478,17 +363,17 @@ export default function CategoriesPage() {
                       className="flex items-center justify-between gap-3 group/link"
                     >
                       <div className="min-w-0">
-                        <h3 className="font-bricolage text-base font-bold text-primaryText-light dark:text-white tracking-tight truncate group-hover/link:text-brand-400 group-hover:text-brand-400 transition-colors">
+                        <h3 className="font-bricolage text-[15px] font-bold text-white tracking-tight truncate group-hover:text-brand-300 group-hover/link:text-brand-300 transition-colors">
                           {cat.name}
                         </h3>
                         {cat.description && (
-                          <p className="text-xs text-secondaryText-light dark:text-zinc-400 line-clamp-1 leading-relaxed mt-0.5">
+                          <p className="text-xs text-zinc-400 line-clamp-1 leading-relaxed mt-0.5">
                             {cat.description}
                           </p>
                         )}
                       </div>
 
-                      <div className="shrink-0 px-3 py-1.5 rounded-full bg-white/[0.04] border border-white/[0.08] text-xs font-semibold text-zinc-300 group-hover/link:bg-brand-500/10 group-hover/link:border-brand-500/30 group-hover/link:text-brand-400 group-hover:bg-brand-500/10 group-hover:border-brand-500/30 group-hover:text-brand-400 transition-all">
+                      <div className="shrink-0 px-3.5 py-1.5 rounded-full bg-white/[0.04] hover:bg-white/[0.1] border border-white/[0.08] group-hover:border-white/20 text-xs font-medium text-zinc-300 group-hover:text-white transition-all duration-200 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)] active:scale-95">
                         Explore
                       </div>
                     </Link>

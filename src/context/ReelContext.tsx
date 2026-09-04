@@ -4,6 +4,7 @@ import React, { createContext, useContext, useState, useEffect } from "react";
 import { Reel, Collection, Category, SmartCategory, SortOption, ViewMode, MediaType, MediaTypeFilter } from "@/types/reel";
 import { useAuth } from "@/context/AuthContext";
 import { parseCategoryCommand } from "@/lib/parseCategory";
+import { extractCreatorFromPost } from "@/lib/extractCreator";
 
 export interface ToastMessage {
   id: string;
@@ -305,15 +306,28 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
               .filter((dbR: any) => !trashIds.has(dbR.id))
               .map((dbR: any) => {
                 const sc = dbR.shortcode || dbR.url?.match(/(?:reel|reels|p|audio|stories)\/([A-Za-z0-9_-]+)/)?.[1];
-                let creator = dbR.creator_handle || "creator";
+                let creator = dbR.creator_handle || "";
                 let cap = dbR.caption || "Saved Reel";
-                if ((!creator || creator === "creator" || creator.startsWith("ig_")) && cap) {
-                  const userMatch =
-                    cap.match(/(?:likes,\s+[0-9.,KMkm]+\s+comments\s*-\s*|\s+-\s*|^)([A-Za-z0-9_.]+)\s+on\s+[A-Za-z]+\s+\d{1,2}/i) ||
-                    cap.match(/^([A-Za-z0-9_.]+)\s+on\s+[A-Za-z]+\s+\d{1,2},\s+\d{4}/i);
-                  if (userMatch && userMatch[1] && !["reel", "reels", "p", "stories", "audio", "instagram"].includes(userMatch[1].toLowerCase())) {
-                    creator = userMatch[1].trim();
+                let fullName = dbR.creator_name || "";
+
+                // If creator is missing, "creator", "instagram", starts with "ig_", or matches the user's connected IG handle on a DM share:
+                if (
+                  !creator ||
+                  creator === "creator" ||
+                  creator === "instagram" ||
+                  creator.startsWith("ig_") ||
+                  (dbR.instagram_username && creator.toLowerCase() === dbR.instagram_username.toLowerCase() && dbR.source === "dm")
+                ) {
+                  const extracted = extractCreatorFromPost(cap, dbR.url || "", [], dbR.instagram_username);
+                  if (extracted.handle && extracted.handle !== "instagram") {
+                    creator = extracted.handle;
+                    fullName = extracted.name;
+                  } else if (dbR.instagram_username && creator.toLowerCase() === dbR.instagram_username.toLowerCase()) {
+                    creator = "instagram";
+                    fullName = "Instagram Creator";
                   }
+                } else if (!fullName || fullName === "Instagram Creator") {
+                  fullName = `@${creator}`;
                 }
 
                 const cleanQuote = cap.match(/^[A-Za-z0-9_.]+\s+on\s+[A-Za-z]+\s+\d{1,2},\s+\d{4}:\s*"([\s\S]*?)"(?:\.|\s*)$/);
@@ -322,13 +336,12 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
                 }
 
                 let avatar = dbR.creator_avatar;
-                if (!avatar || avatar.includes("ui-avatars.com") || avatar.includes("username=creator") || avatar.includes("username=ig_")) {
-                  avatar = `/api/proxy-image?username=${encodeURIComponent(creator)}`;
+                if (!avatar || avatar.includes("ui-avatars.com") || avatar.includes("username=creator") || avatar.includes("username=ig_") || (dbR.instagram_username && avatar.includes(`username=${encodeURIComponent(dbR.instagram_username)}`) && dbR.source === "dm")) {
+                  avatar = `/api/proxy-image?username=${encodeURIComponent(creator || "instagram")}`;
                 }
 
-                let fullName = dbR.creator_name || "Instagram Creator";
-                if ((!fullName || fullName === "Instagram Creator" || fullName.startsWith("Ig_")) && creator !== "creator") {
-                  fullName = creator;
+                if (!fullName || fullName === "Instagram Creator" || fullName.startsWith("Ig_")) {
+                  fullName = creator && creator !== "creator" && creator !== "instagram" ? `@${creator}` : "Instagram Creator";
                 }
 
                 return {

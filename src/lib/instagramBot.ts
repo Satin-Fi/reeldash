@@ -1,6 +1,7 @@
 import { getSupabaseAdmin } from "./supabase";
 import { parseCategoryCommand, formatCategoryDisplayName } from "./parseCategory";
 import { isLinkCode, normalizeLinkCode, generateLinkCode, MAX_CODE_ATTEMPTS, CODE_EXPIRY_SECONDS } from "./serverAuth";
+import { extractCreatorFromPost } from "./extractCreator";
 export { parseCategoryCommand, formatCategoryDisplayName };
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -314,7 +315,15 @@ export async function claimPendingReelsForUser(
                 ? "Saved Instagram Audio"
                 : "Saved Instagram Reel"),
             creator_handle:
-              reelData.creator_handle || reelData.creatorUsername || "creator",
+              reelData.creator_handle &&
+              reelData.creator_handle !== "creator" &&
+              (!igUsername || reelData.creator_handle.toLowerCase() !== igUsername.toLowerCase())
+                ? reelData.creator_handle
+                : reelData.creatorUsername &&
+                  reelData.creatorUsername !== "creator" &&
+                  (!igUsername || reelData.creatorUsername.toLowerCase() !== igUsername.toLowerCase())
+                ? reelData.creatorUsername
+                : "instagram",
             creator_name:
               reelData.creator_name ||
               reelData.creatorFullName ||
@@ -322,7 +331,7 @@ export async function claimPendingReelsForUser(
             creator_avatar:
               reelData.creator_avatar ||
               reelData.creatorAvatar ||
-              `/api/proxy-image?username=creator`,
+              `/api/proxy-image?username=instagram`,
             media_type: isPost
               ? "post"
               : isAudio
@@ -1122,17 +1131,22 @@ async function handleReady(
         ? `/api/proxy-image?url=${encodeURIComponent(mediaUrl)}&shortcode=${shortcode}`
         : `/api/proxy-image?shortcode=${shortcode}`;
 
+      const extracted = extractCreatorFromPost(
+        fallbackCaption,
+        mediaUrl,
+        attachments,
+        username
+      );
+
       reelData = {
         shortcode,
         url: mediaUrl,
         thumbnailUrl: thumb,
         video_url: mediaUrl,
         caption: fallbackCaption,
-        creatorUsername: username || "creator",
-        creator_name: username ? `@${username}` : "Instagram Creator",
-        creatorAvatar: username
-          ? `/api/proxy-image?username=${encodeURIComponent(username)}`
-          : `/api/proxy-image?username=instagram`,
+        creatorUsername: extracted.handle,
+        creator_name: extracted.name,
+        creatorAvatar: `/api/proxy-image?username=${encodeURIComponent(extracted.handle)}`,
         mediaType: isAudio ? "audio" : isPost ? "post" : "reel",
         duration: isAudio ? "0:30" : isPost ? "Post" : "0:15",
         category: allCategories[0] || (isAudio ? "Music" : "General"),
@@ -1156,18 +1170,32 @@ async function handleReady(
     }
 
     let creatorHandle =
-      reelData.creatorUsername || reelData.creator_handle || "creator";
+      reelData.creatorUsername || reelData.creator_handle || "";
 
-    // If creatorHandle fell back to an ig_ shortcode or "creator", attempt regex extraction from caption
-    if (!creatorHandle || creatorHandle === "creator" || creatorHandle.startsWith("ig_")) {
-      const cap = reelData.caption || "";
-      const capMatch =
-        cap.match(/(?:likes,\s+[0-9.,KMkm]+\s+comments\s*-\s*|\s+-\s*|^)([A-Za-z0-9_.]+)\s+on\s+[A-Za-z]+\s+\d{1,2}/i) ||
-        cap.match(/^([A-Za-z0-9_.]+)\s+on\s+[A-Za-z]+\s+\d{1,2},\s+\d{4}/i) ||
-        cap.match(/\(@([A-Za-z0-9_.]+)\)/i);
-      if (capMatch && capMatch[1] && !["reel", "reels", "p", "stories", "audio", "instagram"].includes(capMatch[1].toLowerCase())) {
-        creatorHandle = capMatch[1].trim();
-      }
+    let creatorName =
+      reelData.creatorFullName || reelData.creator_name || "";
+
+    // If creatorHandle fell back to an ig_ shortcode, "creator", "instagram", or matches the DM sender's handle:
+    if (
+      !creatorHandle ||
+      creatorHandle === "creator" ||
+      creatorHandle === "instagram" ||
+      creatorHandle.startsWith("ig_") ||
+      (username && creatorHandle.toLowerCase() === username.toLowerCase())
+    ) {
+      const extracted = extractCreatorFromPost(
+        reelData.caption ||
+          (isPost
+            ? "Saved Instagram Post"
+            : isAudio
+            ? "Saved Instagram Audio"
+            : "Saved Instagram Reel"),
+        mediaUrl,
+        attachments,
+        username
+      );
+      creatorHandle = extracted.handle;
+      creatorName = extracted.name;
     }
 
     let finalCaption =
@@ -1326,7 +1354,9 @@ async function handleReady(
     const creatorText =
       formattedReel.creator_handle &&
       formattedReel.creator_handle !== "creator" &&
-      !formattedReel.creator_handle.startsWith("ig_")
+      formattedReel.creator_handle !== "instagram" &&
+      !formattedReel.creator_handle.startsWith("ig_") &&
+      (!username || formattedReel.creator_handle.toLowerCase() !== username.toLowerCase())
         ? `@${formattedReel.creator_handle}'s ${mediaLabel}`
         : mediaLabel;
 
@@ -1763,6 +1793,22 @@ async function storePendingReel(
         shortcode ||
         `${isPost ? "post" : isAudio ? "audio" : "reel"}_${Date.now().toString(36)}_${Math.random().toString(36).substring(2, 6)}`;
 
+      const attTitle =
+        attachments?.find((a) => a?.payload?.title || a?.title)?.payload?.title ||
+        attachments?.find((a) => a?.title)?.title ||
+        "";
+      const fallbackCaption =
+        attTitle ||
+        messageText ||
+        `Instagram ${isAudio ? "Audio" : isPost ? "Post" : "Reel"} shared via Direct Message`;
+
+      const extracted = extractCreatorFromPost(
+        fallbackCaption,
+        mediaUrl,
+        attachments,
+        username
+      );
+
       reelData = {
         shortcode: generatedShortcode,
         url: mediaUrl,
@@ -1770,12 +1816,10 @@ async function storePendingReel(
           ? `/api/proxy-image?url=${encodeURIComponent(mediaUrl)}&shortcode=${generatedShortcode}`
           : `/api/proxy-image?shortcode=${generatedShortcode}`,
         video_url: mediaUrl,
-        caption: `Instagram ${isAudio ? "Audio" : isPost ? "Post" : "Reel"} shared via Direct Message`,
-        creatorUsername: username || "creator",
-        creator_name: username ? `@${username}` : "Instagram Creator",
-        creatorAvatar: username
-          ? `/api/proxy-image?username=${encodeURIComponent(username)}`
-          : `/api/proxy-image?username=instagram`,
+        caption: fallbackCaption,
+        creatorUsername: extracted.handle,
+        creator_name: extracted.name,
+        creatorAvatar: `/api/proxy-image?username=${encodeURIComponent(extracted.handle)}`,
         mediaType: isAudio ? "audio" : isPost ? "post" : "reel",
         duration: isAudio ? "0:30" : isPost ? "Post" : "0:15",
         category: "General",
