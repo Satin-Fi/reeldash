@@ -1056,17 +1056,35 @@ async function handleReady(
       if (!tags.includes(cat.toLowerCase())) tags.push(cat.toLowerCase());
     }
 
+    const creatorHandle =
+      reelData.creatorUsername || reelData.creator_handle || "creator";
+    const rawThumb =
+      reelData.thumbnailUrl ||
+      reelData.thumbnail_url ||
+      "";
+    let formattedThumbnailUrl = `/api/proxy-image?shortcode=${encodeURIComponent(reelData.shortcode)}&creator=${encodeURIComponent(creatorHandle)}`;
+    if (rawThumb) {
+      if (rawThumb.startsWith("/api/proxy-image")) {
+        try {
+          const parsed = new URL(rawThumb, "http://localhost");
+          if (!parsed.searchParams.has("shortcode")) parsed.searchParams.set("shortcode", reelData.shortcode);
+          if (!parsed.searchParams.has("creator")) parsed.searchParams.set("creator", creatorHandle);
+          formattedThumbnailUrl = `${parsed.pathname}${parsed.search}`;
+        } catch {
+          formattedThumbnailUrl = rawThumb;
+        }
+      } else if (rawThumb.startsWith("http")) {
+        formattedThumbnailUrl = `/api/proxy-image?shortcode=${encodeURIComponent(reelData.shortcode)}&creator=${encodeURIComponent(creatorHandle)}&url=${encodeURIComponent(rawThumb)}`;
+      }
+    }
+
     const formattedReel = {
       shortcode: reelData.shortcode,
       url: reelData.url || mediaUrl,
-      thumbnail_url:
-        reelData.thumbnailUrl ||
-        reelData.thumbnail_url ||
-        `/api/proxy-image?shortcode=${reelData.shortcode}`,
+      thumbnail_url: formattedThumbnailUrl,
       video_url: reelData.mediaUrl || reelData.video_url || mediaUrl,
       caption: reelData.caption || "Saved Instagram Reel",
-      creator_handle:
-        reelData.creatorUsername || reelData.creator_handle || "creator",
+      creator_handle: creatorHandle,
       creator_name:
         reelData.creatorFullName ||
         reelData.creator_name ||
@@ -1074,7 +1092,7 @@ async function handleReady(
       creator_avatar:
         reelData.creatorAvatar ||
         reelData.creator_avatar ||
-        `/api/proxy-image?username=${encodeURIComponent(reelData.creatorUsername || "creator")}`,
+        `/api/proxy-image?username=${encodeURIComponent(creatorHandle)}`,
       media_type: reelData.mediaType || reelData.media_type || "reel",
       duration: reelData.duration || "0:15",
       category: effectiveCategory,

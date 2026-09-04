@@ -59,11 +59,43 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
     mediaType === "post" && reel.carouselImages && reel.carouselImages.length > 1;
   const carouselCount = isMultiCarousel ? reel.carouselImages?.length : null;
 
-  const imageSrc =
-    !imageError && reel.thumbnailUrl
-      ? reel.thumbnailUrl
-      : reel.creatorAvatar ||
-        `https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600&auto=format&fit=crop&q=80`;
+  const resolvedShortcode =
+    reel.shortcode ||
+    reel.instagramUrl?.match(/(?:reel|reels|p|audio|stories)\/([A-Za-z0-9_-]+)/)?.[1] ||
+    "";
+  const cleanUsername = reel.creatorUsername
+    ? reel.creatorUsername.replace(/^@/, "").trim()
+    : "";
+
+  let imageSrc = reel.thumbnailUrl;
+  if (!imageError && imageSrc) {
+    if (imageSrc.startsWith("/api/proxy-image")) {
+      try {
+        const parsed = new URL(imageSrc, "http://localhost");
+        if (!parsed.searchParams.has("shortcode") && resolvedShortcode) {
+          parsed.searchParams.set("shortcode", resolvedShortcode);
+        }
+        if (!parsed.searchParams.has("creator") && cleanUsername) {
+          parsed.searchParams.set("creator", cleanUsername);
+        }
+        imageSrc = `${parsed.pathname}${parsed.search}`;
+      } catch {
+        // Keep as is
+      }
+    } else if (imageSrc.startsWith("http")) {
+      imageSrc = `/api/proxy-image?url=${encodeURIComponent(imageSrc)}${
+        resolvedShortcode ? `&shortcode=${encodeURIComponent(resolvedShortcode)}` : ""
+      }${cleanUsername ? `&creator=${encodeURIComponent(cleanUsername)}` : ""}`;
+    }
+  } else {
+    imageSrc =
+      reel.creatorAvatar ||
+      (cleanUsername
+        ? `/api/proxy-image?username=${encodeURIComponent(cleanUsername)}`
+        : resolvedShortcode
+        ? `/api/proxy-image?shortcode=${resolvedShortcode}`
+        : "");
+  }
 
   const creatorName = reel.creatorUsername
     ? `@${reel.creatorUsername.replace(/^@/, "")}`

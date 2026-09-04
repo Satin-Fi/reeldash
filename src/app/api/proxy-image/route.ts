@@ -3,22 +3,47 @@ import { resolveRealInstagramAvatar } from "@/lib/instagramAvatar";
 
 export const dynamic = "force-dynamic";
 
-// In-memory cache for shortcode cover images
+// In-memory cache for live shortcode cover images (24-hour TTL)
 const coverCache = new Map<string, { url: string; expiresAt: number }>();
 
-function serveCleanPlaceholderSvg() {
+function serveCleanEditorialCardSvg(creator?: string | null, shortcode?: string | null): NextResponse {
+  const cleanCreator = (creator || "").replace(/^@/, "").trim();
+  const displayName = cleanCreator
+    ? `@${cleanCreator}`
+    : shortcode
+    ? `Reel #${shortcode.slice(0, 8)}`
+    : "Saved Reel";
+  const initial = cleanCreator ? cleanCreator.charAt(0).toUpperCase() : "R";
+
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 600" width="100%" height="100%">
     <defs>
-      <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" style="stop-color:#3b82f6;stop-opacity:1" />
+      <radialGradient id="bgGlow" cx="50%" cy="35%" r="75%">
+        <stop offset="0%" style="stop-color:#1e2330;stop-opacity:1" />
+        <stop offset="60%" style="stop-color:#10131a;stop-opacity:1" />
+        <stop offset="100%" style="stop-color:#08090d;stop-opacity:1" />
+      </radialGradient>
+      <linearGradient id="badgeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" style="stop-color:#6366f1;stop-opacity:1" />
         <stop offset="50%" style="stop-color:#8b5cf6;stop-opacity:1" />
         <stop offset="100%" style="stop-color:#ec4899;stop-opacity:1" />
       </linearGradient>
     </defs>
-    <rect width="100%" height="100%" fill="url(#grad)"/>
-    <g fill="#ffffff" opacity="0.9" transform="translate(160, 260) scale(3.3)">
-      <path d="M8 5v14l11-7z"/>
-    </g>
+    <rect width="100%" height="100%" fill="url(#bgGlow)"/>
+
+    <!-- Subtle framing geometry -->
+    <circle cx="200" cy="265" r="130" fill="none" stroke="#ffffff" stroke-opacity="0.04" stroke-width="1.5" />
+    <circle cx="200" cy="265" r="85" fill="none" stroke="#ffffff" stroke-opacity="0.06" stroke-width="1.5" />
+
+    <!-- Creator Avatar Badge -->
+    <circle cx="200" cy="250" r="44" fill="url(#badgeGrad)"/>
+    <text x="200" y="264" fill="#ffffff" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="32" font-weight="700" text-anchor="middle" dominant-baseline="middle">${initial}</text>
+
+    <!-- Handle text -->
+    <text x="200" y="325" fill="#f8fafc" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="15" font-weight="600" text-anchor="middle">${displayName}</text>
+
+    <!-- Bottom Play indicator -->
+    <rect x="165" y="500" width="70" height="26" rx="13" fill="#ffffff" fill-opacity="0.08" />
+    <polygon points="196,507 208,513 196,519" fill="#ffffff" fill-opacity="0.85" />
   </svg>`;
 
   return new NextResponse(svg, {
@@ -30,10 +55,10 @@ function serveCleanPlaceholderSvg() {
   });
 }
 
-async function serveImageBinary(imageUrl: string, fallbackAvatarUrl?: string): Promise<NextResponse> {
-  if (!imageUrl) return serveCleanPlaceholderSvg();
+async function serveImageBinary(imageUrl: string): Promise<NextResponse | null> {
+  if (!imageUrl) return null;
 
-  // 1. If Meta CDN, wsrv.nl proxy is the most reliable (bypasses IP blocks)
+  // 1. If Meta CDN, wsrv.nl proxy bypasses IP geoblocks & rate limits
   const isMetaCdn = imageUrl.includes("cdninstagram.com") || imageUrl.includes("fbcdn.net");
 
   if (isMetaCdn) {
@@ -49,7 +74,7 @@ async function serveImageBinary(imageUrl: string, fallbackAvatarUrl?: string): P
             status: 200,
             headers: {
               "Content-Type": "image/jpeg",
-              "Cache-Control": "public, max-age=86400, s-maxage=86400, stale-while-revalidate=86400",
+              "Cache-Control": "public, max-age=86400, s-maxage=604800, stale-while-revalidate=2592000",
             },
           });
         }
@@ -59,14 +84,14 @@ async function serveImageBinary(imageUrl: string, fallbackAvatarUrl?: string): P
     }
   }
 
-  // 2. Direct fetch with Meta referer
+  // 2. Direct fetch with Meta referer and mobile UA
   try {
     const directRes = await fetch(imageUrl, {
       headers: {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
         "Referer": "https://www.instagram.com/",
       },
-      signal: AbortSignal.timeout(3000),
+      signal: AbortSignal.timeout(3500),
     });
     if (directRes.ok) {
       const buffer = await directRes.arrayBuffer();
@@ -76,38 +101,22 @@ async function serveImageBinary(imageUrl: string, fallbackAvatarUrl?: string): P
           status: 200,
           headers: {
             "Content-Type": contentType,
-            "Cache-Control": "public, max-age=86400, s-maxage=86400, stale-while-revalidate=86400",
+            "Cache-Control": "public, max-age=86400, s-maxage=604800, stale-while-revalidate=2592000",
           },
         });
       }
     }
   } catch {
-    // Continue
+    // Return null to trigger self-healing recovery
   }
 
-  // 3. Fallback avatar if supplied
-  if (fallbackAvatarUrl) {
-    try {
-      const fbRes = await fetch(fallbackAvatarUrl, { signal: AbortSignal.timeout(3000) });
-      if (fbRes.ok) {
-        const buffer = await fbRes.arrayBuffer();
-        const contentType = fbRes.headers.get("content-type") || "image/svg+xml";
-        return new NextResponse(Buffer.from(buffer), {
-          status: 200,
-          headers: {
-            "Content-Type": contentType,
-            "Cache-Control": "public, max-age=86400, s-maxage=86400",
-          },
-        });
-      }
-    } catch {
-      // Continue
-    }
-  }
-
-  return serveCleanPlaceholderSvg();
+  return null;
 }
 
+/**
+ * Extracts live fresh cover image directly from Instagram via Facebook OpenGraph crawler.
+ * Bypasses login walls, requires no API tokens, and never expires.
+ */
 async function extractCoverByShortcode(shortcode: string): Promise<string | null> {
   const clean = shortcode.replace(/[^\w-]/g, "").trim();
   if (!clean) return null;
@@ -117,118 +126,178 @@ async function extractCoverByShortcode(shortcode: string): Promise<string | null
     return cached.url;
   }
 
-  try {
-    const embedRes = await fetch(`https://www.instagram.com/p/${clean}/embed/captioned/`, {
-      headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" },
-      cache: "no-store",
-      signal: AbortSignal.timeout(3500),
-    });
+  const urlsToTry = [
+    `https://www.instagram.com/reel/${clean}/`,
+    `https://www.instagram.com/p/${clean}/`,
+  ];
 
-    if (embedRes.ok) {
-      const html = await embedRes.text();
-      const unescaped = html
-        .replace(/\\u0026/gi, "&")
-        .replace(/\\u00253D/gi, "%3D")
-        .replace(/\\\//g, "/")
-        .replace(/\\/g, "")
-        .replace(/&amp;/g, "&");
+  for (const targetUrl of urlsToTry) {
+    try {
+      const res = await fetch(targetUrl, {
+        headers: {
+          "User-Agent": "facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)",
+          "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+          "Accept-Language": "en-US,en;q=0.9",
+        },
+        cache: "no-store",
+        signal: AbortSignal.timeout(3500),
+      });
 
-      const matches = unescaped.match(/https:\/\/[^"'\s<>]+\.jpg[^"'\s<>]*/g) || [];
-      for (const m of matches) {
-        if (
-          !m.includes("t51.82787-19") &&
-          !m.includes("profile_pic") &&
-          (m.includes("t51.82787-15") ||
-            m.includes("CLIPS") ||
-            m.includes("CAROUSEL_ITEM") ||
-            m.includes("dst-jpg") ||
-            m.includes("dst-jpegr"))
-        ) {
+      if (res.ok) {
+        const html = await res.text();
+        const match = html.match(/<meta\s+(?:property|name)=["']og:image["']\s+content=["']([^"']*)["']/i);
+        if (match && match[1]) {
+          const freshUrl = match[1].replace(/&amp;/g, "&");
           coverCache.set(clean, {
-            url: m,
+            url: freshUrl,
             expiresAt: Date.now() + 1000 * 60 * 60 * 24, // 24 hours
           });
-          return m;
+          return freshUrl;
         }
+      }
+    } catch {
+      // Continue to next URL
+    }
+  }
+
+  return null;
+}
+
+async function handleAvatarRequest(username: string): Promise<NextResponse> {
+  const cleanUser = username.replace(/^@/, "").trim().toLowerCase();
+  const fallbackAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(cleanUser)}&background=111419&color=fff&size=300&bold=true`;
+
+  // Check Supabase first for authentic stored Meta CDN avatar
+  try {
+    const { getSupabaseAdmin } = await import("@/lib/supabase");
+    const supabase = getSupabaseAdmin();
+    if (supabase) {
+      const { data: acc } = await supabase
+        .from("instagram_accounts")
+        .select("avatar_url")
+        .ilike("username", cleanUser)
+        .limit(1)
+        .maybeSingle();
+
+      if (acc?.avatar_url && acc.avatar_url.startsWith("http") && !acc.avatar_url.includes("proxy-image")) {
+        const res = await serveImageBinary(acc.avatar_url);
+        if (res) return res;
+      }
+
+      const { data: prof } = await supabase
+        .from("profiles")
+        .select("avatar_url")
+        .ilike("username", cleanUser)
+        .limit(1)
+        .maybeSingle();
+
+      if (prof?.avatar_url && prof.avatar_url.startsWith("http") && !prof.avatar_url.includes("proxy-image")) {
+        const res = await serveImageBinary(prof.avatar_url);
+        if (res) return res;
       }
     }
   } catch {
     // Continue
   }
 
-  return null;
+  try {
+    const realAvatarUrl = await resolveRealInstagramAvatar(cleanUser);
+    if (realAvatarUrl) {
+      const res = await serveImageBinary(realAvatarUrl);
+      if (res) return res;
+    }
+  } catch {
+    // Continue
+  }
+
+  // Fallback to styled UI avatar
+  const fallbackRes = await serveImageBinary(fallbackAvatar);
+  if (fallbackRes) return fallbackRes;
+
+  return serveCleanEditorialCardSvg(cleanUser);
 }
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
-  const username = searchParams.get("username");
+  const usernameParam = searchParams.get("username") || searchParams.get("creator");
   const directUrl = searchParams.get("url");
-  const shortcode = searchParams.get("shortcode");
+  let shortcode = searchParams.get("shortcode");
 
-  // 1. AVATAR PROXY BY USERNAME
-  if (username) {
-    const cleanUser = username.replace(/^@/, "").trim().toLowerCase();
-    const fallbackAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(cleanUser)}&background=6366F1&color=fff&size=200&bold=true`;
-
-    // Check Supabase first for authentic stored Meta CDN avatar
-    try {
-      const { getSupabaseAdmin } = await import("@/lib/supabase");
-      const supabase = getSupabaseAdmin();
-      if (supabase) {
-        const { data: acc } = await supabase
-          .from("instagram_accounts")
-          .select("avatar_url")
-          .ilike("username", cleanUser)
-          .limit(1)
-          .single();
-
-        if (acc?.avatar_url && acc.avatar_url.startsWith("http") && !acc.avatar_url.includes("proxy-image")) {
-          return await serveImageBinary(acc.avatar_url, fallbackAvatar);
-        }
-
-        const { data: prof } = await supabase
-          .from("profiles")
-          .select("avatar_url")
-          .ilike("username", cleanUser)
-          .limit(1)
-          .single();
-
-        if (prof?.avatar_url && prof.avatar_url.startsWith("http") && !prof.avatar_url.includes("proxy-image")) {
-          return await serveImageBinary(prof.avatar_url, fallbackAvatar);
-        }
-      }
-    } catch {
-      // Continue
-    }
-
-    try {
-      const realAvatarUrl = await resolveRealInstagramAvatar(username);
-      if (realAvatarUrl) {
-        return await serveImageBinary(realAvatarUrl, fallbackAvatar);
-      }
-    } catch {
-      // Continue to fallback
-    }
-
-    return await serveImageBinary(fallbackAvatar);
+  // 1. AVATAR PROXY BY USERNAME (when no directUrl and no shortcode)
+  if (usernameParam && !directUrl && !shortcode) {
+    return await handleAvatarRequest(usernameParam);
   }
 
   // 2. DIRECT IMAGE PROXY BY URL
   if (directUrl) {
-    return await serveImageBinary(directUrl);
+    const directRes = await serveImageBinary(directUrl);
+    if (directRes) {
+      return directRes;
+    }
+    // Direct fetch failed (e.g. Meta CDN URL expired or 403 Forbidden)!
+    // Self-healing flow starts below:
   }
 
-  // 3. REEL / POST COVER BY SHORTCODE
-  if (shortcode) {
+  // If shortcode wasn't provided, attempt fast lookup in Supabase reels table
+  if (!shortcode && directUrl) {
     try {
-      const coverUrl = await extractCoverByShortcode(shortcode);
-      if (coverUrl) {
-        return await serveImageBinary(coverUrl);
+      const { getSupabaseAdmin } = await import("@/lib/supabase");
+      const supabase = getSupabaseAdmin();
+      if (supabase) {
+        // Query by matching URL snippet
+        const snippet = directUrl.slice(0, 45);
+        const { data: row } = await supabase
+          .from("reels")
+          .select("shortcode, creator_handle")
+          .like("thumbnail_url", `%${snippet}%`)
+          .limit(1)
+          .maybeSingle();
+
+        if (row?.shortcode) shortcode = row.shortcode;
       }
     } catch {
       // Continue
     }
   }
 
-  return serveCleanPlaceholderSvg();
+  // 3. REEL / POST COVER SELF-HEALING RECOVERY BY SHORTCODE
+  if (shortcode) {
+    try {
+      const freshCoverUrl = await extractCoverByShortcode(shortcode);
+      if (freshCoverUrl) {
+        const coverRes = await serveImageBinary(freshCoverUrl);
+        if (coverRes) {
+          // Asynchronously update Supabase reels table with fresh thumbnail
+          (async () => {
+            try {
+              const { getSupabaseAdmin } = await import("@/lib/supabase");
+              const supabase = getSupabaseAdmin();
+              if (supabase) {
+                const newThumb = `/api/proxy-image?shortcode=${shortcode}${
+                  usernameParam ? `&creator=${encodeURIComponent(usernameParam)}` : ""
+                }&url=${encodeURIComponent(freshCoverUrl)}`;
+                await supabase.from("reels").update({ thumbnail_url: newThumb }).eq("shortcode", shortcode);
+              }
+            } catch {
+              // Ignore background update errors
+            }
+          })();
+
+          return coverRes;
+        }
+      }
+    } catch {
+      // Continue to creator avatar fallback
+    }
+  }
+
+  // 4. FALLBACK TO CREATOR AVATAR IF AVAILABLE
+  if (usernameParam) {
+    const avatarRes = await handleAvatarRequest(usernameParam);
+    if (avatarRes) return avatarRes;
+  }
+
+  // 5. EDITORIAL SLEEK SVG AS FINAL FALLBACK
+  return serveCleanEditorialCardSvg(usernameParam, shortcode);
 }
+

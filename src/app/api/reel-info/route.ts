@@ -39,12 +39,13 @@ async function fetchInstagramOEmbed(url: string, signal: AbortSignal) {
 }
 
 async function fetchOpenGraphMeta(shortcode: string, mediaType: string, signal: AbortSignal) {
-  const targetUrl = `https://oginstagram.com/${mediaType === "post" ? "p" : "reel"}/${shortcode}`;
+  const targetUrl = `https://www.instagram.com/${mediaType === "post" ? "p" : "reel"}/${shortcode}/`;
   const res = await fetch(targetUrl, {
     signal,
     headers: {
-      "User-Agent": "Mozilla/5.0 (compatible; Discordbot/2.0; +https://discord.app)",
-      "Accept": "text/html",
+      "User-Agent": "facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)",
+      "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+      "Accept-Language": "en-US,en;q=0.9",
     },
   });
   if (!res.ok) throw new Error(`OG fetch failed: ${res.status}`);
@@ -58,8 +59,8 @@ async function fetchOpenGraphMeta(shortcode: string, mediaType: string, signal: 
   return {
     title: titleMatch ? decodeEntities(titleMatch[1]) : "",
     description: descMatch ? decodeEntities(descMatch[1]) : "",
-    image: imgMatch ? decodeEntities(imgMatch[1]) : "",
-    video: videoMatch ? decodeEntities(videoMatch[1]) : "",
+    image: imgMatch ? decodeEntities(imgMatch[1].replace(/&amp;/g, "&")) : "",
+    video: videoMatch ? decodeEntities(videoMatch[1].replace(/&amp;/g, "&")) : "",
   };
 }
 
@@ -393,6 +394,24 @@ async function extractMetadata(url: string, startTime: number) {
       }
     }
 
+    let formattedThumbnailUrl = thumbnailUrl;
+    if (formattedThumbnailUrl) {
+      if (formattedThumbnailUrl.startsWith("/api/proxy-image")) {
+        try {
+          const parsed = new URL(formattedThumbnailUrl, "http://localhost");
+          if (!parsed.searchParams.has("shortcode") && shortcode) parsed.searchParams.set("shortcode", shortcode);
+          if (!parsed.searchParams.has("creator") && creatorUsername) parsed.searchParams.set("creator", creatorUsername);
+          formattedThumbnailUrl = `${parsed.pathname}${parsed.search}`;
+        } catch {
+          // Keep as is
+        }
+      } else if (formattedThumbnailUrl.startsWith("http")) {
+        formattedThumbnailUrl = `/api/proxy-image?shortcode=${encodeURIComponent(shortcode)}&creator=${encodeURIComponent(creatorUsername)}&url=${encodeURIComponent(formattedThumbnailUrl)}`;
+      }
+    } else if (shortcode) {
+      formattedThumbnailUrl = `/api/proxy-image?shortcode=${encodeURIComponent(shortcode)}&creator=${encodeURIComponent(creatorUsername)}`;
+    }
+
     const responsePayload = {
       shortcode,
       url: cleanUrl,
@@ -400,7 +419,7 @@ async function extractMetadata(url: string, startTime: number) {
       creatorUsername,
       creatorFullName,
       creatorAvatar: creatorAvatar || `/api/proxy-image?username=${encodeURIComponent(creatorUsername)}`,
-      thumbnailUrl,
+      thumbnailUrl: formattedThumbnailUrl,
       mediaUrl,
       embedUrl: `https://www.instagram.com/p/${shortcode}/embed/`,
       caption,
