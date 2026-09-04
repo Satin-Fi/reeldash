@@ -436,6 +436,12 @@ function SignupContent() {
                       </div>
                     </div>
                   </button>
+ 
+                  {/* Expiry indicator */}
+                  <div className="flex items-center justify-between text-[11px] text-zinc-500 px-1 -mt-1.5">
+                    <span>Code valid for 4 minutes</span>
+                    <span>Single-use</span>
+                  </div>
 
                   {/* How-to steps */}
                   <div className="space-y-2.5 pt-1">

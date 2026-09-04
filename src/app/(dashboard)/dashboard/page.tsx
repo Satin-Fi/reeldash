@@ -325,43 +325,6 @@ export default function DashboardPage() {
           </Link>
         </div>
 
-        {/* Category Quick Chips Bar (Mobile & Desktop) */}
-        {(smartCategories || []).length > 0 && (
-          <div className="flex items-center space-x-1.5 overflow-x-auto pb-2 mb-3 scrollbar-none">
-            <button
-              onClick={() => setActiveCategory(null)}
-              className={`px-3 py-1 rounded-full text-xs font-semibold transition-all cursor-pointer shrink-0 ${
-                activeCategory === null
-                  ? "bg-zinc-900 text-white dark:bg-white/[0.14] dark:text-white shadow-xs"
-                  : "bg-surfaceSecondary-light dark:bg-white/[0.05] text-secondaryText-light dark:text-zinc-400 hover:text-white hover:bg-white/[0.08] border border-borderSubtle-light dark:border-white/[0.06]"
-              }`}
-            >
-              All ({(reels || []).length})
-            </button>
-            {(smartCategories || [])
-              .filter((c) => c.name && !c.name.startsWith("#"))
-              .map((cat) => {
-                const isSelected = activeCategory?.toLowerCase() === cat.name?.toLowerCase();
-                return (
-                  <button
-                    key={cat.name}
-                    onClick={() => setActiveCategory(isSelected ? null : cat.name)}
-                    className={`px-3 py-1 rounded-full text-xs font-medium transition-all cursor-pointer shrink-0 flex items-center space-x-1.5 ${
-                      isSelected
-                        ? "bg-zinc-900 text-white dark:bg-white/[0.14] dark:text-white shadow-xs font-semibold"
-                        : "bg-surfaceSecondary-light dark:bg-white/[0.05] text-secondaryText-light dark:text-zinc-400 hover:text-white hover:bg-white/[0.08] border border-borderSubtle-light dark:border-white/[0.06]"
-                    }`}
-                  >
-                    <span>{cat.name}</span>
-                    <span className={`text-[10px] font-mono ${isSelected ? "text-white/80" : "text-zinc-500"}`}>
-                      {cat.count}
-                    </span>
-                  </button>
-                );
-              })}
-          </div>
-        )}
-
         <ReelGrid
           reels={(reels || []).filter((reel) => {
             if (activeCategory) {

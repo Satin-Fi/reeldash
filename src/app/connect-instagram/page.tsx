@@ -415,6 +415,12 @@ function ConnectInstagramContent() {
                   </div>
                 </button>
 
+                {/* Expiry indicator */}
+                <div className="flex items-center justify-between text-[11px] text-zinc-500 px-1 -mt-1.5">
+                  <span>Code valid for 4 minutes</span>
+                  <span>Single-use</span>
+                </div>
+
                 {/* Steps */}
                 <div className="space-y-2.5 pt-1">
                   <div className="flex items-start space-x-2.5">

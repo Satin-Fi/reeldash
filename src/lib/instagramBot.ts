@@ -1,6 +1,6 @@
 import { getSupabaseAdmin } from "./supabase";
 import { parseCategoryCommand, formatCategoryDisplayName } from "./parseCategory";
-import { isLinkCode, normalizeLinkCode, generateLinkCode, MAX_CODE_ATTEMPTS } from "./serverAuth";
+import { isLinkCode, normalizeLinkCode, generateLinkCode, MAX_CODE_ATTEMPTS, CODE_EXPIRY_SECONDS } from "./serverAuth";
 export { parseCategoryCommand, formatCategoryDisplayName };
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -441,7 +441,7 @@ async function handleCheckVerification(
   const supabase = getSupabaseAdmin();
   const code = generateLinkCode();
   const now = new Date();
-  const expiresAt = new Date(now.getTime() + 15 * 60 * 1000); // 15 mins
+  const expiresAt = new Date(now.getTime() + CODE_EXPIRY_SECONDS * 1000); // 4 mins
 
   if (supabase) {
     try {
@@ -466,7 +466,7 @@ async function handleCheckVerification(
     }
   }
 
-  const reply = `🔒 Not connected yet!\n\nConnect in 2 easy steps:\n1️⃣ Tap '🔗 Connect Account' below\n2️⃣ Sign in with your Google account on ReelDash\n\nYour Instagram connects automatically!\n\n(Code: ${code})`;
+  const reply = `🔒 Not connected yet!\n\nConnect in 2 easy steps:\n1️⃣ Tap '🔗 Connect Account' below\n2️⃣ Sign in with your Google account on ReelDash\n\nYour Instagram connects automatically!\n\n(Code: ${code} • expires in 4m)`;
   const buttons: BotButton[] = [
     {
       type: "web_url",
@@ -485,6 +485,28 @@ async function handleCheckVerification(
     username,
     isFollowing: true,
   };
+}
+
+/**
+ * Build the full welcome & features overview DM sent when a user successfully connects Instagram.
+ */
+function buildWelcomeFeaturesMessage(claimedCount: number = 0): string {
+  let msg = `🎉 Welcome to ReelDash!\nYour Instagram is now connected.\n`;
+
+  if (claimedCount > 0) {
+    msg += `\n🚀 Saved ${claimedCount} Reel${claimedCount > 1 ? "s" : ""} you sent earlier!\n`;
+  }
+
+  msg +=
+    `\n✨ What you can do:\n` +
+    `📥 1-Tap Save: Share any Reel to this chat to save it instantly\n` +
+    `🏷️ Tagging: Reply with #category (e.g. #tech, #recipes) to organize\n` +
+    `🔍 Smart Search: Find reels by creator, audio, caption, or niche\n` +
+    `📁 Collections: Group reels into custom folders & boards\n` +
+    `⚡ HD Player & MP4: Ad-free playback & watermark-free downloads\n\n` +
+    `Send me your next Reel anytime!`;
+
+  return msg;
 }
 
 /**
@@ -685,12 +707,8 @@ export async function redeemDMVerificationCode(
       igUsername
     );
 
-    // 8. Send confirmation DM to user on Instagram
-    let confirmMsg = `🎉 Instagram verified!\n\nYour ReelDash account is now connected.`;
-    if (claimedCount > 0) {
-      confirmMsg += `\n\nI also saved ${claimedCount} Reel${claimedCount > 1 ? "s" : ""} you sent earlier.`;
-    }
-    confirmMsg += `\n\nSend me any Reel and I'll save it to your library.`;
+    // 8. Send confirmation DM to user on Instagram with full feature guide
+    const confirmMsg = buildWelcomeFeaturesMessage(claimedCount);
 
     await sendDMReply(senderIgId, confirmMsg, [
       {
@@ -929,7 +947,7 @@ async function handleUnverifiedSender(
   // Generate a fresh 6-character challenge code (guaranteed digits + letters)
   const code = generateLinkCode();
   const now = new Date();
-  const expiresAt = new Date(now.getTime() + 15 * 60 * 1000); // 15 mins
+  const expiresAt = new Date(now.getTime() + CODE_EXPIRY_SECONDS * 1000); // 4 mins
 
   if (supabase) {
     try {
@@ -955,10 +973,10 @@ async function handleUnverifiedSender(
   const connectUrl = `${APP_URL}/connect-instagram?code=${code}`;
 
   const msg = followJustConfirmed
-    ? `✅ Follow confirmed!\n\nNow connect your Instagram to ReelDash with your Google account to save Reels:\n1️⃣ Tap '🔗 Connect Account' below\n2️⃣ Sign in with your Google account on ReelDash\n3️⃣ Reel saved automatically!\n\n(Code: ${code})`
+    ? `✅ Follow confirmed!\n\nNow connect your Instagram to ReelDash with your Google account to save Reels:\n1️⃣ Tap '🔗 Connect Account' below\n2️⃣ Sign in with your Google account on ReelDash\n3️⃣ Reel saved automatically!\n\n(Code: ${code} • expires in 4m)`
     : mediaUrl
-    ? `🔒 Almost there!\n\nI received your Reel! Connect your Instagram to save it:\n1️⃣ Tap '🔗 Connect Account' below\n2️⃣ Sign in with your Google account on ReelDash\n3️⃣ Reel saved automatically!\n\n(Code: ${code})`
-    : `Welcome to ReelDash! 👋\n\nConnect your Instagram in 2 steps:\n1️⃣ Tap '🔗 Connect Account' below\n2️⃣ Sign in with your Google account on ReelDash\n\n(Code: ${code})`;
+    ? `🔒 Almost there!\n\nI received your Reel! Connect your Instagram to save it:\n1️⃣ Tap '🔗 Connect Account' below\n2️⃣ Sign in with your Google account on ReelDash\n3️⃣ Reel saved automatically!\n\n(Code: ${code} • expires in 4m)`
+    : `Welcome to ReelDash! 👋\n\nConnect your Instagram in 2 steps:\n1️⃣ Tap '🔗 Connect Account' below\n2️⃣ Sign in with your Google account on ReelDash\n\n(Code: ${code} • expires in 4m)`;
 
   const buttons: BotButton[] = [
     {
@@ -1510,13 +1528,8 @@ async function processLinkCode(
     // Invalidate cache
     profileCache.delete(senderIgId);
 
-    // 8. Success reply
-    let msg: string;
-    if (claimedCount > 0) {
-      msg = `🎉 Instagram verified!\n\nYour ReelDash account is now connected.\n\nI also saved ${claimedCount} Reel${claimedCount > 1 ? "s" : ""} you sent earlier.\n\nSend me any Reel and I'll save it to your library.`;
-    } else {
-      msg = `🎉 Instagram verified!\n\nYour ReelDash account is now connected.\n\nSend me any Reel and I'll save it to your library.`;
-    }
+    // 8. Success reply with full feature guide
+    const msg = buildWelcomeFeaturesMessage(claimedCount);
 
     const buttons: BotButton[] = [
       {

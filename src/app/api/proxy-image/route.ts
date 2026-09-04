@@ -12,8 +12,8 @@ function serveCleanEditorialCardSvg(creator?: string | null, shortcode?: string 
     ? `@${cleanCreator}`
     : shortcode
     ? `Reel #${shortcode.slice(0, 8)}`
-    : "Saved Reel";
-  const initial = cleanCreator ? cleanCreator.charAt(0).toUpperCase() : "R";
+    : "Instagram Reel";
+  const initial = cleanCreator ? cleanCreator.charAt(0).toUpperCase() : "IG";
 
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 600" width="100%" height="100%">
     <defs>

@@ -106,9 +106,16 @@ function CreatorReelTile({ item, creatorUsername }: { item: CreatorReelItem; cre
 
   const resolveCurrentImg = () => {
     const raw = item.thumbnailUrl || item.rawThumbnailUrl || imgSrc;
+    const cleanUser = creatorUsername ? creatorUsername.replace(/^@/, "").trim() : "";
+    const cleanSc = item.shortcode ? item.shortcode.trim() : "";
+
+    if (!raw && cleanSc) {
+      return `/api/proxy-image?shortcode=${encodeURIComponent(cleanSc)}${cleanUser ? `&creator=${encodeURIComponent(cleanUser)}` : ""}`;
+    }
     if (!raw) return defaultCover;
+
     if (raw.startsWith("http") && !raw.includes("wsrv.nl") && !raw.includes("unsplash.com")) {
-      return `/api/proxy-image?url=${encodeURIComponent(raw)}`;
+      return `/api/proxy-image?url=${encodeURIComponent(raw)}${cleanSc ? `&shortcode=${encodeURIComponent(cleanSc)}` : ""}${cleanUser ? `&creator=${encodeURIComponent(cleanUser)}` : ""}`;
     }
     return raw;
   };

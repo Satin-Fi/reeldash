@@ -5,7 +5,8 @@ import { getSupabaseAdmin } from "./supabase";
 const supabaseUrl =
   process.env.NEXT_PUBLIC_SUPABASE_URL || "https://knlcmaoazqadlwrqypbo.supabase.co";
 const supabaseAnonKey =
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtubGNtYW9henFhZGx3cnF5cGJvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY3OTQ0MTQsImV4cCI6MjEwMjM3MDQxNH0.D23IgSG7NcTtaiRiXQPLMlLlym4Lxvv-wnGbrzKmcx4";
 
 import { NextRequest } from "next/server";
 
@@ -168,9 +169,9 @@ export function normalizeLinkCode(text: string): string {
 export const MAX_CODE_ATTEMPTS = 5;
 
 /**
- * Code expiration in seconds (15 minutes).
+ * Code expiration in seconds (4 minutes).
  */
-export const CODE_EXPIRY_SECONDS = 900;
+export const CODE_EXPIRY_SECONDS = 240;
 
 /**
  * Pending reel TTL in hours (default 72).
