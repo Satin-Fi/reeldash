@@ -406,14 +406,6 @@ export default function CategoriesPage() {
                   {/* Gradient bottom fog */}
                   <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-[#0E1015] to-transparent pointer-events-none" />
 
-                  {/* Top-Right Badge: Category Icon pill */}
-                  <div className="absolute top-3 left-3 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/60 backdrop-blur-md border border-white/10 shadow-md">
-                    <ThemeIcon className={`w-3.5 h-3.5 ${theme.color}`} strokeWidth={2} />
-                    <span className="text-[11px] font-medium text-white/90">
-                      {cat.count} {cat.count === 1 ? "Reel" : "Reels"}
-                    </span>
-                  </div>
-
                   {/* Top-Right Actions */}
                   {cat.id && (
                     <div className="absolute top-3 right-3 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-black/60 backdrop-blur-md rounded-lg p-0.5 border border-white/10">
@@ -476,25 +468,12 @@ export default function CategoriesPage() {
                     </div>
                   ) : (
                     <div>
-                      <div className="flex items-center justify-between">
-                        <h3 className="font-bricolage text-base font-bold text-primaryText-light dark:text-white tracking-tight">
-                          {cat.name}
-                        </h3>
-                        {cat.source === "dm" && (
-                          <span className="text-[9px] font-mono uppercase px-1.5 py-0.5 rounded bg-white/[0.06] text-zinc-400">
-                            DM Saved
-                          </span>
-                        )}
-                      </div>
-                      {cat.description ? (
+                      <h3 className="font-bricolage text-base font-bold text-primaryText-light dark:text-white tracking-tight">
+                        {cat.name}
+                      </h3>
+                      {cat.description && (
                         <p className="text-xs text-secondaryText-light dark:text-zinc-400 mt-1 line-clamp-2 leading-relaxed">
                           {cat.description}
-                        </p>
-                      ) : (
-                        <p className="text-xs text-zinc-500 mt-1">
-                          {cat.count === 0
-                            ? "No reels tagged yet"
-                            : `${cat.count} curated ${cat.count === 1 ? "reel" : "reels"} in this category`}
                         </p>
                       )}
                     </div>
@@ -524,11 +503,7 @@ export default function CategoriesPage() {
                   )}
 
                   {/* Bottom Footer & CTA */}
-                  <div className="pt-3 border-t border-borderSubtle-light dark:border-white/[0.04] flex items-center justify-between">
-                    <span className="text-[11px] font-mono text-zinc-500">
-                      /{cat.name.toLowerCase().replace(/\s+/g, "")}
-                    </span>
-
+                  <div className="pt-3 border-t border-borderSubtle-light dark:border-white/[0.04] flex items-center justify-end">
                     <Link
                       href={`/reels?category=${encodeURIComponent(cat.name)}`}
                       onClick={() => setActiveCategory(cat.name)}
