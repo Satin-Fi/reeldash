@@ -20,12 +20,12 @@ export async function GET(req: NextRequest) {
     const userIds: string[] = [];
     if (userId) userIds.push(userId);
 
-    // Also include any instagram_accounts linked to this user
+    // Also include any instagram_accounts linked to this user (by their real reeldash_user_id only)
     if (userId) {
       const { data: userIgAccounts } = await supabase
         .from("instagram_accounts")
         .select("reeldash_user_id, username")
-        .or(`reeldash_user_id.eq.${userId},reeldash_user_id.like.ig_usr_%`);
+        .eq("reeldash_user_id", userId);
       if (userIgAccounts) {
         userIgAccounts.forEach((acc) => {
           if (acc.reeldash_user_id && !userIds.includes(acc.reeldash_user_id)) {

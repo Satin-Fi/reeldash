@@ -109,8 +109,32 @@ export async function processInstagramMessage(
       };
     }
 
-    // 3. User is VERIFIED following: Auto-provision ReelDash Profile
+    // 3. User is VERIFIED following — but are they a REGISTERED ReelDash user?
     const userProfile = await getOrCreateUserProfile(senderIgId, igUser);
+
+    // STRICT AUTH GATE: Reject unregistered users
+    if (!userProfile) {
+      const rejectMsg = `Hey @${igUser.username}! 👋\n\nReelDash requires a registered account to save reels.\n\nTo get started:\n1. Sign up at reeldash-nine.vercel.app\n2. Connect your Instagram account in Settings → Integrations\n3. Then send any Reel here to save it!\n\nYour reels were NOT saved.`;
+
+      const buttons: BotButton[] = [
+        {
+          type: "web_url",
+          title: "Sign Up on ReelDash",
+          url: "https://reeldash-nine.vercel.app/signup",
+        },
+      ];
+
+      await sendDMReply(senderIgId, rejectMsg, buttons);
+
+      return {
+        status: "error",
+        replyMessage: rejectMsg,
+        buttons,
+        senderIgId,
+        username: igUser.username,
+        isFollowing: true,
+      };
+    }
 
     // 4. Check if message contains /<category> commands or a Reel / Post / Audio link
     const parsedCmd = parseCategoryCommand(messageText || "");
@@ -528,7 +552,8 @@ async function fetchInstagramUserProfile(
 async function getOrCreateUserProfile(
   senderIgId: string,
   igData: { username: string; fullName: string; avatar: string }
-): Promise<UserIgProfile> {
+): Promise<UserIgProfile | null> {
+  // 1. Check in-memory cache first (only cached if previously authenticated)
   const existing = igProfileStore.get(senderIgId);
   if (existing) {
     existing.isFollowing = true;
@@ -536,79 +561,86 @@ async function getOrCreateUserProfile(
     return existing;
   }
 
-  let matchedUserId = `ig_usr_${senderIgId}`;
-
-  // Check Supabase instagram_accounts table to map to real ReelDash user
+  // 2. STRICT AUTH: Only match against EXISTING registered ReelDash users
+  //    A user must have signed up on ReelDash AND connected their Instagram account
+  //    via the Integrations page before the bot will accept their DMs.
   try {
     const supabase = getSupabaseAdmin();
     if (supabase) {
-      const { data: matchedAccount } = await supabase
+      // Try matching by Instagram sender ID first (most reliable)
+      let matchedAccount = null;
+
+      const { data: byIgId } = await supabase
         .from("instagram_accounts")
         .select("reeldash_user_id, id, username")
-        .or(`instagram_user_id.eq.${senderIgId},username.ilike.${igData.username}`)
+        .eq("instagram_user_id", senderIgId)
         .limit(1)
-        .single();
+        .maybeSingle();
 
-      if (matchedAccount?.reeldash_user_id) {
-        matchedUserId = matchedAccount.reeldash_user_id;
-
-        // Update the account record with the verified senderIgId
-        await supabase
-          .from("instagram_accounts")
-          .update({
-            instagram_user_id: senderIgId,
-            display_name: igData.fullName || igData.username,
-            avatar_url: igData.avatar,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", matchedAccount.id);
+      if (byIgId?.reeldash_user_id) {
+        matchedAccount = byIgId;
       } else {
-        // Create provisional connected account record
-        await supabase.from("instagram_accounts").upsert(
-          {
-            reeldash_user_id: matchedUserId,
-            instagram_user_id: senderIgId,
-            username: igData.username.toLowerCase(),
-            display_name: igData.fullName || igData.username,
-            avatar_url: igData.avatar,
-            is_active: true,
-            updated_at: new Date().toISOString(),
-          },
-          { onConflict: "reeldash_user_id,username" }
-        );
+        // Fallback: match by Instagram username (case-insensitive)
+        // This covers users who connected their account but haven't DM'd before
+        // (so their instagram_user_id hasn't been populated yet)
+        const { data: byUsername } = await supabase
+          .from("instagram_accounts")
+          .select("reeldash_user_id, id, username")
+          .ilike("username", igData.username)
+          .limit(1)
+          .maybeSingle();
+
+        if (byUsername?.reeldash_user_id) {
+          matchedAccount = byUsername;
+        }
       }
 
-      await supabase.from("profiles").upsert(
-        {
-          id: matchedUserId,
-          ig_sender_id: senderIgId,
-          username: igData.username,
-          name: igData.fullName,
+      // STRICT GATE: If no matching registered account found, REJECT
+      if (!matchedAccount?.reeldash_user_id) {
+        console.log(
+          `[Instagram Bot] AUTH REJECTED: sender=${senderIgId} username=${igData.username} — not a registered ReelDash user`
+        );
+        return null; // Signal to caller: this user is NOT authorized
+      }
+
+      const matchedUserId = matchedAccount.reeldash_user_id;
+
+      // Update the account record with the verified senderIgId (links future DMs)
+      await supabase
+        .from("instagram_accounts")
+        .update({
+          instagram_user_id: senderIgId,
+          display_name: igData.fullName || igData.username,
           avatar_url: igData.avatar,
-          is_following_bot: true,
           updated_at: new Date().toISOString(),
-        },
-        { onConflict: "ig_sender_id" }
-      );
+        })
+        .eq("id", matchedAccount.id);
+
+      // Cache the authenticated profile for fast subsequent lookups
+      const newProfile: UserIgProfile = {
+        id: matchedUserId,
+        igSenderId: senderIgId,
+        username: igData.username,
+        fullName: igData.fullName,
+        avatar: igData.avatar || `/api/proxy-image?username=${encodeURIComponent(igData.username)}`,
+        isFollowing: true,
+        savedReelsCount: 0,
+        createdAt: new Date().toISOString(),
+        lastActiveAt: new Date().toISOString(),
+      };
+
+      igProfileStore.set(senderIgId, newProfile);
+      return newProfile;
     }
-  } catch {
-    // Continue in-memory
+  } catch (err) {
+    console.error("[Instagram Bot] Auth lookup error:", err);
   }
 
-  const newProfile: UserIgProfile = {
-    id: matchedUserId,
-    igSenderId: senderIgId,
-    username: igData.username,
-    fullName: igData.fullName,
-    avatar: igData.avatar || `/api/proxy-image?username=${encodeURIComponent(igData.username)}`,
-    isFollowing: true,
-    savedReelsCount: 0,
-    createdAt: new Date().toISOString(),
-    lastActiveAt: new Date().toISOString(),
-  };
-
-  igProfileStore.set(senderIgId, newProfile);
-  return newProfile;
+  // If Supabase is unavailable, reject by default (fail closed, not open)
+  console.log(
+    `[Instagram Bot] AUTH REJECTED (DB unavailable): sender=${senderIgId} username=${igData.username}`
+  );
+  return null;
 }
 
 export interface BotCollection {

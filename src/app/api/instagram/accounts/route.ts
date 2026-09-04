@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
     const { data: accounts, error } = await supabase
       .from("instagram_accounts")
       .select("*")
-      .or(`reeldash_user_id.eq.${userId},reeldash_user_id.like.ig_usr_%`)
+      .eq("reeldash_user_id", userId)
       .order("created_at", { ascending: true });
 
     if (error) {
