@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import React, { useState, useEffect, useRef, useCallback, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { getClientAuthHeaders } from "@/lib/clientAuth";
 import { ReelDashLogo } from "@/components/ui/ReelDashLogo";
@@ -15,8 +15,10 @@ import {
 } from "lucide-react";
 import { motion } from "framer-motion";
 
-export default function ConnectInstagramPage() {
+function ConnectInstagramContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const codeParam = searchParams.get("code");
   const { user, isAuthenticated, isLoading } = useAuth();
 
   const [linkCode, setLinkCode] = useState<string | null>(null);
@@ -28,57 +30,92 @@ export default function ConnectInstagramPage() {
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // DM Verification Code entry state
-  const [dmCode, setDmCode] = useState("");
+  const [dmCode, setDmCode] = useState(codeParam || "");
   const [isRedeeming, setIsRedeeming] = useState(false);
   const [redeemError, setRedeemError] = useState<string | null>(null);
+  const hasAutoRedeemedRef = useRef(false);
+
+  const executeRedeem = useCallback(
+    async (codeToRedeem: string) => {
+      if (!codeToRedeem.trim()) return;
+      setIsRedeeming(true);
+      setRedeemError(null);
+
+      try {
+        const headers = await getClientAuthHeaders(user?.id);
+        headers["Content-Type"] = "application/json";
+        const res = await fetch("/api/instagram/link-code", {
+          method: "POST",
+          headers,
+          body: JSON.stringify({ code: codeToRedeem.trim() }),
+        });
+
+        const data = await res.json();
+        if (res.ok && data.success) {
+          setIsLinked(true);
+          setLinkedUsername(data.username ? `@${data.username}` : null);
+          if (pollRef.current) clearInterval(pollRef.current);
+          if (typeof window !== "undefined") {
+            sessionStorage.removeItem("reeldash_pending_code");
+          }
+          setTimeout(() => router.push("/dashboard"), 1800);
+        } else {
+          setRedeemError(data.error || "Failed to verify code.");
+        }
+      } catch (err: any) {
+        setRedeemError(err?.message || "Connection error. Please try again.");
+      } finally {
+        setIsRedeeming(false);
+      }
+    },
+    [user?.id, router]
+  );
 
   const handleRedeemCode = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!dmCode.trim()) return;
-    setIsRedeeming(true);
-    setRedeemError(null);
-
-    try {
-      const headers = await getClientAuthHeaders(user?.id);
-      headers["Content-Type"] = "application/json";
-      const res = await fetch("/api/instagram/link-code", {
-        method: "POST",
-        headers,
-        body: JSON.stringify({ code: dmCode.trim() }),
-      });
-
-      const data = await res.json();
-      if (res.ok && data.success) {
-        setIsLinked(true);
-        setLinkedUsername(data.username ? `@${data.username}` : null);
-        if (pollRef.current) clearInterval(pollRef.current);
-        setTimeout(() => router.push("/dashboard"), 2000);
-      } else {
-        setRedeemError(data.error || "Failed to verify code.");
-      }
-    } catch (err: any) {
-      setRedeemError(err?.message || "Connection error. Please try again.");
-    } finally {
-      setIsRedeeming(false);
-    }
+    await executeRedeem(dmCode);
   };
 
-  // Redirect unauthenticated users to signup
+  // Redirect unauthenticated users to signup while preserving code
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
-      router.replace("/signup?source=instagram&next=/connect-instagram");
+      const activeCode =
+        codeParam ||
+        (typeof window !== "undefined"
+          ? sessionStorage.getItem("reeldash_pending_code")
+          : null);
+      if (activeCode && typeof window !== "undefined") {
+        sessionStorage.setItem("reeldash_pending_code", activeCode);
+      }
+      const nextUrl = activeCode
+        ? `/connect-instagram?code=${encodeURIComponent(activeCode)}`
+        : "/connect-instagram";
+      router.replace(`/signup?source=instagram&next=${encodeURIComponent(nextUrl)}`);
     }
-  }, [isLoading, isAuthenticated, router]);
+  }, [isLoading, isAuthenticated, codeParam, router]);
 
-  // Generate code on mount if authenticated
+  // Handle 1-click auto redeem or challenge code generation on mount
   useEffect(() => {
-    if (isAuthenticated && !linkCode && !isLinked) {
+    if (!isAuthenticated || isLinked) return;
+
+    const pendingCode =
+      codeParam ||
+      (typeof window !== "undefined"
+        ? sessionStorage.getItem("reeldash_pending_code")
+        : null);
+
+    if (pendingCode && !hasAutoRedeemedRef.current) {
+      hasAutoRedeemedRef.current = true;
+      setDmCode(pendingCode);
+      executeRedeem(pendingCode);
+    } else if (!pendingCode && !linkCode) {
       generateCode();
     }
+
     return () => {
       if (pollRef.current) clearInterval(pollRef.current);
     };
-  }, [isAuthenticated]);
+  }, [isAuthenticated, isLinked, codeParam, linkCode, executeRedeem]);
 
   const generateCode = useCallback(async () => {
     setIsCodeLoading(true);
@@ -343,7 +380,7 @@ export default function ConnectInstagramPage() {
         ) : null}
 
         {/* Back link */}
-        {!isLinked && (
+        {!isLinked && !isRedeeming && (
           <button
             onClick={() => router.push("/dashboard")}
             className="w-full flex items-center justify-center space-x-1.5 py-2 text-xs text-zinc-500 hover:text-zinc-300 transition-colors cursor-pointer"
@@ -354,5 +391,19 @@ export default function ConnectInstagramPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function ConnectInstagramPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-[#050608] flex items-center justify-center">
+          <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+        </div>
+      }
+    >
+      <ConnectInstagramContent />
+    </Suspense>
   );
 }

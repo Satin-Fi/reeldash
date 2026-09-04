@@ -466,12 +466,12 @@ async function handleCheckVerification(
     }
   }
 
-  const reply = `🔑 Here is your ReelDash verification code:\n\n${code}\n\nEnter this code on ReelDash to connect your Instagram account.`;
+  const reply = `🔒 Not connected yet!\n\nTap below to connect your Instagram account with 1 click:\n\n(Code: ${code})`;
   const buttons: BotButton[] = [
     {
       type: "web_url",
-      title: "Enter on ReelDash",
-      url: `${APP_URL}/settings`,
+      title: "🔗 Connect Account",
+      url: `${APP_URL}/connect-instagram?code=${code}`,
     },
     {
       type: "postback",
@@ -837,23 +837,14 @@ export async function processInstagramMessage(
         return await handleNotFollowing(senderIgId, igUser.username);
 
       case "NEEDS_SIGNUP":
-        return await handleNeedsSignup(
-          senderIgId,
-          igUser.username,
-          messageText,
-          attachments
-        );
-
       case "NEEDS_REVERIFICATION":
-        return await handleNeedsReverification(
+      case "ACCOUNT_INACTIVE":
+        return await handleUnverifiedSender(
           senderIgId,
           igUser.username,
           messageText,
           attachments
         );
-
-      case "ACCOUNT_INACTIVE":
-        return await handleAccountInactive(senderIgId, igUser.username);
 
       case "READY":
         return await handleReady(
@@ -912,27 +903,56 @@ async function handleNotFollowing(
   };
 }
 
-async function handleNeedsSignup(
+async function handleUnverifiedSender(
   senderIgId: string,
   username: string,
   messageText: string,
   attachments: any[]
 ): Promise<ProcessedDMResult> {
-  // If user sent a reel, store it as pending
+  const supabase = getSupabaseAdmin();
+  // If user sent a reel, store it as pending so they never lose it
   const mediaUrl = extractInstagramMediaUrl(messageText, attachments);
   if (mediaUrl) {
     await storePendingReel(senderIgId, username, mediaUrl, messageText, attachments);
   }
 
+  // Generate a fresh 6-character challenge code (guaranteed digits + letters)
+  const code = generateLinkCode();
+  const now = new Date();
+  const expiresAt = new Date(now.getTime() + 15 * 60 * 1000); // 15 mins
+
+  if (supabase) {
+    try {
+      await supabase
+        .from("link_codes")
+        .update({ status: "expired" })
+        .eq("instagram_sender_id", senderIgId)
+        .eq("status", "pending");
+
+      await supabase.from("link_codes").insert({
+        code,
+        instagram_sender_id: senderIgId,
+        instagram_username: username || null,
+        status: "pending",
+        attempts: 0,
+        expires_at: expiresAt.toISOString(),
+      });
+    } catch (dbErr) {
+      console.error("[Instagram Bot] Error saving link code:", dbErr);
+    }
+  }
+
+  const connectUrl = `${APP_URL}/connect-instagram?code=${code}`;
+
   const msg = mediaUrl
-    ? `🔒 Almost there!\n\nI received your Reel, but your Instagram connection needs to be verified before I can save it.\n\nComplete verification on ReelDash. Your Reel will be saved automatically after verification.`
-    : `Create your ReelDash account and connect this Instagram to start saving Reels.`;
+    ? `🔒 Almost there!\n\nI received your Reel. Connect your Instagram to ReelDash with 1 click to save it:\n\n(Code: ${code})`
+    : `Welcome to ReelDash! 👋\n\nConnect your Instagram with 1 click to auto-save Reels to your personal library:\n\n(Code: ${code})`;
 
   const buttons: BotButton[] = [
     {
       type: "web_url",
-      title: "Verify now",
-      url: `${APP_URL}/connect-instagram`,
+      title: "🔗 Connect Account",
+      url: connectUrl,
     },
     {
       type: "postback",
@@ -945,77 +965,6 @@ async function handleNeedsSignup(
 
   return {
     status: mediaUrl ? "reel_pending" : "needs_signup",
-    replyMessage: msg,
-    buttons,
-    senderIgId,
-    username,
-    isFollowing: true,
-  };
-}
-
-async function handleNeedsReverification(
-  senderIgId: string,
-  username: string,
-  messageText: string,
-  attachments: any[]
-): Promise<ProcessedDMResult> {
-  // If user sent a reel, store it as pending
-  const mediaUrl = extractInstagramMediaUrl(messageText, attachments);
-  if (mediaUrl) {
-    await storePendingReel(senderIgId, username, mediaUrl, messageText, attachments);
-  }
-
-  const msg = mediaUrl
-    ? `🔒 Almost there!\n\nI received your Reel, but your Instagram connection needs to be verified before I can save it.\n\nComplete verification on ReelDash. Your Reel will be saved automatically after verification.`
-    : `⚠️ Your Instagram connection needs to be verified before I can save new Reels.`;
-
-  const buttons: BotButton[] = [
-    {
-      type: "web_url",
-      title: "Verify now",
-      url: `${APP_URL}/connect-instagram`,
-    },
-    {
-      type: "postback",
-      title: "I've verified",
-      payload: "CHECK_VERIFICATION",
-    },
-  ];
-
-  await sendDMReply(senderIgId, msg, buttons);
-
-  return {
-    status: mediaUrl ? "reel_pending" : "needs_reverification",
-    replyMessage: msg,
-    buttons,
-    senderIgId,
-    username,
-    isFollowing: true,
-  };
-}
-
-async function handleAccountInactive(
-  senderIgId: string,
-  username: string
-): Promise<ProcessedDMResult> {
-  const msg = `Your Instagram connection was disconnected.\n\nReconnect to start saving Reels again.`;
-  const buttons: BotButton[] = [
-    {
-      type: "web_url",
-      title: "Reconnect",
-      url: `${APP_URL}/connect-instagram`,
-    },
-    {
-      type: "postback",
-      title: "I've verified",
-      payload: "CHECK_VERIFICATION",
-    },
-  ];
-
-  await sendDMReply(senderIgId, msg, buttons);
-
-  return {
-    status: "account_inactive",
     replyMessage: msg,
     buttons,
     senderIgId,
