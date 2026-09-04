@@ -238,8 +238,17 @@ export function ReelPlayerModal({ reel, isOpen, onClose }: ReelPlayerModalProps)
               {/* Caption Content */}
               <div className="space-y-2">
                 <p className="text-xs text-zinc-200 whitespace-pre-line leading-relaxed">
-                  {formatCaption(reel.caption || "No caption provided.")}
+                  {formatCaption(reel.caption || reel.aiSummary || "No caption provided.")}
                 </p>
+
+                {reel.aiSummary && reel.aiSummary !== reel.caption && (
+                  <div className="p-2.5 rounded-lg bg-purple-500/10 border border-purple-500/20 text-purple-300 space-y-1">
+                    <span className="text-[10px] font-semibold uppercase tracking-wider flex items-center gap-1 text-purple-400">
+                      <span>✨</span> AI Content Summary
+                    </span>
+                    <p className="text-xs leading-relaxed text-zinc-300">{reel.aiSummary}</p>
+                  </div>
+                )}
 
                 {/* Audio Track Information */}
                 {reel.mediaType === "audio" ? (

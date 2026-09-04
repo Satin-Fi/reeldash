@@ -178,35 +178,55 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
         className="group relative aspect-[9/16] w-full overflow-hidden bg-black cursor-pointer select-none"
       >
         {/* Full-bleed thumbnail or crisp centered audio/avatar tile */}
-        {mediaType === "audio" || (imageSrc && imageSrc.includes("username=")) ? (
-          <div className="w-full h-full flex flex-col items-center justify-center p-4 bg-gradient-to-b from-zinc-900 via-[#10131a] to-[#08090d] relative overflow-hidden">
+        {mediaType === "audio" || (imageSrc && imageSrc.includes("username=")) || imageError ? (
+          <div className="w-full h-full flex flex-col justify-between p-3 bg-gradient-to-b from-zinc-900 via-[#10131a] to-[#08090d] relative overflow-hidden select-none">
             {/* Ambient blurred glow */}
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={imageSrc}
-              alt=""
-              aria-hidden="true"
-              className="absolute inset-0 w-full h-full object-cover blur-2xl opacity-25 scale-125 pointer-events-none"
-            />
-            {/* Crisp 1:1 circular avatar badge */}
-            <div className="relative z-10 w-20 h-20 rounded-full overflow-hidden border-2 border-white/15 shadow-xl bg-zinc-800 shrink-0">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
+            {imageSrc && (
+              /* eslint-disable-next-line @next/next/no-img-element */
               <img
                 src={imageSrc}
-                alt={creatorName}
-                className="w-full h-full object-cover"
-                onError={() => setImageError(true)}
+                alt=""
+                aria-hidden="true"
+                className="absolute inset-0 w-full h-full object-cover blur-2xl opacity-25 scale-125 pointer-events-none"
               />
-            </div>
-            {/* Creator / Audio Details */}
-            <p className="relative z-10 mt-3 text-xs font-semibold text-white/90 text-center truncate max-w-[85%] drop-shadow-sm">
-              {creatorName}
-            </p>
-            {reel.audioTitle && (
-              <p className="relative z-10 text-[11px] text-zinc-400 text-center truncate max-w-[85%] mt-0.5">
-                {reel.audioTitle}
-              </p>
             )}
+
+            {/* Top Bar: Archived tag + Category Badge */}
+            <div className="relative z-10 w-full flex items-center justify-between gap-1">
+              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/25">
+                {mediaType === "audio" ? "Audio Track" : "Archived Post"}
+              </span>
+              {reel.category && reel.category !== "General" && (
+                <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-brand-500/20 text-brand-300 border border-brand-500/30 truncate max-w-[105px]">
+                  {reel.category}
+                </span>
+              )}
+            </div>
+
+            {/* Center: Crisp 1:1 circular avatar badge */}
+            <div className="relative z-10 flex flex-col items-center justify-center my-auto">
+              <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-white/15 shadow-xl bg-zinc-800 shrink-0">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={imageSrc || reel.creatorAvatar || `/api/proxy-image?username=${encodeURIComponent(cleanUsername || "creator")}`}
+                  alt={creatorName}
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    (e.target as HTMLElement).style.display = "none";
+                  }}
+                />
+              </div>
+              <p className="mt-2 text-xs font-semibold text-white/90 text-center truncate max-w-[90%] drop-shadow-sm font-mono">
+                {creatorName}
+              </p>
+            </div>
+
+            {/* Bottom: Preserved caption / what was happening in it */}
+            <div className="relative z-10 w-full pt-2 border-t border-white/[0.08]">
+              <p className="text-[11px] text-zinc-300 leading-snug line-clamp-2">
+                {displayCaption || reel.aiSummary || (reel.audioTitle ? `🎵 ${reel.audioTitle}` : "Saved Instagram Reel")}
+              </p>
+            </div>
           </div>
         ) : (
           /* eslint-disable-next-line @next/next/no-img-element */

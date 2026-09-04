@@ -14,6 +14,7 @@ import {
   ArrowUpDown,
   X,
   Folder,
+  ChevronDown,
 } from "lucide-react";
 
 const mediaTabs: { id: MediaTypeFilter; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
@@ -92,13 +93,54 @@ export function FilterToolbar() {
             )}
           </div>
 
+          {/* Category Dropdown Selector */}
+          <div className="relative flex items-center">
+            <Folder className="w-3 h-3 text-secondaryText-light dark:text-zinc-400 absolute left-2.5 pointer-events-none" />
+            <select
+              value={activeCategory || (activeCollection ? `__col__:${activeCollection}` : "")}
+              onChange={(e) => {
+                const val = e.target.value;
+                if (!val) {
+                  setActiveCategory(null);
+                  setActiveCollection(null);
+                } else if (val.startsWith("__col__:")) {
+                  setActiveCategory(null);
+                  setActiveCollection(val.replace("__col__:", ""));
+                } else {
+                  setActiveCollection(null);
+                  setActiveCategory(val);
+                }
+              }}
+              className="pl-7 pr-6 py-1.5 text-xs bg-surfaceSecondary-light dark:bg-black/30 border border-borderSubtle-light dark:border-white/[0.08] rounded-lg text-primaryText-light dark:text-zinc-300 hover:text-primaryText-light dark:hover:text-white focus:outline-none cursor-pointer appearance-none transition-colors max-w-[140px] md:max-w-[170px] truncate"
+            >
+              <option value="">All Categories</option>
+              {smartCategories
+                .filter((cat) => !cat.name.startsWith("#"))
+                .map((cat) => (
+                  <option key={cat.name} value={cat.name}>
+                    {cat.name} ({cat.count})
+                  </option>
+                ))}
+              {collections.length > 0 && (
+                <optgroup label="Collections">
+                  {collections.map((col) => (
+                    <option key={col.id} value={`__col__:${col.id}`}>
+                      {col.name}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+            </select>
+            <ChevronDown className="w-3 h-3 text-secondaryText-light dark:text-zinc-400 absolute right-2 pointer-events-none" />
+          </div>
+
           {/* Sort Selector */}
           <div className="relative flex items-center">
             <ArrowUpDown className="w-3 h-3 text-secondaryText-light dark:text-zinc-400 absolute left-2.5 pointer-events-none" />
             <select
               value={sortOption}
               onChange={(e) => setSortOption(e.target.value as SortOption)}
-              className="pl-7 pr-3 py-1.5 text-xs bg-surfaceSecondary-light dark:bg-black/30 border border-borderSubtle-light dark:border-white/[0.08] rounded-lg text-primaryText-light dark:text-zinc-300 hover:text-primaryText-light dark:hover:text-white focus:outline-none cursor-pointer appearance-none transition-colors"
+              className="pl-7 pr-6 py-1.5 text-xs bg-surfaceSecondary-light dark:bg-black/30 border border-borderSubtle-light dark:border-white/[0.08] rounded-lg text-primaryText-light dark:text-zinc-300 hover:text-primaryText-light dark:hover:text-white focus:outline-none cursor-pointer appearance-none transition-colors"
             >
               <option value="newest">Recently Saved</option>
               <option value="oldest">Oldest First</option>
@@ -106,6 +148,7 @@ export function FilterToolbar() {
               <option value="most_viewed">Most Viewed</option>
               <option value="creator">Creator (A-Z)</option>
             </select>
+            <ChevronDown className="w-3 h-3 text-secondaryText-light dark:text-zinc-400 absolute right-2 pointer-events-none" />
           </div>
 
           {/* View Mode Toggle */}
@@ -136,67 +179,6 @@ export function FilterToolbar() {
         </div>
 
       </div>
-
-      {/* ─── 2. SMART CATEGORIES & COLLECTIONS (Quiet Filter Chips) ───────── */}
-      {(smartCategories.length > 0 || collections.length > 0) && (
-        <div className="flex items-center space-x-1.5 overflow-x-auto pb-1 scrollbar-none text-xs">
-          <button
-            onClick={() => {
-              setActiveCategory(null);
-              setActiveCollection(null);
-            }}
-            className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-all cursor-pointer shrink-0 ${
-              activeCategory === null && activeCollection === null
-                ? "bg-zinc-900 text-white dark:bg-white/[0.12] dark:text-white border border-transparent dark:border-white/[0.12] font-semibold"
-                : "text-secondaryText-light dark:text-zinc-400 hover:text-primaryText-light dark:hover:text-zinc-200 hover:bg-surfaceSecondary-light dark:hover:bg-white/[0.04] border border-transparent"
-            }`}
-          >
-            All Categories
-          </button>
-
-          {smartCategories.map((cat) => {
-            const isCatActive = activeCategory?.toLowerCase() === cat.name.toLowerCase();
-            return (
-              <button
-                key={cat.name}
-                onClick={() => {
-                  setActiveCategory(isCatActive ? null : cat.name);
-                  setActiveCollection(null);
-                  setActiveMediaType("all");
-                }}
-                className={`group px-2.5 py-1 rounded-md text-[11px] font-medium transition-all cursor-pointer shrink-0 flex items-center space-x-1.5 ${
-                  isCatActive
-                    ? "bg-zinc-900 text-white dark:bg-white/[0.12] dark:text-white border border-transparent dark:border-white/[0.12] font-semibold"
-                    : "text-secondaryText-light dark:text-zinc-400 hover:text-primaryText-light dark:hover:text-zinc-200 hover:bg-surfaceSecondary-light dark:hover:bg-white/[0.04] border border-transparent"
-                }`}
-              >
-                <span>{cat.name}</span>
-              </button>
-            );
-          })}
-
-          {collections.map((col) => {
-            const isColActive = activeCollection === col.id;
-            return (
-              <button
-                key={col.id}
-                onClick={() => {
-                  setActiveCollection(isColActive ? null : col.id);
-                  setActiveCategory(null);
-                }}
-                className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-all cursor-pointer shrink-0 flex items-center space-x-1.5 ${
-                  isColActive
-                    ? "bg-zinc-900 text-white dark:bg-white/[0.12] dark:text-white border border-transparent dark:border-white/[0.12] font-semibold"
-                    : "text-secondaryText-light dark:text-zinc-400 hover:text-primaryText-light dark:hover:text-zinc-200 hover:bg-surfaceSecondary-light dark:hover:bg-white/[0.04] border border-transparent"
-                }`}
-              >
-                <Folder className="w-3 h-3 text-secondaryText-light dark:text-zinc-400 inline" />
-                <span>{col.name}</span>
-              </button>
-            );
-          })}
-        </div>
-      )}
     </div>
   );
 }

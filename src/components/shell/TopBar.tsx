@@ -98,35 +98,14 @@ export function TopBar() {
 
   // Contextual distinct page identity for the Left Zone
   const getContextIdentity = () => {
-    const safeReels = reels || [];
-    const safeCategories = smartCategories || [];
-    const safeFavorites = favorites || [];
-    const safeTrash = recycleBin || [];
-
     if (pathname === "/dashboard") {
-      return { title: "Visual Library", icon: LayoutGrid, count: safeReels.length };
+      return { title: "Visual Library", icon: LayoutGrid };
     }
-    if (pathname === "/reels") {
-      if (mediaTypeParam === "reel") {
-        const count = safeReels.filter((r) => !r.mediaType || r.mediaType === "reel").length;
-        return { title: "Reels", icon: Film, count };
-      }
-      if (mediaTypeParam === "post") {
-        const count = safeReels.filter((r) => r.mediaType === "post").length;
-        return { title: "Posts & Photos", icon: ImageIcon, count };
-      }
-      if (mediaTypeParam === "audio") {
-        const count = safeReels.filter((r) => r.mediaType === "audio").length;
-        return { title: "Songs & Audio", icon: Music2, count };
-      }
-      if (mediaTypeParam === "story") {
-        const count = safeReels.filter((r) => r.mediaType === "story").length;
-        return { title: "Stories", icon: CircleDashed, count };
-      }
-      return { title: "All Library", icon: LayoutGrid, count: safeReels.length };
+    if (pathname.startsWith("/reels")) {
+      return { title: "Library", icon: LayoutGrid };
     }
     if (pathname.startsWith("/categories")) {
-      return { title: "Categories", icon: Folder, count: safeCategories.filter((c) => c.name && !c.name.startsWith("#")).length };
+      return { title: "Categories", icon: Folder };
     }
     if (pathname.startsWith("/collections")) {
       return { title: "Collections", icon: Folder };
@@ -141,15 +120,15 @@ export function TopBar() {
       return { title: "Settings", icon: Settings };
     }
     if (pathname.startsWith("/favorites")) {
-      return { title: "Favorites", icon: Heart, count: safeFavorites.length };
+      return { title: "Favorites", icon: Heart };
     }
     if (pathname.startsWith("/recycle-bin")) {
-      return { title: "Recycle Bin", icon: Trash2, count: safeTrash.length };
+      return { title: "Recycle Bin", icon: Trash2 };
     }
     if (pathname.startsWith("/recent")) {
       return { title: "Recently Saved", icon: Clock };
     }
-    return { title: "Visual Library", icon: LayoutGrid, count: safeReels.length };
+    return { title: "Library", icon: LayoutGrid };
   };
 
   const identity = getContextIdentity();
@@ -167,11 +146,6 @@ export function TopBar() {
         <span className="text-[14px] font-semibold leading-[20px] tracking-[-0.01em] text-primaryText-light dark:text-primaryText-dark transition-colors duration-150">
           {identity.title}
         </span>
-        {identity.count !== undefined && (
-          <span className="inline-flex items-center justify-center h-[20px] min-w-[20px] px-[6px] rounded-[6px] text-[11px] font-semibold bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark text-secondaryText-light dark:text-secondaryText-dark tabular-nums transition-colors duration-150 border border-borderSubtle-light dark:border-borderSubtle-dark">
-            {identity.count}
-          </span>
-        )}
       </div>
 
       {/* ─── 2. CENTER ZONE: Command Center Search (Desktop Only) ───── */}

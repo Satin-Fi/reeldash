@@ -104,7 +104,7 @@ export function Sidebar() {
       label: "Reels",
       href: "/reels?type=reel",
       icon: Film,
-      count: counts.reel,
+      count: counts.reel > 0 ? counts.reel : undefined,
       isActive: isReelsPath && activeMediaType === "reel",
       onClick: () => setActiveMediaType("reel"),
     },
@@ -112,7 +112,7 @@ export function Sidebar() {
       label: "Posts & Photos",
       href: "/reels?type=post",
       icon: ImageIcon,
-      count: counts.post,
+      count: counts.post > 0 ? counts.post : undefined,
       isActive: isReelsPath && activeMediaType === "post",
       onClick: () => setActiveMediaType("post"),
     },
@@ -120,7 +120,7 @@ export function Sidebar() {
       label: "Songs & Audio",
       href: "/reels?type=audio",
       icon: Music2,
-      count: counts.audio,
+      count: counts.audio > 0 ? counts.audio : undefined,
       isActive: isReelsPath && activeMediaType === "audio",
       onClick: () => setActiveMediaType("audio"),
     },
@@ -128,7 +128,7 @@ export function Sidebar() {
       label: "Stories",
       href: "/reels?type=story",
       icon: CircleDashed,
-      count: counts.story,
+      count: counts.story > 0 ? counts.story : undefined,
       isActive: isReelsPath && activeMediaType === "story",
       onClick: () => setActiveMediaType("story"),
     },
@@ -136,7 +136,7 @@ export function Sidebar() {
       label: "All Library",
       href: "/reels?type=all",
       icon: LayoutGrid,
-      count: counts.all,
+      count: counts.all > 0 ? counts.all : undefined,
       isActive: isReelsPath && activeMediaType === "all",
       onClick: () => setActiveMediaType("all"),
     },
@@ -153,13 +153,6 @@ export function Sidebar() {
       href: "/collections",
       badge: collections.length > 0 ? collections.length : null,
       isActive: pathname === "/collections",
-    },
-    {
-      label: "Trash",
-      icon: Trash2,
-      href: "/trash",
-      badge: recycleBin.length > 0 ? recycleBin.length : null,
-      isActive: pathname === "/trash",
     },
   ];
 
@@ -225,34 +218,8 @@ export function Sidebar() {
             )}
           </div>
         ) : activeAccounts.length === 1 ? (
-          /* EXACTLY ONE ACTIVE ACCOUNT — Show account context without dropdown */
-          <div className="pt-1 pb-1">
-            <div className="w-full flex items-center justify-between px-2.5 py-2 rounded-rd-md bg-surfaceSecondary-light/50 dark:bg-white/[0.02] border border-borderSubtle-light dark:border-white/[0.06]">
-              <div className="flex items-center gap-2.5 min-w-0">
-                <div className="w-7 h-7 rounded-lg overflow-hidden shrink-0 bg-brand-500/15 flex items-center justify-center relative">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={getAccountAvatarSrc(activeAccounts[0].username)}
-                    alt={activeAccounts[0].username}
-                    referrerPolicy="no-referrer"
-                    onError={(e) => {
-                      (e.target as HTMLElement).style.display = "none";
-                    }}
-                    className="w-full h-full object-cover z-10"
-                  />
-                  <Instagram className="w-3.5 h-3.5 text-brand-600 dark:text-brand-400 absolute" />
-                </div>
-                <div className="min-w-0">
-                  <span className="block text-xs font-semibold truncate text-primaryText-light dark:text-zinc-200 leading-tight font-mono">
-                    @{activeAccounts[0].username}
-                  </span>
-                  <span className="block text-[10px] text-emerald-500 leading-tight mt-0.5 font-medium">
-                    Active Connection
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
+          /* EXACTLY ONE ACTIVE ACCOUNT — Hide redundant active connection box; account is already shown in the user tile below */
+          null
         ) : (
           /* TWO OR MORE ACTIVE ACCOUNTS — Full switcher with All Accounts */
           <div className="relative pt-1 pb-1">

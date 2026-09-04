@@ -18,12 +18,24 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 
 /**
- * ReelDash-owned Native Fallback View (No broken Instagram iframe popup)
+ * Preserved Information View for Deleted/Restricted Instagram Posts
  */
-function ReelDashEmbedFrame({ reel, shortcode }: { reel: Reel; shortcode: string }) {
+function ArchivedReelSnapshot({
+  reel,
+  coverImageSrc,
+}: {
+  reel: Reel;
+  coverImageSrc?: string;
+}) {
   const { showToast } = useReels();
 
-  const isPost = reel.mediaType === "post" || reel.instagramUrl.includes("/p/");
+  const isPost = reel.mediaType === "post" || reel.instagramUrl?.includes("/p/");
+  const displayCategories =
+    reel.categories && reel.categories.length > 0
+      ? reel.categories
+      : reel.category && reel.category !== "General"
+      ? [reel.category]
+      : [];
 
   const copyLink = () => {
     navigator.clipboard.writeText(reel.instagramUrl);
@@ -35,15 +47,27 @@ function ReelDashEmbedFrame({ reel, shortcode }: { reel: Reel; shortcode: string
   };
 
   return (
-    <div className="relative w-full h-full flex flex-col justify-between bg-zinc-950 text-white p-6 select-none overflow-hidden">
+    <div className="relative w-full h-full flex flex-col justify-between bg-zinc-950 text-white p-5 sm:p-6 select-none overflow-y-auto custom-scrollbar">
+      {/* Ambient background glow */}
+      {coverImageSrc && (
+        <div
+          className="absolute inset-0 opacity-20 filter blur-3xl scale-125 pointer-events-none"
+          style={{
+            backgroundImage: `url(${coverImageSrc})`,
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+          }}
+        />
+      )}
+
       {/* Top Header */}
       <div className="flex items-center justify-between z-10">
         <div className="flex items-center space-x-2">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/logo.png" alt="ReelDash" className="w-5 h-5 object-contain" />
           <span className="text-xs font-bold text-white font-bricolage">ReelDash</span>
-          <span className="text-[10px] px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-400">
-            {isPost ? "Instagram Post" : "Instagram Reel"}
+          <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/20 font-medium">
+            Post Unavailable on IG
           </span>
         </div>
         <button
@@ -55,30 +79,92 @@ function ReelDashEmbedFrame({ reel, shortcode }: { reel: Reel; shortcode: string
         </button>
       </div>
 
-      {/* Middle Notice */}
-      <div className="flex flex-col items-center justify-center text-center space-y-4 my-auto z-10 px-4">
-        <div className="w-14 h-14 rounded-full bg-brand-500/10 text-brand-400 flex items-center justify-center border border-brand-500/20">
-          <Play className="w-6 h-6" />
+      {/* Center Snapshot Card: What was happening in it */}
+      <div className="relative z-10 my-auto py-3 space-y-3">
+        <div className="p-3.5 rounded-xl bg-white/[0.04] border border-white/[0.08] backdrop-blur-md space-y-2.5">
+          {/* Creator Profile snippet */}
+          <div className="flex items-center space-x-2.5 pb-2 border-b border-white/[0.06]">
+            <div className="w-8 h-8 rounded-full bg-brand-500/20 text-brand-400 font-bold text-xs flex items-center justify-center border border-brand-500/30 shrink-0">
+              {(reel.creatorUsername || "I")[0]?.toUpperCase()}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-bold text-white truncate">@{reel.creatorUsername}</p>
+              <p className="text-[10px] text-zinc-400">Archived from Instagram</p>
+            </div>
+          </div>
+
+          {/* What was this reel about */}
+          <div className="space-y-1">
+            <span className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider block">
+              What was in this {isPost ? "post" : "reel"}
+            </span>
+            <p className="text-xs text-zinc-200 leading-relaxed max-h-36 overflow-y-auto whitespace-pre-line custom-scrollbar pr-1">
+              {reel.caption || reel.aiSummary || "This post was saved from Instagram without a caption."}
+            </p>
+          </div>
+
+          {/* AI Summary if distinct */}
+          {reel.aiSummary && reel.aiSummary !== reel.caption && (
+            <div className="pt-2 border-t border-white/[0.06] space-y-1">
+              <span className="text-[10px] font-semibold text-purple-400 uppercase tracking-wider flex items-center gap-1">
+                <span>✨</span> AI Content Summary
+              </span>
+              <p className="text-xs text-zinc-300 leading-relaxed">{reel.aiSummary}</p>
+            </div>
+          )}
+
+          {/* Audio Track Info */}
+          {reel.audioTitle && (
+            <div className="flex items-center gap-2 pt-1 text-xs text-emerald-400">
+              <Music2 className="w-3.5 h-3.5 shrink-0" />
+              <span className="truncate">{reel.audioTitle}</span>
+            </div>
+          )}
+
+          {/* Categories & Topics */}
+          {displayCategories.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 pt-1">
+              {displayCategories.map((c) => (
+                <span
+                  key={c}
+                  className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-brand-500/15 text-brand-300 border border-brand-500/30"
+                >
+                  #{c}
+                </span>
+              ))}
+              {reel.aiTopics?.map((t) => (
+                <span
+                  key={t}
+                  className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-purple-500/15 text-purple-300 border border-purple-500/30"
+                >
+                  {t}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
-        <div className="space-y-1.5 max-w-xs">
-          <h4 className="text-sm font-bold text-white">Direct Stream Restricted</h4>
-          <p className="text-xs text-zinc-400 leading-relaxed">
-            Instagram has restricted third-party video streaming for this reel. You can view it directly on Instagram.
-          </p>
+
+        <p className="text-[11px] text-zinc-400 text-center px-2">
+          Instagram video stream is no longer accessible because this post was deleted, made private, or restricted.
+        </p>
+
+        <div className="flex justify-center pt-1">
+          <button
+            onClick={openInstagram}
+            className="px-4 py-2 bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 active:scale-95 text-white font-semibold text-xs rounded-lg transition-all shadow-md flex items-center space-x-2 cursor-pointer"
+          >
+            <span>Check on Instagram</span>
+            <ExternalLink className="w-3.5 h-3.5" />
+          </button>
         </div>
-        <button
-          onClick={openInstagram}
-          className="px-5 py-2.5 bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 active:scale-95 text-white font-semibold text-xs rounded-rd-lg transition-all shadow-lg flex items-center space-x-2 cursor-pointer"
-        >
-          <span>Watch on Instagram</span>
-          <ExternalLink className="w-3.5 h-3.5" />
-        </button>
       </div>
 
-      {/* Bottom Creator Info */}
-      <div className="z-10 border-t border-zinc-800/80 pt-3 flex items-center justify-between text-xs text-zinc-400">
-        <span className="font-semibold text-zinc-300">@{reel.creatorUsername}</span>
-        <span className="text-[11px] truncate max-w-[150px]">{reel.caption || "Instagram Reel"}</span>
+      {/* Bottom Date Info */}
+      <div className="z-10 border-t border-zinc-800/80 pt-2.5 flex items-center justify-between text-xs text-zinc-400">
+        <span className="text-[11px]">Saved in your library</span>
+        <span className="text-[11px] font-mono">
+          {reel.createdAt ? new Date(reel.createdAt).toLocaleDateString() : ""}
+        </span>
       </div>
     </div>
   );
@@ -619,11 +705,13 @@ function CustomVideoPlayer({
   poster,
   isMuted,
   setIsMuted,
+  reel,
 }: {
   src?: string;
   poster?: string;
   isMuted: boolean;
   setIsMuted: (muted: boolean) => void;
+  reel: Reel;
 }) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -633,7 +721,12 @@ function CustomVideoPlayer({
   const [durationStr, setDurationStr] = useState("0:00");
   const [feedbackIcon, setFeedbackIcon] = useState<"play" | "pause" | null>(null);
   const [showControls, setShowControls] = useState(true);
+  const [hasVideoError, setHasVideoError] = useState(false);
   const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  if (hasVideoError || !src) {
+    return <ArchivedReelSnapshot reel={reel} coverImageSrc={poster} />;
+  }
 
   const togglePlay = () => {
     if (!videoRef.current) return;
@@ -721,6 +814,7 @@ function CustomVideoPlayer({
         onTimeUpdate={handleTimeUpdate}
         onPlay={() => setIsPlaying(true)}
         onPause={() => setIsPlaying(false)}
+        onError={() => setHasVideoError(true)}
         className="w-full h-full object-contain"
       />
 
@@ -946,6 +1040,7 @@ export function ReelPlayer({
           poster={coverImageSrc}
           isMuted={isMuted}
           setIsMuted={setIsMuted}
+          reel={reel}
         />
       )}
 
