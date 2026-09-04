@@ -75,6 +75,9 @@ export interface ConnectedInstagramAccount {
   displayName?: string;
   avatarUrl?: string;
   isActive?: boolean;
+  status?: "active" | "legacy_unverified" | "inactive" | "pending";
+  linkedAt?: string;
+  linkedVia?: string;
   createdAt?: string;
 }
 

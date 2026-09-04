@@ -53,12 +53,8 @@ export function TopBar() {
   const mediaTypeParam = searchParams.get("type");
 
   const connectedAccounts = user?.connectedAccounts || [];
-  const allHandles = Array.from(
-    new Set([
-      ...connectedAccounts.map((a) => a.username.toLowerCase()),
-      ...(user?.instagramUsername ? [user.instagramUsername.toLowerCase()] : []),
-    ])
-  ).filter(Boolean);
+  // SINGLE SOURCE OF TRUTH: strictly active accounts
+  const activeAccounts = connectedAccounts.filter((a) => a.status === "active");
 
   const getAccountAvatarSrc = (handle: string) => {
     const acc = user?.connectedAccounts?.find(
@@ -241,10 +237,10 @@ export function TopBar() {
             aria-haspopup="menu"
             aria-label="User profile menu"
           >
-            {user?.avatar || user?.instagramUsername ? (
+            {user?.avatar ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
-                src={user.avatar || `/api/proxy-image?username=${encodeURIComponent(user.instagramUsername || "")}`}
+                src={user.avatar}
                 alt=""
                 referrerPolicy="no-referrer"
                 onError={(e) => {
@@ -281,8 +277,55 @@ export function TopBar() {
                   </p>
                 </div>
 
-                {/* Account Switching in Profile Menu */}
-                {allHandles.length > 0 && (
+                {/* Account Section in Profile Menu */}
+                {activeAccounts.length === 0 ? (
+                  /* ZERO ACTIVE ACCOUNTS */
+                  <div className="py-2 px-3 border-b border-borderSubtle-light dark:border-white/[0.06] mb-1 space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-semibold text-secondaryText-light dark:text-[#747987] uppercase tracking-wider">
+                        Instagram
+                      </span>
+                      <span className="text-[10px] text-zinc-400">Not connected</span>
+                    </div>
+                    <Link
+                      href="/settings"
+                      onClick={() => setProfileOpen(false)}
+                      className="w-full flex items-center justify-center gap-1.5 py-1.5 px-2.5 rounded-[6px] bg-brand-500/10 hover:bg-brand-500/20 border border-brand-500/20 text-brand-600 dark:text-brand-400 text-xs font-semibold transition-colors"
+                    >
+                      <Instagram className="w-3.5 h-3.5" />
+                      <span>Connect Instagram</span>
+                    </Link>
+                  </div>
+                ) : activeAccounts.length === 1 ? (
+                  /* EXACTLY ONE ACTIVE ACCOUNT — Display handle with checkmark */
+                  <div className="py-2 px-3 border-b border-borderSubtle-light dark:border-white/[0.06] mb-1">
+                    <span className="block text-[10px] font-semibold text-secondaryText-light dark:text-[#747987] uppercase tracking-wider mb-1.5">
+                      Instagram
+                    </span>
+                    <div className="flex items-center justify-between py-1 px-2 rounded-[6px] bg-surfaceSecondary-light dark:bg-white/[0.03] border border-borderSubtle-light dark:border-white/[0.04]">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className="w-4 h-4 rounded-full overflow-hidden bg-brand-500/15 flex items-center justify-center shrink-0 relative">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={getAccountAvatarSrc(activeAccounts[0].username)}
+                            alt={activeAccounts[0].username}
+                            referrerPolicy="no-referrer"
+                            onError={(e) => {
+                              (e.target as HTMLElement).style.display = "none";
+                            }}
+                            className="w-full h-full object-cover z-10"
+                          />
+                          <Instagram className="w-2.5 h-2.5 text-brand-500 absolute" />
+                        </div>
+                        <span className="truncate font-mono font-medium text-xs text-primaryText-light dark:text-white">
+                          @{activeAccounts[0].username}
+                        </span>
+                      </div>
+                      <Check className="w-3 h-3 text-emerald-500 shrink-0" />
+                    </div>
+                  </div>
+                ) : (
+                  /* TWO OR MORE ACTIVE ACCOUNTS — Full switcher */
                   <div className="py-1 border-b border-borderSubtle-light dark:border-white/[0.06] mb-1">
                     <div className="px-2.5 py-1 text-[10px] font-semibold text-secondaryText-light dark:text-[#747987] uppercase tracking-wider">
                       Instagram Accounts
@@ -304,7 +347,8 @@ export function TopBar() {
                       </div>
                       {!selectedInstagramAccount && <Check className="w-3 h-3 text-brand-500 shrink-0" />}
                     </button>
-                    {allHandles.map((handle) => {
+                    {activeAccounts.map((acc) => {
+                      const handle = acc.username;
                       const isSelected = selectedInstagramAccount?.toLowerCase() === handle.toLowerCase();
                       return (
                         <button
@@ -331,9 +375,7 @@ export function TopBar() {
                                 }}
                                 className="w-full h-full object-cover z-10"
                               />
-                              <span className="text-[7px] uppercase font-mono absolute text-brand-500 font-bold">
-                                {handle.replace(/^_/, "").charAt(0) || handle.charAt(0)}
-                              </span>
+                              <Instagram className="w-2.5 h-2.5 text-brand-500 absolute" />
                             </div>
                             <span className="truncate font-mono">@{handle}</span>
                           </div>

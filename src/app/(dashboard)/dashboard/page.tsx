@@ -67,17 +67,19 @@ export default function DashboardPage() {
     : activeGreetingObj.textEvening;
 
   const connectedAccounts = user?.connectedAccounts || [];
+  // SINGLE SOURCE OF TRUTH: strictly active accounts
+  const activeAccounts = connectedAccounts.filter((a) => a.status === "active");
 
   const activeAccount = selectedInstagramAccount
-    ? connectedAccounts.find(
+    ? activeAccounts.find(
         (a) => a.username.toLowerCase() === selectedInstagramAccount.toLowerCase()
       )
     : null;
 
   // When a specific profile is selected, display that profile's name or handle.
   // When All Accounts is selected, display the account holder's primary name.
-  const displayName = selectedInstagramAccount
-    ? activeAccount?.displayName && activeAccount.displayName.trim().length > 0
+  const displayName = selectedInstagramAccount && activeAccount
+    ? activeAccount.displayName && activeAccount.displayName.trim().length > 0
       ? activeAccount.displayName.trim()
       : `@${selectedInstagramAccount}`
     : user?.name
@@ -129,7 +131,11 @@ export default function DashboardPage() {
                     {timeGreeting}, {displayName}.
                   </h1>
                   <p className="mt-2.5 max-w-xl text-[13px] leading-relaxed text-secondaryText-light dark:text-secondaryText-dark" style={{ textWrap: 'balance' } as React.CSSProperties}>
-                    {selectedInstagramAccount
+                    {activeAccounts.length === 0
+                      ? `Paste any Instagram link below, or connect your Instagram to auto-save Reels via DM. Press `
+                      : activeAccounts.length === 1
+                      ? `Showing library for @${activeAccounts[0].username}. Paste any Instagram link or press `
+                      : selectedInstagramAccount
                       ? `Showing library for @${selectedInstagramAccount}. Paste any Instagram link or press `
                       : `Showing unified library across all accounts. Paste any Instagram link or press `}
                     <kbd className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-white/[0.08] text-[10px] font-mono">⌘K</kbd>

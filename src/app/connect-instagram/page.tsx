@@ -27,6 +27,42 @@ export default function ConnectInstagramPage() {
   const [copied, setCopied] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // DM Verification Code entry state
+  const [dmCode, setDmCode] = useState("");
+  const [isRedeeming, setIsRedeeming] = useState(false);
+  const [redeemError, setRedeemError] = useState<string | null>(null);
+
+  const handleRedeemCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!dmCode.trim()) return;
+    setIsRedeeming(true);
+    setRedeemError(null);
+
+    try {
+      const headers = await getClientAuthHeaders(user?.id);
+      headers["Content-Type"] = "application/json";
+      const res = await fetch("/api/instagram/link-code", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ code: dmCode.trim() }),
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setIsLinked(true);
+        setLinkedUsername(data.username ? `@${data.username}` : null);
+        if (pollRef.current) clearInterval(pollRef.current);
+        setTimeout(() => router.push("/dashboard"), 2000);
+      } else {
+        setRedeemError(data.error || "Failed to verify code.");
+      }
+    } catch (err: any) {
+      setRedeemError(err?.message || "Connection error. Please try again.");
+    } finally {
+      setIsRedeeming(false);
+    }
+  };
+
   // Redirect unauthenticated users to signup
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -268,6 +304,39 @@ export default function ConnectInstagramPage() {
               <span className="text-[11px] text-zinc-500">
                 Waiting for verification
               </span>
+            </div>
+
+            {/* Alternative: Enter code received in DM */}
+            <div className="pt-3 border-t border-white/[0.08] space-y-2">
+              <p className="text-[11px] text-zinc-400 font-medium">
+                Got a code from @ReelDash on Instagram?
+              </p>
+              <form onSubmit={handleRedeemCode} className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="RDX-XXXXXX"
+                  value={dmCode}
+                  onChange={(e) => {
+                    setDmCode(e.target.value.toUpperCase());
+                    setRedeemError(null);
+                  }}
+                  className="flex-1 px-3 py-2 bg-[#14151a] border border-white/[0.1] rounded-xl font-mono text-xs uppercase tracking-wider text-white placeholder:text-zinc-600 focus:border-white/30 outline-none"
+                />
+                <button
+                  type="submit"
+                  disabled={isRedeeming || !dmCode.trim()}
+                  className="px-3.5 py-2 bg-white hover:bg-zinc-200 text-black font-semibold text-xs rounded-xl disabled:opacity-50 transition-colors flex items-center gap-1 shrink-0 cursor-pointer"
+                >
+                  {isRedeeming ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <span>Connect</span>
+                  )}
+                </button>
+              </form>
+              {redeemError && (
+                <p className="text-[11px] text-red-400 font-medium">{redeemError}</p>
+              )}
             </div>
           </div>
         ) : null}

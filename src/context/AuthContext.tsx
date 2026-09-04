@@ -46,6 +46,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (storedUser) {
         const parsed = JSON.parse(storedUser);
         if (parsed && parsed.id) {
+          // SANITIZATION: Validate that instagramUsername matches an ACTIVE connected account
+          const activeAccounts = (parsed.connectedAccounts || []).filter(
+            (a: any) => a.status === "active"
+          );
+          if (activeAccounts.length === 0) {
+            parsed.instagramUsername = undefined;
+          } else {
+            parsed.instagramUsername = activeAccounts[0].username;
+          }
+          parsed.connectedAccounts = (parsed.connectedAccounts || []).filter(
+            (a: any) => a.status !== "inactive"
+          );
+          localStorage.setItem("reeldash_user", JSON.stringify(parsed));
           setUser(parsed);
         }
       }
@@ -75,7 +88,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           };
 
           setUser((prev) => {
-            const current = prev || googleUser;
+            const activeAccs = (prev?.connectedAccounts || []).filter(
+              (a: any) => a.status === "active"
+            );
+            const current: UserProfile = {
+              ...(prev || googleUser),
+              instagramUsername: activeAccs.length > 0 ? activeAccs[0].username : undefined,
+            };
             localStorage.setItem("reeldash_user", JSON.stringify(current));
             return current;
           });
@@ -95,13 +114,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const avatar = meta.avatar_url || meta.picture || "";
 
           setUser((prev) => {
+            const activeAccs = (prev?.connectedAccounts || []).filter(
+              (a: any) => a.status === "active"
+            );
             const current: UserProfile = {
               id: session.user.id,
               name: prev?.name || fullName,
               email: session.user.email || email,
               handle: `@${email.split("@")[0]}`,
               avatar: prev?.avatar || avatar,
-              instagramUsername: prev?.instagramUsername,
+              instagramUsername: activeAccs.length > 0 ? activeAccs[0].username : undefined,
               connectedAccounts: prev?.connectedAccounts,
               plan: "Pro Plan",
             };
@@ -136,18 +158,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
       if (res.ok) {
         const data = await res.json();
-        if (data.accounts) {
-          setUser((prev) => {
-            if (!prev) return prev;
-            const updated = {
-              ...prev,
-              connectedAccounts: data.accounts,
-              instagramUsername: data.accounts[0]?.username || prev.instagramUsername,
-            };
-            localStorage.setItem("reeldash_user", JSON.stringify(updated));
-            return updated;
-          });
-        }
+        const rawAccounts: ConnectedInstagramAccount[] = data.accounts || [];
+        // SINGLE SOURCE OF TRUTH: Only accounts with status === 'active' are active
+        const activeAccounts = rawAccounts.filter((a) => a.status === "active");
+        const activeUsername = activeAccounts.length > 0 ? activeAccounts[0].username : undefined;
+
+        setUser((prev) => {
+          if (!prev) return prev;
+          const updated: UserProfile = {
+            ...prev,
+            connectedAccounts: rawAccounts,
+            instagramUsername: activeUsername,
+          };
+          localStorage.setItem("reeldash_user", JSON.stringify(updated));
+          return updated;
+        });
       }
     } catch (e) {
       console.warn("[AuthContext] refreshAccounts notice:", e);
@@ -166,6 +191,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const removeInstagramAccount = async (accountId: string): Promise<boolean> => {
+    // Optimistically update local state immediately so UI updates with zero lag
+    setUser((prev) => {
+      if (!prev) return prev;
+      const remaining = (prev.connectedAccounts || []).filter(
+        (a) => a.id !== accountId
+      );
+      const activeRemaining = remaining.filter((a) => a.status === "active");
+      const updated: UserProfile = {
+        ...prev,
+        connectedAccounts: remaining,
+        instagramUsername: activeRemaining.length > 0 ? activeRemaining[0].username : undefined,
+      };
+      localStorage.setItem("reeldash_user", JSON.stringify(updated));
+      return updated;
+    });
+
     try {
       const headers = await getClientAuthHeaders(user?.id);
       const res = await fetch(`/api/instagram/accounts?accountId=${encodeURIComponent(accountId)}`, {
@@ -176,8 +217,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         await refreshAccounts();
         return true;
       }
+      await refreshAccounts();
       return false;
     } catch {
+      await refreshAccounts();
       return false;
     }
   };

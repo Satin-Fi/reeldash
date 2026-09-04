@@ -1,6 +1,6 @@
 import { getSupabaseAdmin } from "./supabase";
 import { parseCategoryCommand, formatCategoryDisplayName } from "./parseCategory";
-import { isLinkCode, normalizeLinkCode, MAX_CODE_ATTEMPTS } from "./serverAuth";
+import { isLinkCode, normalizeLinkCode, generateLinkCode, MAX_CODE_ATTEMPTS } from "./serverAuth";
 export { parseCategoryCommand, formatCategoryDisplayName };
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -437,12 +437,41 @@ async function handleCheckVerification(
   }
 
   // check.status === "NOT_VERIFIED"
-  const reply = `⏳ You're not verified yet.\n\nComplete the verification on ReelDash first, then tap 'I've verified' again.`;
+  // Generate a fresh verification code for this Instagram sender
+  const supabase = getSupabaseAdmin();
+  const code = generateLinkCode();
+  const now = new Date();
+  const expiresAt = new Date(now.getTime() + 15 * 60 * 1000); // 15 mins
+
+  if (supabase) {
+    try {
+      // Invalidate previous pending codes for this Instagram sender
+      await supabase
+        .from("link_codes")
+        .update({ status: "expired" })
+        .eq("instagram_sender_id", senderIgId)
+        .eq("status", "pending");
+
+      // Insert new pending challenge code
+      await supabase.from("link_codes").insert({
+        code,
+        instagram_sender_id: senderIgId,
+        instagram_username: username || null,
+        status: "pending",
+        attempts: 0,
+        expires_at: expiresAt.toISOString(),
+      });
+    } catch (dbErr) {
+      console.error("[Instagram Bot] Error saving DM verification code:", dbErr);
+    }
+  }
+
+  const reply = `🔑 Here is your ReelDash verification code:\n\n${code}\n\nEnter this code on ReelDash to connect your Instagram account.`;
   const buttons: BotButton[] = [
     {
       type: "web_url",
-      title: "Verify now",
-      url: `${APP_URL}/connect-instagram`,
+      title: "Enter on ReelDash",
+      url: `${APP_URL}/settings`,
     },
     {
       type: "postback",
@@ -461,6 +490,229 @@ async function handleCheckVerification(
     username,
     isFollowing: true,
   };
+}
+
+/**
+ * Redeem a verification code that was generated in Instagram DM.
+ *
+ * Called from POST /api/instagram/link-code when an authenticated ReelDash user
+ * enters the code received in their Instagram DM into the ReelDash website.
+ */
+export async function redeemDMVerificationCode(
+  userId: string,
+  rawCode: string
+): Promise<{
+  success: boolean;
+  error?: string;
+  username?: string;
+  claimedCount?: number;
+}> {
+  const code = normalizeLinkCode(rawCode);
+  if (!isLinkCode(code)) {
+    return {
+      success: false,
+      error: "Invalid code format. Expected format: RDX-XXXXXX",
+    };
+  }
+
+  const supabase = getSupabaseAdmin();
+  if (!supabase) {
+    return { success: false, error: "Database not configured" };
+  }
+
+  try {
+    // 1. Look up code
+    const { data: codeRecord, error: codeErr } = await supabase
+      .from("link_codes")
+      .select("*")
+      .eq("code", code)
+      .maybeSingle();
+
+    if (codeErr || !codeRecord) {
+      return {
+        success: false,
+        error: "Verification code not found. Please check and try again.",
+      };
+    }
+
+    if (codeRecord.status === "used") {
+      return {
+        success: false,
+        error: "This code has already been used.",
+      };
+    }
+
+    if (
+      codeRecord.status === "expired" ||
+      new Date(codeRecord.expires_at) < new Date()
+    ) {
+      await supabase
+        .from("link_codes")
+        .update({ status: "expired" })
+        .eq("id", codeRecord.id);
+      return {
+        success: false,
+        error: "This code has expired. Tap 'I\'ve verified' in Instagram DM to receive a new code.",
+      };
+    }
+
+    if (codeRecord.attempts >= MAX_CODE_ATTEMPTS) {
+      await supabase
+        .from("link_codes")
+        .update({ status: "expired" })
+        .eq("id", codeRecord.id);
+      return {
+        success: false,
+        error: "Too many attempts for this code. Tap 'I\'ve verified' in Instagram DM to receive a new code.",
+      };
+    }
+
+    // 2. Check if this code was generated in DM (has instagram_sender_id)
+    const senderIgId = codeRecord.instagram_sender_id;
+    if (!senderIgId) {
+      // This code was generated on the web for web-to-DM flow
+      return {
+        success: false,
+        error:
+          "This code was generated on ReelDash. Send it as a DM to @ReelDash on Instagram, or tap 'I\'ve verified' in Instagram DM to get a code to enter here.",
+      };
+    }
+
+    const igUsername = codeRecord.instagram_username || "instagram_user";
+
+    // 3. Conflict check: Is this Instagram account linked to a DIFFERENT user?
+    const { data: existingLink } = await supabase
+      .from("instagram_accounts")
+      .select("reeldash_user_id, username, status")
+      .eq("instagram_user_id", senderIgId)
+      .eq("status", "active")
+      .maybeSingle();
+
+    if (existingLink && existingLink.reeldash_user_id !== userId) {
+      return {
+        success: false,
+        error:
+          "This Instagram account is already connected to another ReelDash account. Please disconnect it first or contact support.",
+      };
+    }
+
+    const now = new Date().toISOString();
+
+    // 4. Create or update instagram_accounts record
+    const { data: existingUserAccount } = await supabase
+      .from("instagram_accounts")
+      .select("id")
+      .eq("reeldash_user_id", userId)
+      .eq("instagram_user_id", senderIgId)
+      .maybeSingle();
+
+    let igAccountId: string | null = null;
+
+    if (existingUserAccount) {
+      await supabase
+        .from("instagram_accounts")
+        .update({
+          status: "active",
+          linked_at: now,
+          linked_via: "dm_code",
+          is_active: true,
+          username: igUsername,
+          updated_at: now,
+        })
+        .eq("id", existingUserAccount.id);
+      igAccountId = existingUserAccount.id;
+    } else {
+      // Check for legacy unverified record to upgrade
+      const { data: legacyAcc } = await supabase
+        .from("instagram_accounts")
+        .select("id")
+        .eq("reeldash_user_id", userId)
+        .ilike("username", igUsername)
+        .maybeSingle();
+
+      if (legacyAcc) {
+        await supabase
+          .from("instagram_accounts")
+          .update({
+            instagram_user_id: senderIgId,
+            status: "active",
+            linked_at: now,
+            linked_via: "dm_code",
+            is_active: true,
+            username: igUsername,
+            updated_at: now,
+          })
+          .eq("id", legacyAcc.id);
+        igAccountId = legacyAcc.id;
+      } else {
+        const { data: newAcc } = await supabase
+          .from("instagram_accounts")
+          .insert({
+            reeldash_user_id: userId,
+            instagram_user_id: senderIgId,
+            username: igUsername,
+            display_name: igUsername,
+            avatar_url: `/api/proxy-image?username=${encodeURIComponent(igUsername)}`,
+            is_active: true,
+            status: "active",
+            linked_at: now,
+            linked_via: "dm_code",
+          })
+          .select("id")
+          .single();
+        igAccountId = newAcc?.id || null;
+      }
+    }
+
+    // 5. Mark code as used
+    await supabase
+      .from("link_codes")
+      .update({
+        status: "used",
+        used_at: now,
+        reeldash_user_id: userId,
+        used_by_ig_id: senderIgId,
+      })
+      .eq("id", codeRecord.id);
+
+    // 6. Invalidate profile cache
+    profileCache.delete(senderIgId);
+
+    // 7. Claim pending reels
+    const claimedCount = await claimPendingReelsForUser(
+      senderIgId,
+      userId,
+      igAccountId,
+      igUsername
+    );
+
+    // 8. Send confirmation DM to user on Instagram
+    let confirmMsg = `🎉 Instagram verified!\n\nYour ReelDash account is now connected.`;
+    if (claimedCount > 0) {
+      confirmMsg += `\n\nI also saved ${claimedCount} Reel${claimedCount > 1 ? "s" : ""} you sent earlier.`;
+    }
+    confirmMsg += `\n\nSend me any Reel and I'll save it to your library.`;
+
+    await sendDMReply(senderIgId, confirmMsg, [
+      {
+        type: "web_url",
+        title: "Open ReelDash",
+        url: `${APP_URL}/dashboard`,
+      },
+    ]);
+
+    return {
+      success: true,
+      username: igUsername,
+      claimedCount,
+    };
+  } catch (err: any) {
+    console.error("[Instagram Bot] redeemDMVerificationCode error:", err);
+    return {
+      success: false,
+      error: err?.message || "Internal server error",
+    };
+  }
 }
 
 // ─── Phase 4: Main Message Handler ────────────────────────────────────────────

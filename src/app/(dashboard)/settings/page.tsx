@@ -41,6 +41,46 @@ export default function SettingsPage() {
   const [copied, setCopied] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // DM Verification Code redemption state (Direction: DM -> Web)
+  const [dmInputCode, setDmInputCode] = useState("");
+  const [isRedeeming, setIsRedeeming] = useState(false);
+  const [redeemError, setRedeemError] = useState<string | null>(null);
+
+  const handleRedeemCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!dmInputCode.trim()) return;
+    setIsRedeeming(true);
+    setRedeemError(null);
+
+    try {
+      const headers = await getClientAuthHeaders(user?.id);
+      headers["Content-Type"] = "application/json";
+      const res = await fetch("/api/instagram/link-code", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ code: dmInputCode.trim() }),
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setDmInputCode("");
+        setShowCodeFlow(false);
+        await refreshAccounts();
+        showToast(
+          data.claimedCount > 0
+            ? `Connected @${data.username}! Saved ${data.claimedCount} Reel${data.claimedCount > 1 ? "s" : ""}.`
+            : `Connected @${data.username} successfully!`
+        );
+      } else {
+        setRedeemError(data.error || "Failed to verify code. Please check and try again.");
+      }
+    } catch (err: any) {
+      setRedeemError(err?.message || "Connection error. Please try again.");
+    } finally {
+      setIsRedeeming(false);
+    }
+  };
+
   useEffect(() => {
     refreshAccounts();
     return () => {
@@ -362,123 +402,153 @@ export default function SettingsPage() {
                 )}
               </div>
 
-              {/* Connect New Account (Code Flow) */}
+              {/* Connect New Account (Dual Flow: Enter Code from DM OR Send Code to DM) */}
               {connectedAccounts.length < maxLimit ? (
-                <div className="pt-2 space-y-3">
-                  {!showCodeFlow ? (
-                    <button
-                      onClick={handleConnectClick}
-                      className="w-full px-4 py-2.5 bg-brand-500 hover:bg-brand-600 text-white font-semibold rounded-rd-md shadow-rd-subtle flex items-center justify-center space-x-2 cursor-pointer transition-all text-xs"
-                    >
-                      <Instagram className="w-4 h-4" />
-                      <span>Connect Instagram Account</span>
-                    </button>
-                  ) : isCodeLoading ? (
-                    <div className="flex items-center justify-center py-6">
-                      <Loader2 className="w-5 h-5 animate-spin text-secondaryText-light dark:text-secondaryText-dark" />
-                      <span className="ml-2 text-secondaryText-light dark:text-secondaryText-dark">Generating code...</span>
+                <div className="pt-2 space-y-4">
+                  {/* Option 1: Enter code received from Instagram DM */}
+                  <div className="p-4 rounded-rd-md border border-brand-500/20 bg-brand-500/[0.03] space-y-3">
+                    <div>
+                      <h4 className="font-semibold text-primaryText-light dark:text-white text-xs flex items-center gap-1.5">
+                        <Instagram className="w-3.5 h-3.5 text-brand-500" />
+                        <span>Enter Code from Instagram DM</span>
+                      </h4>
+                      <p className="text-[11px] text-secondaryText-light dark:text-secondaryText-dark mt-1">
+                        Tap <span className="font-semibold text-primaryText-light dark:text-zinc-200">&quot;I&apos;ve verified&quot;</span> in your Instagram chat with <span className="font-semibold text-primaryText-light dark:text-zinc-200">@ReelDash</span> to receive your code, then enter it below:
+                      </p>
                     </div>
-                  ) : codeError ? (
-                    <div className="p-4 rounded-rd-md border border-red-500/20 bg-red-500/5 text-center space-y-3">
-                      <p className="text-xs text-red-400 font-medium">{codeError}</p>
-                      <div className="flex items-center justify-center gap-2">
+
+                    <form onSubmit={handleRedeemCode} className="flex flex-col sm:flex-row gap-2 pt-1">
+                      <input
+                        type="text"
+                        placeholder="RDX-XXXXXX"
+                        value={dmInputCode}
+                        onChange={(e) => {
+                          setDmInputCode(e.target.value.toUpperCase());
+                          setRedeemError(null);
+                        }}
+                        className="flex-1 px-3 py-2 bg-surfaceSecondary-light dark:bg-white/[0.04] border border-borderSubtle-light dark:border-white/[0.1] rounded-rd-md font-mono text-xs tracking-wider uppercase text-primaryText-light dark:text-white placeholder:text-zinc-500 focus:border-brand-500 outline-none transition-colors"
+                      />
+                      <button
+                        type="submit"
+                        disabled={isRedeeming || !dmInputCode.trim()}
+                        className="px-4 py-2 bg-brand-500 hover:bg-brand-600 disabled:opacity-50 text-white font-semibold rounded-rd-md text-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer shrink-0"
+                      >
+                        {isRedeeming ? (
+                          <>
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            <span>Verifying...</span>
+                          </>
+                        ) : (
+                          <>
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            <span>Verify & Connect</span>
+                          </>
+                        )}
+                      </button>
+                    </form>
+
+                    {redeemError && (
+                      <p className="text-[11px] text-red-400 font-medium">{redeemError}</p>
+                    )}
+                  </div>
+
+                  {/* Option 2: Generate code here and send to @ReelDash in DM */}
+                  <div className="pt-1">
+                    {!showCodeFlow ? (
+                      <button
+                        onClick={handleConnectClick}
+                        className="w-full py-2 px-3 border border-borderSubtle-light dark:border-white/[0.08] hover:bg-surfaceSecondary-light dark:hover:bg-white/[0.03] text-secondaryText-light dark:text-zinc-300 font-medium rounded-rd-md text-[11px] flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                      >
+                        <span>Or generate a code here to send to @ReelDash on DM</span>
+                      </button>
+                    ) : isCodeLoading ? (
+                      <div className="flex items-center justify-center py-6">
+                        <Loader2 className="w-5 h-5 animate-spin text-secondaryText-light dark:text-secondaryText-dark" />
+                        <span className="ml-2 text-secondaryText-light dark:text-secondaryText-dark">Generating code...</span>
+                      </div>
+                    ) : codeError ? (
+                      <div className="p-4 rounded-rd-md border border-red-500/20 bg-red-500/5 text-center space-y-3">
+                        <p className="text-xs text-red-400 font-medium">{codeError}</p>
+                        <div className="flex items-center justify-center gap-2">
+                          <button
+                            onClick={generateCode}
+                            className="px-3 py-1.5 rounded-rd-md bg-brand-500 hover:bg-brand-600 text-white text-xs font-medium flex items-center gap-1.5 cursor-pointer transition-colors"
+                          >
+                            <RefreshCw className="w-3.5 h-3.5" />
+                            <span>Retry</span>
+                          </button>
+                          <button
+                            onClick={() => {
+                              setShowCodeFlow(false);
+                              setCodeError(null);
+                            }}
+                            className="px-3 py-1.5 rounded-rd-md border border-borderSubtle-light dark:border-borderSubtle-dark text-xs text-secondaryText-light dark:text-secondaryText-dark hover:text-primaryText-light cursor-pointer"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : isCodeExpired ? (
+                      <div className="p-4 rounded-rd-md border border-borderSubtle-light dark:border-borderSubtle-dark text-center space-y-3">
+                        <p className="text-secondaryText-light dark:text-secondaryText-dark">Your code has expired.</p>
                         <button
                           onClick={generateCode}
-                          className="px-3 py-1.5 rounded-rd-md bg-brand-500 hover:bg-brand-600 text-white text-xs font-medium flex items-center gap-1.5 cursor-pointer transition-colors"
+                          className="px-4 py-2 rounded-rd-md bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark hover:bg-brand-500/10 border border-borderSubtle-light dark:border-borderSubtle-dark text-primaryText-light dark:text-primaryText-dark font-medium flex items-center space-x-2 mx-auto cursor-pointer transition-colors"
                         >
                           <RefreshCw className="w-3.5 h-3.5" />
-                          <span>Retry</span>
-                        </button>
-                        <button
-                          onClick={() => {
-                            setShowCodeFlow(false);
-                            setCodeError(null);
-                          }}
-                          className="px-3 py-1.5 rounded-rd-md border border-borderSubtle-light dark:border-borderSubtle-dark text-xs text-secondaryText-light dark:text-secondaryText-dark hover:text-primaryText-light cursor-pointer"
-                        >
-                          Cancel
+                          <span>Generate new code</span>
                         </button>
                       </div>
-                    </div>
-                  ) : isCodeExpired ? (
-                    <div className="p-4 rounded-rd-md border border-borderSubtle-light dark:border-borderSubtle-dark text-center space-y-3">
-                      <p className="text-secondaryText-light dark:text-secondaryText-dark">Your code has expired.</p>
-                      <button
-                        onClick={generateCode}
-                        className="px-4 py-2 rounded-rd-md bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark hover:bg-brand-500/10 border border-borderSubtle-light dark:border-borderSubtle-dark text-primaryText-light dark:text-primaryText-dark font-medium flex items-center space-x-2 mx-auto cursor-pointer transition-colors"
-                      >
-                        <RefreshCw className="w-3.5 h-3.5" />
-                        <span>Generate new code</span>
-                      </button>
-                    </div>
-                  ) : linkCode ? (
-                    <div className="p-4 rounded-rd-md border border-brand-500/20 bg-brand-500/5 space-y-4">
-                      <div className="flex items-center justify-between">
-                        <p className="text-secondaryText-light dark:text-secondaryText-dark text-xs">
-                          Send this code to <span className="font-semibold text-primaryText-light dark:text-primaryText-dark">@ReelDash</span> on Instagram DM:
-                        </p>
-                        <button
-                          onClick={() => {
-                            setShowCodeFlow(false);
-                            setLinkCode(null);
-                          }}
-                          className="text-[11px] text-mutedText-light dark:text-mutedText-dark hover:text-primaryText-light cursor-pointer"
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                      <button
-                        onClick={handleCopyCode}
-                        className="w-full group py-3 px-4 bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark hover:bg-surface-light dark:hover:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-md transition-colors cursor-pointer"
-                      >
+                    ) : linkCode ? (
+                      <div className="p-4 rounded-rd-md border border-brand-500/20 bg-brand-500/5 space-y-4">
                         <div className="flex items-center justify-between">
-                          <span className="text-xl font-mono font-bold tracking-[0.15em] text-primaryText-light dark:text-primaryText-dark">
-                            {linkCode}
-                          </span>
-                          <div className="flex items-center space-x-1.5 text-secondaryText-light dark:text-secondaryText-dark group-hover:text-primaryText-light dark:group-hover:text-primaryText-dark transition-colors">
-                            {copied ? (
-                              <>
-                                <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                                <span className="text-[11px] text-emerald-500">Copied</span>
-                              </>
-                            ) : (
-                              <>
-                                <Copy className="w-4 h-4" strokeWidth={1.5} />
-                                <span className="text-[11px]">Copy</span>
-                              </>
-                            )}
+                          <p className="text-secondaryText-light dark:text-secondaryText-dark text-xs">
+                            Send this code to <span className="font-semibold text-primaryText-light dark:text-primaryText-dark">@ReelDash</span> on Instagram DM:
+                          </p>
+                          <button
+                            onClick={() => {
+                              setShowCodeFlow(false);
+                              setLinkCode(null);
+                            }}
+                            className="text-[11px] text-mutedText-light dark:text-mutedText-dark hover:text-primaryText-light cursor-pointer"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                        <button
+                          onClick={handleCopyCode}
+                          className="w-full group py-3 px-4 bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark hover:bg-surface-light dark:hover:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-md transition-colors cursor-pointer"
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="text-xl font-mono font-bold tracking-[0.15em] text-primaryText-light dark:text-primaryText-dark">
+                              {linkCode}
+                            </span>
+                            <div className="flex items-center space-x-1.5 text-secondaryText-light dark:text-secondaryText-dark group-hover:text-primaryText-light dark:group-hover:text-primaryText-dark transition-colors">
+                              {copied ? (
+                                <>
+                                  <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                                  <span className="text-[11px] text-emerald-500">Copied</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Copy className="w-4 h-4" strokeWidth={1.5} />
+                                  <span className="text-[11px]">Copy</span>
+                                </>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                      </button>
-                      <div className="flex items-center justify-center space-x-2">
-                        <div className="flex space-x-1">
-                          <div className="w-1.5 h-1.5 rounded-full bg-brand-500/40 animate-pulse" style={{ animationDelay: "0ms" }} />
-                          <div className="w-1.5 h-1.5 rounded-full bg-brand-500/40 animate-pulse" style={{ animationDelay: "300ms" }} />
-                          <div className="w-1.5 h-1.5 rounded-full bg-brand-500/40 animate-pulse" style={{ animationDelay: "600ms" }} />
-                        </div>
-                        <span className="text-[11px] text-secondaryText-light dark:text-secondaryText-dark">Waiting for verification</span>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="p-4 rounded-rd-md border border-borderSubtle-light dark:border-borderSubtle-dark text-center space-y-3">
-                      <p className="text-xs text-secondaryText-light dark:text-secondaryText-dark">Could not load verification code.</p>
-                      <div className="flex items-center justify-center gap-2">
-                        <button
-                          onClick={generateCode}
-                          className="px-3 py-1.5 rounded-rd-md bg-brand-500 text-white text-xs font-medium flex items-center gap-1.5 cursor-pointer"
-                        >
-                          <RefreshCw className="w-3.5 h-3.5" />
-                          <span>Try again</span>
                         </button>
-                        <button
-                          onClick={() => setShowCodeFlow(false)}
-                          className="px-3 py-1.5 rounded-rd-md border border-borderSubtle-light dark:border-borderSubtle-dark text-xs text-secondaryText-light dark:text-secondaryText-dark hover:text-primaryText-light cursor-pointer"
-                        >
-                          Cancel
-                        </button>
+                        <div className="flex items-center justify-center space-x-2">
+                          <div className="flex space-x-1">
+                            <div className="w-1.5 h-1.5 rounded-full bg-brand-500/40 animate-pulse" style={{ animationDelay: "0ms" }} />
+                            <div className="w-1.5 h-1.5 rounded-full bg-brand-500/40 animate-pulse" style={{ animationDelay: "300ms" }} />
+                            <div className="w-1.5 h-1.5 rounded-full bg-brand-500/40 animate-pulse" style={{ animationDelay: "600ms" }} />
+                          </div>
+                          <span className="text-[11px] text-secondaryText-light dark:text-secondaryText-dark">Waiting for verification</span>
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    ) : null}
+                  </div>
                 </div>
               ) : (
                 <div className="p-4 rounded-rd-md bg-brand-500/5 border border-brand-500/20 flex items-center justify-between">

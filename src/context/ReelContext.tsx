@@ -144,6 +144,20 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
+  // Validate selectedInstagramAccount against active connected accounts
+  useEffect(() => {
+    const activeAccounts = (user?.connectedAccounts || []).filter(
+      (a) => a.status === "active"
+    );
+    const activeHandles = new Set(activeAccounts.map((a) => a.username.toLowerCase()));
+
+    if (selectedInstagramAccount && selectedInstagramAccount !== "all") {
+      if (!activeHandles.has(selectedInstagramAccount.toLowerCase())) {
+        setSelectedInstagramAccount(null);
+      }
+    }
+  }, [user?.connectedAccounts, selectedInstagramAccount]);
+
   // Load user data
   useEffect(() => {
     if (user?.id) {
@@ -225,13 +239,13 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
       setReels(cleanReels);
       setCollections(parsedCols);
 
-      // 1. Fetch live user categories from Supabase
+      // 1. Fetch live categories from database
       fetch(`/api/categories?userId=${encodeURIComponent(user.id)}`)
         .then((res) => (res.ok ? res.json() : { categories: [] }))
         .then((data) => {
-          if (data.categories && Array.isArray(data.categories)) {
+          if (data.categories && Array.isArray(data.categories) && data.categories.length > 0) {
             setUserCategories(data.categories);
-            if (user?.id) {
+            if (typeof window !== "undefined") {
               localStorage.setItem(userCatsKey, JSON.stringify(data.categories));
             }
           }
@@ -239,11 +253,25 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
         .catch((err) => console.warn("[ReelContext] fetch categories notice:", err));
 
       // 2. Fetch live reels from Supabase database (including DM-saved reels & handle filter)
-      const accountParam = selectedInstagramAccount && selectedInstagramAccount !== "all" 
-        ? `&account=${encodeURIComponent(selectedInstagramAccount)}` 
+      const activeAccounts = (user?.connectedAccounts || []).filter(
+        (a) => a.status === "active"
+      );
+      const isValidAccountFilter =
+        selectedInstagramAccount &&
+        selectedInstagramAccount !== "all" &&
+        activeAccounts.some(
+          (a) => a.username.toLowerCase() === selectedInstagramAccount.toLowerCase()
+        );
+
+      const accountParam = isValidAccountFilter
+        ? `&account=${encodeURIComponent(selectedInstagramAccount!)}`
         : "";
 
-      fetch(`/api/reels?userId=${encodeURIComponent(user.id)}&username=${encodeURIComponent(user.instagramUsername || "")}${accountParam}`)
+      const activeUsernameParam = activeAccounts.length > 0 && user.instagramUsername
+        ? `&username=${encodeURIComponent(user.instagramUsername)}`
+        : "";
+
+      fetch(`/api/reels?userId=${encodeURIComponent(user.id)}${activeUsernameParam}${accountParam}`)
         .then((res) => (res.ok ? res.json() : { reels: [] }))
         .then((data) => {
           if (data.reels && Array.isArray(data.reels) && data.reels.length > 0) {
@@ -278,7 +306,7 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
               });
 
             setReels(dbReels);
-          } else if (selectedInstagramAccount && selectedInstagramAccount !== "all") {
+          } else if (isValidAccountFilter) {
             setReels([]);
           }
         })
@@ -289,7 +317,7 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
       setUserCategories([]);
       setRecycleBin([]);
     }
-  }, [user?.id, user?.instagramUsername, selectedInstagramAccount]);
+  }, [user?.id, user?.instagramUsername, user?.connectedAccounts, selectedInstagramAccount]);
 
   const saveUserReels = (updatedReels: Reel[]) => {
     setReels(updatedReels);

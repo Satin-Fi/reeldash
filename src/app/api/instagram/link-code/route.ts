@@ -5,16 +5,18 @@ import {
   generateLinkCode,
   CODE_EXPIRY_SECONDS,
 } from "@/lib/serverAuth";
+import { redeemDMVerificationCode } from "@/lib/instagramBot";
 
 export const dynamic = "force-dynamic";
 
 /**
- * POST — Generate a new challenge code for the authenticated user.
+ * POST — Generate a new challenge code OR redeem a code received via Instagram DM.
  *
- * The userId is derived from the authenticated Supabase session.
- * The client does NOT supply userId.
+ * Case A (Redeem): If `req.body.code` is present, the authenticated user is entering
+ * a verification code they received from @ReelDash in Instagram DM.
  *
- * Response: { code: "RDX-7K4P92", expiresAt: "...", expiresInSeconds: 900 }
+ * Case B (Generate): If no code is passed in the body, generates a new code for the
+ * user to send to @ReelDash on Instagram DM.
  */
 export async function POST(req: NextRequest) {
   try {
@@ -28,6 +30,26 @@ export async function POST(req: NextRequest) {
     }
 
     const userId = authUser.id;
+
+    // Check if client is submitting a verification code received from Instagram DM
+    const body = await req.json().catch(() => null);
+    if (body && typeof body.code === "string" && body.code.trim().length > 0) {
+      const redeemResult = await redeemDMVerificationCode(userId, body.code.trim());
+      if (redeemResult.success) {
+        return NextResponse.json({
+          success: true,
+          linked: true,
+          username: redeemResult.username,
+          claimedCount: redeemResult.claimedCount || 0,
+          message: `Successfully connected @${redeemResult.username}!`,
+        });
+      } else {
+        return NextResponse.json(
+          { error: redeemResult.error || "Failed to verify code." },
+          { status: 400 }
+        );
+      }
+    }
 
     const supabase = getSupabaseAdmin();
     if (!supabase) {

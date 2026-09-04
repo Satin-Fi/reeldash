@@ -77,12 +77,9 @@ export function Sidebar() {
   };
 
   const connectedAccounts = user?.connectedAccounts || [];
-  const allHandles = Array.from(
-    new Set([
-      ...connectedAccounts.map((a) => a.username.toLowerCase()),
-      ...(user?.instagramUsername ? [user.instagramUsername.toLowerCase()] : []),
-    ])
-  ).filter(Boolean);
+  // SINGLE SOURCE OF TRUTH: strictly active accounts
+  const activeAccounts = connectedAccounts.filter((a) => a.status === "active");
+  const legacyAccounts = connectedAccounts.filter((a) => a.status === "legacy_unverified");
 
   const counts = {
     reel: reels.filter((r) => !r.mediaType || r.mediaType === "reel").length,
@@ -145,11 +142,24 @@ export function Sidebar() {
     },
     {
       label: "Favorites",
-      href: "/favorites",
       icon: Heart,
-      count: counts.favs,
+      href: "/favorites",
+      badge: counts.favs > 0 ? counts.favs : null,
       isActive: pathname === "/favorites",
-      onClick: () => {},
+    },
+    {
+      label: "Collections",
+      icon: LayoutGrid,
+      href: "/collections",
+      badge: collections.length > 0 ? collections.length : null,
+      isActive: pathname === "/collections",
+    },
+    {
+      label: "Trash",
+      icon: Trash2,
+      href: "/trash",
+      badge: recycleBin.length > 0 ? recycleBin.length : null,
+      isActive: pathname === "/trash",
     },
   ];
 
@@ -174,8 +184,77 @@ export function Sidebar() {
           </Link>
         </div>
 
-        {/* ─── Instagram Account Selector ─── */}
-        {allHandles.length > 0 && (
+        {/* ─── Instagram Account Status / Selector ─── */}
+        {activeAccounts.length === 0 ? (
+          /* ZERO ACTIVE ACCOUNTS */
+          <div className="pt-1 pb-1">
+            {legacyAccounts.length > 0 ? (
+              <div className="p-2.5 rounded-rd-md bg-amber-500/5 border border-amber-500/20 text-xs flex items-center justify-between">
+                <div className="min-w-0 pr-2">
+                  <p className="text-[11px] font-semibold text-amber-500 flex items-center gap-1 truncate font-mono">
+                    <span>⚠️</span> @{legacyAccounts[0].username}
+                  </p>
+                  <p className="text-[10px] text-amber-500/70">Unverified</p>
+                </div>
+                <Link
+                  href="/connect-instagram"
+                  className="px-2 py-1 rounded bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 text-[10px] font-semibold transition-colors shrink-0"
+                >
+                  Verify
+                </Link>
+              </div>
+            ) : (
+              <Link
+                href="/settings"
+                className="w-full flex items-center justify-between p-2 rounded-rd-md bg-surfaceSecondary-light dark:bg-white/[0.03] hover:bg-brand-500/5 border border-dashed border-borderSubtle-light dark:border-white/[0.08] hover:border-brand-500/30 transition-all text-left group"
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <div className="w-6 h-6 rounded-md bg-brand-500/10 text-brand-500 flex items-center justify-center shrink-0">
+                    <Instagram className="w-3.5 h-3.5" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-medium text-secondaryText-light dark:text-zinc-400 group-hover:text-brand-500 transition-colors truncate">
+                      Instagram not connected
+                    </p>
+                  </div>
+                </div>
+                <span className="text-[10px] font-semibold text-brand-500 px-1.5 py-0.5 rounded bg-brand-500/10 shrink-0">
+                  Connect
+                </span>
+              </Link>
+            )}
+          </div>
+        ) : activeAccounts.length === 1 ? (
+          /* EXACTLY ONE ACTIVE ACCOUNT — Show account context without dropdown */
+          <div className="pt-1 pb-1">
+            <div className="w-full flex items-center justify-between px-2.5 py-2 rounded-rd-md bg-surfaceSecondary-light/50 dark:bg-white/[0.02] border border-borderSubtle-light dark:border-white/[0.06]">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-7 h-7 rounded-lg overflow-hidden shrink-0 bg-brand-500/15 flex items-center justify-center relative">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={getAccountAvatarSrc(activeAccounts[0].username)}
+                    alt={activeAccounts[0].username}
+                    referrerPolicy="no-referrer"
+                    onError={(e) => {
+                      (e.target as HTMLElement).style.display = "none";
+                    }}
+                    className="w-full h-full object-cover z-10"
+                  />
+                  <Instagram className="w-3.5 h-3.5 text-brand-600 dark:text-brand-400 absolute" />
+                </div>
+                <div className="min-w-0">
+                  <span className="block text-xs font-semibold truncate text-primaryText-light dark:text-zinc-200 leading-tight font-mono">
+                    @{activeAccounts[0].username}
+                  </span>
+                  <span className="block text-[10px] text-emerald-500 leading-tight mt-0.5 font-medium">
+                    Active Connection
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          /* TWO OR MORE ACTIVE ACCOUNTS — Full switcher with All Accounts */
           <div className="relative pt-1 pb-1">
             <button
               onClick={() => setIsAccountDropdownOpen(!isAccountDropdownOpen)}
@@ -183,7 +262,6 @@ export function Sidebar() {
             >
               <div className="flex items-center gap-2.5 min-w-0">
                 {selectedInstagramAccount ? (
-                  /* Profile picture for selected account */
                   <div className="w-7 h-7 rounded-lg overflow-hidden shrink-0 bg-brand-500/15 flex items-center justify-center relative">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
@@ -198,7 +276,6 @@ export function Sidebar() {
                     <Instagram className="w-3.5 h-3.5 text-brand-600 dark:text-brand-400 absolute" />
                   </div>
                 ) : (
-                  /* Instagram icon for All Accounts */
                   <div className="w-7 h-7 rounded-lg bg-brand-500/15 flex items-center justify-center shrink-0">
                     <Instagram className="w-3.5 h-3.5 text-brand-600 dark:text-brand-400" />
                   </div>
@@ -208,7 +285,7 @@ export function Sidebar() {
                     {selectedInstagramAccount ? `@${selectedInstagramAccount}` : "All Accounts"}
                   </span>
                   <span className="block text-[10px] text-secondaryText-light dark:text-zinc-500 leading-tight mt-0.5">
-                    Instagram
+                    Instagram ({activeAccounts.length})
                   </span>
                 </div>
               </div>
@@ -238,7 +315,8 @@ export function Sidebar() {
                   {!selectedInstagramAccount && <Check className="w-3 h-3 text-brand-500 shrink-0" />}
                 </button>
 
-                {allHandles.map((handle) => {
+                {activeAccounts.map((acc) => {
+                  const handle = acc.username;
                   const isSelected = selectedInstagramAccount?.toLowerCase() === handle.toLowerCase();
                   return (
                     <button
@@ -265,9 +343,7 @@ export function Sidebar() {
                             }}
                             className="w-full h-full object-cover z-10"
                           />
-                          <span className="text-[8px] uppercase font-mono absolute text-brand-500 font-bold">
-                            {handle.replace(/^_/, "").charAt(0) || handle.charAt(0)}
-                          </span>
+                          <Instagram className="w-2.5 h-2.5 text-brand-500 absolute" />
                         </div>
                         <span className="truncate font-mono">@{handle}</span>
                       </div>
@@ -426,10 +502,10 @@ export function Sidebar() {
         <div className="flex items-center justify-between p-2 rounded-rd-md bg-surfaceSecondary-light/80 dark:bg-surfaceSecondary-dark/80 backdrop-blur-sm border border-borderSubtle-light dark:border-white/[0.06]">
           <Link href="/settings" className="flex items-center space-x-2.5 min-w-0 flex-1 hover:opacity-80 transition-opacity">
             <div className="w-7 h-7 rounded-full overflow-hidden bg-brand-500/15 border border-brand-500/30 text-brand-600 dark:text-brand-400 font-bold text-xs flex items-center justify-center shrink-0 relative">
-              {user?.avatar || user?.instagramUsername ? (
+              {user?.avatar ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
-                  src={user.avatar || `/api/proxy-image?username=${encodeURIComponent(user.instagramUsername || "")}`}
+                  src={user.avatar}
                   alt=""
                   referrerPolicy="no-referrer"
                   onError={(e) => {
@@ -445,7 +521,11 @@ export function Sidebar() {
                 {user?.name || "User"}
               </span>
               <span className="text-[10px] text-secondaryText-light dark:text-secondaryText-dark truncate font-mono">
-                {user?.instagramUsername ? `@${user.instagramUsername}` : user?.plan || "Free Plan"}
+                {activeAccounts.length === 1
+                  ? `@${activeAccounts[0].username}`
+                  : activeAccounts.length > 1
+                  ? `${activeAccounts.length} Accounts`
+                  : user?.plan || "Pro Plan"}
               </span>
             </div>
           </Link>
