@@ -91,7 +91,8 @@ export async function POST(req: NextRequest) {
         }
 
         const text = event.message?.text ?? event.postback?.title ?? "";
-        const postbackPayload = event.postback?.payload;
+        const postbackPayload =
+          event.postback?.payload ?? event.message?.quick_reply?.payload;
         const attachments = event.message?.attachments ?? [];
 
         const existing =

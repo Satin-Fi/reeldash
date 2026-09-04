@@ -1,6 +1,6 @@
 import { getSupabaseAdmin } from "./supabase";
 import { parseCategoryCommand, formatCategoryDisplayName } from "./parseCategory";
-import { isLinkCode, MAX_CODE_ATTEMPTS } from "./serverAuth";
+import { isLinkCode, normalizeLinkCode, MAX_CODE_ATTEMPTS } from "./serverAuth";
 export { parseCategoryCommand, formatCategoryDisplayName };
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -168,6 +168,301 @@ async function resolveInstagramUserState(
   }
 }
 
+// ─── Verification Status Check Helpers ───────────────────────────────────────
+
+export type VerificationCheckResult =
+  | { status: "VERIFIED"; account: any }
+  | {
+      status: "NOT_VERIFIED";
+      reason: "no_account" | "legacy_unverified" | "inactive" | "pending";
+    }
+  | { status: "CONFLICT"; message: string }
+  | { status: "ERROR"; error: string };
+
+/**
+ * Check if an Instagram sender ID is verified and actively linked.
+ *
+ * Checks:
+ *   1. Database query on instagram_accounts for instagram_user_id = senderIgId
+ *   2. Conflict check (is senderIgId associated with multiple different users)
+ *   3. Status check (active vs legacy_unverified vs inactive)
+ *
+ * MUST NEVER trust client-supplied userId or payload identity.
+ */
+export async function isInstagramVerified(
+  senderIgId: string
+): Promise<VerificationCheckResult> {
+  const supabase = getSupabaseAdmin();
+  if (!supabase) return { status: "ERROR", error: "Database not configured" };
+
+  try {
+    const { data: accounts, error } = await supabase
+      .from("instagram_accounts")
+      .select("*")
+      .eq("instagram_user_id", senderIgId);
+
+    if (error) return { status: "ERROR", error: error.message };
+
+    if (!accounts || accounts.length === 0) {
+      return { status: "NOT_VERIFIED", reason: "no_account" };
+    }
+
+    // Check for conflict: multiple different ReelDash users linked to this same IGSID
+    const distinctUsers = Array.from(
+      new Set(accounts.map((a: any) => a.reeldash_user_id).filter(Boolean))
+    );
+    if (distinctUsers.length > 1) {
+      return {
+        status: "CONFLICT",
+        message:
+          "This Instagram account is associated with multiple ReelDash accounts. Please disconnect it from other accounts first or contact support.",
+      };
+    }
+
+    // Active verified account check
+    const activeAccount = accounts.find((a: any) => a.status === "active");
+    if (activeAccount) {
+      return { status: "VERIFIED", account: activeAccount };
+    }
+
+    // Legacy unverified account
+    const legacyAccount = accounts.find(
+      (a: any) => a.status === "legacy_unverified"
+    );
+    if (legacyAccount) {
+      return { status: "NOT_VERIFIED", reason: "legacy_unverified" };
+    }
+
+    // Inactive account
+    const inactiveAccount = accounts.find((a: any) => a.status === "inactive");
+    if (inactiveAccount) {
+      return { status: "NOT_VERIFIED", reason: "inactive" };
+    }
+
+    return { status: "NOT_VERIFIED", reason: "pending" };
+  } catch (err: any) {
+    return { status: "ERROR", error: err?.message || "Internal error" };
+  }
+}
+
+/**
+ * Claim pending reels for a verified user and Instagram sender.
+ *
+ * Server-side only: claims only reels matching instagram_sender_id = senderIgId.
+ * Never creates duplicate saves (upsert with conflict handling on user_id,shortcode).
+ */
+export async function claimPendingReelsForUser(
+  senderIgId: string,
+  userId: string,
+  igAccountId: string | null,
+  igUsername: string
+): Promise<number> {
+  const supabase = getSupabaseAdmin();
+  if (!supabase) return 0;
+
+  const now = new Date().toISOString();
+  let claimedCount = 0;
+
+  try {
+    const { data: pendingReels } = await supabase
+      .from("pending_reels")
+      .select("*")
+      .eq("instagram_sender_id", senderIgId)
+      .eq("status", "pending")
+      .order("received_at", { ascending: true });
+
+    if (!pendingReels || pendingReels.length === 0) return 0;
+
+    for (const pending of pendingReels) {
+      try {
+        const reelData = pending.reel_data || {};
+        const shortcode =
+          pending.reel_shortcode || reelData.shortcode || `ig_${Date.now()}`;
+
+        // Save to the user's real library
+        await supabase.from("reels").upsert(
+          {
+            user_id: userId,
+            instagram_account_id: igAccountId,
+            instagram_username: igUsername,
+            shortcode,
+            url: pending.reel_url || reelData.url || "",
+            thumbnail_url:
+              reelData.thumbnail_url ||
+              `/api/proxy-image?shortcode=${shortcode}`,
+            video_url: reelData.video_url || pending.reel_url || "",
+            caption: reelData.caption || "Saved Instagram Reel",
+            creator_handle: reelData.creator_handle || "creator",
+            creator_name: reelData.creator_name || "Instagram Creator",
+            creator_avatar:
+              reelData.creator_avatar || `/api/proxy-image?username=creator`,
+            media_type: reelData.media_type || "reel",
+            duration: reelData.duration || "0:15",
+            category: reelData.category || "General",
+            tags: reelData.tags || ["instagram-dm", "auto-save"],
+            source: "dm",
+          },
+          { onConflict: "user_id,shortcode" }
+        );
+
+        // Mark as claimed
+        await supabase
+          .from("pending_reels")
+          .update({
+            status: "claimed",
+            claimed_by_user_id: userId,
+            claimed_at: now,
+          })
+          .eq("id", pending.id);
+
+        claimedCount++;
+      } catch (claimErr) {
+        console.warn("[Instagram Bot] Failed to claim pending reel:", claimErr);
+      }
+    }
+  } catch (err) {
+    console.warn("[Instagram Bot] Error querying pending reels to claim:", err);
+  }
+
+  return claimedCount;
+}
+
+/**
+ * Check if an incoming message is a user asking to check verification status.
+ */
+function isVerificationCheckText(text: string): boolean {
+  if (!text) return false;
+  const clean = text.trim().toLowerCase();
+  return (
+    clean === "i've verified" ||
+    clean === "ive verified" ||
+    clean === "i have verified" ||
+    clean === "verified" ||
+    clean === "check verification" ||
+    clean === "i verified"
+  );
+}
+
+/**
+ * Handle "I've verified" quick-reply / postback action.
+ *
+ * Verifies ONLY against actual database state using senderIgId from Meta.
+ * Does NOT mark anything verified on click.
+ */
+async function handleCheckVerification(
+  senderIgId: string,
+  username: string
+): Promise<ProcessedDMResult> {
+  const check = await isInstagramVerified(senderIgId);
+
+  if (check.status === "VERIFIED") {
+    // Claim any pending reels for this verified account
+    const claimedCount = await claimPendingReelsForUser(
+      senderIgId,
+      check.account.reeldash_user_id,
+      check.account.id,
+      username || check.account.username
+    );
+
+    let reply: string;
+    if (claimedCount > 0) {
+      reply = `✅ You're verified!\n\nYour Instagram account is connected to ReelDash.\n\nI also saved ${claimedCount} Reel${claimedCount > 1 ? "s" : ""} you sent earlier.`;
+    } else {
+      reply = `✅ You're verified!\n\nYour Instagram account is connected to ReelDash.\n\nSend me any Reel and I'll save it to your library.`;
+    }
+
+    const buttons: BotButton[] = [
+      {
+        type: "web_url",
+        title: "Open ReelDash",
+        url: `${APP_URL}/dashboard`,
+      },
+    ];
+
+    await sendDMReply(senderIgId, reply, buttons);
+
+    return {
+      status: "message_received",
+      replyMessage: reply,
+      buttons,
+      senderIgId,
+      username,
+      isFollowing: true,
+    };
+  }
+
+  if (check.status === "CONFLICT") {
+    const reply = `⚠️ Account Conflict\n\n${check.message}`;
+    const buttons: BotButton[] = [
+      {
+        type: "web_url",
+        title: "Verify now",
+        url: `${APP_URL}/connect-instagram`,
+      },
+    ];
+
+    await sendDMReply(senderIgId, reply, buttons);
+
+    return {
+      status: "error",
+      replyMessage: reply,
+      buttons,
+      senderIgId,
+      username,
+      isFollowing: true,
+    };
+  }
+
+  if (check.status === "ERROR") {
+    const reply =
+      "Something went wrong checking your verification status. Please try again.";
+    const buttons: BotButton[] = [
+      {
+        type: "postback",
+        title: "I've verified",
+        payload: "CHECK_VERIFICATION",
+      },
+    ];
+
+    await sendDMReply(senderIgId, reply, buttons);
+
+    return {
+      status: "error",
+      replyMessage: reply,
+      buttons,
+      senderIgId,
+      username,
+      isFollowing: true,
+    };
+  }
+
+  // check.status === "NOT_VERIFIED"
+  const reply = `⏳ You're not verified yet.\n\nComplete the verification on ReelDash first, then tap 'I've verified' again.`;
+  const buttons: BotButton[] = [
+    {
+      type: "web_url",
+      title: "Verify now",
+      url: `${APP_URL}/connect-instagram`,
+    },
+    {
+      type: "postback",
+      title: "I've verified",
+      payload: "CHECK_VERIFICATION",
+    },
+  ];
+
+  await sendDMReply(senderIgId, reply, buttons);
+
+  return {
+    status: "needs_link",
+    replyMessage: reply,
+    buttons,
+    senderIgId,
+    username,
+    isFollowing: true,
+  };
+}
+
 // ─── Phase 4: Main Message Handler ────────────────────────────────────────────
 
 /**
@@ -210,9 +505,19 @@ export async function processInstagramMessage(
     }
 
     // ── Step 2: Is this a challenge code? (Priority: before anything else) ──
-    const trimmedText = (messageText || "").trim().toUpperCase();
+    const trimmedText = (messageText || "").trim();
     if (isLinkCode(trimmedText)) {
-      return await processLinkCode(senderIgId, trimmedText, igUser.username);
+      const normalizedCode = normalizeLinkCode(trimmedText);
+      return await processLinkCode(senderIgId, normalizedCode, igUser.username);
+    }
+
+    // ── Step 2.5: Verification Status Check ("I've verified" button or text) ──
+    const isVerificationCheck =
+      postbackPayload === "CHECK_VERIFICATION" ||
+      isVerificationCheckText(messageText);
+
+    if (isVerificationCheck) {
+      return await handleCheckVerification(senderIgId, igUser.username);
     }
 
     // ── Step 3: Follow-check click response ──
@@ -351,14 +656,19 @@ async function handleNeedsSignup(
   }
 
   const msg = mediaUrl
-    ? `I received your Reel! To save it, create your free ReelDash account and connect this Instagram.\n\nYour Reel will be waiting for you.`
-    : `Create your free ReelDash account and connect this Instagram to start saving Reels.`;
+    ? `🔒 Almost there!\n\nI received your Reel, but your Instagram connection needs to be verified before I can save it.\n\nComplete verification on ReelDash. Your Reel will be saved automatically after verification.`
+    : `Create your ReelDash account and connect this Instagram to start saving Reels.`;
 
   const buttons: BotButton[] = [
     {
       type: "web_url",
-      title: "Sign up with Google",
-      url: `${APP_URL}/signup?source=instagram`,
+      title: "Verify now",
+      url: `${APP_URL}/connect-instagram`,
+    },
+    {
+      type: "postback",
+      title: "I've verified",
+      payload: "CHECK_VERIFICATION",
     },
   ];
 
@@ -387,14 +697,19 @@ async function handleNeedsReverification(
   }
 
   const msg = mediaUrl
-    ? `I received your Reel, but your Instagram connection needs to be verified before I can save it.\n\nOpen ReelDash Settings and verify your account. Your Reel will be saved automatically after verification.`
-    : `Your Instagram connection needs to be verified before I can save new Reels.\n\nOpen ReelDash Settings and click "Verify Now" to complete verification.`;
+    ? `🔒 Almost there!\n\nI received your Reel, but your Instagram connection needs to be verified before I can save it.\n\nComplete verification on ReelDash. Your Reel will be saved automatically after verification.`
+    : `⚠️ Your Instagram connection needs to be verified before I can save new Reels.`;
 
   const buttons: BotButton[] = [
     {
       type: "web_url",
       title: "Verify now",
       url: `${APP_URL}/connect-instagram`,
+    },
+    {
+      type: "postback",
+      title: "I've verified",
+      payload: "CHECK_VERIFICATION",
     },
   ];
 
@@ -420,6 +735,11 @@ async function handleAccountInactive(
       type: "web_url",
       title: "Reconnect",
       url: `${APP_URL}/connect-instagram`,
+    },
+    {
+      type: "postback",
+      title: "I've verified",
+      payload: "CHECK_VERIFICATION",
     },
   ];
 
@@ -924,86 +1244,31 @@ async function processLinkCode(
       .eq("id", codeRecord.id);
 
     // 7. Claim pending reels — server-side only, tied to the verified sender ID
-    let claimedCount = 0;
-    const { data: pendingReels } = await supabase
-      .from("pending_reels")
-      .select("*")
-      .eq("instagram_sender_id", senderIgId)
-      .eq("status", "pending")
-      .order("received_at", { ascending: true });
+    const { data: igAccount } = await supabase
+      .from("instagram_accounts")
+      .select("id")
+      .eq("reeldash_user_id", userId)
+      .eq("instagram_user_id", senderIgId)
+      .eq("status", "active")
+      .maybeSingle();
 
-    if (pendingReels && pendingReels.length > 0) {
-      // Get the instagram_account_id for this user
-      const { data: igAccount } = await supabase
-        .from("instagram_accounts")
-        .select("id")
-        .eq("reeldash_user_id", userId)
-        .eq("instagram_user_id", senderIgId)
-        .eq("status", "active")
-        .maybeSingle();
-
-      const igAccountId = igAccount?.id || null;
-
-      for (const pending of pendingReels) {
-        try {
-          const reelData = pending.reel_data || {};
-          const shortcode =
-            pending.reel_shortcode || reelData.shortcode || `ig_${Date.now()}`;
-
-          // Save to the user's real library
-          await supabase.from("reels").upsert(
-            {
-              user_id: userId,
-              instagram_account_id: igAccountId,
-              instagram_username: igUsername,
-              shortcode,
-              url: pending.reel_url || reelData.url || "",
-              thumbnail_url:
-                reelData.thumbnail_url ||
-                `/api/proxy-image?shortcode=${shortcode}`,
-              video_url: reelData.video_url || pending.reel_url || "",
-              caption: reelData.caption || "Saved Instagram Reel",
-              creator_handle: reelData.creator_handle || "creator",
-              creator_name: reelData.creator_name || "Instagram Creator",
-              creator_avatar:
-                reelData.creator_avatar ||
-                `/api/proxy-image?username=creator`,
-              media_type: reelData.media_type || "reel",
-              duration: reelData.duration || "0:15",
-              category: reelData.category || "General",
-              tags: reelData.tags || ["instagram-dm", "auto-save"],
-              source: "dm",
-            },
-            { onConflict: "user_id,shortcode" }
-          );
-
-          // Mark as claimed
-          await supabase
-            .from("pending_reels")
-            .update({
-              status: "claimed",
-              claimed_by_user_id: userId,
-              claimed_at: now,
-            })
-            .eq("id", pending.id);
-
-          claimedCount++;
-        } catch (claimErr) {
-          console.warn(
-            "[Instagram Bot] Failed to claim pending reel:",
-            claimErr
-          );
-        }
-      }
-    }
+    const igAccountId = igAccount?.id || null;
+    const claimedCount = await claimPendingReelsForUser(
+      senderIgId,
+      userId,
+      igAccountId,
+      igUsername
+    );
 
     // Invalidate cache
     profileCache.delete(senderIgId);
 
     // 8. Success reply
-    let msg = `🎉 You're connected! Send me any Reel and I'll save it to your ReelDash library.`;
+    let msg: string;
     if (claimedCount > 0) {
-      msg += `\n\nI also saved the ${claimedCount} Reel${claimedCount > 1 ? "s" : ""} you sent earlier.`;
+      msg = `🎉 Instagram verified!\n\nYour ReelDash account is now connected.\n\nI also saved ${claimedCount} Reel${claimedCount > 1 ? "s" : ""} you sent earlier.\n\nSend me any Reel and I'll save it to your library.`;
+    } else {
+      msg = `🎉 Instagram verified!\n\nYour ReelDash account is now connected.\n\nSend me any Reel and I'll save it to your library.`;
     }
 
     const buttons: BotButton[] = [
@@ -1059,6 +1324,19 @@ async function storePendingReel(
       /\/(?:reel|reels|p|stories|audio)\/([A-Za-z0-9_.-]+)/i
     );
     const shortcode = shortcodeMatch ? shortcodeMatch[1] : null;
+
+    // Check if this exact reel is already pending for this sender
+    if (shortcode) {
+      const { data: existing } = await supabase
+        .from("pending_reels")
+        .select("id")
+        .eq("instagram_sender_id", senderIgId)
+        .eq("reel_shortcode", shortcode)
+        .eq("status", "pending")
+        .maybeSingle();
+
+      if (existing) return;
+    }
 
     // Fetch basic reel info
     let reelData: any = {};

@@ -72,8 +72,16 @@ export function generateLinkCode(): string {
  */
 export function isLinkCode(text: string): boolean {
   if (!text) return false;
-  const cleaned = text.trim().toUpperCase();
+  const cleaned = text.trim().toUpperCase().replace(/[\s_]+/g, "-");
   return /^RDX-[A-Z0-9]{6}$/.test(cleaned);
+}
+
+/**
+ * Clean and normalize a link verification code.
+ */
+export function normalizeLinkCode(text: string): string {
+  if (!text) return "";
+  return text.trim().toUpperCase().replace(/[\s_]+/g, "-");
 }
 
 /**
