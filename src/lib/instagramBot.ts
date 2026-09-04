@@ -278,6 +278,13 @@ export async function claimPendingReelsForUser(
         const reelData = pending.reel_data || {};
         const shortcode =
           pending.reel_shortcode || reelData.shortcode || `ig_${Date.now()}`;
+        const pendingUrl = pending.reel_url || reelData.url || "";
+        const isPost =
+          pendingUrl.includes("/p/") ||
+          pendingUrl.includes("/share/p/") ||
+          reelData.mediaType === "post" ||
+          reelData.media_type === "post";
+        const isAudio = pendingUrl.includes("/audio/");
 
         // Save to the user's real library
         await supabase.from("reels").upsert(
@@ -286,20 +293,42 @@ export async function claimPendingReelsForUser(
             instagram_account_id: igAccountId,
             instagram_username: igUsername,
             shortcode,
-            url: pending.reel_url || reelData.url || "",
+            url: pendingUrl,
             thumbnail_url:
               reelData.thumbnail_url ||
+              reelData.thumbnailUrl ||
               `/api/proxy-image?shortcode=${shortcode}`,
-            video_url: reelData.video_url || pending.reel_url || "",
-            caption: reelData.caption || "Saved Instagram Reel",
-            creator_handle: reelData.creator_handle || "creator",
-            creator_name: reelData.creator_name || "Instagram Creator",
+            video_url: reelData.video_url || reelData.mediaUrl || pendingUrl,
+            caption:
+              reelData.caption ||
+              (isPost
+                ? "Saved Instagram Post"
+                : isAudio
+                ? "Saved Instagram Audio"
+                : "Saved Instagram Reel"),
+            creator_handle:
+              reelData.creator_handle || reelData.creatorUsername || "creator",
+            creator_name:
+              reelData.creator_name ||
+              reelData.creatorFullName ||
+              "Instagram Creator",
             creator_avatar:
-              reelData.creator_avatar || `/api/proxy-image?username=creator`,
-            media_type: reelData.media_type || "reel",
-            duration: reelData.duration || "0:15",
+              reelData.creator_avatar ||
+              reelData.creatorAvatar ||
+              `/api/proxy-image?username=creator`,
+            media_type: isPost
+              ? "post"
+              : isAudio
+              ? "audio"
+              : reelData.media_type || reelData.mediaType || "reel",
+            duration: isPost
+              ? "Post"
+              : reelData.duration || (isAudio ? "0:30" : "0:15"),
             category: reelData.category || "General",
-            tags: reelData.tags || ["instagram-dm", "auto-save"],
+            tags: reelData.tags || reelData.hashtags || [
+              "instagram-dm",
+              "auto-save",
+            ],
             source: "dm",
           },
           { onConflict: "user_id,shortcode" }
@@ -909,8 +938,12 @@ async function handleNotFollowing(
     );
   }
 
+  const isPost =
+    mediaUrl && (mediaUrl.includes("/p/") || mediaUrl.includes("/share/p/"));
+  const mediaLabel = isPost ? "Post" : "Reel";
+
   const msg = mediaUrl
-    ? `👋 Welcome to ReelDash!\n\nI received your Reel! To save it, please follow @ReelDash on Instagram first.\n\nOnce you've followed, tap DONE below!`
+    ? `👋 Welcome to ReelDash!\n\nI received your ${mediaLabel}! To save it, please follow @ReelDash on Instagram first.\n\nOnce you've followed, tap DONE below!`
     : `👋 Welcome to ReelDash!\n\nFirst follow @ReelDash on Instagram to use ReelDash.\n\nThen tap DONE below!`;
 
   const buttons: BotButton[] = [
@@ -937,7 +970,7 @@ async function handleUnverifiedSender(
   followJustConfirmed = false
 ): Promise<ProcessedDMResult> {
   const supabase = getSupabaseAdmin();
-  // If user sent a reel, store it as pending so they never lose it
+  // If user sent a reel or post, store it as pending so they never lose it
   const mediaUrl = extractInstagramMediaUrl(messageText, attachments);
   if (mediaUrl) {
     await storePendingReel(senderIgId, username, mediaUrl, messageText, attachments);
@@ -971,10 +1004,14 @@ async function handleUnverifiedSender(
 
   const connectUrl = `${APP_URL}/connect-instagram?code=${code}`;
 
+  const isPost =
+    mediaUrl && (mediaUrl.includes("/p/") || mediaUrl.includes("/share/p/"));
+  const mediaLabel = isPost ? "Post" : "Reel";
+
   const msg = followJustConfirmed
-    ? `✅ Follow confirmed!\n\nNow connect your Instagram to ReelDash with your Google account to save Reels:\n1️⃣ Tap '🔗 Connect Account' below\n2️⃣ Sign in with your Google account on ReelDash\n3️⃣ Reel saved automatically!\n\n(Code: ${code} • expires in 4m)`
+    ? `✅ Follow confirmed!\n\nNow connect your Instagram to ReelDash with your Google account to save ${mediaLabel}s:\n1️⃣ Tap '🔗 Connect Account' below\n2️⃣ Sign in with your Google account on ReelDash\n3️⃣ ${mediaLabel} saved automatically!\n\n(Code: ${code} • expires in 4m)`
     : mediaUrl
-    ? `🔒 Almost there!\n\nI received your Reel! Connect your Instagram to save it:\n1️⃣ Tap '🔗 Connect Account' below\n2️⃣ Sign in with your Google account on ReelDash\n3️⃣ Reel saved automatically!\n\n(Code: ${code} • expires in 4m)`
+    ? `🔒 Almost there!\n\nI received your ${mediaLabel}! Connect your Instagram to save it:\n1️⃣ Tap '🔗 Connect Account' below\n2️⃣ Sign in with your Google account on ReelDash\n3️⃣ ${mediaLabel} saved automatically!\n\n(Code: ${code} • expires in 4m)`
     : `Welcome to ReelDash! 👋\n\nConnect your Instagram in 2 steps:\n1️⃣ Tap '🔗 Connect Account' below\n2️⃣ Sign in with your Google account on ReelDash\n\n(Code: ${code} • expires in 4m)`;
 
   const buttons: BotButton[] = [
@@ -1030,25 +1067,35 @@ async function handleReady(
       console.warn("[Instagram Bot] reel-info fetch fallback:", err);
     }
 
+    const isAudio = mediaUrl.includes("/audio/");
+    const isPost =
+      mediaUrl.includes("/p/") ||
+      mediaUrl.includes("/share/p/") ||
+      reelData?.mediaType === "post" ||
+      reelData?.media_type === "post";
+
     if (!reelData || !reelData.shortcode) {
       const shortcodeMatch = mediaUrl.match(
-        /\/(?:reel|reels|p|stories|audio)\/([A-Za-z0-9_.-]+)/i
+        /\/(?:share\/)?(?:reel|reels|p|stories|audio)\/([A-Za-z0-9_.-]+)/i
       );
       const shortcode = shortcodeMatch ? shortcodeMatch[1] : `ig_${Date.now()}`;
-      const isAudio = mediaUrl.includes("/audio/");
       reelData = {
         shortcode,
         url: mediaUrl,
         thumbnailUrl: `/api/proxy-image?shortcode=${shortcode}`,
         video_url: mediaUrl,
-        caption: `Instagram ${isAudio ? "Audio" : "Reel"} shared via Direct Message`,
+        caption: `Instagram ${isAudio ? "Audio" : isPost ? "Post" : "Reel"} shared via Direct Message`,
         creatorUsername: "creator",
         creator_name: "Instagram Creator",
         creatorAvatar: `/api/proxy-image?username=instagram`,
-        mediaType: isAudio ? "audio" : "reel",
-        duration: isAudio ? "0:30" : "0:15",
+        mediaType: isAudio ? "audio" : isPost ? "post" : "reel",
+        duration: isAudio ? "0:30" : isPost ? "Post" : "0:15",
         category: allCategories[0] || (isAudio ? "Music" : "General"),
-        hashtags: ["instagram-dm", isAudio ? "audio" : "reel", "auto-save"],
+        hashtags: [
+          "instagram-dm",
+          isAudio ? "audio" : isPost ? "post" : "reel",
+          "auto-save",
+        ],
       };
     }
 
@@ -1078,7 +1125,13 @@ async function handleReady(
       }
     }
 
-    let finalCaption = reelData.caption || "Saved Instagram Reel";
+    let finalCaption =
+      reelData.caption ||
+      (isPost
+        ? "Saved Instagram Post"
+        : isAudio
+        ? "Saved Instagram Audio"
+        : "Saved Instagram Reel");
     const cleanQuote = finalCaption.match(/^[A-Za-z0-9_.]+\s+on\s+[A-Za-z]+\s+\d{1,2},\s+\d{4}:\s*"([\s\S]*?)"(?:\.|\s*)$/);
     if (cleanQuote && cleanQuote[1]) {
       finalCaption = cleanQuote[1].trim();
@@ -1121,8 +1174,14 @@ async function handleReady(
         reelData.creatorAvatar ||
         reelData.creator_avatar ||
         `/api/proxy-image?username=${encodeURIComponent(creatorHandle)}`,
-      media_type: reelData.mediaType || reelData.media_type || "reel",
-      duration: reelData.duration || "0:15",
+      media_type: isPost
+        ? "post"
+        : isAudio
+        ? "audio"
+        : reelData.mediaType || reelData.media_type || "reel",
+      duration: isPost
+        ? "Post"
+        : reelData.duration || (isAudio ? "0:30" : "0:15"),
       category: effectiveCategory,
       tags,
       note: note || reelData.note || undefined,
@@ -1216,17 +1275,20 @@ async function handleReady(
       }
     }
 
+    const mediaLabel = isPost ? "Post" : isAudio ? "Audio" : "Reel";
+    const mediaIcon = isPost ? "📸" : isAudio ? "🎵" : "🎬";
+
     const creatorText =
       formattedReel.creator_handle &&
       formattedReel.creator_handle !== "creator" &&
       !formattedReel.creator_handle.startsWith("ig_")
-        ? `@${formattedReel.creator_handle}'s Reel`
-        : "Reel";
+        ? `@${formattedReel.creator_handle}'s ${mediaLabel}`
+        : mediaLabel;
 
     const catLabel = finalCategories.length > 1 ? "Categories" : "Category";
     const categoryLine = `${catLabel}: ${finalCategories.join(", ")}`;
 
-    const successReply = `✅ Saved to your ReelDash Library.\n\n🎬 ${creatorText}\n📁 ${categoryLine}`;
+    const successReply = `✅ Saved to your ReelDash Library.\n\n${mediaIcon} ${creatorText}\n📁 ${categoryLine}`;
     const buttons: BotButton[] = [
       {
         type: "web_url",
@@ -1601,7 +1663,7 @@ async function storePendingReel(
 
   try {
     const shortcodeMatch = mediaUrl.match(
-      /\/(?:reel|reels|p|stories|audio)\/([A-Za-z0-9_.-]+)/i
+      /\/(?:share\/)?(?:reel|reels|p|stories|audio)\/([A-Za-z0-9_.-]+)/i
     );
     const shortcode = shortcodeMatch ? shortcodeMatch[1] : null;
 
@@ -1629,6 +1691,29 @@ async function storePendingReel(
       }
     } catch {
       // Fallback — store URL-only
+    }
+
+    const isPost = mediaUrl.includes("/p/") || mediaUrl.includes("/share/p/");
+    const isAudio = mediaUrl.includes("/audio/");
+    if (!reelData || !reelData.shortcode) {
+      reelData = {
+        shortcode: shortcode || `ig_${Date.now()}`,
+        url: mediaUrl,
+        thumbnailUrl: `/api/proxy-image?shortcode=${shortcode || `ig_${Date.now()}`}`,
+        video_url: mediaUrl,
+        caption: `Instagram ${isAudio ? "Audio" : isPost ? "Post" : "Reel"} shared via Direct Message`,
+        creatorUsername: "creator",
+        creator_name: "Instagram Creator",
+        creatorAvatar: `/api/proxy-image?username=instagram`,
+        mediaType: isAudio ? "audio" : isPost ? "post" : "reel",
+        duration: isAudio ? "0:30" : isPost ? "Post" : "0:15",
+        category: "General",
+        hashtags: [
+          "instagram-dm",
+          isAudio ? "audio" : isPost ? "post" : "reel",
+          "auto-save",
+        ],
+      };
     }
 
     await supabase.from("pending_reels").insert({

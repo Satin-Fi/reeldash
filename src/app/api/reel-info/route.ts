@@ -93,9 +93,10 @@ async function fetchDirectInstagramMeta(url: string, signal: AbortSignal) {
   }
 }
 
-async function fetchCloudflareWorkerMeta(shortcode: string, signal: AbortSignal) {
+async function fetchCloudflareWorkerMeta(shortcode: string, mediaType: string, signal: AbortSignal) {
+  const targetUrl = `https://www.instagram.com/${mediaType === "post" ? "p" : "reel"}/${shortcode}/`;
   const workerProxy = `https://reeldash-ig-proxy.reeldash-ig-proxy.workers.dev/api/info?url=${encodeURIComponent(
-    `https://www.instagram.com/reel/${shortcode}/`
+    targetUrl
   )}`;
   const res = await fetch(workerProxy, { signal });
   if (!res.ok) throw new Error(`Worker proxy failed: ${res.status}`);
@@ -253,7 +254,7 @@ async function extractMetadata(url: string, startTime: number) {
     // Task C: Cloudflare Edge Worker
     if (shortcode) {
       extractionTasks.push(
-        fetchCloudflareWorkerMeta(shortcode, controller.signal)
+        fetchCloudflareWorkerMeta(shortcode, mediaType, controller.signal)
           .then((workerData) => {
             if (workerData.creatorUsername && !creatorUsername) creatorUsername = workerData.creatorUsername;
             if (workerData.caption && !caption) caption = workerData.caption;
