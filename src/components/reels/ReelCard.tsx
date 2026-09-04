@@ -84,6 +84,11 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
     setIsMenuOpen(false);
   };
 
+  const handleSaveCreator = () => {
+    updateReelCreator(reel.id, newCreatorInput);
+    setIsEditingCreator(false);
+  };
+
   const handleCardClick = () => {
     if (didHoldRef.current) {
       didHoldRef.current = false;
@@ -178,6 +183,72 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
       ? [reel.category]
       : [];
 
+  const editCreatorModal = isEditingCreator && (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
+      onClick={(e) => {
+        e.stopPropagation();
+        setIsEditingCreator(false);
+      }}
+    >
+      <div
+        className="w-full max-w-sm rounded-rd-xl bg-surface-light dark:bg-zinc-900 border border-borderSubtle-light dark:border-white/10 p-5 shadow-2xl space-y-4"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-bold text-primaryText-light dark:text-white">
+            {hasValidCreator ? "Edit Creator Handle" : "Set Creator Handle"}
+          </h3>
+          <button
+            onClick={() => setIsEditingCreator(false)}
+            className="p-1 rounded-full text-secondaryText-light dark:text-zinc-400 hover:text-white cursor-pointer"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <p className="text-xs text-secondaryText-light dark:text-zinc-400">
+          Enter the Instagram handle of the creator or brand who posted this:
+        </p>
+        <div className="relative">
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-zinc-400 font-mono">
+            @
+          </span>
+          <input
+            type="text"
+            value={newCreatorInput}
+            onChange={(e) => setNewCreatorInput(e.target.value.replace(/^@/, ""))}
+            placeholder="creator_handle"
+            className="w-full pl-8 pr-3 py-2 text-xs rounded-rd-md bg-surfaceSecondary-light dark:bg-zinc-800 border border-borderSubtle-light dark:border-white/10 text-primaryText-light dark:text-white focus:outline-none focus:border-brand-500 font-mono"
+            autoFocus
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                handleSaveCreator();
+              } else if (e.key === "Escape") {
+                setIsEditingCreator(false);
+              }
+            }}
+          />
+        </div>
+        <div className="flex items-center justify-end gap-2 pt-1">
+          <button
+            type="button"
+            onClick={() => setIsEditingCreator(false)}
+            className="px-3 py-1.5 rounded-rd-md text-xs font-medium text-secondaryText-light dark:text-zinc-400 hover:bg-surfaceSecondary-light dark:hover:bg-zinc-800 cursor-pointer"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleSaveCreator}
+            className="px-3.5 py-1.5 rounded-rd-md text-xs font-semibold bg-brand-500 text-white hover:bg-brand-600 transition-colors cursor-pointer"
+          >
+            Save Creator
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
   /* ───────── Compact List View (unchanged) ───────── */
   if (viewMode === "compact") {
     return (
@@ -228,6 +299,7 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
         {isPlayerOpen && (
           <ReelPlayerModal isOpen={isPlayerOpen} onClose={() => setIsPlayerOpen(false)} reel={reel} />
         )}
+        {editCreatorModal}
       </>
     );
   }
@@ -469,6 +541,7 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
         {isPlayerOpen && (
           <ReelPlayerModal isOpen={isPlayerOpen} onClose={() => setIsPlayerOpen(false)} reel={reel} />
         )}
+        {editCreatorModal}
       </>
     );
   }
@@ -704,6 +777,18 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
               )}
 
               <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setNewCreatorInput(cleanUsername || "");
+                  setIsEditingCreator(true);
+                  setIsMenuOpen(false);
+                }}
+                className="w-full flex items-center space-x-2 px-2.5 py-2 rounded-md hover:bg-white/[0.08] text-zinc-300 hover:text-white transition-colors text-left cursor-pointer text-xs"
+              >
+                <User className="w-3.5 h-3.5 text-zinc-500" />
+                <span>{hasValidCreator ? "Edit Creator Handle" : "Set Creator Handle"}</span>
+              </button>
+              <button
                 onClick={handleCopyLink}
                 className="w-full flex items-center space-x-2 px-2.5 py-2 rounded-md hover:bg-white/[0.08] text-zinc-300 hover:text-white transition-colors text-left cursor-pointer text-xs"
               >
@@ -766,6 +851,7 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
       {isPlayerOpen && (
         <ReelPlayerModal isOpen={isPlayerOpen} onClose={() => setIsPlayerOpen(false)} reel={reel} />
       )}
+      {editCreatorModal}
     </>
   );
 }
