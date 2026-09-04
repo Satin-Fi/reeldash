@@ -131,7 +131,7 @@ async function serveImageBinary(imageUrl: string, shortcode?: string | null): Pr
     })();
   }
 
-  return new NextResponse(finalBuffer, {
+  return new NextResponse(new Uint8Array(finalBuffer), {
     status: 200,
     headers: {
       "Content-Type": contentType,
