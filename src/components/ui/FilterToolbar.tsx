@@ -9,10 +9,8 @@ import {
   List,
   ArrowUpDown,
   X,
-  Folder,
   ChevronDown,
   Check,
-  Bookmark,
   Rows,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -29,21 +27,13 @@ export function FilterToolbar() {
   const {
     searchQuery,
     setSearchQuery,
-    activeCategory,
-    setActiveCategory,
-    activeCollection,
-    setActiveCollection,
-    smartCategories,
-    collections,
     sortOption,
     setSortOption,
     viewMode,
     setViewMode,
   } = useReels();
 
-  const [isCategoryOpen, setIsCategoryOpen] = useState(false);
   const [isSortOpen, setIsSortOpen] = useState(false);
-  const categoryRef = useRef<HTMLDivElement>(null);
   const sortRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -55,14 +45,10 @@ export function FilterToolbar() {
         searchInputRef.current?.focus();
       }
       if (e.key === "Escape") {
-        setIsCategoryOpen(false);
         setIsSortOpen(false);
       }
     };
     const handleClickOutside = (e: MouseEvent) => {
-      if (categoryRef.current && !categoryRef.current.contains(e.target as Node)) {
-        setIsCategoryOpen(false);
-      }
       if (sortRef.current && !sortRef.current.contains(e.target as Node)) {
         setIsSortOpen(false);
       }
@@ -74,17 +60,6 @@ export function FilterToolbar() {
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
-
-  const getActiveCategoryLabel = () => {
-    if (activeCollection) {
-      const col = collections.find((c) => c.id === activeCollection);
-      return col ? col.name : "Collection";
-    }
-    if (activeCategory) {
-      return activeCategory;
-    }
-    return "All Categories";
-  };
 
   return (
     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
@@ -115,154 +90,11 @@ export function FilterToolbar() {
 
       {/* ─── Right: Controls & View Switcher ─── */}
       <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
-        {/* Category Filter Pill */}
-        <div ref={categoryRef} className="relative">
-          <button
-            type="button"
-            onClick={() => {
-              setIsCategoryOpen(!isCategoryOpen);
-              setIsSortOpen(false);
-            }}
-            className={`flex items-center gap-2 px-3.5 py-2.5 rounded-full bg-white dark:bg-surface-dark border text-xs font-medium shadow-[0_2px_8px_rgba(0,0,0,0.02)] transition-all cursor-pointer ${
-              activeCategory || activeCollection
-                ? "border-brand-500/40 text-brand-600 dark:text-brand-400 bg-brand-500/5 font-semibold"
-                : "border-black/[0.04] dark:border-white/[0.06] text-secondaryText-light dark:text-secondaryText-dark hover:border-black/[0.08] dark:hover:border-white/[0.12] hover:text-primaryText-light dark:hover:text-white"
-            }`}
-            title="Filter by category or collection"
-          >
-            <Folder className={`w-3.5 h-3.5 shrink-0 ${activeCategory || activeCollection ? "text-brand-500" : "text-mutedText-light dark:text-mutedText-dark"}`} />
-            <span className="max-w-[100px] sm:max-w-[120px] truncate">{getActiveCategoryLabel()}</span>
-            <ChevronDown className={`w-3 h-3 text-mutedText-light dark:text-mutedText-dark transition-transform duration-150 ${isCategoryOpen ? "rotate-180" : ""}`} />
-          </button>
-
-          <AnimatePresence>
-            {isCategoryOpen && (
-              <motion.div
-                initial={{ opacity: 0, y: -4, scale: 0.98 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: -4, scale: 0.98 }}
-                transition={{ duration: 0.12 }}
-                className="absolute right-0 top-full mt-2 w-60 z-50 bg-white dark:bg-[#181716] border border-black/[0.06] dark:border-white/[0.1] rounded-2xl shadow-xl p-1.5 backdrop-blur-xl max-h-72 overflow-y-auto custom-scrollbar"
-              >
-                {/* All Categories Option */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setActiveCategory(null);
-                    setActiveCollection(null);
-                    setIsCategoryOpen(false);
-                  }}
-                  className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition-colors cursor-pointer text-left ${
-                    !activeCategory && !activeCollection
-                      ? "bg-black/[0.04] dark:bg-white/[0.1] text-primaryText-light dark:text-white font-semibold"
-                      : "text-secondaryText-light dark:text-zinc-300 hover:bg-black/[0.03] dark:hover:bg-white/[0.05] hover:text-primaryText-light dark:hover:text-white"
-                  }`}
-                >
-                  <div className="flex items-center gap-2 min-w-0">
-                    <LayoutGrid className="w-3.5 h-3.5 text-mutedText-light shrink-0" />
-                    <span className="truncate">All Categories</span>
-                  </div>
-                  {!activeCategory && !activeCollection && (
-                    <Check className="w-3.5 h-3.5 text-primaryText-light dark:text-white shrink-0" strokeWidth={2.5} />
-                  )}
-                </button>
-
-                {/* Categories Section */}
-                {smartCategories.filter((cat) => !cat.name.startsWith("#")).length > 0 && (
-                  <div className="pt-1.5 mt-1 border-t border-black/[0.04] dark:border-white/[0.06]">
-                    <div className="px-2.5 py-1 text-[10px] font-semibold text-mutedText-light dark:text-zinc-500 uppercase tracking-wider">
-                      Categories
-                    </div>
-                    <div className="space-y-0.5">
-                      {smartCategories
-                        .filter((cat) => !cat.name.startsWith("#"))
-                        .map((cat) => {
-                          const isSelected = activeCategory?.toLowerCase() === cat.name.toLowerCase();
-                          return (
-                            <button
-                              key={cat.name}
-                              type="button"
-                              onClick={() => {
-                                setActiveCategory(isSelected ? null : cat.name);
-                                setActiveCollection(null);
-                                setIsCategoryOpen(false);
-                              }}
-                              className={`w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-xs font-medium transition-colors cursor-pointer text-left ${
-                                isSelected
-                                  ? "bg-black/[0.04] dark:bg-white/[0.1] text-primaryText-light dark:text-white font-semibold"
-                                  : "text-secondaryText-light dark:text-zinc-300 hover:bg-black/[0.03] dark:hover:bg-white/[0.05] hover:text-primaryText-light dark:hover:text-white"
-                              }`}
-                            >
-                              <div className="flex items-center gap-2 min-w-0">
-                                <Folder className="w-3.5 h-3.5 text-mutedText-light shrink-0" />
-                                <span className="truncate">{cat.name}</span>
-                              </div>
-                              <div className="flex items-center gap-1.5 shrink-0">
-                                <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-full bg-[#F5F5F5] dark:bg-white/[0.06] text-mutedText-light">
-                                  {cat.count}
-                                </span>
-                                {isSelected && <Check className="w-3.5 h-3.5 text-primaryText-light dark:text-white shrink-0" strokeWidth={2.5} />}
-                              </div>
-                            </button>
-                          );
-                        })}
-                    </div>
-                  </div>
-                )}
-
-                {/* Collections Section */}
-                {collections.length > 0 && (
-                  <div className="pt-1.5 mt-1 border-t border-black/[0.04] dark:border-white/[0.06]">
-                    <div className="px-2.5 py-1 text-[10px] font-semibold text-mutedText-light dark:text-zinc-500 uppercase tracking-wider">
-                      Collections
-                    </div>
-                    <div className="space-y-0.5">
-                      {collections.map((col) => {
-                        const isSelected = activeCollection === col.id;
-                        return (
-                          <button
-                            key={col.id}
-                            type="button"
-                            onClick={() => {
-                              setActiveCollection(isSelected ? null : col.id);
-                              setActiveCategory(null);
-                              setIsCategoryOpen(false);
-                            }}
-                            className={`w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-xs font-medium transition-colors cursor-pointer text-left ${
-                              isSelected
-                                ? "bg-black/[0.04] dark:bg-white/[0.1] text-primaryText-light dark:text-white font-semibold"
-                                : "text-secondaryText-light dark:text-zinc-300 hover:bg-black/[0.03] dark:hover:bg-white/[0.05] hover:text-primaryText-light dark:hover:text-white"
-                            }`}
-                          >
-                            <div className="flex items-center gap-2 min-w-0">
-                              <Bookmark className="w-3.5 h-3.5 text-mutedText-light shrink-0" />
-                              <span className="truncate">{col.name}</span>
-                            </div>
-                            <div className="flex items-center gap-1.5 shrink-0">
-                              <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-full bg-[#F5F5F5] dark:bg-white/[0.06] text-mutedText-light">
-                                {col.reelCount || 0}
-                              </span>
-                              {isSelected && <Check className="w-3.5 h-3.5 text-primaryText-light dark:text-white shrink-0" strokeWidth={2.5} />}
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-
         {/* Sort Dropdown Pill */}
         <div ref={sortRef} className="relative">
           <button
             type="button"
-            onClick={() => {
-              setIsSortOpen(!isSortOpen);
-              setIsCategoryOpen(false);
-            }}
+            onClick={() => setIsSortOpen(!isSortOpen)}
             className="flex items-center gap-2 px-3.5 py-2.5 rounded-full bg-white dark:bg-surface-dark border border-black/[0.04] dark:border-white/[0.06] shadow-[0_2px_8px_rgba(0,0,0,0.02)] text-xs font-medium text-secondaryText-light dark:text-secondaryText-dark hover:border-black/[0.08] dark:hover:border-white/[0.12] hover:text-primaryText-light dark:hover:text-white transition-all cursor-pointer"
             title="Sort items"
           >
