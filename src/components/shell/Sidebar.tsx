@@ -11,7 +11,6 @@ import {
   Film,
   Image as ImageIcon,
   Music2,
-  CircleDashed,
   Layers,
   Heart,
   Folder,
@@ -152,14 +151,6 @@ export function Sidebar() {
       onClick: () => setActiveMediaType("audio"),
     },
     {
-      label: "Stories",
-      href: "/reels?type=story",
-      icon: CircleDashed,
-      count: counts.story > 0 ? counts.story : undefined,
-      isActive: isReelsPath && activeMediaType === "story",
-      onClick: () => setActiveMediaType("story"),
-    },
-    {
       label: "All Library",
       href: "/reels?type=all",
       icon: Layers,
@@ -173,13 +164,6 @@ export function Sidebar() {
       href: "/favorites",
       count: counts.favs > 0 ? counts.favs : undefined,
       isActive: pathname === "/favorites",
-    },
-    {
-      label: "Collections",
-      icon: Folder,
-      href: "/collections",
-      count: collections.length > 0 ? collections.length : undefined,
-      isActive: pathname === "/collections",
     },
   ];
 
@@ -212,182 +196,180 @@ export function Sidebar() {
   return (
     <aside className="dark hidden md:flex w-[268px] min-w-[268px] max-w-[268px] h-full flex-col justify-between p-3 shrink-0 select-none overflow-x-hidden rounded-[24px] bg-[#171616] border border-white/[0.02] shadow-[0_4px_32px_rgba(0,0,0,0.35)]">
       <div className="space-y-3 flex-1 overflow-y-auto overflow-x-hidden scrollbar-none no-scrollbar pr-0.5">
-        {/* ─── 1. Brand Header ─── */}
-        <div className="flex items-center justify-between px-2 pt-1 pb-0.5">
-          <ReelDashLogo href="/dashboard" size={24} showText={true} textSize="text-base" />
-          <Link
-            href="/pricing"
-            className="flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-white/[0.04] hover:bg-white/[0.06] text-[#AAA6A1] hover:text-[#E8E5E1] font-medium text-[10.5px] border border-white/[0.03] transition-colors shrink-0"
-          >
-            <Crown className="w-3 h-3 text-[#C5A059]" strokeWidth={1.5} />
-            <span>{user?.plan === "Free Plan" ? "Upgrade" : "Pro"}</span>
-          </Link>
-        </div>
-
-        {/* ─── 2. Instagram Account Selector (Quiet Warm Charcoal) ─── */}
-        {activeAccounts.length === 0 ? (
-          /* ZERO ACTIVE ACCOUNTS */
-          <div>
-            {legacyAccounts.length > 0 ? (
-              <div
-                style={surfaceStyle}
-                className="p-2.5 rounded-[16px] border border-amber-500/15 text-xs flex items-center justify-between"
-              >
-                <div className="min-w-0 pr-2">
-                  <p className="text-[11px] font-medium text-amber-400/90 flex items-center gap-1 truncate font-mono">
-                    <span>⚠️</span> @{legacyAccounts[0].username}
-                  </p>
-                  <p className="text-[10px] text-amber-500/60">Unverified</p>
-                </div>
-                <Link
-                  href="/connect-instagram"
-                  className="px-2 py-1 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-400/90 text-[10px] font-medium transition-colors shrink-0"
-                >
-                  Verify
-                </Link>
-              </div>
-            ) : (
-              <Link
-                href="/settings"
-                style={surfaceStyle}
-                className="w-full flex items-center justify-between p-2 rounded-[16px] hover:brightness-105 border border-dashed border-white/[0.04] hover:border-white/[0.08] transition-all text-left group"
-              >
-                <div className="flex items-center gap-2 min-w-0">
-                  <div className="w-6 h-6 rounded-full bg-white/[0.04] text-[#AAA6A1] group-hover:text-[#E8E5E1] flex items-center justify-center shrink-0 transition-colors">
-                    <Instagram className="w-3.5 h-3.5" strokeWidth={1.5} />
-                  </div>
-                  <p className="text-[11.5px] font-normal text-[#AAA6A1] group-hover:text-[#D4D0CB] transition-colors truncate">
-                    Connect Instagram
-                  </p>
-                </div>
-                <span className="text-[10px] font-medium text-[#AAA6A1] px-2 py-0.5 rounded-full bg-white/[0.04] shrink-0">
-                  Link
-                </span>
-              </Link>
-            )}
-          </div>
-        ) : activeAccounts.length === 1 ? (
-          /* Single account — integrated into user card at bottom */
-          null
-        ) : (
-          /* Multiple accounts switcher */
-          <div className="relative">
-            <button
-              onClick={() => setIsAccountDropdownOpen(!isAccountDropdownOpen)}
-              style={surfaceStyle}
-              className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-[16px] hover:brightness-105 border border-white/[0.02] transition-all cursor-pointer text-left focus:outline-none group"
-            >
-              <div className="flex items-center gap-2.5 min-w-0">
-                <div className="w-6 h-6 rounded-full overflow-hidden bg-white/[0.04] flex items-center justify-center shrink-0 relative">
-                  {selectedInstagramAccount ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={getAccountAvatarSrc(selectedInstagramAccount)}
-                      alt={selectedInstagramAccount}
-                      referrerPolicy="no-referrer"
-                      onError={(e) => {
-                        (e.target as HTMLElement).style.display = "none";
-                      }}
-                      className="w-full h-full object-cover z-10"
-                    />
-                  ) : null}
-                  <Instagram className="w-3 h-3 text-[#AAA6A1]" strokeWidth={1.5} />
-                </div>
-                <div className="min-w-0">
-                  <span className="block text-[12px] font-medium truncate text-[#E8E5E1] leading-tight">
-                    {selectedInstagramAccount ? `@${selectedInstagramAccount}` : "All Accounts"}
-                  </span>
-                  <span className="block text-[9.5px] text-[#787470] leading-tight mt-0.5">
-                    Instagram ({activeAccounts.length})
-                  </span>
-                </div>
-              </div>
-              <ChevronsUpDown className="w-3.5 h-3.5 text-[#787470] shrink-0" strokeWidth={1.5} />
-            </button>
-
-            {/* Dropdown Menu */}
-            {isAccountDropdownOpen && (
-              <div
-                style={surfaceStyle}
-                className="absolute top-full left-0 right-0 mt-1 z-50 p-1 rounded-[16px] border border-white/[0.04] shadow-xl shadow-black/40 space-y-0.5 animate-slide-down"
-              >
-                <button
-                  onClick={() => {
-                    setSelectedInstagramAccount(null);
-                    setIsAccountDropdownOpen(false);
-                  }}
-                  className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-[12px] text-[11px] transition-colors cursor-pointer text-left ${
-                    !selectedInstagramAccount
-                      ? "bg-[#33312F] text-[#E8E5E1] font-medium"
-                      : "text-[#AAA6A1] hover:bg-white/[0.02] hover:text-[#E8E5E1]"
-                  }`}
-                >
-                  <div className="flex items-center gap-2 min-w-0">
-                    <div className="w-4 h-4 rounded-full bg-white/[0.04] flex items-center justify-center shrink-0">
-                      <Instagram className="w-2.5 h-2.5 text-[#AAA6A1]" strokeWidth={1.5} />
-                    </div>
-                    <span>All Accounts</span>
-                  </div>
-                  {!selectedInstagramAccount && <Check className="w-3 h-3 text-[#E8E5E1] shrink-0" strokeWidth={1.5} />}
-                </button>
-
-                {activeAccounts.map((acc) => {
-                  const handle = acc.username;
-                  const isSelected = selectedInstagramAccount?.toLowerCase() === handle.toLowerCase();
-                  return (
-                    <button
-                      key={handle}
-                      onClick={() => {
-                        setSelectedInstagramAccount(handle);
-                        setIsAccountDropdownOpen(false);
-                      }}
-                      className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-[12px] text-[11px] transition-colors cursor-pointer text-left ${
-                        isSelected
-                          ? "bg-[#33312F] text-[#E8E5E1] font-medium"
-                          : "text-[#AAA6A1] hover:bg-white/[0.02] hover:text-[#E8E5E1]"
-                      }`}
-                    >
-                      <div className="flex items-center gap-2 min-w-0">
-                        <div className="w-4 h-4 rounded-full overflow-hidden bg-white/[0.04] flex items-center justify-center shrink-0 relative">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
-                            src={getAccountAvatarSrc(handle)}
-                            alt={handle}
-                            referrerPolicy="no-referrer"
-                            onError={(e) => {
-                              (e.target as HTMLElement).style.display = "none";
-                            }}
-                            className="w-full h-full object-cover z-10"
-                          />
-                          <Instagram className="w-2.5 h-2.5 text-[#AAA6A1] absolute" strokeWidth={1.5} />
-                        </div>
-                        <span className="truncate font-mono">@{handle}</span>
-                      </div>
-                      {isSelected && <Check className="w-3 h-3 text-[#E8E5E1] shrink-0" strokeWidth={1.5} />}
-                    </button>
-                  );
-                })}
-
-                <div className="pt-1 mt-0.5 border-t border-white/[0.03]">
-                  <Link
-                    href="/settings"
-                    onClick={() => setIsAccountDropdownOpen(false)}
-                    className="w-full flex items-center gap-1.5 px-2.5 py-1.5 rounded-[12px] text-[11px] font-medium text-[#AAA6A1] hover:text-[#E8E5E1] hover:bg-white/[0.02] transition-colors"
-                  >
-                    <Plus className="w-3 h-3 shrink-0" strokeWidth={1.5} />
-                    <span>Connect Account</span>
-                  </Link>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ─── 3. Primary Navigation Surface (Restrained Material Layer) ─── */}
+        {/* ─── 1. Primary Navigation Surface (Enclosing Brand Header & Navigation like Payflow) ─── */}
         <div
           style={surfaceStyle}
-          className="rounded-[24px] p-1.5 space-y-1 border border-white/[0.02]"
+          className="rounded-[24px] p-1.5 space-y-2 border border-white/[0.02]"
         >
+          {/* Brand Header (Covered inside the container) */}
+          <div className="flex items-center justify-between px-2 pt-1.5 pb-0.5">
+            <ReelDashLogo href="/dashboard" size={25} showText={true} textSize="text-[16px]" />
+            <Link
+              href="/pricing"
+              className="flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-white/[0.04] hover:bg-white/[0.06] text-[#AAA6A1] hover:text-[#E8E5E1] font-medium text-[10.5px] border border-white/[0.03] transition-colors shrink-0"
+            >
+              <Crown className="w-3 h-3 text-[#C5A059]" strokeWidth={1.5} />
+              <span>{user?.plan === "Free Plan" ? "Upgrade" : "Pro"}</span>
+            </Link>
+          </div>
+
+          {/* 2. Instagram Account Selector (Quiet Warm Charcoal) */}
+          {activeAccounts.length === 0 ? (
+            /* ZERO ACTIVE ACCOUNTS */
+            <div>
+              {legacyAccounts.length > 0 ? (
+                <div
+                  className="p-2.5 rounded-[16px] bg-white/[0.02] border border-amber-500/15 text-xs flex items-center justify-between"
+                >
+                  <div className="min-w-0 pr-2">
+                    <p className="text-[11px] font-medium text-amber-400/90 flex items-center gap-1 truncate font-mono">
+                      <span>⚠️</span> @{legacyAccounts[0].username}
+                    </p>
+                    <p className="text-[10px] text-amber-500/60">Unverified</p>
+                  </div>
+                  <Link
+                    href="/connect-instagram"
+                    className="px-2 py-1 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-400/90 text-[10px] font-medium transition-colors shrink-0"
+                  >
+                    Verify
+                  </Link>
+                </div>
+              ) : (
+                <Link
+                  href="/settings"
+                  className="w-full flex items-center justify-between p-2 rounded-[16px] bg-white/[0.02] hover:bg-white/[0.04] border border-dashed border-white/[0.04] hover:border-white/[0.08] transition-all text-left group"
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="w-6 h-6 rounded-full bg-white/[0.04] text-[#AAA6A1] group-hover:text-[#E8E5E1] flex items-center justify-center shrink-0 transition-colors">
+                      <Instagram className="w-3.5 h-3.5" strokeWidth={1.5} />
+                    </div>
+                    <p className="text-[11.5px] font-normal text-[#AAA6A1] group-hover:text-[#D4D0CB] transition-colors truncate">
+                      Connect Instagram
+                    </p>
+                  </div>
+                  <span className="text-[10px] font-medium text-[#AAA6A1] px-2 py-0.5 rounded-full bg-white/[0.04] shrink-0">
+                    Link
+                  </span>
+                </Link>
+              )}
+            </div>
+          ) : activeAccounts.length === 1 ? (
+            /* Single account — integrated into user card at bottom */
+            null
+          ) : (
+            /* Multiple accounts switcher */
+            <div className="relative">
+              <button
+                onClick={() => setIsAccountDropdownOpen(!isAccountDropdownOpen)}
+                className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-[16px] bg-white/[0.02] hover:bg-white/[0.04] border border-white/[0.02] transition-all cursor-pointer text-left focus:outline-none group"
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-6 h-6 rounded-full overflow-hidden bg-white/[0.04] flex items-center justify-center shrink-0 relative">
+                    {selectedInstagramAccount ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={getAccountAvatarSrc(selectedInstagramAccount)}
+                        alt={selectedInstagramAccount}
+                        referrerPolicy="no-referrer"
+                        onError={(e) => {
+                          (e.target as HTMLElement).style.display = "none";
+                        }}
+                        className="w-full h-full object-cover z-10"
+                      />
+                    ) : null}
+                    <Instagram className="w-3 h-3 text-[#AAA6A1]" strokeWidth={1.5} />
+                  </div>
+                  <div className="min-w-0">
+                    <span className="block text-[12px] font-medium truncate text-[#E8E5E1] leading-tight">
+                      {selectedInstagramAccount ? `@${selectedInstagramAccount}` : "All Accounts"}
+                    </span>
+                    <span className="block text-[9.5px] text-[#787470] leading-tight mt-0.5">
+                      Instagram ({activeAccounts.length})
+                    </span>
+                  </div>
+                </div>
+                <ChevronsUpDown className="w-3.5 h-3.5 text-[#787470] shrink-0" strokeWidth={1.5} />
+              </button>
+
+              {/* Dropdown Menu */}
+              {isAccountDropdownOpen && (
+                <div
+                  style={surfaceStyle}
+                  className="absolute top-full left-0 right-0 mt-1 z-50 p-1 rounded-[16px] border border-white/[0.04] shadow-xl shadow-black/40 space-y-0.5 animate-slide-down"
+                >
+                  <button
+                    onClick={() => {
+                      setSelectedInstagramAccount(null);
+                      setIsAccountDropdownOpen(false);
+                    }}
+                    className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-[12px] text-[11px] transition-colors cursor-pointer text-left ${
+                      !selectedInstagramAccount
+                        ? "bg-[#33312F] text-[#E8E5E1] font-medium"
+                        : "text-[#AAA6A1] hover:bg-white/[0.02] hover:text-[#E8E5E1]"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div className="w-4 h-4 rounded-full bg-white/[0.04] flex items-center justify-center shrink-0">
+                        <Instagram className="w-2.5 h-2.5 text-[#AAA6A1]" strokeWidth={1.5} />
+                      </div>
+                      <span>All Accounts</span>
+                    </div>
+                    {!selectedInstagramAccount && <Check className="w-3 h-3 text-[#E8E5E1] shrink-0" strokeWidth={1.5} />}
+                  </button>
+
+                  {activeAccounts.map((acc) => {
+                    const handle = acc.username;
+                    const isSelected = selectedInstagramAccount?.toLowerCase() === handle.toLowerCase();
+                    return (
+                      <button
+                        key={handle}
+                        onClick={() => {
+                          setSelectedInstagramAccount(handle);
+                          setIsAccountDropdownOpen(false);
+                        }}
+                        className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-[12px] text-[11px] transition-colors cursor-pointer text-left ${
+                          isSelected
+                            ? "bg-[#33312F] text-[#E8E5E1] font-medium"
+                            : "text-[#AAA6A1] hover:bg-white/[0.02] hover:text-[#E8E5E1]"
+                        }`}
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          <div className="w-4 h-4 rounded-full overflow-hidden bg-white/[0.04] flex items-center justify-center shrink-0 relative">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={getAccountAvatarSrc(handle)}
+                              alt={handle}
+                              referrerPolicy="no-referrer"
+                              onError={(e) => {
+                                (e.target as HTMLElement).style.display = "none";
+                              }}
+                              className="w-full h-full object-cover z-10"
+                            />
+                            <Instagram className="w-2.5 h-2.5 text-[#AAA6A1] absolute" strokeWidth={1.5} />
+                          </div>
+                          <span className="truncate font-mono">@{handle}</span>
+                        </div>
+                        {isSelected && <Check className="w-3 h-3 text-[#E8E5E1] shrink-0" strokeWidth={1.5} />}
+                      </button>
+                    );
+                  })}
+
+                  <div className="pt-1 mt-0.5 border-t border-white/[0.03]">
+                    <Link
+                      href="/settings"
+                      onClick={() => setIsAccountDropdownOpen(false)}
+                      className="w-full flex items-center gap-1.5 px-2.5 py-1.5 rounded-[12px] text-[11px] font-medium text-[#AAA6A1] hover:text-[#E8E5E1] hover:bg-white/[0.02] transition-colors"
+                    >
+                      <Plus className="w-3 h-3 shrink-0" strokeWidth={1.5} />
+                      <span>Connect Account</span>
+                    </Link>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* 3. Navigation Links */}
           <nav className="space-y-1">
             {navItems.map((item) => {
               const Icon = item.icon;
