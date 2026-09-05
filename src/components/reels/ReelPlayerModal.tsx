@@ -24,6 +24,7 @@ import {
   ChevronUp,
   ChevronDown as ChevronDownIcon,
   Sparkles,
+  User,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
@@ -45,6 +46,7 @@ export function ReelPlayerModal({ reel, isOpen, onClose }: ReelPlayerModalProps)
     addReelToCollection,
     showToast,
     saveReel,
+    updateReelCreator,
   } = useReels();
 
   const [activeReel, setActiveReel] = useState<Reel>(reel || reels[0]);
@@ -52,17 +54,21 @@ export function ReelPlayerModal({ reel, isOpen, onClose }: ReelPlayerModalProps)
   const [isCollectionPickerOpen, setIsCollectionPickerOpen] = useState(false);
   const [isEditingNote, setIsEditingNote] = useState(false);
   const [isDetailsSheetOpen, setIsDetailsSheetOpen] = useState(false);
+  const [isEditingCreator, setIsEditingCreator] = useState(false);
+  const [creatorInput, setCreatorInput] = useState("");
   const [noteContent, setNoteContent] = useState("");
   const [avatarSrc, setAvatarSrc] = useState<string>("");
   const [mounted, setMounted] = useState(false);
   const touchStartYRef = useRef<number | null>(null);
+  const initialReelIdRef = useRef<string | null>(reel?.id || null);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
   useEffect(() => {
-    if (reel) {
+    if (reel && reel.id !== initialReelIdRef.current) {
+      initialReelIdRef.current = reel.id;
       setActiveReel(reel);
     }
   }, [reel]);
@@ -73,7 +79,43 @@ export function ReelPlayerModal({ reel, isOpen, onClose }: ReelPlayerModalProps)
       const username = activeReel.creatorUsername || "creator";
       setAvatarSrc(`/api/proxy-image?username=${encodeURIComponent(username)}`);
     }
-  }, [activeReel]);
+  }, [activeReel?.id, activeReel?.creatorUsername, activeReel?.notes]);
+
+  // Keep activeReel synchronized if context items update
+  useEffect(() => {
+    if (activeReel) {
+      const match = reels.find((r) => r.id === activeReel.id);
+      if (match) {
+        if (
+          match.isFavorite !== activeReel.isFavorite ||
+          match.notes !== activeReel.notes ||
+          match.creatorUsername !== activeReel.creatorUsername
+        ) {
+          setActiveReel(match);
+        }
+      }
+    }
+  }, [reels]);
+
+  const handleToggleFavorite = (e?: React.MouseEvent | React.TouchEvent) => {
+    if (e) {
+      e.stopPropagation();
+      e.preventDefault();
+    }
+    toggleFavorite(activeReel.id);
+    setActiveReel((prev) => ({ ...prev, isFavorite: !prev.isFavorite }));
+  };
+
+  const handleSaveCreator = () => {
+    if (updateReelCreator) {
+      updateReelCreator(activeReel.id, creatorInput);
+      setActiveReel((prev) => ({
+        ...prev,
+        creatorUsername: creatorInput.replace(/^@/, "").trim(),
+      }));
+    }
+    setIsEditingCreator(false);
+  };
 
   const currentIndex = reels.findIndex((r) => r.id === activeReel?.id);
   const hasNext = currentIndex !== -1 && currentIndex < reels.length - 1;
@@ -175,6 +217,10 @@ export function ReelPlayerModal({ reel, isOpen, onClose }: ReelPlayerModalProps)
       <div
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+        }}
         className="md:hidden fixed inset-0 z-[100] h-[100dvh] w-full bg-black flex flex-col justify-between overflow-hidden select-none"
       >
         {/* Full-bleed Edge-to-Edge Player */}
@@ -192,7 +238,11 @@ export function ReelPlayerModal({ reel, isOpen, onClose }: ReelPlayerModalProps)
         <div className="absolute inset-x-0 bottom-0 h-48 bg-gradient-to-t from-black/90 via-black/40 to-transparent pointer-events-none z-10" />
 
         {/* Top Header Controls */}
-        <div className="relative z-20 pt-[max(0.75rem,env(safe-area-inset-top,0.75rem))] px-4 flex items-center justify-between text-white">
+        <div
+          onTouchStart={(e) => e.stopPropagation()}
+          onTouchEnd={(e) => e.stopPropagation()}
+          className="relative z-20 pt-[max(0.75rem,env(safe-area-inset-top,0.75rem))] px-4 flex items-center justify-between text-white"
+        >
           <button
             onClick={onClose}
             className="w-9 h-9 rounded-full bg-black/40 backdrop-blur-md border border-white/10 flex items-center justify-center text-white active:scale-95 cursor-pointer shadow-md"
@@ -221,6 +271,17 @@ export function ReelPlayerModal({ reel, isOpen, onClose }: ReelPlayerModalProps)
             {/* Top Dropdown Menu */}
             {isMenuOpen && (
               <div className="absolute right-0 top-11 w-48 bg-zinc-900/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl p-1 z-50 text-xs space-y-0.5">
+                <button
+                  onClick={() => {
+                    setCreatorInput(creatorHandle === "creator" ? "" : creatorHandle);
+                    setIsEditingCreator(true);
+                    setIsMenuOpen(false);
+                  }}
+                  className="w-full px-3 py-2 text-left text-zinc-200 hover:bg-white/[0.08] rounded-lg flex items-center space-x-2"
+                >
+                  <User className="w-4 h-4 text-zinc-400" />
+                  <span>Set Creator Handle</span>
+                </button>
                 <button
                   onClick={handleCopyLink}
                   className="w-full px-3 py-2 text-left text-zinc-200 hover:bg-white/[0.08] rounded-lg flex items-center space-x-2"
@@ -264,10 +325,16 @@ export function ReelPlayerModal({ reel, isOpen, onClose }: ReelPlayerModalProps)
         </div>
 
         {/* Right Floating Vertical Action Rail */}
-        <div className="absolute right-3 bottom-24 z-20 flex flex-col items-center space-y-4 text-white">
+        <div
+          onTouchStart={(e) => e.stopPropagation()}
+          onTouchEnd={(e) => e.stopPropagation()}
+          className="absolute right-3 bottom-24 z-20 flex flex-col items-center space-y-4 text-white"
+        >
           {/* Like / Heart button */}
           <button
-            onClick={() => toggleFavorite(activeReel.id)}
+            onClick={handleToggleFavorite}
+            onTouchStart={(e) => e.stopPropagation()}
+            onTouchEnd={(e) => e.stopPropagation()}
             className="flex flex-col items-center space-y-1 cursor-pointer active:scale-125 transition-transform"
           >
             <div className={`w-11 h-11 rounded-full flex items-center justify-center backdrop-blur-md border ${
@@ -284,7 +351,12 @@ export function ReelPlayerModal({ reel, isOpen, onClose }: ReelPlayerModalProps)
 
           {/* Details & Notes Drawer Trigger */}
           <button
-            onClick={() => setIsDetailsSheetOpen(true)}
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsDetailsSheetOpen(true);
+            }}
+            onTouchStart={(e) => e.stopPropagation()}
+            onTouchEnd={(e) => e.stopPropagation()}
             className="flex flex-col items-center space-y-1 cursor-pointer active:scale-110 transition-transform"
           >
             <div className="w-11 h-11 rounded-full bg-black/40 backdrop-blur-md border border-white/15 flex items-center justify-center text-white">
@@ -297,7 +369,12 @@ export function ReelPlayerModal({ reel, isOpen, onClose }: ReelPlayerModalProps)
 
           {/* Collection Button */}
           <button
-            onClick={() => setIsCollectionPickerOpen(true)}
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsCollectionPickerOpen(true);
+            }}
+            onTouchStart={(e) => e.stopPropagation()}
+            onTouchEnd={(e) => e.stopPropagation()}
             className="flex flex-col items-center space-y-1 cursor-pointer active:scale-110 transition-transform"
           >
             <div className="w-11 h-11 rounded-full bg-black/40 backdrop-blur-md border border-white/15 flex items-center justify-center text-white">
@@ -313,6 +390,9 @@ export function ReelPlayerModal({ reel, isOpen, onClose }: ReelPlayerModalProps)
             href={activeReel.instagramUrl}
             target="_blank"
             rel="noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            onTouchStart={(e) => e.stopPropagation()}
+            onTouchEnd={(e) => e.stopPropagation()}
             className="flex flex-col items-center space-y-1 cursor-pointer active:scale-110 transition-transform"
           >
             <div className="w-11 h-11 rounded-full bg-black/40 backdrop-blur-md border border-white/15 flex items-center justify-center text-white">
@@ -324,11 +404,18 @@ export function ReelPlayerModal({ reel, isOpen, onClose }: ReelPlayerModalProps)
           </a>
 
           {/* Up / Down Chevrons for Quick Next/Prev Reel */}
-          <div className="pt-1 flex flex-col space-y-1.5">
+          <div
+            onTouchStart={(e) => e.stopPropagation()}
+            onTouchEnd={(e) => e.stopPropagation()}
+            className="pt-1 flex flex-col space-y-1.5"
+          >
             {hasPrev && (
               <button
-                onClick={handlePrevReel}
-                className="w-9 h-9 rounded-full bg-black/50 backdrop-blur-md border border-white/15 flex items-center justify-center text-white active:scale-95 transition-transform"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handlePrevReel();
+                }}
+                className="w-9 h-9 rounded-full bg-black/50 backdrop-blur-md border border-white/15 flex items-center justify-center text-white active:scale-95 transition-transform cursor-pointer"
                 title="Previous Reel"
               >
                 <ChevronUp className="w-5 h-5" />
@@ -336,8 +423,11 @@ export function ReelPlayerModal({ reel, isOpen, onClose }: ReelPlayerModalProps)
             )}
             {hasNext && (
               <button
-                onClick={handleNextReel}
-                className="w-9 h-9 rounded-full bg-black/50 backdrop-blur-md border border-white/15 flex items-center justify-center text-white active:scale-95 transition-transform"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleNextReel();
+                }}
+                className="w-9 h-9 rounded-full bg-black/50 backdrop-blur-md border border-white/15 flex items-center justify-center text-white active:scale-95 transition-transform cursor-pointer"
                 title="Next Reel"
               >
                 <ChevronDownIcon className="w-5 h-5" />
@@ -347,7 +437,11 @@ export function ReelPlayerModal({ reel, isOpen, onClose }: ReelPlayerModalProps)
         </div>
 
         {/* Bottom Overlay: Creator, Caption & Audio */}
-        <div className="relative z-20 p-4 pb-[max(1rem,env(safe-area-inset-bottom,1rem))] pr-16 space-y-2 text-white">
+        <div
+          onTouchStart={(e) => e.stopPropagation()}
+          onTouchEnd={(e) => e.stopPropagation()}
+          className="relative z-20 p-4 pb-[max(1rem,env(safe-area-inset-bottom,1rem))] pr-16 space-y-2 text-white"
+        >
           <Link
             href={`/creator/${creatorHandle}`}
             onClick={onClose}
@@ -472,6 +566,67 @@ export function ReelPlayerModal({ reel, isOpen, onClose }: ReelPlayerModalProps)
             </>
           )}
         </AnimatePresence>
+
+        {/* Mobile Slide-Up Collection Picker Drawer */}
+        <AnimatePresence>
+          {isCollectionPickerOpen && (
+            <>
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setIsCollectionPickerOpen(false)}
+                className="absolute inset-0 bg-black/60 backdrop-blur-xs z-40"
+              />
+
+              <motion.div
+                initial={{ y: "100%" }}
+                animate={{ y: 0 }}
+                exit={{ y: "100%" }}
+                transition={{ type: "spring", damping: 28, stiffness: 280 }}
+                className="absolute inset-x-0 bottom-0 max-h-[65vh] bg-zinc-950/95 backdrop-blur-2xl border-t border-zinc-800 rounded-t-3xl p-5 z-50 overflow-y-auto space-y-4"
+                onTouchStart={(e) => e.stopPropagation()}
+                onTouchEnd={(e) => e.stopPropagation()}
+              >
+                <div className="w-10 h-1 rounded-full bg-zinc-700 mx-auto" />
+
+                <div className="flex items-center justify-between border-b border-zinc-800/80 pb-3">
+                  <span className="text-sm font-bold text-white">Save to Collection</span>
+                  <button
+                    onClick={() => setIsCollectionPickerOpen(false)}
+                    className="p-1 rounded-full text-zinc-400 hover:text-white cursor-pointer"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+
+                <div className="space-y-2 max-h-60 overflow-y-auto">
+                  {collections.length > 0 ? (
+                    collections.map((col) => (
+                      <button
+                        key={col.id}
+                        onClick={() => {
+                          addReelToCollection(activeReel.id, col.id);
+                          showToast("Added to collection", col.name);
+                          setIsCollectionPickerOpen(false);
+                        }}
+                        className="w-full text-left px-3.5 py-3 rounded-xl bg-zinc-900 border border-zinc-800 hover:border-brand-500/30 text-xs text-zinc-200 flex items-center space-x-3 active:scale-[0.98] transition-transform cursor-pointer"
+                      >
+                        <Folder className="w-4 h-4 text-brand-400 shrink-0" />
+                        <span className="truncate font-medium flex-1">{col.name}</span>
+                      </button>
+                    ))
+                  ) : (
+                    <div className="text-center py-6 text-zinc-500 space-y-1">
+                      <p className="text-xs">No collections created yet.</p>
+                      <p className="text-[11px] text-zinc-600">Create collections from the Collections tab.</p>
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* ─── 2. DESKTOP EXPERIENCE: Dual-Pane Modal (>= md screens) ─── */}
@@ -550,6 +705,17 @@ export function ReelPlayerModal({ reel, isOpen, onClose }: ReelPlayerModalProps)
                   {/* Dropdown Menu */}
                   {isMenuOpen && (
                     <div className="absolute right-0 top-full mt-1 w-48 bg-zinc-900 border border-zinc-800 rounded-lg shadow-xl py-1 z-30 text-xs">
+                      <button
+                        onClick={() => {
+                          setCreatorInput(creatorHandle === "creator" ? "" : creatorHandle);
+                          setIsEditingCreator(true);
+                          setIsMenuOpen(false);
+                        }}
+                        className="w-full px-3 py-2 text-left text-zinc-200 hover:bg-zinc-800 flex items-center space-x-2"
+                      >
+                        <User className="w-3.5 h-3.5" />
+                        <span>Set Creator Handle</span>
+                      </button>
                       <button
                         onClick={handleCopyLink}
                         className="w-full px-3 py-2 text-left text-zinc-200 hover:bg-zinc-800 flex items-center space-x-2"
@@ -818,7 +984,7 @@ export function ReelPlayerModal({ reel, isOpen, onClose }: ReelPlayerModalProps)
               <div className="flex items-center gap-2">
                 {/* Favorite Toggle Button */}
                 <button
-                  onClick={() => toggleFavorite(activeReel.id)}
+                  onClick={handleToggleFavorite}
                   className={`p-2.5 rounded-md border transition-all cursor-pointer flex items-center justify-center ${
                     activeReel.isFavorite
                       ? "border-rose-500/40 bg-rose-500/10 text-rose-400"
@@ -890,6 +1056,73 @@ export function ReelPlayerModal({ reel, isOpen, onClose }: ReelPlayerModalProps)
           </div>
         </motion.div>
       </div>
+
+      {/* Set / Edit Creator Handle Modal */}
+      {isEditingCreator && (
+        <div
+          className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm"
+          onClick={(e) => {
+            e.stopPropagation();
+            setIsEditingCreator(false);
+          }}
+        >
+          <div
+            className="w-full max-w-sm rounded-xl bg-zinc-900 border border-white/10 p-5 shadow-2xl space-y-4 text-white"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-bold text-white">
+                Set Creator Handle
+              </h3>
+              <button
+                onClick={() => setIsEditingCreator(false)}
+                className="p-1 rounded-full text-zinc-400 hover:text-white cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <p className="text-xs text-zinc-400">
+              Enter the Instagram handle of the creator or brand who posted this:
+            </p>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-zinc-400 font-mono">
+                @
+              </span>
+              <input
+                type="text"
+                value={creatorInput}
+                onChange={(e) => setCreatorInput(e.target.value.replace(/^@/, ""))}
+                placeholder="creator_handle"
+                className="w-full pl-8 pr-3 py-2 text-xs rounded-lg bg-zinc-800 border border-white/10 text-white focus:outline-none focus:border-brand-500 font-mono"
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    handleSaveCreator();
+                  } else if (e.key === "Escape") {
+                    setIsEditingCreator(false);
+                  }
+                }}
+              />
+            </div>
+            <div className="flex items-center justify-end gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => setIsEditingCreator(false)}
+                className="px-3 py-1.5 rounded-lg text-xs font-medium text-zinc-400 hover:bg-zinc-800 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveCreator}
+                className="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-brand-500 text-white hover:bg-brand-600 transition-colors cursor-pointer"
+              >
+                Save Creator
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </AnimatePresence>,
     document.body
   );

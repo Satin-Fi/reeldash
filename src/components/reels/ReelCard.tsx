@@ -23,6 +23,7 @@ import {
   Film,
   User,
   X,
+  ChevronDown as ChevronDownIcon,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -42,6 +43,7 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
   const [isPeeking, setIsPeeking] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const holdTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const touchStartPosRef = useRef<{ x: number; y: number } | null>(null);
   const didHoldRef = useRef(false);
 
   useEffect(() => {
@@ -53,6 +55,9 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
   const startHold = (e: React.TouchEvent | React.MouseEvent) => {
     if ("button" in e && e.button !== 0) return;
     didHoldRef.current = false;
+    if ("touches" in e && e.touches[0]) {
+      touchStartPosRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    }
     if (holdTimerRef.current) clearTimeout(holdTimerRef.current);
     holdTimerRef.current = setTimeout(() => {
       didHoldRef.current = true;
@@ -60,11 +65,22 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
     }, 280);
   };
 
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (touchStartPosRef.current && e.touches[0]) {
+      const dx = Math.abs(e.touches[0].clientX - touchStartPosRef.current.x);
+      const dy = Math.abs(e.touches[0].clientY - touchStartPosRef.current.y);
+      if (dx > 8 || dy > 8) {
+        endHold();
+      }
+    }
+  };
+
   const endHold = () => {
     if (holdTimerRef.current) {
       clearTimeout(holdTimerRef.current);
       holdTimerRef.current = null;
     }
+    touchStartPosRef.current = null;
     if (didHoldRef.current) {
       setIsPeeking(false);
     }
@@ -552,11 +568,16 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
       <div
         onClick={handleCardClick}
         onTouchStart={startHold}
+        onTouchMove={handleTouchMove}
         onTouchEnd={endHold}
         onTouchCancel={endHold}
         onMouseDown={startHold}
         onMouseUp={endHold}
         onMouseLeave={endHold}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+        }}
         className="group relative aspect-[9/16] w-full overflow-hidden bg-black cursor-pointer select-none active:scale-[0.98] transition-transform"
       >
         {/* Full-bleed thumbnail or crisp centered audio/avatar tile */}
@@ -569,6 +590,11 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
                 src={imageSrc}
                 alt=""
                 aria-hidden="true"
+                draggable={false}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }}
                 className="absolute inset-0 w-full h-full object-cover blur-2xl opacity-25 scale-125 pointer-events-none"
               />
             )}
@@ -592,7 +618,12 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
                 <img
                   src={imageSrc || reel.creatorAvatar || `/api/proxy-image?username=${encodeURIComponent(cleanUsername || "creator")}`}
                   alt={creatorName}
-                  className="w-full h-full object-cover"
+                  draggable={false}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                  }}
+                  className="w-full h-full object-cover pointer-events-none"
                   onError={(e) => {
                     (e.target as HTMLElement).style.display = "none";
                   }}
@@ -617,8 +648,13 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
             alt={displayCaption || "Saved reel"}
             referrerPolicy="no-referrer"
             loading="lazy"
+            draggable={false}
+            onContextMenu={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+            }}
             onError={() => setImageError(true)}
-            className="w-full h-full object-cover transition-transform duration-200 ease-out group-hover:scale-[1.015]"
+            className="w-full h-full object-cover transition-transform duration-200 ease-out group-hover:scale-[1.015] pointer-events-none"
           />
         )}
 
@@ -674,7 +710,7 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
               e.stopPropagation();
               setIsMenuOpen(!isMenuOpen);
             }}
-            className="w-[30px] h-[30px] rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center text-white/90 hover:text-white hover:bg-black/70 transition-all cursor-pointer opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
+            className="w-[30px] h-[30px] rounded-full bg-black/60 backdrop-blur-md border border-white/10 flex items-center justify-center text-white/90 hover:text-white hover:bg-black/80 transition-all cursor-pointer opacity-100 sm:opacity-0 sm:group-hover:opacity-100 active:scale-90"
             title="Options"
             aria-label="Reel options"
           >
@@ -723,7 +759,7 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
           </div>
         </div>
 
-        {/* ─── Context menu dropdown ─── */}
+        {/* ─── Desktop context menu dropdown (hidden on mobile) ─── */}
         <AnimatePresence>
           {isMenuOpen && (
             <motion.div
@@ -733,7 +769,7 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
               exit={{ opacity: 0, scale: 0.95, y: -4 }}
               transition={{ duration: 0.12 }}
               onClick={(e) => e.stopPropagation()}
-              className="absolute top-12 right-1.5 z-30 w-48 bg-zinc-900/95 backdrop-blur-md border border-white/10 rounded-lg shadow-2xl p-1 text-xs text-zinc-200 space-y-0.5"
+              className="hidden sm:block absolute top-12 right-1.5 z-30 w-48 bg-zinc-900/95 backdrop-blur-md border border-white/10 rounded-lg shadow-2xl p-1 text-xs text-zinc-200 space-y-0.5"
             >
               <Link
                 href={`/reel/${reel.id}`}
@@ -820,9 +856,201 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
         </AnimatePresence>
       </div>
 
+      {/* ─── Mobile Action Sheet Drawer (sm:hidden) ─── */}
+      {isMenuOpen && typeof document !== "undefined" && createPortal(
+        <AnimatePresence>
+          <div
+            className="sm:hidden fixed inset-0 z-[250] flex flex-col justify-end"
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsMenuOpen(false);
+              setIsCollectionPickerOpen(false);
+            }}
+          >
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/70 backdrop-blur-sm"
+            />
+
+            {/* Bottom Sheet Drawer */}
+            <motion.div
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 26, stiffness: 300 }}
+              onClick={(e) => e.stopPropagation()}
+              className="relative w-full bg-zinc-900 border-t border-white/10 rounded-t-2xl p-4 pb-[max(1rem,env(safe-area-inset-bottom,1rem))] z-10 shadow-2xl space-y-3"
+            >
+              {/* Handle bar */}
+              <div className="w-10 h-1 bg-zinc-700 rounded-full mx-auto" />
+
+              {/* Reel Header Info */}
+              <div className="flex items-center space-x-3 pb-3 border-b border-white/[0.08]">
+                <div className="w-10 h-14 rounded-md overflow-hidden bg-black shrink-0 border border-white/10">
+                  <img
+                    src={imageSrc}
+                    alt=""
+                    className="w-full h-full object-cover pointer-events-none"
+                    draggable={false}
+                    onContextMenu={(e) => e.preventDefault()}
+                  />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-bold text-white truncate">
+                    {creatorDisplay}
+                  </p>
+                  <p className="text-[11px] text-zinc-400 truncate mt-0.5">
+                    {displayCaption || `Instagram ${mediaType}`}
+                  </p>
+                  <span className="inline-block text-[9px] uppercase font-mono px-1.5 py-0.5 rounded bg-white/[0.06] text-zinc-400 mt-1">
+                    {mediaType}
+                  </span>
+                </div>
+              </div>
+
+              {/* Action Buttons List */}
+              <div className="space-y-1">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsPlayerOpen(true);
+                    setIsMenuOpen(false);
+                  }}
+                  className="w-full flex items-center space-x-3 px-3 py-3 rounded-xl hover:bg-white/[0.08] active:bg-white/[0.12] text-zinc-200 text-sm cursor-pointer transition-colors"
+                >
+                  <Play className="w-4 h-4 text-brand-400 shrink-0" />
+                  <span className="font-medium">Open Reel / Player</span>
+                </button>
+
+                <button
+                  onClick={(e) => {
+                    handleFavoriteClick(e);
+                    setIsMenuOpen(false);
+                  }}
+                  className="w-full flex items-center space-x-3 px-3 py-3 rounded-xl hover:bg-white/[0.08] active:bg-white/[0.12] text-zinc-200 text-sm cursor-pointer transition-colors"
+                >
+                  <Heart className={`w-4 h-4 shrink-0 ${reel.isFavorite ? "fill-rose-500 text-rose-500" : "text-zinc-400"}`} />
+                  <span className="font-medium">{reel.isFavorite ? "Remove from Favorites" : "Add to Favorites"}</span>
+                </button>
+
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsCollectionPickerOpen(!isCollectionPickerOpen);
+                  }}
+                  className="w-full flex items-center justify-between px-3 py-3 rounded-xl hover:bg-white/[0.08] active:bg-white/[0.12] text-zinc-200 text-sm cursor-pointer transition-colors"
+                >
+                  <div className="flex items-center space-x-3">
+                    <FolderPlus className="w-4 h-4 text-brand-400 shrink-0" />
+                    <span className="font-medium">Move to Collection</span>
+                  </div>
+                  <ChevronDownIcon className={`w-4 h-4 text-zinc-500 transition-transform duration-200 ${isCollectionPickerOpen ? "rotate-180" : ""}`} />
+                </button>
+
+                {isCollectionPickerOpen && (
+                  <div className="pl-4 pr-1 py-1 space-y-1 max-h-36 overflow-y-auto">
+                    {collections.length > 0 ? (
+                      collections.map((col) => (
+                        <button
+                          key={col.id}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            addReelToCollection(reel.id, col.id);
+                            showToast("Added to collection", col.name);
+                            setIsMenuOpen(false);
+                            setIsCollectionPickerOpen(false);
+                          }}
+                          className="w-full text-left px-3 py-2 rounded-lg bg-white/[0.04] active:bg-white/[0.08] text-xs text-zinc-300 hover:text-white flex items-center space-x-2 cursor-pointer"
+                        >
+                          <Folder className="w-3.5 h-3.5 text-zinc-400" />
+                          <span className="truncate">{col.name}</span>
+                        </button>
+                      ))
+                    ) : (
+                      <p className="text-xs text-zinc-500 py-1.5 px-3">No collections created yet</p>
+                    )}
+                  </div>
+                )}
+
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setNewCreatorInput(cleanUsername || "");
+                    setIsEditingCreator(true);
+                    setIsMenuOpen(false);
+                  }}
+                  className="w-full flex items-center space-x-3 px-3 py-3 rounded-xl hover:bg-white/[0.08] active:bg-white/[0.12] text-zinc-200 text-sm cursor-pointer transition-colors"
+                >
+                  <User className="w-4 h-4 text-brand-400 shrink-0" />
+                  <span className="font-medium">{hasValidCreator ? "Edit Creator Handle" : "Set Creator Handle"}</span>
+                </button>
+
+                <button
+                  onClick={(e) => {
+                    handleCopyLink(e);
+                    setIsMenuOpen(false);
+                  }}
+                  className="w-full flex items-center space-x-3 px-3 py-3 rounded-xl hover:bg-white/[0.08] active:bg-white/[0.12] text-zinc-200 text-sm cursor-pointer transition-colors"
+                >
+                  <Copy className="w-4 h-4 text-zinc-400 shrink-0" />
+                  <span className="font-medium">Copy Instagram Link</span>
+                </button>
+
+                <a
+                  href={reel.instagramUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsMenuOpen(false);
+                  }}
+                  className="w-full flex items-center space-x-3 px-3 py-3 rounded-xl hover:bg-white/[0.08] active:bg-white/[0.12] text-zinc-200 text-sm transition-colors"
+                >
+                  <ExternalLink className="w-4 h-4 text-zinc-400 shrink-0" />
+                  <span className="font-medium">Open on Instagram</span>
+                </a>
+
+                <div className="pt-1 border-t border-white/[0.08]">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      deleteReel(reel.id);
+                      setIsMenuOpen(false);
+                    }}
+                    className="w-full flex items-center space-x-3 px-3 py-3 rounded-xl bg-rose-500/10 active:bg-rose-500/20 text-rose-400 text-sm cursor-pointer transition-colors"
+                  >
+                    <Trash2 className="w-4 h-4 shrink-0" />
+                    <span className="font-semibold">Remove from Library</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Close / Cancel Button */}
+              <button
+                type="button"
+                onClick={() => setIsMenuOpen(false)}
+                className="w-full py-2.5 rounded-xl bg-zinc-800 text-zinc-300 font-semibold text-xs active:bg-zinc-700 transition-colors cursor-pointer text-center"
+              >
+                Cancel
+              </button>
+            </motion.div>
+          </div>
+        </AnimatePresence>,
+        document.body
+      )}
+
       {/* Hold and Play (Peek Preview) */}
       {isPeeking && typeof document !== "undefined" && createPortal(
-        <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md pointer-events-none animate-in fade-in duration-150 select-none">
+        <div
+          onContextMenu={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+          }}
+          className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md pointer-events-none animate-in fade-in duration-150 select-none"
+        >
           <div className="relative w-full max-w-[320px] aspect-[9/16] bg-black rounded-2xl overflow-hidden shadow-2xl border border-white/20">
             <ReelPlayer reel={reel} autoPlay={true} className="w-full h-full rounded-2xl" />
             
