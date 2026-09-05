@@ -24,6 +24,7 @@ import {
   MoreHorizontal,
   FolderPlus,
   Plus,
+  Tag,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -42,8 +43,6 @@ export default function ReelDetailPage() {
     generateAiSummary,
     refreshReelMetadata,
     smartCategories,
-    collections,
-    addReelToCollection,
     showToast,
   } = useReels();
 
@@ -52,10 +51,27 @@ export default function ReelDetailPage() {
   const [isEditingNote, setIsEditingNote] = useState(false);
   const [noteContent, setNoteContent] = useState(reel?.notes || "");
   const [isEditingCategory, setIsEditingCategory] = useState(false);
-  const [isCollectionPickerOpen, setIsCollectionPickerOpen] = useState(false);
+  const [isCategoryPickerOpen, setIsCategoryPickerOpen] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
   const [downloadState, setDownloadState] = useState<"idle" | "processing">("idle");
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const availableCategories = Array.from(
+    new Set([
+      ...smartCategories.map((c) => c.name).filter(Boolean),
+      "General",
+      "Tech",
+      "Humor",
+      "Motivation",
+      "Recipes",
+      "Fitness",
+      "Design",
+      "Travel",
+      "Business",
+      "Lifestyle",
+      "Music & Audio",
+    ])
+  );
 
   if (!reel) {
     return (
@@ -386,33 +402,37 @@ export default function ReelDetailPage() {
 
               <div className="p-3 bg-zinc-900/50 border border-zinc-800 rounded-lg space-y-1.5 relative">
                 <span className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider block">
-                  Collection
+                  Category
                 </span>
                 <button
-                  onClick={() => setIsCollectionPickerOpen(!isCollectionPickerOpen)}
+                  onClick={() => setIsCategoryPickerOpen(!isCategoryPickerOpen)}
                   className="w-full text-left px-2 py-1 bg-zinc-800 border border-zinc-700 rounded text-xs text-zinc-200 hover:text-white truncate cursor-pointer flex items-center justify-between"
                 >
-                  <span>
-                    {reel.collections && reel.collections.length > 0
-                      ? collections.find((c) => c.id === reel.collections[0])?.name || "Assigned"
-                      : "Add to..."}
+                  <span className="truncate">
+                    {reel.category || "General"}
                   </span>
-                  <FolderPlus className="w-3 h-3 text-zinc-400" />
+                  <Tag className="w-3 h-3 text-brand-400 shrink-0" />
                 </button>
 
-                {isCollectionPickerOpen && (
+                {isCategoryPickerOpen && (
                   <div className="absolute left-0 bottom-full mb-1 w-full bg-zinc-900 border border-zinc-800 rounded shadow-xl py-1 z-30 text-xs max-h-36 overflow-y-auto">
-                    {collections.map((col) => (
+                    {availableCategories.map((cat) => (
                       <button
-                        key={col.id}
+                        key={cat}
                         onClick={() => {
-                          addReelToCollection(reel.id, col.id);
-                          setIsCollectionPickerOpen(false);
-                          showToast(`Added to ${col.name}`);
+                          updateCategory(reel.id, cat);
+                          setIsCategoryPickerOpen(false);
                         }}
-                        className="w-full text-left px-2.5 py-1 text-zinc-300 hover:text-white hover:bg-zinc-800 truncate"
+                        className={`w-full text-left px-2.5 py-1.5 text-xs flex items-center justify-between truncate cursor-pointer ${
+                          reel.category?.toLowerCase() === cat.toLowerCase()
+                            ? "bg-brand-500/20 text-brand-300 font-semibold"
+                            : "text-zinc-300 hover:text-white hover:bg-zinc-800"
+                        }`}
                       >
-                        {col.icon} {col.name}
+                        <span>{cat}</span>
+                        {reel.category?.toLowerCase() === cat.toLowerCase() && (
+                          <span className="text-[10px] text-brand-400 font-medium">Current</span>
+                        )}
                       </button>
                     ))}
                   </div>
@@ -479,13 +499,13 @@ export default function ReelDetailPage() {
                 />
               </button>
 
-              {/* Primary Add to Collection Action */}
+              {/* Primary Assign Category Action */}
               <button
-                onClick={() => setIsCollectionPickerOpen(true)}
+                onClick={() => setIsCategoryPickerOpen(!isCategoryPickerOpen)}
                 className="flex-1 py-2.5 px-4 bg-brand-500 hover:bg-brand-600 active:scale-98 text-white rounded-md text-xs font-semibold flex items-center justify-center space-x-1.5 transition-all shadow-sm cursor-pointer"
               >
-                <FolderPlus className="w-4 h-4" />
-                <span>Add to Collection</span>
+                <Tag className="w-4 h-4" />
+                <span>Assign Category</span>
               </button>
 
               {/* Copy Link Button */}
@@ -498,39 +518,41 @@ export default function ReelDetailPage() {
               </button>
             </div>
 
-            {/* Collection Picker Dropdown */}
-            {isCollectionPickerOpen && (
+            {/* Category Picker Dropdown */}
+            {isCategoryPickerOpen && (
               <div className="p-3 bg-zinc-900 border border-zinc-800 rounded-lg space-y-2 animate-in fade-in">
                 <div className="flex items-center justify-between text-xs">
-                  <span className="font-semibold text-white">Save to Collection:</span>
+                  <span className="font-semibold text-white">Assign Category:</span>
                   <button
-                    onClick={() => setIsCollectionPickerOpen(false)}
-                    className="text-zinc-400 hover:text-white text-[11px]"
+                    onClick={() => setIsCategoryPickerOpen(false)}
+                    className="text-zinc-400 hover:text-white text-[11px] cursor-pointer"
                   >
                     Done
                   </button>
                 </div>
-                <div className="max-h-28 overflow-y-auto space-y-1 custom-scrollbar">
-                  {collections.length > 0 ? (
-                    collections.map((col) => (
-                      <button
-                        key={col.id}
-                        onClick={() => {
-                          addReelToCollection(reel.id, col.id);
-                          showToast("Added to collection", col.name);
-                          setIsCollectionPickerOpen(false);
-                        }}
-                        className="w-full text-left px-2.5 py-1.5 rounded hover:bg-zinc-800 text-xs text-zinc-300 flex items-center space-x-2 cursor-pointer"
-                      >
-                        <Bookmark className="w-3 h-3 text-brand-400" />
-                        <span className="truncate">{col.name}</span>
-                      </button>
-                    ))
-                  ) : (
-                    <p className="text-[11px] text-zinc-500">
-                      No collections created yet. Create one in Collections page.
-                    </p>
-                  )}
+                <div className="max-h-36 overflow-y-auto space-y-1 custom-scrollbar">
+                  {availableCategories.map((cat) => (
+                    <button
+                      key={cat}
+                      onClick={() => {
+                        updateCategory(reel.id, cat);
+                        setIsCategoryPickerOpen(false);
+                      }}
+                      className={`w-full text-left px-2.5 py-1.5 rounded text-xs flex items-center justify-between cursor-pointer transition-colors ${
+                        reel.category?.toLowerCase() === cat.toLowerCase()
+                          ? "bg-brand-500/20 text-brand-300 font-semibold"
+                          : "text-zinc-300 hover:bg-zinc-800"
+                      }`}
+                    >
+                      <div className="flex items-center space-x-2">
+                        <Tag className="w-3.5 h-3.5 text-brand-400" />
+                        <span className="truncate">{cat}</span>
+                      </div>
+                      {reel.category?.toLowerCase() === cat.toLowerCase() && (
+                        <span className="text-[10px] text-brand-400 font-medium">Current</span>
+                      )}
+                    </button>
+                  ))}
                 </div>
               </div>
             )}

@@ -8,14 +8,12 @@ import { ReelPlayer } from "./ReelPlayer";
 import {
   X,
   Heart,
-  Bookmark,
   MoreHorizontal,
   Music2,
   ExternalLink,
   Copy,
   Trash2,
-  Folder,
-  FolderPlus,
+  Tag,
   ThumbsUp,
   MessageSquare,
   Calendar,
@@ -24,7 +22,6 @@ import {
   ChevronUp,
   ChevronDown as ChevronDownIcon,
   Sparkles,
-  User,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
@@ -42,25 +39,39 @@ export function ReelPlayerModal({ reel, isOpen, onClose }: ReelPlayerModalProps)
     deleteReel,
     updateNote,
     generateAiSummary,
-    collections,
-    addReelToCollection,
+    smartCategories,
+    updateCategory,
     showToast,
     saveReel,
-    updateReelCreator,
   } = useReels();
 
   const [activeReel, setActiveReel] = useState<Reel>(reel || reels[0]);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isCollectionPickerOpen, setIsCollectionPickerOpen] = useState(false);
+  const [isCategoryPickerOpen, setIsCategoryPickerOpen] = useState(false);
   const [isEditingNote, setIsEditingNote] = useState(false);
   const [isDetailsSheetOpen, setIsDetailsSheetOpen] = useState(false);
-  const [isEditingCreator, setIsEditingCreator] = useState(false);
-  const [creatorInput, setCreatorInput] = useState("");
   const [noteContent, setNoteContent] = useState("");
   const [avatarSrc, setAvatarSrc] = useState<string>("");
   const [mounted, setMounted] = useState(false);
   const touchStartYRef = useRef<number | null>(null);
   const initialReelIdRef = useRef<string | null>(reel?.id || null);
+
+  const availableCategories = Array.from(
+    new Set([
+      ...smartCategories.map((c) => c.name).filter(Boolean),
+      "General",
+      "Tech",
+      "Humor",
+      "Motivation",
+      "Recipes",
+      "Fitness",
+      "Design",
+      "Travel",
+      "Business",
+      "Lifestyle",
+      "Music & Audio",
+    ])
+  );
 
   useEffect(() => {
     setMounted(true);
@@ -89,7 +100,8 @@ export function ReelPlayerModal({ reel, isOpen, onClose }: ReelPlayerModalProps)
         if (
           match.isFavorite !== activeReel.isFavorite ||
           match.notes !== activeReel.notes ||
-          match.creatorUsername !== activeReel.creatorUsername
+          match.creatorUsername !== activeReel.creatorUsername ||
+          match.category !== activeReel.category
         ) {
           setActiveReel(match);
         }
@@ -104,17 +116,6 @@ export function ReelPlayerModal({ reel, isOpen, onClose }: ReelPlayerModalProps)
     }
     toggleFavorite(activeReel.id);
     setActiveReel((prev) => ({ ...prev, isFavorite: !prev.isFavorite }));
-  };
-
-  const handleSaveCreator = () => {
-    if (updateReelCreator) {
-      updateReelCreator(activeReel.id, creatorInput);
-      setActiveReel((prev) => ({
-        ...prev,
-        creatorUsername: creatorInput.replace(/^@/, "").trim(),
-      }));
-    }
-    setIsEditingCreator(false);
   };
 
   const currentIndex = reels.findIndex((r) => r.id === activeReel?.id);
@@ -272,32 +273,21 @@ export function ReelPlayerModal({ reel, isOpen, onClose }: ReelPlayerModalProps)
             {isMenuOpen && (
               <div className="absolute right-0 top-11 w-48 bg-zinc-900/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl p-1 z-50 text-xs space-y-0.5">
                 <button
-                  onClick={() => {
-                    setCreatorInput(creatorHandle === "creator" ? "" : creatorHandle);
-                    setIsEditingCreator(true);
-                    setIsMenuOpen(false);
-                  }}
-                  className="w-full px-3 py-2 text-left text-zinc-200 hover:bg-white/[0.08] rounded-lg flex items-center space-x-2"
-                >
-                  <User className="w-4 h-4 text-zinc-400" />
-                  <span>Set Creator Handle</span>
-                </button>
-                <button
                   onClick={handleCopyLink}
-                  className="w-full px-3 py-2 text-left text-zinc-200 hover:bg-white/[0.08] rounded-lg flex items-center space-x-2"
+                  className="w-full px-3 py-2 text-left text-zinc-200 hover:bg-white/[0.08] rounded-lg flex items-center space-x-2 cursor-pointer"
                 >
                   <Copy className="w-4 h-4" />
                   <span>Copy Link</span>
                 </button>
                 <button
                   onClick={() => {
-                    setIsCollectionPickerOpen(true);
+                    setIsCategoryPickerOpen(true);
                     setIsMenuOpen(false);
                   }}
-                  className="w-full px-3 py-2 text-left text-zinc-200 hover:bg-white/[0.08] rounded-lg flex items-center space-x-2"
+                  className="w-full px-3 py-2 text-left text-zinc-200 hover:bg-white/[0.08] rounded-lg flex items-center space-x-2 cursor-pointer"
                 >
-                  <FolderPlus className="w-4 h-4" />
-                  <span>Add to Collection</span>
+                  <Tag className="w-4 h-4 text-brand-400" />
+                  <span>Assign Category</span>
                 </button>
                 <a
                   href={activeReel.instagramUrl}
@@ -314,7 +304,7 @@ export function ReelPlayerModal({ reel, isOpen, onClose }: ReelPlayerModalProps)
                     deleteReel(activeReel.id);
                     onClose();
                   }}
-                  className="w-full px-3 py-2 text-left text-rose-400 hover:bg-rose-500/15 rounded-lg flex items-center space-x-2"
+                  className="w-full px-3 py-2 text-left text-rose-400 hover:bg-rose-500/15 rounded-lg flex items-center space-x-2 cursor-pointer"
                 >
                   <Trash2 className="w-4 h-4" />
                   <span>Delete Reel</span>
@@ -367,21 +357,21 @@ export function ReelPlayerModal({ reel, isOpen, onClose }: ReelPlayerModalProps)
             </span>
           </button>
 
-          {/* Collection Button */}
+          {/* Category Button */}
           <button
             onClick={(e) => {
               e.stopPropagation();
-              setIsCollectionPickerOpen(true);
+              setIsCategoryPickerOpen(true);
             }}
             onTouchStart={(e) => e.stopPropagation()}
             onTouchEnd={(e) => e.stopPropagation()}
             className="flex flex-col items-center space-y-1 cursor-pointer active:scale-110 transition-transform"
           >
             <div className="w-11 h-11 rounded-full bg-black/40 backdrop-blur-md border border-white/15 flex items-center justify-center text-white">
-              <FolderPlus className="w-5 h-5" />
+              <Tag className="w-5 h-5" />
             </div>
             <span className="text-[10px] font-semibold text-zinc-200 drop-shadow">
-              Save
+              Category
             </span>
           </button>
 
@@ -567,15 +557,15 @@ export function ReelPlayerModal({ reel, isOpen, onClose }: ReelPlayerModalProps)
           )}
         </AnimatePresence>
 
-        {/* Mobile Slide-Up Collection Picker Drawer */}
+        {/* Mobile Slide-Up Category Picker Drawer */}
         <AnimatePresence>
-          {isCollectionPickerOpen && (
+          {isCategoryPickerOpen && (
             <>
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                onClick={() => setIsCollectionPickerOpen(false)}
+                onClick={() => setIsCategoryPickerOpen(false)}
                 className="absolute inset-0 bg-black/60 backdrop-blur-xs z-40"
               />
 
@@ -591,37 +581,43 @@ export function ReelPlayerModal({ reel, isOpen, onClose }: ReelPlayerModalProps)
                 <div className="w-10 h-1 rounded-full bg-zinc-700 mx-auto" />
 
                 <div className="flex items-center justify-between border-b border-zinc-800/80 pb-3">
-                  <span className="text-sm font-bold text-white">Save to Collection</span>
+                  <span className="text-sm font-bold text-white">Assign Category</span>
                   <button
-                    onClick={() => setIsCollectionPickerOpen(false)}
+                    onClick={() => setIsCategoryPickerOpen(false)}
                     className="p-1 rounded-full text-zinc-400 hover:text-white cursor-pointer"
                   >
                     <X className="w-4 h-4" />
                   </button>
                 </div>
 
-                <div className="space-y-2 max-h-60 overflow-y-auto">
-                  {collections.length > 0 ? (
-                    collections.map((col) => (
-                      <button
-                        key={col.id}
-                        onClick={() => {
-                          addReelToCollection(activeReel.id, col.id);
-                          showToast("Added to collection", col.name);
-                          setIsCollectionPickerOpen(false);
-                        }}
-                        className="w-full text-left px-3.5 py-3 rounded-xl bg-zinc-900 border border-zinc-800 hover:border-brand-500/30 text-xs text-zinc-200 flex items-center space-x-3 active:scale-[0.98] transition-transform cursor-pointer"
-                      >
-                        <Folder className="w-4 h-4 text-brand-400 shrink-0" />
-                        <span className="truncate font-medium flex-1">{col.name}</span>
-                      </button>
-                    ))
-                  ) : (
-                    <div className="text-center py-6 text-zinc-500 space-y-1">
-                      <p className="text-xs">No collections created yet.</p>
-                      <p className="text-[11px] text-zinc-600">Create collections from the Collections tab.</p>
-                    </div>
-                  )}
+                <div className="space-y-1.5 max-h-60 overflow-y-auto">
+                  {availableCategories.map((cat) => (
+                    <button
+                      key={cat}
+                      onClick={() => {
+                        updateCategory(activeReel.id, cat);
+                        setActiveReel((prev) => ({
+                          ...prev,
+                          category: cat,
+                          categories: [cat],
+                        }));
+                        setIsCategoryPickerOpen(false);
+                      }}
+                      className={`w-full text-left px-3.5 py-2.5 rounded-xl border text-xs flex items-center justify-between active:scale-[0.98] transition-transform cursor-pointer ${
+                        activeReel.category?.toLowerCase() === cat.toLowerCase()
+                          ? "bg-brand-500/20 border-brand-500/40 text-brand-300 font-semibold"
+                          : "bg-zinc-900 border-zinc-800 hover:border-brand-500/30 text-zinc-200"
+                      }`}
+                    >
+                      <div className="flex items-center space-x-3">
+                        <Tag className="w-4 h-4 text-brand-400 shrink-0" />
+                        <span className="truncate font-medium flex-1">{cat}</span>
+                      </div>
+                      {activeReel.category?.toLowerCase() === cat.toLowerCase() && (
+                        <span className="text-[10px] text-brand-400 font-medium">Current</span>
+                      )}
+                    </button>
+                  ))}
                 </div>
               </motion.div>
             </>
@@ -706,32 +702,21 @@ export function ReelPlayerModal({ reel, isOpen, onClose }: ReelPlayerModalProps)
                   {isMenuOpen && (
                     <div className="absolute right-0 top-full mt-1 w-48 bg-zinc-900 border border-zinc-800 rounded-lg shadow-xl py-1 z-30 text-xs">
                       <button
-                        onClick={() => {
-                          setCreatorInput(creatorHandle === "creator" ? "" : creatorHandle);
-                          setIsEditingCreator(true);
-                          setIsMenuOpen(false);
-                        }}
-                        className="w-full px-3 py-2 text-left text-zinc-200 hover:bg-zinc-800 flex items-center space-x-2"
-                      >
-                        <User className="w-3.5 h-3.5" />
-                        <span>Set Creator Handle</span>
-                      </button>
-                      <button
                         onClick={handleCopyLink}
-                        className="w-full px-3 py-2 text-left text-zinc-200 hover:bg-zinc-800 flex items-center space-x-2"
+                        className="w-full px-3 py-2 text-left text-zinc-200 hover:bg-zinc-800 flex items-center space-x-2 cursor-pointer"
                       >
                         <Copy className="w-3.5 h-3.5" />
                         <span>Copy Link</span>
                       </button>
                       <button
                         onClick={() => {
-                          setIsCollectionPickerOpen(true);
+                          setIsCategoryPickerOpen(true);
                           setIsMenuOpen(false);
                         }}
-                        className="w-full px-3 py-2 text-left text-zinc-200 hover:bg-zinc-800 flex items-center space-x-2"
+                        className="w-full px-3 py-2 text-left text-zinc-200 hover:bg-zinc-800 flex items-center space-x-2 cursor-pointer"
                       >
-                        <FolderPlus className="w-3.5 h-3.5" />
-                        <span>Add to Collection</span>
+                        <Tag className="w-3.5 h-3.5 text-brand-400" />
+                        <span>Assign Category</span>
                       </button>
                       <a
                         href={activeReel.instagramUrl}
@@ -846,7 +831,7 @@ export function ReelPlayerModal({ reel, isOpen, onClose }: ReelPlayerModalProps)
                       onClick={onClose}
                       className="inline-flex items-center space-x-1.5 text-[11px] px-2.5 py-0.5 rounded-full bg-brand-500/10 border border-brand-500/25 text-brand-400 font-medium hover:bg-brand-500/20 transition-colors"
                     >
-                      <Folder className="w-3 h-3 text-brand-400" strokeWidth={2} />
+                      <Tag className="w-3 h-3 text-brand-400" strokeWidth={2} />
                       <span>{catName}</span>
                     </Link>
                   ))}
@@ -997,13 +982,13 @@ export function ReelPlayerModal({ reel, isOpen, onClose }: ReelPlayerModalProps)
                   />
                 </button>
 
-                {/* Primary Add to Collection Action */}
+                {/* Primary Assign Category Action */}
                 <button
-                  onClick={() => setIsCollectionPickerOpen(true)}
+                  onClick={() => setIsCategoryPickerOpen(!isCategoryPickerOpen)}
                   className="flex-1 py-2 px-3 bg-brand-500 hover:bg-brand-600 active:scale-98 text-white rounded-md text-xs font-semibold flex items-center justify-center space-x-1.5 transition-all shadow-sm cursor-pointer"
                 >
-                  <FolderPlus className="w-3.5 h-3.5" />
-                  <span>Add to Collection</span>
+                  <Tag className="w-3.5 h-3.5" />
+                  <span>Assign Category</span>
                 </button>
 
                 {/* Copy Link Button */}
@@ -1016,39 +1001,46 @@ export function ReelPlayerModal({ reel, isOpen, onClose }: ReelPlayerModalProps)
                 </button>
               </div>
 
-              {/* Collection Picker Dropdown Modal Overlay */}
-              {isCollectionPickerOpen && (
+              {/* Category Picker Dropdown Modal Overlay */}
+              {isCategoryPickerOpen && (
                 <div className="p-3 bg-zinc-900 border border-zinc-800 rounded-lg space-y-2 animate-in fade-in">
                   <div className="flex items-center justify-between text-xs">
-                    <span className="font-semibold text-white">Save to Collection:</span>
+                    <span className="font-semibold text-white">Assign Category:</span>
                     <button
-                      onClick={() => setIsCollectionPickerOpen(false)}
-                      className="text-zinc-400 hover:text-white text-[11px]"
+                      onClick={() => setIsCategoryPickerOpen(false)}
+                      className="text-zinc-400 hover:text-white text-[11px] cursor-pointer"
                     >
                       Done
                     </button>
                   </div>
-                  <div className="max-h-28 overflow-y-auto space-y-1 custom-scrollbar">
-                    {collections.length > 0 ? (
-                      collections.map((col) => (
-                        <button
-                          key={col.id}
-                          onClick={() => {
-                            addReelToCollection(activeReel.id, col.id);
-                            showToast("Added to collection", col.name);
-                            setIsCollectionPickerOpen(false);
-                          }}
-                          className="w-full text-left px-2.5 py-1.5 rounded hover:bg-zinc-800 text-xs text-zinc-300 flex items-center space-x-2 cursor-pointer"
-                        >
-                          <Bookmark className="w-3 h-3 text-brand-400" />
-                          <span className="truncate">{col.name}</span>
-                        </button>
-                      ))
-                    ) : (
-                      <p className="text-[11px] text-zinc-500">
-                        No collections created yet. Create one in Collections page.
-                      </p>
-                    )}
+                  <div className="max-h-32 overflow-y-auto space-y-1 custom-scrollbar">
+                    {availableCategories.map((cat) => (
+                      <button
+                        key={cat}
+                        onClick={() => {
+                          updateCategory(activeReel.id, cat);
+                          setActiveReel((prev) => ({
+                            ...prev,
+                            category: cat,
+                            categories: [cat],
+                          }));
+                          setIsCategoryPickerOpen(false);
+                        }}
+                        className={`w-full text-left px-2.5 py-1.5 rounded text-xs flex items-center justify-between cursor-pointer transition-colors ${
+                          activeReel.category?.toLowerCase() === cat.toLowerCase()
+                            ? "bg-brand-500/20 text-brand-300 font-semibold"
+                            : "text-zinc-300 hover:bg-zinc-800"
+                        }`}
+                      >
+                        <div className="flex items-center space-x-2">
+                          <Tag className="w-3 h-3 text-brand-400" />
+                          <span className="truncate">{cat}</span>
+                        </div>
+                        {activeReel.category?.toLowerCase() === cat.toLowerCase() && (
+                          <span className="text-[10px] text-brand-400 font-medium">Current</span>
+                        )}
+                      </button>
+                    ))}
                   </div>
                 </div>
               )}
@@ -1056,73 +1048,6 @@ export function ReelPlayerModal({ reel, isOpen, onClose }: ReelPlayerModalProps)
           </div>
         </motion.div>
       </div>
-
-      {/* Set / Edit Creator Handle Modal */}
-      {isEditingCreator && (
-        <div
-          className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm"
-          onClick={(e) => {
-            e.stopPropagation();
-            setIsEditingCreator(false);
-          }}
-        >
-          <div
-            className="w-full max-w-sm rounded-xl bg-zinc-900 border border-white/10 p-5 shadow-2xl space-y-4 text-white"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-bold text-white">
-                Set Creator Handle
-              </h3>
-              <button
-                onClick={() => setIsEditingCreator(false)}
-                className="p-1 rounded-full text-zinc-400 hover:text-white cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            <p className="text-xs text-zinc-400">
-              Enter the Instagram handle of the creator or brand who posted this:
-            </p>
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-zinc-400 font-mono">
-                @
-              </span>
-              <input
-                type="text"
-                value={creatorInput}
-                onChange={(e) => setCreatorInput(e.target.value.replace(/^@/, ""))}
-                placeholder="creator_handle"
-                className="w-full pl-8 pr-3 py-2 text-xs rounded-lg bg-zinc-800 border border-white/10 text-white focus:outline-none focus:border-brand-500 font-mono"
-                autoFocus
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    handleSaveCreator();
-                  } else if (e.key === "Escape") {
-                    setIsEditingCreator(false);
-                  }
-                }}
-              />
-            </div>
-            <div className="flex items-center justify-end gap-2 pt-1">
-              <button
-                type="button"
-                onClick={() => setIsEditingCreator(false)}
-                className="px-3 py-1.5 rounded-lg text-xs font-medium text-zinc-400 hover:bg-zinc-800 cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleSaveCreator}
-                className="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-brand-500 text-white hover:bg-brand-600 transition-colors cursor-pointer"
-              >
-                Save Creator
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </AnimatePresence>,
     document.body
   );

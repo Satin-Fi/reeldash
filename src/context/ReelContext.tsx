@@ -751,12 +751,30 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
     showToast("Note updated");
   };
 
-  const updateCategory = (id: string, category: string) => {
+  const updateCategory = async (id: string, category: string) => {
+    const cleanCat = category.replace(/^#+/, "").trim() || "General";
     const updated = reels.map((r) =>
-      r.id === id ? { ...r, category, updatedAt: new Date().toISOString() } : r
+      r.id === id
+        ? {
+            ...r,
+            category: cleanCat,
+            categories: [cleanCat],
+            updatedAt: new Date().toISOString(),
+          }
+        : r
     );
     saveUserReels(updated);
-    showToast(`Updated to ${category}`);
+    showToast(`Categorized as #${cleanCat}`);
+
+    try {
+      await fetch("/api/reels", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, category: cleanCat }),
+      });
+    } catch (e) {
+      console.warn("[updateCategory error]:", e);
+    }
   };
 
   const updateReelCreator = async (id: string, newHandle: string) => {

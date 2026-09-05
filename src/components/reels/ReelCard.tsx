@@ -15,14 +15,11 @@ import {
   Copy,
   Images,
   Music2,
-  FolderPlus,
   Play,
   FileText,
   Image as ImageIcon,
-  Folder,
   Film,
-  User,
-  X,
+  Tag,
   ChevronDown as ChevronDownIcon,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -33,27 +30,36 @@ interface ReelCardProps {
 }
 
 export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
-  const { toggleFavorite, deleteReel, collections, addReelToCollection, updateReelCreator, showToast } = useReels();
+  const { toggleFavorite, deleteReel, smartCategories, updateCategory, showToast } = useReels();
   const [isPlayerOpen, setIsPlayerOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isCollectionPickerOpen, setIsCollectionPickerOpen] = useState(false);
-  const [isEditingCreator, setIsEditingCreator] = useState(false);
-  const [newCreatorInput, setNewCreatorInput] = useState("");
+  const [isCategoryPickerOpen, setIsCategoryPickerOpen] = useState(false);
   const [imageError, setImageError] = useState(false);
   const [isPeeking, setIsPeeking] = useState(false);
+  const [isTouched, setIsTouched] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const holdTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const touchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const touchStartPosRef = useRef<{ x: number; y: number } | null>(null);
   const didHoldRef = useRef(false);
 
   useEffect(() => {
     return () => {
       if (holdTimerRef.current) clearTimeout(holdTimerRef.current);
+      if (touchTimeoutRef.current) clearTimeout(touchTimeoutRef.current);
     };
   }, []);
 
   const startHold = (e: React.TouchEvent | React.MouseEvent) => {
     if ("button" in e && e.button !== 0) return;
+
+    // Show three-dot menu button on touch
+    setIsTouched(true);
+    if (touchTimeoutRef.current) {
+      clearTimeout(touchTimeoutRef.current);
+      touchTimeoutRef.current = null;
+    }
+
     didHoldRef.current = false;
     if ("touches" in e && e.touches[0]) {
       touchStartPosRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
@@ -66,11 +72,17 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
+    // CRITICAL FIX: If peek is already active, finger movement MUST NOT close it!
+    if (isPeeking || didHoldRef.current) return;
     if (touchStartPosRef.current && e.touches[0]) {
       const dx = Math.abs(e.touches[0].clientX - touchStartPosRef.current.x);
       const dy = Math.abs(e.touches[0].clientY - touchStartPosRef.current.y);
-      if (dx > 8 || dy > 8) {
-        endHold();
+      // Cancel peek activation if user is scrolling/swiping
+      if (dx > 25 || dy > 25) {
+        if (holdTimerRef.current) {
+          clearTimeout(holdTimerRef.current);
+          holdTimerRef.current = null;
+        }
       }
     }
   };
@@ -84,6 +96,11 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
     if (didHoldRef.current) {
       setIsPeeking(false);
     }
+    // Keep 3-dot button visible for 2.5 seconds on touch release
+    if (touchTimeoutRef.current) clearTimeout(touchTimeoutRef.current);
+    touchTimeoutRef.current = setTimeout(() => {
+      setIsTouched(false);
+    }, 2500);
   };
 
   const handleFavoriteClick = (e: React.MouseEvent) => {
@@ -98,11 +115,6 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
     navigator.clipboard.writeText(reel.instagramUrl);
     showToast("Link copied to clipboard");
     setIsMenuOpen(false);
-  };
-
-  const handleSaveCreator = () => {
-    updateReelCreator(reel.id, newCreatorInput);
-    setIsEditingCreator(false);
   };
 
   const handleCardClick = () => {
@@ -199,70 +211,21 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
       ? [reel.category]
       : [];
 
-  const editCreatorModal = isEditingCreator && (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
-      onClick={(e) => {
-        e.stopPropagation();
-        setIsEditingCreator(false);
-      }}
-    >
-      <div
-        className="w-full max-w-sm rounded-rd-xl bg-surface-light dark:bg-zinc-900 border border-borderSubtle-light dark:border-white/10 p-5 shadow-2xl space-y-4"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-bold text-primaryText-light dark:text-white">
-            {hasValidCreator ? "Edit Creator Handle" : "Set Creator Handle"}
-          </h3>
-          <button
-            onClick={() => setIsEditingCreator(false)}
-            className="p-1 rounded-full text-secondaryText-light dark:text-zinc-400 hover:text-white cursor-pointer"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-        <p className="text-xs text-secondaryText-light dark:text-zinc-400">
-          Enter the Instagram handle of the creator or brand who posted this:
-        </p>
-        <div className="relative">
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-zinc-400 font-mono">
-            @
-          </span>
-          <input
-            type="text"
-            value={newCreatorInput}
-            onChange={(e) => setNewCreatorInput(e.target.value.replace(/^@/, ""))}
-            placeholder="creator_handle"
-            className="w-full pl-8 pr-3 py-2 text-xs rounded-rd-md bg-surfaceSecondary-light dark:bg-zinc-800 border border-borderSubtle-light dark:border-white/10 text-primaryText-light dark:text-white focus:outline-none focus:border-brand-500 font-mono"
-            autoFocus
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                handleSaveCreator();
-              } else if (e.key === "Escape") {
-                setIsEditingCreator(false);
-              }
-            }}
-          />
-        </div>
-        <div className="flex items-center justify-end gap-2 pt-1">
-          <button
-            type="button"
-            onClick={() => setIsEditingCreator(false)}
-            className="px-3 py-1.5 rounded-rd-md text-xs font-medium text-secondaryText-light dark:text-zinc-400 hover:bg-surfaceSecondary-light dark:hover:bg-zinc-800 cursor-pointer"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={handleSaveCreator}
-            className="px-3.5 py-1.5 rounded-rd-md text-xs font-semibold bg-brand-500 text-white hover:bg-brand-600 transition-colors cursor-pointer"
-          >
-            Save Creator
-          </button>
-        </div>
-      </div>
-    </div>
+  const availableCategories = Array.from(
+    new Set([
+      ...smartCategories.map((c) => c.name).filter(Boolean),
+      "General",
+      "Tech",
+      "Humor",
+      "Motivation",
+      "Recipes",
+      "Fitness",
+      "Design",
+      "Travel",
+      "Business",
+      "Lifestyle",
+      "Music & Audio",
+    ])
   );
 
   /* ───────── Compact List View (unchanged) ───────── */
@@ -315,7 +278,6 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
         {isPlayerOpen && (
           <ReelPlayerModal isOpen={isPlayerOpen} onClose={() => setIsPlayerOpen(false)} reel={reel} />
         )}
-        {editCreatorModal}
       </>
     );
   }
@@ -367,17 +329,6 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
                     <span className="text-xs font-bold text-primaryText-light dark:text-white truncate">
                       {creatorDisplay}
                     </span>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setNewCreatorInput("");
-                        setIsEditingCreator(true);
-                      }}
-                      className="text-[10px] px-1.5 py-0.5 rounded bg-brand-500/10 hover:bg-brand-500/20 text-brand-500 dark:text-brand-400 font-medium transition-colors cursor-pointer"
-                      title="Set creator handle"
-                    >
-                      + Add creator
-                    </button>
                     <span className="px-1.5 py-0.5 rounded text-[9px] uppercase font-mono bg-surfaceSecondary-light dark:bg-white/[0.06] text-secondaryText-light dark:text-zinc-400">
                       {mediaType}
                     </span>
@@ -421,17 +372,6 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
                     >
                       <Film className="w-3.5 h-3.5 text-zinc-500" />
                       <span>Watch in Reels Mode</span>
-                    </button>
-                    <button
-                      onClick={() => {
-                        setNewCreatorInput(cleanUsername || "");
-                        setIsEditingCreator(true);
-                        setIsMenuOpen(false);
-                      }}
-                      className="w-full flex items-center space-x-2 px-2.5 py-2 rounded-md hover:bg-white/[0.08] text-zinc-300 hover:text-white transition-colors text-left cursor-pointer text-xs"
-                    >
-                      <User className="w-3.5 h-3.5 text-zinc-500" />
-                      <span>{hasValidCreator ? "Edit Creator Handle" : "Set Creator Handle"}</span>
                     </button>
                     <button
                       onClick={handleFavoriteClick}
@@ -498,11 +438,11 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
               </button>
 
               <button
-                onClick={() => setIsCollectionPickerOpen(!isCollectionPickerOpen)}
+                onClick={() => setIsCategoryPickerOpen(!isCategoryPickerOpen)}
                 className="text-secondaryText-light dark:text-zinc-400 hover:text-white transition-colors cursor-pointer"
-                title="Add to Collection"
+                title="Assign Category"
               >
-                <FolderPlus className="w-4 h-4" />
+                <Tag className="w-4 h-4" />
               </button>
             </div>
 
@@ -525,6 +465,39 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
               </a>
             </div>
           </div>
+
+          {/* Category Picker in Feed View */}
+          {isCategoryPickerOpen && (
+            <div className="p-3 border-t border-borderSubtle-light dark:border-white/[0.06] bg-surfaceSecondary-light/50 dark:bg-black/40 space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-semibold text-primaryText-light dark:text-white">Assign Category:</span>
+                <button
+                  onClick={() => setIsCategoryPickerOpen(false)}
+                  className="text-secondaryText-light dark:text-zinc-400 hover:text-white text-[11px] cursor-pointer"
+                >
+                  Done
+                </button>
+              </div>
+              <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
+                {availableCategories.map((cat) => (
+                  <button
+                    key={cat}
+                    onClick={() => {
+                      updateCategory(reel.id, cat);
+                      setIsCategoryPickerOpen(false);
+                    }}
+                    className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors cursor-pointer ${
+                      reel.category?.toLowerCase() === cat.toLowerCase()
+                        ? "bg-brand-500 text-white"
+                        : "bg-surfaceSecondary-light dark:bg-white/[0.08] text-secondaryText-light dark:text-zinc-300 hover:bg-brand-500/20"
+                    }`}
+                  >
+                    #{cat}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* 4. Caption, Tags & Notes */}
           <div className="px-4 pb-4 space-y-2 text-xs">
@@ -557,7 +530,6 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
         {isPlayerOpen && (
           <ReelPlayerModal isOpen={isPlayerOpen} onClose={() => setIsPlayerOpen(false)} reel={reel} />
         )}
-        {editCreatorModal}
       </>
     );
   }
@@ -710,7 +682,11 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
               e.stopPropagation();
               setIsMenuOpen(!isMenuOpen);
             }}
-            className="w-[30px] h-[30px] rounded-full bg-black/60 backdrop-blur-md border border-white/10 flex items-center justify-center text-white/90 hover:text-white hover:bg-black/80 transition-all cursor-pointer opacity-100 sm:opacity-0 sm:group-hover:opacity-100 active:scale-90"
+            className={`w-[30px] h-[30px] rounded-full bg-black/60 backdrop-blur-md border border-white/10 flex items-center justify-center text-white/90 hover:text-white hover:bg-black/80 transition-all duration-200 cursor-pointer active:scale-90 ${
+              isTouched || isMenuOpen
+                ? "opacity-100 scale-100 pointer-events-auto"
+                : "opacity-0 scale-90 pointer-events-none sm:opacity-0 sm:group-hover:opacity-100 sm:group-hover:scale-100 sm:pointer-events-auto"
+            }`}
             title="Options"
             aria-label="Reel options"
           >
@@ -786,44 +762,37 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
                 <span>{reel.isFavorite ? "Remove from Favorites" : "Add to Favorites"}</span>
               </button>
               <button
-                onClick={(e) => { e.stopPropagation(); setIsCollectionPickerOpen(!isCollectionPickerOpen); }}
+                onClick={(e) => { e.stopPropagation(); setIsCategoryPickerOpen(!isCategoryPickerOpen); }}
                 className="w-full flex items-center space-x-2 px-2.5 py-2 rounded-md hover:bg-white/[0.08] text-zinc-300 hover:text-white transition-colors text-left cursor-pointer text-xs"
               >
-                <FolderPlus className="w-3.5 h-3.5 text-zinc-500" />
-                <span>Move to Collection</span>
+                <Tag className="w-3.5 h-3.5 text-zinc-500" />
+                <span>Assign Category</span>
               </button>
 
-              {isCollectionPickerOpen && (
-                <div className="my-0.5 pl-3 border-l border-white/10 space-y-0.5">
-                  {collections.length > 0 ? (
-                    collections.map((col) => (
-                      <button
-                        key={col.id}
-                        onClick={(e) => { e.stopPropagation(); addReelToCollection(reel.id, col.id); setIsMenuOpen(false); }}
-                        className="w-full text-left px-2 py-1.5 text-[11px] text-zinc-400 hover:text-white transition-colors truncate flex items-center space-x-1.5 cursor-pointer"
-                      >
-                        <Folder className="w-3 h-3 shrink-0 text-zinc-500" />
-                        <span>{col.name}</span>
-                      </button>
-                    ))
-                  ) : (
-                    <p className="text-[11px] text-zinc-600 px-2 py-1">No collections yet</p>
-                  )}
+              {isCategoryPickerOpen && (
+                <div className="my-0.5 pl-3 border-l border-white/10 space-y-0.5 max-h-36 overflow-y-auto">
+                  {availableCategories.map((cat) => (
+                    <button
+                      key={cat}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        updateCategory(reel.id, cat);
+                        setIsMenuOpen(false);
+                        setIsCategoryPickerOpen(false);
+                      }}
+                      className={`w-full text-left px-2 py-1 text-[11px] transition-colors truncate flex items-center space-x-1.5 cursor-pointer rounded ${
+                        reel.category?.toLowerCase() === cat.toLowerCase()
+                          ? "text-brand-400 font-semibold bg-brand-500/10"
+                          : "text-zinc-400 hover:text-white hover:bg-white/[0.04]"
+                      }`}
+                    >
+                      <Tag className="w-3 h-3 shrink-0 text-zinc-500" />
+                      <span>{cat}</span>
+                    </button>
+                  ))}
                 </div>
               )}
 
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setNewCreatorInput(cleanUsername || "");
-                  setIsEditingCreator(true);
-                  setIsMenuOpen(false);
-                }}
-                className="w-full flex items-center space-x-2 px-2.5 py-2 rounded-md hover:bg-white/[0.08] text-zinc-300 hover:text-white transition-colors text-left cursor-pointer text-xs"
-              >
-                <User className="w-3.5 h-3.5 text-zinc-500" />
-                <span>{hasValidCreator ? "Edit Creator Handle" : "Set Creator Handle"}</span>
-              </button>
               <button
                 onClick={handleCopyLink}
                 className="w-full flex items-center space-x-2 px-2.5 py-2 rounded-md hover:bg-white/[0.08] text-zinc-300 hover:text-white transition-colors text-left cursor-pointer text-xs"
@@ -864,7 +833,7 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
             onClick={(e) => {
               e.stopPropagation();
               setIsMenuOpen(false);
-              setIsCollectionPickerOpen(false);
+              setIsCategoryPickerOpen(false);
             }}
           >
             {/* Backdrop */}
@@ -939,54 +908,45 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    setIsCollectionPickerOpen(!isCollectionPickerOpen);
+                    setIsCategoryPickerOpen(!isCategoryPickerOpen);
                   }}
                   className="w-full flex items-center justify-between px-3 py-3 rounded-xl hover:bg-white/[0.08] active:bg-white/[0.12] text-zinc-200 text-sm cursor-pointer transition-colors"
                 >
                   <div className="flex items-center space-x-3">
-                    <FolderPlus className="w-4 h-4 text-brand-400 shrink-0" />
-                    <span className="font-medium">Move to Collection</span>
+                    <Tag className="w-4 h-4 text-brand-400 shrink-0" />
+                    <span className="font-medium">Assign Category</span>
                   </div>
-                  <ChevronDownIcon className={`w-4 h-4 text-zinc-500 transition-transform duration-200 ${isCollectionPickerOpen ? "rotate-180" : ""}`} />
+                  <ChevronDownIcon className={`w-4 h-4 text-zinc-500 transition-transform duration-200 ${isCategoryPickerOpen ? "rotate-180" : ""}`} />
                 </button>
 
-                {isCollectionPickerOpen && (
-                  <div className="pl-4 pr-1 py-1 space-y-1 max-h-36 overflow-y-auto">
-                    {collections.length > 0 ? (
-                      collections.map((col) => (
-                        <button
-                          key={col.id}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            addReelToCollection(reel.id, col.id);
-                            showToast("Added to collection", col.name);
-                            setIsMenuOpen(false);
-                            setIsCollectionPickerOpen(false);
-                          }}
-                          className="w-full text-left px-3 py-2 rounded-lg bg-white/[0.04] active:bg-white/[0.08] text-xs text-zinc-300 hover:text-white flex items-center space-x-2 cursor-pointer"
-                        >
-                          <Folder className="w-3.5 h-3.5 text-zinc-400" />
-                          <span className="truncate">{col.name}</span>
-                        </button>
-                      ))
-                    ) : (
-                      <p className="text-xs text-zinc-500 py-1.5 px-3">No collections created yet</p>
-                    )}
+                {isCategoryPickerOpen && (
+                  <div className="pl-4 pr-1 py-1 space-y-1 max-h-40 overflow-y-auto">
+                    {availableCategories.map((cat) => (
+                      <button
+                        key={cat}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          updateCategory(reel.id, cat);
+                          setIsMenuOpen(false);
+                          setIsCategoryPickerOpen(false);
+                        }}
+                        className={`w-full text-left px-3 py-2 rounded-lg text-xs flex items-center justify-between cursor-pointer transition-colors ${
+                          reel.category?.toLowerCase() === cat.toLowerCase()
+                            ? "bg-brand-500/20 text-brand-300 font-semibold border border-brand-500/30"
+                            : "bg-white/[0.04] active:bg-white/[0.08] text-zinc-300 hover:text-white"
+                        }`}
+                      >
+                        <div className="flex items-center space-x-2">
+                          <Tag className="w-3.5 h-3.5 text-zinc-400" />
+                          <span className="truncate">{cat}</span>
+                        </div>
+                        {reel.category?.toLowerCase() === cat.toLowerCase() && (
+                          <span className="text-[10px] text-brand-400 font-medium">Current</span>
+                        )}
+                      </button>
+                    ))}
                   </div>
                 )}
-
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setNewCreatorInput(cleanUsername || "");
-                    setIsEditingCreator(true);
-                    setIsMenuOpen(false);
-                  }}
-                  className="w-full flex items-center space-x-3 px-3 py-3 rounded-xl hover:bg-white/[0.08] active:bg-white/[0.12] text-zinc-200 text-sm cursor-pointer transition-colors"
-                >
-                  <User className="w-4 h-4 text-brand-400 shrink-0" />
-                  <span className="font-medium">{hasValidCreator ? "Edit Creator Handle" : "Set Creator Handle"}</span>
-                </button>
 
                 <button
                   onClick={(e) => {
@@ -1071,7 +1031,6 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
       {isPlayerOpen && (
         <ReelPlayerModal isOpen={isPlayerOpen} onClose={() => setIsPlayerOpen(false)} reel={reel} />
       )}
-      {editCreatorModal}
     </>
   );
 }
