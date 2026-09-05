@@ -4,7 +4,6 @@ import React, { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { Sidebar } from "@/components/shell/Sidebar";
-import { TopBar } from "@/components/shell/TopBar";
 import { MobileNav } from "@/components/shell/MobileNav";
 import { SaveReelModal } from "@/components/reels/SaveReelModal";
 import { CreateCollectionModal } from "@/components/collections/CreateCollectionModal";
@@ -47,7 +46,6 @@ export default function DashboardLayout({
 
         {/* Main Content Area — Floating Island */}
         <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden md:rounded-[20px] md:border md:border-borderSubtle-light md:dark:border-white/[0.06] bg-surface-light dark:bg-surface-dark shadow-[0_4px_24px_rgba(0,0,0,0.04)] dark:shadow-[0_4px_32px_rgba(0,0,0,0.3)]">
-          <TopBar />
           <div className="flex-1 overflow-y-auto pb-[calc(5rem+env(safe-area-inset-bottom,0px))] md:pb-0 scrollbar-thin">
             <main className="p-3.5 sm:p-5 md:p-6 lg:p-8 max-w-7xl w-full mx-auto">
               {children}

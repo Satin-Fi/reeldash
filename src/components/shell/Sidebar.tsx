@@ -30,6 +30,8 @@ import {
   Activity,
   Utensils,
   Cpu,
+  Sun,
+  Moon,
 } from "lucide-react";
 
 function getSidebarCategoryIcon(name: string) {
@@ -89,6 +91,8 @@ export function Sidebar() {
     setActiveMediaType,
     selectedInstagramAccount,
     setSelectedInstagramAccount,
+    theme,
+    toggleTheme,
   } = useReels();
   const { user, logout } = useAuth();
   const [isAccountDropdownOpen, setIsAccountDropdownOpen] = useState(false);
@@ -601,6 +605,17 @@ export function Sidebar() {
             </div>
           </Link>
           <div className="flex items-center gap-0.5 shrink-0">
+            <button
+              onClick={toggleTheme}
+              className="p-1.5 text-[#787470] hover:text-[#E8E5E1] hover:bg-white/[0.03] rounded-lg transition-colors cursor-pointer"
+              title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+            >
+              {theme === "dark" ? (
+                <Sun className="w-4 h-4" strokeWidth={1.5} />
+              ) : (
+                <Moon className="w-4 h-4" strokeWidth={1.5} />
+              )}
+            </button>
             <Link
               href="/settings"
               className="p-1.5 text-[#787470] hover:text-[#E8E5E1] hover:bg-white/[0.03] rounded-lg transition-colors cursor-pointer"
