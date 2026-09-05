@@ -16,12 +16,12 @@
   }
 
   body {
-    @apply bg-background-light text-primaryText-light;
+    @apply bg-black text-primaryText-light;
     transition: background-color 0.2s ease, color 0.2s ease;
   }
 
   .dark body {
-    @apply bg-background-dark text-primaryText-dark;
+    @apply bg-black text-primaryText-dark;
   }
 
   /* Selection */
