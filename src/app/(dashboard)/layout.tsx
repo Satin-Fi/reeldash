@@ -41,7 +41,7 @@ export default function DashboardLayout({
 
   return (
     <ReelProvider>
-      <div className="flex h-screen bg-[#F0F2F5] dark:bg-[#07090C] text-primaryText-light dark:text-primaryText-dark overflow-hidden md:p-3 md:gap-3">
+      <div className="flex h-screen bg-[#ECEAE7] dark:bg-[#0E0D0C] text-primaryText-light dark:text-primaryText-dark overflow-hidden md:p-3 md:gap-3">
         {/* Floating Desktop Left Sidebar */}
         <Sidebar />
 
