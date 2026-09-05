@@ -1054,22 +1054,14 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
           <div className="relative w-full max-w-[320px] aspect-[9/16] bg-black rounded-2xl overflow-hidden shadow-2xl border border-white/20">
             <ReelPlayer reel={reel} autoPlay={true} className="w-full h-full rounded-2xl" />
             
-            {/* Top Overlay Badge */}
-            <div className="absolute top-3 inset-x-3 z-30 flex items-center justify-between pointer-events-none drop-shadow-md">
-              <div className="flex items-center space-x-2 px-2.5 py-1 rounded-full bg-black/70 backdrop-blur-md text-white text-xs font-semibold">
-                <span>@{cleanUsername || "creator"}</span>
+            {/* Top Overlay Creator Badge */}
+            {cleanUsername && (
+              <div className="absolute top-3 left-3 z-30 pointer-events-none drop-shadow-md">
+                <div className="flex items-center space-x-2 px-2.5 py-1 rounded-full bg-black/70 backdrop-blur-md text-white text-xs font-semibold">
+                  <span>@{cleanUsername}</span>
+                </div>
               </div>
-              <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-brand-500 text-white shadow-md">
-                Peek &amp; Play
-              </span>
-            </div>
-
-            {/* Bottom Overlay Hint */}
-            <div className="absolute bottom-3 inset-x-3 z-30 text-center pointer-events-none">
-              <span className="px-3 py-1 rounded-full text-[11px] bg-black/70 backdrop-blur-md text-zinc-300 font-medium border border-white/10 shadow-lg">
-                Release finger to close
-              </span>
-            </div>
+            )}
           </div>
         </div>,
         document.body

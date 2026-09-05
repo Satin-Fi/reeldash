@@ -354,7 +354,7 @@ export function FilterToolbar() {
                   ? "bg-white text-zinc-900 dark:bg-white/[0.12] dark:text-white shadow-xs font-semibold"
                   : "text-secondaryText-light dark:text-zinc-500 hover:text-primaryText-light dark:hover:text-zinc-300"
               }`}
-              title="3-in-a-row Grid View (Hold to Peek & Play)"
+              title="Grid View"
             >
               <LayoutGrid className="w-3.5 h-3.5" />
             </button>
