@@ -1389,6 +1389,10 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
+export function useOptionalReels() {
+  return useContext(ReelContext);
+}
+
 export function useReels() {
   const context = useContext(ReelContext);
   if (!context) {

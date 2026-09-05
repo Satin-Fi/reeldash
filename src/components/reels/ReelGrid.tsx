@@ -3,7 +3,7 @@
 import React from "react";
 import { Reel, ViewMode } from "@/types/reel";
 import { ReelCard } from "@/components/reels/ReelCard";
-import { useReels } from "@/context/ReelContext";
+import { useOptionalReels } from "@/context/ReelContext";
 
 interface ReelGridProps {
   reels: Reel[];
@@ -38,8 +38,8 @@ export function ReelGrid({
   emptySubtitle = "Save a link or adjust your filters.",
   limit,
 }: ReelGridProps) {
-  const { gridCols: contextGridCols } = useReels();
-  const cols = propGridCols || contextGridCols || 4;
+  const reelContext = useOptionalReels();
+  const cols = propGridCols || reelContext?.gridCols || 4;
   const displayReels = limit ? reels.slice(0, limit) : reels;
 
   if (displayReels.length === 0) {
@@ -86,8 +86,8 @@ export function ReelGrid({
 
 /** Skeleton loader matching the dynamic grid columns layout */
 export function ReelGridSkeleton({ count = 12, gridCols: propGridCols }: { count?: number; gridCols?: number }) {
-  const { gridCols: contextGridCols } = useReels();
-  const cols = propGridCols || contextGridCols || 4;
+  const reelContext = useOptionalReels();
+  const cols = propGridCols || reelContext?.gridCols || 4;
 
   return (
     <div className={`grid ${getGridColsClass(cols)} gap-[1.5px] bg-borderSubtle-light dark:bg-black/80`}>
