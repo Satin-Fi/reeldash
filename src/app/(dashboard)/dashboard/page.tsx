@@ -349,11 +349,8 @@ export default function DashboardPage() {
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-base font-bold text-primaryText-light dark:text-primaryText-dark">
-              Your visual inbox
+              Recently Saved
             </h2>
-            <p className="text-xs text-secondaryText-light dark:text-secondaryText-dark mt-0.5">
-              Recently captured and saved media references
-            </p>
           </div>
           <Link
             href="/reels"
