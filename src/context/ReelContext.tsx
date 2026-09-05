@@ -641,9 +641,31 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
+    // Baseline timestamp check:
+    // On first load, establish baseline timestamp so all preexisting library reels and accounts
+    // are considered already read. This eliminates the noisy "9+" badge for existing library items!
+    const lastReadStored = localStorage.getItem(`reeldash_notif_last_read_${user.id}`);
+    let lastReadTime: number;
+
+    if (!lastReadStored) {
+      lastReadTime = Date.now();
+      localStorage.setItem(`reeldash_notif_last_read_${user.id}`, lastReadTime.toString());
+    } else {
+      lastReadTime = parseInt(lastReadStored, 10) || 0;
+    }
+
     const readIds = new Set<string>(
       JSON.parse(localStorage.getItem(`reeldash_read_notifs_${user.id}`) || "[]")
     );
+
+    const isItemRead = (id: string, timeStr?: string) => {
+      if (readIds.has(id)) return true;
+      if (!timeStr) return true;
+      const itemTime = new Date(timeStr).getTime();
+      if (isNaN(itemTime)) return true;
+      // Preexisting items created before or at our initial baseline are already read
+      return itemTime <= lastReadTime;
+    };
 
     const generated: AppNotification[] = [];
 
@@ -652,13 +674,14 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
       const id = `notif-acc-${acc.username.toLowerCase()}`;
       const title = acc.status === "active" ? "Instagram Account Connected" : "Instagram Account Added";
       const desc = `@${acc.username} is connected and ready to auto-save Reels via DM.`;
+      const timestamp = acc.linkedAt || acc.createdAt || new Date(Date.now() - 3600000).toISOString();
       generated.push({
         id,
         type: "new_account",
         title,
         description: desc,
-        timestamp: acc.linkedAt || acc.createdAt || new Date(Date.now() - 3600000).toISOString(),
-        read: readIds.has(id),
+        timestamp,
+        read: isItemRead(id, timestamp),
         accountUsername: acc.username,
         linkUrl: `/creator/${acc.username}`,
       });
@@ -676,14 +699,15 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
       const desc = r.creatorUsername && r.creatorUsername !== "creator" && r.creatorUsername !== "instagram"
         ? `Saved from @${r.creatorUsername} • ${r.category || "General"}`
         : `Saved to your library • ${r.category || "General"}`;
+      const timestamp = r.createdAt || r.updatedAt || new Date().toISOString();
 
       generated.push({
         id,
         type,
         title,
         description: desc,
-        timestamp: r.createdAt || r.updatedAt || new Date().toISOString(),
-        read: readIds.has(id),
+        timestamp,
+        read: isItemRead(id, timestamp),
         reelId: r.id,
         shortcode: r.shortcode,
         creatorUsername: r.creatorUsername,
@@ -701,22 +725,23 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
     setNotifications((prev) => {
       const updated = prev.map((n) => (n.id === id ? { ...n, read: true } : n));
       if (user?.id) {
-        const readIds = updated.filter((n) => n.read).map((n) => n.id);
-        localStorage.setItem(`reeldash_read_notifs_${user.id}`, JSON.stringify(readIds));
+        const stored: string[] = JSON.parse(localStorage.getItem(`reeldash_read_notifs_${user.id}`) || "[]");
+        if (!stored.includes(id)) {
+          stored.push(id);
+          localStorage.setItem(`reeldash_read_notifs_${user.id}`, JSON.stringify(stored));
+        }
       }
       return updated;
     });
   };
 
   const markAllNotificationsAsRead = () => {
-    setNotifications((prev) => {
-      const updated = prev.map((n) => ({ ...n, read: true }));
-      if (user?.id) {
-        const readIds = updated.map((n) => n.id);
-        localStorage.setItem(`reeldash_read_notifs_${user.id}`, JSON.stringify(readIds));
-      }
-      return updated;
-    });
+    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    if (user?.id) {
+      localStorage.setItem(`reeldash_notif_last_read_${user.id}`, Date.now().toString());
+      const readIds = notifications.map((n) => n.id);
+      localStorage.setItem(`reeldash_read_notifs_${user.id}`, JSON.stringify(readIds));
+    }
     showToast("All notifications marked as read");
   };
 
