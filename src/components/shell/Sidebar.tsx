@@ -47,6 +47,35 @@ function getSidebarCategoryIcon(name: string) {
   return Folder;
 }
 
+function renderNavIcon(label: string, IconComponent: React.ElementType, isActive: boolean) {
+  if (label === "Dashboard") {
+    if (isActive) {
+      return (
+        <svg
+          viewBox="0 0 24 24"
+          className="w-[18px] h-[18px] shrink-0"
+          fill="none"
+        >
+          <path
+            d="M10.8 2.5a1.8 1.8 0 0 1 2.4 0l7.5 6.4c.5.4.8 1.1.8 1.7v9.4a2 2 0 0 1-2 2h-3.5a1 1 0 0 1-1-1v-5.5a1.5 1.5 0 0 0-1.5-1.5h-3a1.5 1.5 0 0 0-1.5 1.5v5.5a1 1 0 0 1-1 1H4.5a2 2 0 0 1-2-2v-9.4c0-.6.3-1.3.8-1.7l7.5-6.4Z"
+            fill="white"
+          />
+        </svg>
+      );
+    }
+    return <Home className="w-[18px] h-[18px] shrink-0 text-[#9C9895]" strokeWidth={1.5} />;
+  }
+
+  return (
+    <IconComponent
+      className={`w-[18px] h-[18px] shrink-0 transition-colors ${
+        isActive ? "text-white fill-white" : "fill-none text-[#9C9895]"
+      }`}
+      strokeWidth={1.5}
+    />
+  );
+}
+
 export function Sidebar() {
   const pathname = usePathname();
   const {
@@ -92,7 +121,7 @@ export function Sidebar() {
 
   const navItems = [
     {
-      label: "Home",
+      label: "Dashboard",
       href: "/dashboard",
       icon: Home,
       isActive: pathname === "/dashboard",
@@ -142,14 +171,14 @@ export function Sidebar() {
       label: "Favorites",
       icon: Heart,
       href: "/favorites",
-      badge: counts.favs > 0 ? counts.favs : null,
+      count: counts.favs > 0 ? counts.favs : undefined,
       isActive: pathname === "/favorites",
     },
     {
       label: "Collections",
       icon: Folder,
       href: "/collections",
-      badge: collections.length > 0 ? collections.length : null,
+      count: collections.length > 0 ? collections.length : undefined,
       isActive: pathname === "/collections",
     },
   ];
@@ -166,18 +195,18 @@ export function Sidebar() {
     boxShadow: "0 1px 2px rgba(0, 0, 0, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.03)",
   };
 
-  // Warm charcoal active pill (pure dark charcoal, no white glow or gray hotspot)
+  // Warm charcoal active pill matching Payflow reference pixel-for-pixel
   const activeRowStyle: React.CSSProperties = {
-    background: "linear-gradient(90deg, #373330 0%, #332F2C 65%, #2B2825 100%)",
+    background: "linear-gradient(90deg, #4A4540 0%, #3C3834 55%, #2A2725 100%)",
   };
 
-  // Distinct lighter warm charcoal circular disc
+  // Distinct lighter warm stone circular disc (#8C857F) matching Payflow reference
   const activeCircleStyle: React.CSSProperties = {
-    background: "#4E4945",
+    background: "#8C857F",
   };
 
   const activeCategoryCircleStyle: React.CSSProperties = {
-    background: "#4E4945",
+    background: "#8C857F",
   };
 
   return (
@@ -368,28 +397,23 @@ export function Sidebar() {
                   href={item.href}
                   onClick={item.onClick}
                   style={item.isActive ? activeRowStyle : undefined}
-                  className={`group w-full h-[46px] flex items-center justify-between pl-1.5 pr-3.5 rounded-full text-[13px] transition-colors duration-150 cursor-pointer ${
+                  className={`group w-full h-[48px] flex items-center justify-between pl-[5px] pr-4 rounded-full text-[13.5px] transition-colors duration-150 cursor-pointer ${
                     item.isActive
-                      ? "text-[#F0EDE9] font-medium"
+                      ? "text-[#FAF8F5] font-medium"
                       : "text-[#AAA6A1] hover:bg-white/[0.02] hover:text-[#D4D0CB]"
                   }`}
                 >
-                  <div className="flex items-center space-x-3 min-w-0">
+                  <div className="flex items-center space-x-3.5 min-w-0">
                     {/* Concentric Circular Icon Container */}
                     <div
                       style={item.isActive ? activeCircleStyle : undefined}
-                      className={`w-[34px] h-[34px] rounded-full flex items-center justify-center shrink-0 transition-colors ${
+                      className={`w-[38px] h-[38px] rounded-full flex items-center justify-center shrink-0 transition-colors ${
                         item.isActive
-                          ? "text-white"
-                          : "bg-[#2D2A27] text-[#9A9590] group-hover:text-[#D4D0CB] group-hover:bg-[#34302D]"
+                          ? "text-white shadow-sm"
+                          : "bg-[#332F2C] text-[#9E9994] group-hover:text-[#D4D0CB] group-hover:bg-[#3D3936]"
                       }`}
                     >
-                      <Icon
-                        className={`w-[17px] h-[17px] transition-colors ${
-                          item.isActive ? "text-white fill-white" : "fill-none"
-                        }`}
-                        strokeWidth={1.5}
-                      />
+                      {renderNavIcon(item.label, Icon, item.isActive)}
                     </div>
                     <span className="truncate">{item.label}</span>
                   </div>
@@ -457,7 +481,7 @@ export function Sidebar() {
                         className={`w-[26px] h-[26px] rounded-full flex items-center justify-center shrink-0 transition-colors ${
                           isSelected
                             ? "text-white"
-                            : "bg-[#2D2A27] text-[#9A9590] group-hover:text-[#D4D0CB] group-hover:bg-[#34302D]"
+                            : "bg-[#332F2C] text-[#9E9994] group-hover:text-[#D4D0CB] group-hover:bg-[#3D3936]"
                         }`}
                       >
                         <CatIcon
