@@ -198,12 +198,12 @@ export function Sidebar() {
   };
 
   return (
-    <aside className="dark hidden md:flex w-[268px] min-w-[268px] max-w-[268px] h-full flex-col justify-between p-3 shrink-0 select-none overflow-x-hidden rounded-[24px] bg-[#171616] border border-white/[0.02] shadow-[0_4px_32px_rgba(0,0,0,0.35)]">
-      <div className="space-y-3 flex-1 overflow-y-auto overflow-x-hidden scrollbar-none no-scrollbar pr-0.5">
-        {/* ─── 1. Primary Navigation Surface (Enclosing Brand Header & Navigation like Payflow) ─── */}
+    <aside className="dark hidden md:flex w-[250px] min-w-[250px] max-w-[250px] h-full flex-col justify-between shrink-0 select-none overflow-x-hidden">
+      <div className="space-y-3 flex-1 overflow-y-auto overflow-x-hidden scrollbar-none no-scrollbar">
+        {/* ─── 1. Primary Navigation Surface (Floating Panel like Payflow) ─── */}
         <div
           style={surfaceStyle}
-          className="rounded-[24px] p-1.5 space-y-2 border border-white/[0.02]"
+          className="rounded-[24px] p-2 space-y-2 border border-white/[0.03] shadow-[0_4px_24px_rgba(0,0,0,0.35)]"
         >
           {/* Brand Header (Covered inside the container) */}
           <div className="flex items-center justify-between px-2 pt-1.5 pb-0.5">

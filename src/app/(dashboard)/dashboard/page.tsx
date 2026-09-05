@@ -8,13 +8,16 @@ import { ReelGrid } from "@/components/reels/ReelGrid";
 import {
   ArrowRight,
   ArrowUpRight,
+  Bell,
   Film,
   Heart,
   Image as ImageIcon,
   Link2,
   Loader2,
+  Mail,
   Music2,
   Plus,
+  Search,
   X,
 } from "lucide-react";
 
@@ -118,13 +121,45 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="w-full space-y-6">
+    <div className="w-full space-y-5">
+      {/* Payflow-Style Top Search & Action Bar */}
+      <div className="flex items-center justify-between gap-4">
+        <button
+          type="button"
+          onClick={() => {
+            window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true, bubbles: true }));
+          }}
+          className="flex items-center gap-2.5 px-4 py-2.5 rounded-full bg-white dark:bg-surface-dark border border-black/[0.04] dark:border-white/[0.06] shadow-[0_2px_8px_rgba(0,0,0,0.02)] text-xs text-secondaryText-light dark:text-secondaryText-dark hover:border-black/[0.08] transition-all w-full max-w-sm cursor-pointer group"
+        >
+          <Search className="w-3.5 h-3.5 text-mutedText-light dark:text-mutedText-dark group-hover:text-primaryText-light transition-colors" />
+          <span className="font-normal text-mutedText-light dark:text-mutedText-dark">Search anything...</span>
+          <kbd className="ml-auto font-mono text-[10px] px-1.5 py-0.5 rounded bg-[#F5F5F5] dark:bg-white/[0.06] text-mutedText-light">⌘ F</kbd>
+        </button>
+
+        <div className="flex items-center gap-2">
+          <Link
+            href="/reels"
+            className="w-9 h-9 rounded-full bg-white dark:bg-surface-dark border border-black/[0.04] dark:border-white/[0.06] shadow-[0_2px_8px_rgba(0,0,0,0.02)] flex items-center justify-center text-secondaryText-light dark:text-secondaryText-dark hover:text-primaryText-light transition-colors relative"
+            title="Notifications"
+          >
+            <Bell className="w-4 h-4" strokeWidth={1.5} />
+            <span className="absolute top-2 right-2 w-1.5 h-1.5 rounded-full bg-rose-500 ring-2 ring-white dark:ring-surface-dark" />
+          </Link>
+          <Link
+            href="/integrations/instagram"
+            className="w-9 h-9 rounded-full bg-white dark:bg-surface-dark border border-black/[0.04] dark:border-white/[0.06] shadow-[0_2px_8px_rgba(0,0,0,0.02)] flex items-center justify-center text-secondaryText-light dark:text-secondaryText-dark hover:text-primaryText-light transition-colors"
+            title="Instagram Integration & DM Bot"
+          >
+            <Mail className="w-4 h-4" strokeWidth={1.5} />
+          </Link>
+        </div>
+      </div>
+
       {/* Top Layer: Quick Ingest & Overview Bar + Library Summary */}
       <div className="grid w-full gap-5 lg:grid-cols-[minmax(0,1fr)_19rem]">
         {/* Quick Ingest & Overview Bar */}
-        <section className="animate-fade-up delay-0 bezel-outer-polish">
-          <div className="overflow-hidden rounded-[calc(1.25rem-6px)] border border-borderSubtle-light bg-surface-light shadow-rd-card dark:border-borderSubtle-dark dark:bg-surface-dark bezel-inner-polish">
-            <div className="grid min-h-[20rem] lg:grid-cols-[minmax(0,1fr)_19rem]">
+        <section className="animate-fade-up delay-0 overflow-hidden rounded-[24px] border border-black/[0.04] dark:border-white/[0.06] bg-white dark:bg-surface-dark shadow-[0_2px_12px_rgba(0,0,0,0.03)] dark:shadow-rd-card">
+          <div className="grid min-h-[20rem] lg:grid-cols-[minmax(0,1fr)_19rem]">
               <div className="flex min-w-0 flex-col p-5 sm:p-7">
                 <div>
                   <h1 className="font-bricolage text-[1.85rem] font-bold leading-[1.15] tracking-[-0.03em] text-primaryText-light dark:text-primaryText-dark sm:text-[2.1rem]">
@@ -152,14 +187,14 @@ export default function DashboardPage() {
                       value={inputUrl}
                       onChange={(event) => setInputUrl(event.target.value)}
                       placeholder="Paste link or add /<category> (e.g. /yoga, /fitness, /saas)"
-                      className="h-12 w-full rounded-rd-md border border-borderSubtle-light bg-background-light pl-11 pr-11 text-sm text-primaryText-light shadow-rd-inset transition-colors placeholder:text-mutedText-light focus:border-brand-500 focus:outline-none focus:ring-4 focus:ring-brand-500/10 dark:border-borderSubtle-dark dark:bg-background-dark dark:text-primaryText-dark dark:placeholder:text-mutedText-dark"
+                      className="h-12 w-full rounded-[14px] border border-black/[0.06] dark:border-white/[0.08] bg-[#F5F5F5] dark:bg-background-dark pl-11 pr-11 text-sm text-primaryText-light shadow-[inset_0_1px_2px_rgba(0,0,0,0.03)] transition-colors placeholder:text-mutedText-light focus:border-black/20 focus:outline-none focus:ring-2 focus:ring-black/5 dark:focus:border-white/20 dark:focus:ring-white/5 dark:text-primaryText-dark dark:placeholder:text-mutedText-dark"
                     />
                     {inputUrl && (
                       <button
                         type="button"
                         onClick={() => setInputUrl("")}
                         aria-label="Clear Instagram URL"
-                        className="absolute right-3 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-rd-sm text-mutedText-light transition-colors hover:bg-surfaceSecondary-light hover:text-primaryText-light dark:text-mutedText-dark dark:hover:bg-surfaceSecondary-dark dark:hover:text-primaryText-dark"
+                        className="absolute right-3 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full text-mutedText-light transition-colors hover:bg-black/5 hover:text-primaryText-light dark:text-mutedText-dark dark:hover:bg-white/10 dark:hover:text-primaryText-dark"
                       >
                         <X className="h-4 w-4" />
                       </button>
@@ -168,14 +203,14 @@ export default function DashboardPage() {
                   <button
                     type="submit"
                     disabled={!inputUrl.trim() || isSubmitting}
-                    className="inline-flex h-12 items-center justify-center gap-2 rounded-rd-md bg-brand-600 px-5 text-sm font-semibold text-white transition-colors hover:bg-brand-700 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-50 shadow-rd-glow cursor-pointer"
+                    className="inline-flex h-12 items-center justify-center gap-2 rounded-[14px] bg-[#171615] dark:bg-white text-white dark:text-black hover:bg-black dark:hover:bg-zinc-200 px-5 text-sm font-semibold transition-all active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 shadow-sm cursor-pointer"
                   >
-                    {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" strokeWidth={2.5} />}
+                    {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" strokeWidth={2} />}
                     <span>{isSubmitting ? "Saving" : "Save to library"}</span>
                   </button>
                 </form>
 
-                <div className="mt-auto grid grid-cols-3 divide-x divide-borderSubtle-light pt-6 dark:divide-borderSubtle-dark">
+                <div className="mt-auto grid grid-cols-3 divide-x divide-black/[0.05] dark:divide-white/[0.06] pt-6">
                   <div className="pr-4">
                     <p className="font-mono text-2xl font-semibold tabular-nums text-primaryText-light dark:text-primaryText-dark">{reels.length}</p>
                     <p className="mt-0.5 text-xs text-secondaryText-light dark:text-secondaryText-dark">saved items</p>
@@ -241,12 +276,11 @@ export default function DashboardPage() {
                 </p>
               </div>
             </div>
-          </div>
         </section>
 
         {/* Right Rail Library Summary (Desktop Only) */}
         <aside className="hidden lg:block animate-fade-up delay-1">
-          <section className="h-full rounded-rd-lg border border-borderSubtle-light bg-surface-light p-5 shadow-rd-subtle dark:border-borderSubtle-dark dark:bg-surface-dark flex flex-col justify-between">
+          <section className="h-full rounded-[24px] border border-black/[0.04] dark:border-white/[0.06] bg-white dark:bg-surface-dark p-6 shadow-[0_2px_12px_rgba(0,0,0,0.03)] dark:shadow-rd-card flex flex-col justify-between">
             <div>
               <div className="flex items-center justify-between">
                 <div>
@@ -270,8 +304,8 @@ export default function DashboardPage() {
                           {value}
                         </span>
                       </div>
-                      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-surfaceTertiary-light dark:bg-surfaceTertiary-dark">
-                        <div className="h-full rounded-full bg-brand-500 transition-[width] duration-300" style={{ width: `${percentage}%` }} />
+                      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[#F0F0F0] dark:bg-surfaceTertiary-dark">
+                        <div className="h-full rounded-full bg-[#171615] dark:bg-white transition-[width] duration-300" style={{ width: `${percentage}%` }} />
                       </div>
                     </Link>
                   );
@@ -291,9 +325,11 @@ export default function DashboardPage() {
             <Link
               key={view.label}
               href={view.href}
-              className="group flex min-h-[4.5rem] items-center gap-3 px-4 py-3.5 rounded-rd-lg border border-borderSubtle-light dark:border-borderSubtle-dark bg-surface-light dark:bg-surface-dark hover:border-brand-500/20 dark:hover:border-brand-500/20 transition-all duration-300 ease-premium active:scale-[0.98]"
+              className="group flex min-h-[4.5rem] items-center gap-3.5 px-5 py-4 rounded-[20px] border border-black/[0.04] dark:border-white/[0.06] bg-white dark:bg-surface-dark shadow-[0_2px_12px_rgba(0,0,0,0.02)] hover:shadow-md hover:border-black/[0.08] dark:hover:border-white/[0.12] transition-all duration-200 ease-out active:scale-[0.98]"
             >
-              <Icon className="h-4 w-4 shrink-0 text-brand-600 dark:text-brand-400" />
+              <div className="w-9 h-9 rounded-full bg-[#F5F5F5] dark:bg-white/[0.05] flex items-center justify-center shrink-0">
+                <Icon className="h-4 w-4 text-[#171615] dark:text-[#E8E5E1]" strokeWidth={1.75} />
+              </div>
               <span className="min-w-0">
                 <span className="block font-mono text-xl font-bold tabular-nums text-primaryText-light dark:text-primaryText-dark">
                   {value}
@@ -309,41 +345,46 @@ export default function DashboardPage() {
       </nav>
 
       {/* Visual Inbox Reel Feed - Edge-to-Edge Wall */}
-      <section className="animate-fade-up delay-2 pt-2">
-        <div className="flex items-center justify-between mb-3">
+      <section className="animate-fade-up delay-2 rounded-[24px] border border-black/[0.04] dark:border-white/[0.06] bg-white dark:bg-surface-dark p-6 shadow-[0_2px_12px_rgba(0,0,0,0.03)] dark:shadow-rd-card space-y-4">
+        <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-lg font-bold text-primaryText-light dark:text-primaryText-dark">
+            <h2 className="text-base font-bold text-primaryText-light dark:text-primaryText-dark">
               Your visual inbox
             </h2>
+            <p className="text-xs text-secondaryText-light dark:text-secondaryText-dark mt-0.5">
+              Recently captured and saved media references
+            </p>
           </div>
           <Link
             href="/reels"
-            className="group inline-flex items-center gap-1 text-xs font-semibold text-brand-600 hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300"
+            className="group inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#F5F5F5] hover:bg-[#EAEAEA] dark:bg-white/[0.04] dark:hover:bg-white/[0.08] text-xs font-semibold text-primaryText-light dark:text-[#E8E5E1] transition-all"
           >
             <span>View all</span>
-            <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+            <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5" />
           </Link>
         </div>
 
-        <ReelGrid
-          reels={(reels || []).filter((reel) => {
-            if (activeCategory) {
-              const catLower = activeCategory.trim().toLowerCase();
-              const allAssigned = reel.categories && reel.categories.length > 0 ? reel.categories : [reel.category || ""];
-              const matchCat = allAssigned.some((c) => c && c.toLowerCase() === catLower);
-              const matchTags = (Array.isArray(reel.tags) && reel.tags.some((t) => t && t.toLowerCase() === catLower)) || (Array.isArray(reel.hashtags) && reel.hashtags.some((h) => h && h.toLowerCase() === catLower));
-              const matchKeywords = Array.isArray(reel.aiKeywords) && reel.aiKeywords.some((k) => k && k.toLowerCase() === catLower);
-              const matchSub = Array.isArray(reel.subcategories) && reel.subcategories.some((s) => s && s.toLowerCase() === catLower);
-              if (!matchCat && !matchTags && !matchKeywords && !matchSub) {
-                return false;
+        <div className="overflow-hidden rounded-[16px]">
+          <ReelGrid
+            reels={(reels || []).filter((reel) => {
+              if (activeCategory) {
+                const catLower = activeCategory.trim().toLowerCase();
+                const allAssigned = reel.categories && reel.categories.length > 0 ? reel.categories : [reel.category || ""];
+                const matchCat = allAssigned.some((c) => c && c.toLowerCase() === catLower);
+                const matchTags = (Array.isArray(reel.tags) && reel.tags.some((t) => t && t.toLowerCase() === catLower)) || (Array.isArray(reel.hashtags) && reel.hashtags.some((h) => h && h.toLowerCase() === catLower));
+                const matchKeywords = Array.isArray(reel.aiKeywords) && reel.aiKeywords.some((k) => k && k.toLowerCase() === catLower);
+                const matchSub = Array.isArray(reel.subcategories) && reel.subcategories.some((s) => s && s.toLowerCase() === catLower);
+                if (!matchCat && !matchTags && !matchKeywords && !matchSub) {
+                  return false;
+                }
               }
-            }
-            return true;
-          })}
-          limit={10}
-          emptyTitle={activeCategory ? `No reels in #${activeCategory}` : selectedInstagramAccount ? `No reels from @${selectedInstagramAccount}` : "No items saved yet"}
-          emptySubtitle={activeCategory ? `Save reels with /${activeCategory} or add this category in reel details.` : selectedInstagramAccount ? `Send a Reel via DM from @${selectedInstagramAccount} or paste a link.` : "Paste any Instagram link above to start your library."}
-        />
+              return true;
+            })}
+            limit={10}
+            emptyTitle={activeCategory ? `No reels in #${activeCategory}` : selectedInstagramAccount ? `No reels from @${selectedInstagramAccount}` : "No items saved yet"}
+            emptySubtitle={activeCategory ? `Save reels with /${activeCategory} or add this category in reel details.` : selectedInstagramAccount ? `Send a Reel via DM from @${selectedInstagramAccount} or paste a link.` : "Paste any Instagram link above to start your library."}
+          />
+        </div>
       </section>
     </div>
   );
