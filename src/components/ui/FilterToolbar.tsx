@@ -91,13 +91,13 @@ export function FilterToolbar() {
       </div>
 
       {/* ─── Right: Controls & View Switcher ─── */}
-      <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
+      <div className="flex items-center justify-between sm:justify-end gap-1.5 sm:gap-2 w-full sm:w-auto overflow-x-auto scrollbar-none py-0.5 shrink-0">
         {/* Sort Dropdown Pill */}
-        <div ref={sortRef} className="relative">
+        <div ref={sortRef} className="relative shrink-0">
           <button
             type="button"
             onClick={() => setIsSortOpen(!isSortOpen)}
-            className="flex items-center gap-2 px-3.5 py-2.5 rounded-full bg-white dark:bg-surface-dark border border-black/[0.04] dark:border-white/[0.06] shadow-[0_2px_8px_rgba(0,0,0,0.02)] text-xs font-medium text-secondaryText-light dark:text-secondaryText-dark hover:border-black/[0.08] dark:hover:border-white/[0.12] hover:text-primaryText-light dark:hover:text-white transition-all cursor-pointer"
+            className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-3.5 py-2 sm:py-2.5 rounded-full bg-white dark:bg-surface-dark border border-black/[0.04] dark:border-white/[0.06] shadow-[0_2px_8px_rgba(0,0,0,0.02)] text-xs font-medium text-secondaryText-light dark:text-secondaryText-dark hover:border-black/[0.08] dark:hover:border-white/[0.12] hover:text-primaryText-light dark:hover:text-white transition-all cursor-pointer"
             title="Sort items"
           >
             <ArrowUpDown className="w-3.5 h-3.5 text-mutedText-light dark:text-mutedText-dark shrink-0" />
@@ -112,7 +112,7 @@ export function FilterToolbar() {
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: -4, scale: 0.98 }}
                 transition={{ duration: 0.12 }}
-                className="absolute right-0 top-full mt-2 w-44 z-50 bg-white dark:bg-[#181716] border border-black/[0.06] dark:border-white/[0.1] rounded-2xl shadow-xl p-1.5 backdrop-blur-xl space-y-0.5"
+                className="absolute left-0 sm:left-auto sm:right-0 top-full mt-2 w-44 z-50 bg-white dark:bg-[#181716] border border-black/[0.06] dark:border-white/[0.1] rounded-2xl shadow-xl p-1.5 backdrop-blur-xl space-y-0.5"
               >
                 {(Object.keys(sortLabels) as SortOption[]).map((key) => {
                   const isSelected = sortOption === key;
@@ -142,16 +142,32 @@ export function FilterToolbar() {
 
         {/* Grid Columns Count Selector (Grid View Only) */}
         {viewMode === "grid" && (
-          <div className="flex items-center p-1 rounded-2xl bg-[#ECEEF2] dark:bg-white/[0.08] gap-0.5 border border-black/[0.02] dark:border-white/[0.04] shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
-            <span className="hidden sm:inline-block px-2 text-[11px] font-medium text-mutedText-light dark:text-zinc-400 select-none">
+          <div className="flex items-center p-1 rounded-2xl bg-[#ECEEF2] dark:bg-white/[0.08] gap-0.5 border border-black/[0.02] dark:border-white/[0.04] shadow-[0_1px_2px_rgba(0,0,0,0.02)] shrink-0">
+            <span className="hidden md:inline-block px-1.5 text-[11px] font-medium text-mutedText-light dark:text-zinc-400 select-none">
               Cols:
             </span>
-            {[3, 4, 5, 6].map((cols) => (
+            {[2, 3, 4].map((cols) => (
               <button
                 key={cols}
                 type="button"
                 onClick={() => setGridCols(cols)}
-                className={`px-2.5 py-1 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                className={`px-2 sm:px-2.5 py-1 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                  gridCols === cols
+                    ? "bg-white dark:bg-[#181716] text-primaryText-light dark:text-white shadow-[0_1px_3px_rgba(0,0,0,0.08)]"
+                    : "text-mutedText-light dark:text-zinc-400 hover:text-primaryText-light dark:hover:text-white"
+                }`}
+                title={`${cols} reels per row`}
+                aria-label={`${cols} reels per row`}
+              >
+                {cols}
+              </button>
+            ))}
+            {[5, 6].map((cols) => (
+              <button
+                key={cols}
+                type="button"
+                onClick={() => setGridCols(cols)}
+                className={`hidden sm:inline-block px-2 sm:px-2.5 py-1 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
                   gridCols === cols
                     ? "bg-white dark:bg-[#181716] text-primaryText-light dark:text-white shadow-[0_1px_3px_rgba(0,0,0,0.08)]"
                     : "text-mutedText-light dark:text-zinc-400 hover:text-primaryText-light dark:hover:text-white"

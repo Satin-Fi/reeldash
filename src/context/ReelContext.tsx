@@ -121,7 +121,7 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [sortOption, setSortOption] = useState<SortOption>("newest");
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
-  const [gridCols, setGridColsState] = useState<number>(4);
+  const [gridCols, setGridColsState] = useState<number>(3);
 
   // Initialize gridCols from localStorage
   useEffect(() => {
@@ -129,7 +129,7 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
       const saved = localStorage.getItem("reeldash_grid_cols");
       if (saved) {
         const num = parseInt(saved, 10);
-        if ([3, 4, 5, 6].includes(num)) {
+        if ([2, 3, 4, 5, 6].includes(num)) {
           setGridColsState(num);
         }
       }
