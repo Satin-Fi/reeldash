@@ -138,8 +138,18 @@ function ReelsContent() {
     }
   };
 
+  // When viewing Reels, display ONLY the reels grid — no header text, no save button, no bloatware menu
+  const isReelsView = typeParam === "reel" || activeMediaType === "reel" || !typeParam;
+
+  if (isReelsView) {
+    return (
+      <div className="w-full">
+        <ReelGrid reels={filteredReels} viewMode="grid" emptyTitle="No reels yet" emptySubtitle="Save a reel via Instagram DM or paste a link on the dashboard." />
+      </div>
+    );
+  }
+
   const headerInfo = getHeaderInfo();
-  const HeaderIcon = headerInfo.icon;
 
   return (
     <div className="space-y-4">
