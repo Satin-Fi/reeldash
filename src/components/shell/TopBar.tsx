@@ -31,6 +31,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
+import { NotificationCenter } from "./NotificationCenter";
 
 export function TopBar() {
   const {
@@ -199,6 +200,9 @@ export function TopBar() {
             </motion.div>
           </AnimatePresence>
         </button>
+
+        {/* Global Notifications Center */}
+        <NotificationCenter />
 
         {/* User Avatar & Dropdown Menu */}
         <div className="relative" ref={profileRef}>

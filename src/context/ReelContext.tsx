@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect } from "react";
-import { Reel, Collection, Category, SmartCategory, SortOption, ViewMode, MediaType, MediaTypeFilter } from "@/types/reel";
+import { Reel, Collection, Category, SmartCategory, SortOption, ViewMode, MediaType, MediaTypeFilter, AppNotification } from "@/types/reel";
 import { useAuth } from "@/context/AuthContext";
 import { parseCategoryCommand } from "@/lib/parseCategory";
 import { extractCreatorFromPost } from "@/lib/extractCreator";
@@ -37,6 +37,15 @@ interface ReelContextType {
   isCreateCategoryModalOpen: boolean;
   lastDeletedReel: Reel | null;
   recycleBin: Reel[];
+  notifications: AppNotification[];
+  unreadNotificationsCount: number;
+  isNotificationOpen: boolean;
+  setIsNotificationOpen: (open: boolean) => void;
+  markNotificationAsRead: (id: string) => void;
+  markAllNotificationsAsRead: () => void;
+  clearNotifications: () => void;
+  activeNotificationReel: Reel | null;
+  setActiveNotificationReel: (reel: Reel | null) => void;
   
   // Setters & Actions
   setActiveCategory: (cat: string | null) => void;
@@ -118,6 +127,9 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
   const [isCreateCategoryModalOpen, setIsCreateCategoryModalOpen] = useState(false);
   const [lastDeletedReel, setLastDeletedReel] = useState<Reel | null>(null);
   const [recycleBin, setRecycleBin] = useState<Reel[]>([]);
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [isNotificationOpen, setIsNotificationOpen] = useState(false);
+  const [activeNotificationReel, setActiveNotificationReel] = useState<Reel | null>(null);
 
   // Initialize theme
   useEffect(() => {
@@ -598,6 +610,101 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
   const removeToast = (id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   };
+
+  // ─── NOTIFICATION ENGINE (Saved media & Connected accounts) ────────
+  useEffect(() => {
+    if (!user?.id) {
+      setNotifications([]);
+      return;
+    }
+
+    const readIds = new Set<string>(
+      JSON.parse(localStorage.getItem(`reeldash_read_notifs_${user.id}`) || "[]")
+    );
+
+    const generated: AppNotification[] = [];
+
+    // 1. Notifications from connected Instagram accounts
+    (user.connectedAccounts || []).forEach((acc) => {
+      const id = `notif-acc-${acc.username.toLowerCase()}`;
+      const title = acc.status === "active" ? "Instagram Account Connected" : "Instagram Account Added";
+      const desc = `@${acc.username} is connected and ready to auto-save Reels via DM.`;
+      generated.push({
+        id,
+        type: "new_account",
+        title,
+        description: desc,
+        timestamp: acc.linkedAt || acc.createdAt || new Date(Date.now() - 3600000).toISOString(),
+        read: readIds.has(id),
+        accountUsername: acc.username,
+        linkUrl: `/creator/${acc.username}`,
+      });
+    });
+
+    // 2. Notifications from recently saved reels, posts, audio
+    reels.slice(0, 30).forEach((r) => {
+      const id = `notif-reel-${r.id}`;
+      const isPost = r.mediaType === "post" || r.instagramUrl.includes("/p/");
+      const isAudio = r.mediaType === "audio" || r.instagramUrl.includes("/audio/");
+      const isStory = r.mediaType === "story" || r.instagramUrl.includes("/stories/");
+
+      const type: AppNotification["type"] = isPost ? "saved_post" : isAudio ? "saved_audio" : "saved_reel";
+      const title = isPost ? "New Post Saved" : isAudio ? "New Audio Track Saved" : isStory ? "New Story Saved" : "New Reel Saved";
+      const desc = r.creatorUsername && r.creatorUsername !== "creator" && r.creatorUsername !== "instagram"
+        ? `Saved from @${r.creatorUsername} • ${r.category || "General"}`
+        : `Saved to your library • ${r.category || "General"}`;
+
+      generated.push({
+        id,
+        type,
+        title,
+        description: desc,
+        timestamp: r.createdAt || r.updatedAt || new Date().toISOString(),
+        read: readIds.has(id),
+        reelId: r.id,
+        shortcode: r.shortcode,
+        creatorUsername: r.creatorUsername,
+        thumbnailUrl: r.thumbnailUrl || (r.shortcode ? `/api/proxy-image?shortcode=${r.shortcode}` : undefined),
+      });
+    });
+
+    // Sort newest first
+    generated.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+    setNotifications(generated);
+  }, [user?.id, user?.connectedAccounts, reels]);
+
+  const markNotificationAsRead = (id: string) => {
+    setNotifications((prev) => {
+      const updated = prev.map((n) => (n.id === id ? { ...n, read: true } : n));
+      if (user?.id) {
+        const readIds = updated.filter((n) => n.read).map((n) => n.id);
+        localStorage.setItem(`reeldash_read_notifs_${user.id}`, JSON.stringify(readIds));
+      }
+      return updated;
+    });
+  };
+
+  const markAllNotificationsAsRead = () => {
+    setNotifications((prev) => {
+      const updated = prev.map((n) => ({ ...n, read: true }));
+      if (user?.id) {
+        const readIds = updated.map((n) => n.id);
+        localStorage.setItem(`reeldash_read_notifs_${user.id}`, JSON.stringify(readIds));
+      }
+      return updated;
+    });
+    showToast("All notifications marked as read");
+  };
+
+  const clearNotifications = () => {
+    setNotifications([]);
+    if (user?.id) {
+      localStorage.setItem(`reeldash_read_notifs_${user.id}`, JSON.stringify([]));
+    }
+  };
+
+  const unreadNotificationsCount = notifications.filter((n) => !n.read).length;
 
   // ─── SMART CATEGORIES CALCULATION (Strict separation from Hashtags) ──
   const categoryCounts: Record<string, { count: number; id?: string; source?: any; icon?: string; slug?: string }> = {};
@@ -1208,6 +1315,15 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
         isCreateCategoryModalOpen,
         lastDeletedReel,
         recycleBin,
+        notifications,
+        unreadNotificationsCount,
+        isNotificationOpen,
+        setIsNotificationOpen,
+        markNotificationAsRead,
+        markAllNotificationsAsRead,
+        clearNotifications,
+        activeNotificationReel,
+        setActiveNotificationReel,
         setActiveCategory,
         setActiveCollection,
         setActiveMediaType,

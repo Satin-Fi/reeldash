@@ -106,3 +106,18 @@ export type SortOption = "newest" | "oldest" | "recently_viewed" | "most_viewed"
 export type ViewMode = "grid" | "feed" | "compact";
 
 export type MediaTypeFilter = "all" | MediaType;
+
+export interface AppNotification {
+  id: string;
+  type: "saved_reel" | "saved_post" | "saved_audio" | "new_account" | "ai_takeaways";
+  title: string;
+  description: string;
+  timestamp: string;
+  read: boolean;
+  reelId?: string;
+  shortcode?: string;
+  creatorUsername?: string;
+  thumbnailUrl?: string;
+  accountUsername?: string;
+  linkUrl?: string;
+}

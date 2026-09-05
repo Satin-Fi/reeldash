@@ -749,16 +749,18 @@ function CustomVideoPlayer({
   isMuted,
   setIsMuted,
   reel,
+  autoPlay = true,
 }: {
   src?: string;
   poster?: string;
   isMuted: boolean;
   setIsMuted: (muted: boolean) => void;
   reel: Reel;
+  autoPlay?: boolean;
 }) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const [isPlaying, setIsPlaying] = useState(true);
+  const [isPlaying, setIsPlaying] = useState(autoPlay);
   const [progress, setProgress] = useState(0);
   const [currentTimeStr, setCurrentTimeStr] = useState("0:00");
   const [durationStr, setDurationStr] = useState("0:00");
@@ -766,6 +768,19 @@ function CustomVideoPlayer({
   const [showControls, setShowControls] = useState(true);
   const [hasVideoError, setHasVideoError] = useState(false);
   const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Clean pause on unmount to prevent lingering audio playback
+  useEffect(() => {
+    return () => {
+      if (videoRef.current) {
+        try {
+          videoRef.current.pause();
+          videoRef.current.src = "";
+          videoRef.current.load();
+        } catch {}
+      }
+    };
+  }, []);
 
   if (hasVideoError || !src) {
     return <ArchivedReelSnapshot reel={reel} coverImageSrc={poster} />;
@@ -850,7 +865,7 @@ function CustomVideoPlayer({
         ref={videoRef}
         src={src}
         poster={poster}
-        autoPlay
+        autoPlay={autoPlay}
         playsInline
         loop
         muted={isMuted}
@@ -1086,6 +1101,7 @@ export function ReelPlayer({
           isMuted={isMuted}
           setIsMuted={setIsMuted}
           reel={reel}
+          autoPlay={autoPlay}
         />
       )}
 

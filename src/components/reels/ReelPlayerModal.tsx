@@ -73,8 +73,14 @@ export function ReelPlayerModal({ reel, isOpen, onClose }: ReelPlayerModalProps)
     ])
   );
 
+  const [isMobile, setIsMobile] = useState<boolean>(false);
+
   useEffect(() => {
     setMounted(true);
+    const updateSize = () => setIsMobile(window.innerWidth < 768);
+    updateSize();
+    window.addEventListener("resize", updateSize);
+    return () => window.removeEventListener("resize", updateSize);
   }, []);
 
   useEffect(() => {
@@ -214,16 +220,17 @@ export function ReelPlayerModal({ reel, isOpen, onClose }: ReelPlayerModalProps)
 
   return createPortal(
     <AnimatePresence>
-      {/* ─── 1. MOBILE EXPERIENCE: 100dvh Edge-to-Edge Native Reels Viewer ─── */}
-      <div
-        onTouchStart={handleTouchStart}
-        onTouchEnd={handleTouchEnd}
-        onContextMenu={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-        }}
-        className="md:hidden fixed inset-0 z-[100] h-[100dvh] w-full bg-black flex flex-col justify-between overflow-hidden select-none"
-      >
+      {isMobile ? (
+        /* ─── 1. MOBILE EXPERIENCE: 100dvh Edge-to-Edge Native Reels Viewer ─── */
+        <div
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
+          onContextMenu={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+          }}
+          className="fixed inset-0 z-[100] h-[100dvh] w-full bg-black flex flex-col justify-between overflow-hidden select-none"
+        >
         {/* Full-bleed Edge-to-Edge Player */}
         <div className="absolute inset-0 w-full h-full bg-black flex items-center justify-center overflow-hidden">
           <ReelPlayer
@@ -624,9 +631,9 @@ export function ReelPlayerModal({ reel, isOpen, onClose }: ReelPlayerModalProps)
           )}
         </AnimatePresence>
       </div>
-
-      {/* ─── 2. DESKTOP EXPERIENCE: Dual-Pane Modal (>= md screens) ─── */}
-      <div className="hidden md:flex fixed inset-0 z-[100] items-center justify-center p-3 sm:p-5 md:p-6 bg-black/85 backdrop-blur-md">
+      ) : (
+        /* ─── 2. DESKTOP EXPERIENCE: Dual-Pane Modal (>= md screens) ─── */
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-5 md:p-6 bg-black/85 backdrop-blur-md">
         {/* Backdrop Close */}
         <div className="absolute inset-0" onClick={onClose} />
 
@@ -1048,6 +1055,7 @@ export function ReelPlayerModal({ reel, isOpen, onClose }: ReelPlayerModalProps)
           </div>
         </motion.div>
       </div>
+      )}
     </AnimatePresence>,
     document.body
   );
