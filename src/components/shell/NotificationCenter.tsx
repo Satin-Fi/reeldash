@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useReels } from "@/context/ReelContext";
 import { AppNotification } from "@/types/reel";
 import {
@@ -13,6 +13,8 @@ import {
   Play,
   Inbox,
   ArrowRight,
+  X,
+  Sparkles,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
@@ -36,6 +38,43 @@ function formatRelativeTime(dateStr?: string): string {
   return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
+/**
+ * Standalone notification bell trigger button with live counter badge.
+ */
+export function NotificationBellButton({
+  className,
+  iconSize = 16,
+}: {
+  className?: string;
+  iconSize?: number;
+}) {
+  const { unreadNotificationsCount, setIsNotificationOpen } = useReels();
+
+  return (
+    <button
+      type="button"
+      onClick={() => setIsNotificationOpen(true)}
+      className={
+        className ||
+        "w-9 h-9 rounded-full bg-white dark:bg-surface-dark border border-black/[0.04] dark:border-white/[0.06] shadow-[0_2px_8px_rgba(0,0,0,0.02)] flex items-center justify-center text-secondaryText-light dark:text-secondaryText-dark hover:text-primaryText-light dark:hover:text-white transition-colors relative cursor-pointer"
+      }
+      title="Notifications & Activity"
+      aria-label="Open notifications & activity"
+    >
+      <Bell style={{ width: iconSize, height: iconSize }} strokeWidth={1.6} />
+      {unreadNotificationsCount > 0 && (
+        <span className="absolute -top-1 -right-1 min-w-[17px] h-[17px] px-1 rounded-full bg-rose-500 text-white text-[9px] font-bold flex items-center justify-center ring-2 ring-white dark:ring-surface-dark shadow-xs animate-in zoom-in-50 duration-200">
+          {unreadNotificationsCount > 9 ? "9+" : unreadNotificationsCount}
+        </span>
+      )}
+    </button>
+  );
+}
+
+/**
+ * Global Notification Center Slide-Over Drawer
+ * Managed via ReelContext (`isNotificationOpen`, `setIsNotificationOpen`)
+ */
 export function NotificationCenter() {
   const {
     notifications,
@@ -49,28 +88,22 @@ export function NotificationCenter() {
   } = useReels();
 
   const [activeTab, setActiveTab] = useState<"all" | "media" | "accounts">("all");
-  const containerRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
-  // Close dropdown on click outside or Escape
+  // Close drawer on Escape key
   useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setIsNotificationOpen(false);
-      }
-    }
     function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") {
+      if (e.key === "Escape" && isNotificationOpen) {
         setIsNotificationOpen(false);
       }
     }
     if (isNotificationOpen) {
-      document.addEventListener("mousedown", handleClickOutside);
       document.addEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = "hidden";
     }
     return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
       document.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = "";
     };
   }, [isNotificationOpen, setIsNotificationOpen]);
 
@@ -106,95 +139,105 @@ export function NotificationCenter() {
   };
 
   return (
-    <div className="relative" ref={containerRef}>
-      {/* Bell Trigger Button */}
-      <motion.button
-        whileHover={{ scale: 1.04 }}
-        whileTap={{ scale: 0.96 }}
-        onClick={() => setIsNotificationOpen(!isNotificationOpen)}
-        className="w-[32px] sm:w-[34px] h-[32px] sm:h-[34px] rounded-full aspect-square border border-borderSubtle-light dark:border-white/[0.08] bg-surfaceSecondary-light dark:bg-white/[0.03] hover:bg-black/5 dark:hover:bg-white/[0.08] flex items-center justify-center text-secondaryText-light dark:text-[#AEB2BF] hover:text-primaryText-light dark:hover:text-white transition-all cursor-pointer relative"
-        title="Notifications"
-        aria-label="View notifications"
-        aria-expanded={isNotificationOpen}
-      >
-        <Bell className="w-[16px] sm:w-[17px] h-[16px] sm:h-[17px]" strokeWidth={1.8} />
-
-        {/* Unread Counter Badge */}
-        {unreadNotificationsCount > 0 && (
-          <span className="absolute -top-1 -right-1 min-w-[17px] h-[17px] px-1 rounded-full bg-rose-500 text-white text-[10px] font-bold flex items-center justify-center ring-2 ring-surface-light dark:ring-[#0D0F12] shadow-sm animate-in zoom-in-50 duration-200">
-            {unreadNotificationsCount > 9 ? "9+" : unreadNotificationsCount}
-          </span>
-        )}
-      </motion.button>
-
-      {/* Notification Center Dropdown */}
-      <AnimatePresence>
-        {isNotificationOpen && (
+    <AnimatePresence>
+      {isNotificationOpen && (
+        <div className="fixed inset-0 z-[100] flex justify-end overflow-hidden">
+          {/* Backdrop Overlay */}
           <motion.div
-            initial={{ opacity: 0, scale: 0.96, y: 8 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.96, y: 8 }}
-            transition={{ duration: 0.15, ease: "easeOut" }}
-            className="absolute right-0 mt-2 w-[calc(100vw-24px)] sm:w-[390px] max-w-[420px] bg-surface-light dark:bg-[#111419] border border-borderSubtle-light dark:border-white/[0.08] rounded-2xl shadow-2xl z-50 overflow-hidden text-primaryText-light dark:text-zinc-100 flex flex-col max-h-[85vh] sm:max-h-[540px]"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            onClick={() => setIsNotificationOpen(false)}
+            className="absolute inset-0 bg-black/60 backdrop-blur-xs cursor-pointer"
+            aria-hidden="true"
+          />
+
+          {/* Slide-over Drawer Panel */}
+          <motion.aside
+            role="dialog"
+            aria-label="Notifications panel"
+            aria-modal="true"
+            initial={{ x: "100%", opacity: 0.5 }}
+            animate={{ x: 0, opacity: 1 }}
+            exit={{ x: "100%", opacity: 0 }}
+            transition={{ type: "spring", damping: 30, stiffness: 320 }}
+            className="relative z-10 w-full sm:w-[440px] max-w-full h-full bg-[#FAFAF9] dark:bg-[#111419] border-l border-black/[0.08] dark:border-white/[0.08] shadow-2xl flex flex-col overflow-hidden text-primaryText-light dark:text-zinc-100"
           >
             {/* Header */}
-            <div className="p-3.5 sm:p-4 border-b border-borderSubtle-light dark:border-white/[0.06] flex items-center justify-between bg-surfaceSecondary-light/50 dark:bg-white/[0.02]">
-              <div className="flex items-center space-x-2">
-                <div className="w-7 h-7 rounded-lg bg-brand-500/10 text-brand-500 flex items-center justify-center">
-                  <Bell className="w-3.5 h-3.5" />
+            <div className="p-4 sm:p-5 border-b border-black/[0.06] dark:border-white/[0.06] bg-white dark:bg-[#14181F] flex items-center justify-between shrink-0">
+              <div className="flex items-center space-x-2.5">
+                <div className="w-8 h-8 rounded-xl bg-brand-500/10 text-brand-600 dark:text-brand-400 flex items-center justify-center border border-brand-500/20">
+                  <Bell className="w-4 h-4" />
                 </div>
                 <div>
-                  <h3 className="text-xs font-bold text-primaryText-light dark:text-white font-bricolage">
-                    Notifications
-                  </h3>
+                  <div className="flex items-center space-x-2">
+                    <h2 className="text-sm font-bold text-primaryText-light dark:text-white font-bricolage tracking-tight">
+                      Activity & Alerts
+                    </h2>
+                    {unreadNotificationsCount > 0 && (
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20">
+                        {unreadNotificationsCount} unread
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-secondaryText-light dark:text-zinc-400">
+                    Saved reels, photo posts, and synced accounts
+                  </p>
                 </div>
-                {unreadNotificationsCount > 0 && (
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-brand-500/10 text-brand-600 dark:text-brand-400 border border-brand-500/20">
-                    {unreadNotificationsCount} new
-                  </span>
-                )}
               </div>
 
-              {unreadNotificationsCount > 0 && (
+              <div className="flex items-center space-x-1">
+                {unreadNotificationsCount > 0 && (
+                  <button
+                    onClick={markAllNotificationsAsRead}
+                    className="inline-flex items-center space-x-1 px-2.5 py-1.5 rounded-lg text-[11px] font-medium text-brand-600 dark:text-brand-400 hover:bg-brand-500/10 transition-colors cursor-pointer"
+                    title="Mark all notifications as read"
+                  >
+                    <CheckCheck className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">Mark all read</span>
+                  </button>
+                )}
+
                 <button
-                  onClick={markAllNotificationsAsRead}
-                  className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-lg text-[11px] font-medium text-brand-600 dark:text-brand-400 hover:bg-brand-500/10 transition-colors cursor-pointer"
-                  title="Mark all as read"
+                  onClick={() => setIsNotificationOpen(false)}
+                  className="w-8 h-8 rounded-lg flex items-center justify-center text-secondaryText-light dark:text-zinc-400 hover:text-primaryText-light dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/[0.06] transition-colors cursor-pointer"
+                  title="Close notifications (Esc)"
+                  aria-label="Close notifications"
                 >
-                  <CheckCheck className="w-3.5 h-3.5" />
-                  <span>Mark all read</span>
+                  <X className="w-4 h-4" />
                 </button>
-              )}
+              </div>
             </div>
 
             {/* Filter Tabs */}
-            <div className="flex items-center gap-1.5 px-3.5 pt-2.5 pb-1 border-b border-borderSubtle-light dark:border-white/[0.04]">
+            <div className="flex items-center gap-1.5 px-4 py-2.5 border-b border-black/[0.04] dark:border-white/[0.04] bg-white/50 dark:bg-[#14181F]/50 shrink-0">
               <button
                 onClick={() => setActiveTab("all")}
-                className={`px-3 py-1 rounded-full text-[11px] font-medium transition-colors cursor-pointer ${
+                className={`px-3 py-1 rounded-full text-[11px] font-medium transition-all cursor-pointer ${
                   activeTab === "all"
-                    ? "bg-brand-600 text-white shadow-xs"
-                    : "text-secondaryText-light dark:text-zinc-400 hover:text-white hover:bg-white/5"
+                    ? "bg-brand-600 text-white shadow-xs font-semibold"
+                    : "text-secondaryText-light dark:text-zinc-400 hover:text-black dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5"
                 }`}
               >
                 All ({notifications.length})
               </button>
               <button
                 onClick={() => setActiveTab("media")}
-                className={`px-3 py-1 rounded-full text-[11px] font-medium transition-colors cursor-pointer ${
+                className={`px-3 py-1 rounded-full text-[11px] font-medium transition-all cursor-pointer ${
                   activeTab === "media"
-                    ? "bg-brand-600 text-white shadow-xs"
-                    : "text-secondaryText-light dark:text-zinc-400 hover:text-white hover:bg-white/5"
+                    ? "bg-brand-600 text-white shadow-xs font-semibold"
+                    : "text-secondaryText-light dark:text-zinc-400 hover:text-black dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5"
                 }`}
               >
                 Saved Media ({notifications.filter((n) => n.type !== "new_account").length})
               </button>
               <button
                 onClick={() => setActiveTab("accounts")}
-                className={`px-3 py-1 rounded-full text-[11px] font-medium transition-colors cursor-pointer ${
+                className={`px-3 py-1 rounded-full text-[11px] font-medium transition-all cursor-pointer ${
                   activeTab === "accounts"
-                    ? "bg-brand-600 text-white shadow-xs"
-                    : "text-secondaryText-light dark:text-zinc-400 hover:text-white hover:bg-white/5"
+                    ? "bg-brand-600 text-white shadow-xs font-semibold"
+                    : "text-secondaryText-light dark:text-zinc-400 hover:text-black dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5"
                 }`}
               >
                 Accounts ({notifications.filter((n) => n.type === "new_account").length})
@@ -202,18 +245,20 @@ export function NotificationCenter() {
             </div>
 
             {/* Notifications List */}
-            <div className="flex-1 overflow-y-auto p-1.5 sm:p-2 divide-y divide-borderSubtle-light/40 dark:divide-white/[0.04] custom-scrollbar">
+            <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-2.5 custom-scrollbar">
               {filteredNotifications.length === 0 ? (
-                <div className="py-12 px-4 text-center space-y-2.5">
-                  <div className="w-10 h-10 rounded-full bg-white/5 mx-auto flex items-center justify-center text-zinc-500">
-                    <Inbox className="w-5 h-5" />
+                <div className="py-16 px-4 text-center space-y-3">
+                  <div className="w-12 h-12 rounded-2xl bg-black/5 dark:bg-white/5 mx-auto flex items-center justify-center text-zinc-400 dark:text-zinc-500">
+                    <Inbox className="w-6 h-6" />
                   </div>
-                  <p className="text-xs font-semibold text-primaryText-light dark:text-white">
-                    No notifications in this view
-                  </p>
-                  <p className="text-[11px] text-secondaryText-light dark:text-zinc-400 max-w-xs mx-auto leading-relaxed">
-                    When you save reels, photo posts, or connect new Instagram handles, activity alerts will appear here.
-                  </p>
+                  <div>
+                    <h3 className="text-xs font-bold text-primaryText-light dark:text-white">
+                      No notifications in this view
+                    </h3>
+                    <p className="text-[11px] text-secondaryText-light dark:text-zinc-400 max-w-xs mx-auto leading-relaxed mt-1">
+                      When you save reels, photo posts, or connect new Instagram handles, activity alerts will appear here.
+                    </p>
+                  </div>
                 </div>
               ) : (
                 filteredNotifications.map((notif) => {
@@ -224,24 +269,25 @@ export function NotificationCenter() {
                   return (
                     <motion.div
                       key={notif.id}
-                      whileHover={{ x: 2 }}
+                      whileHover={{ scale: 1.01 }}
+                      whileTap={{ scale: 0.99 }}
                       onClick={() => handleNotificationClick(notif)}
-                      className={`group p-2.5 sm:p-3 rounded-xl transition-all cursor-pointer flex items-start gap-3 relative ${
+                      className={`group p-3 rounded-2xl transition-all cursor-pointer flex items-start gap-3.5 relative border ${
                         !notif.read
-                          ? "bg-brand-500/[0.06] dark:bg-brand-500/[0.1] border border-brand-500/20"
-                          : "hover:bg-surfaceSecondary-light dark:hover:bg-white/[0.04]"
+                          ? "bg-brand-500/[0.06] dark:bg-brand-500/[0.1] border-brand-500/25 shadow-xs"
+                          : "bg-white dark:bg-[#161A22] border-black/[0.04] dark:border-white/[0.05] hover:border-black/[0.1] dark:hover:border-white/[0.1] hover:shadow-xs"
                       }`}
                     >
                       {/* Left: Avatar / Thumbnail */}
                       <div className="relative shrink-0">
                         {isAccount ? (
-                          <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-yellow-500 via-pink-500 to-purple-600 p-0.5 flex items-center justify-center shadow-md">
+                          <div className="w-11 h-11 rounded-full bg-gradient-to-tr from-yellow-500 via-pink-500 to-purple-600 p-0.5 flex items-center justify-center shadow-md">
                             <div className="w-full h-full rounded-full bg-black flex items-center justify-center">
                               <Instagram className="w-4 h-4 text-white" />
                             </div>
                           </div>
                         ) : notif.thumbnailUrl ? (
-                          <div className="w-10 h-14 rounded-lg overflow-hidden bg-black border border-white/10 relative shadow-sm">
+                          <div className="w-11 h-15 rounded-xl overflow-hidden bg-black border border-black/10 dark:border-white/10 relative shadow-xs">
                             {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img
                               src={notif.thumbnailUrl}
@@ -250,27 +296,27 @@ export function NotificationCenter() {
                               onError={(e) => {
                                 (e.target as HTMLElement).style.display = "none";
                               }}
-                              className="w-full h-full object-cover"
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
                             />
                             <div className="absolute inset-0 bg-black/20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                               <Play className="w-3.5 h-3.5 fill-white text-white drop-shadow-md" />
                             </div>
                           </div>
                         ) : (
-                          <div className="w-10 h-10 rounded-lg bg-brand-500/10 text-brand-400 flex items-center justify-center border border-brand-500/20">
+                          <div className="w-11 h-11 rounded-xl bg-brand-500/10 text-brand-600 dark:text-brand-400 flex items-center justify-center border border-brand-500/20">
                             {isAudio ? (
-                              <Music2 className="w-4 h-4" />
+                              <Music2 className="w-5 h-5" />
                             ) : isPost ? (
-                              <ImageIcon className="w-4 h-4" />
+                              <ImageIcon className="w-5 h-5" />
                             ) : (
-                              <Film className="w-4 h-4" />
+                              <Film className="w-5 h-5" />
                             )}
                           </div>
                         )}
 
                         {/* Media type mini badge */}
                         {!isAccount && (
-                          <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-zinc-900 border border-white/20 flex items-center justify-center text-zinc-300">
+                          <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-zinc-900 border border-white/20 flex items-center justify-center text-zinc-300 shadow-xs">
                             {isAudio ? (
                               <Music2 className="w-2.5 h-2.5 text-emerald-400" />
                             ) : isPost ? (
@@ -283,12 +329,12 @@ export function NotificationCenter() {
                       </div>
 
                       {/* Middle: Content details */}
-                      <div className="flex-1 min-w-0 pr-2">
+                      <div className="flex-1 min-w-0 pr-1">
                         <div className="flex items-center justify-between gap-1 mb-0.5">
-                          <h4 className="text-xs font-semibold text-primaryText-light dark:text-white truncate">
+                          <h3 className="text-xs font-semibold text-primaryText-light dark:text-white truncate">
                             {notif.title}
-                          </h4>
-                          <span className="text-[10px] text-zinc-400 shrink-0 font-medium">
+                          </h3>
+                          <span className="text-[10px] text-mutedText-light dark:text-zinc-500 shrink-0 font-medium">
                             {formatRelativeTime(notif.timestamp)}
                           </span>
                         </div>
@@ -297,7 +343,7 @@ export function NotificationCenter() {
                           {notif.description}
                         </p>
 
-                        <div className="mt-1.5 flex items-center space-x-2 text-[10px] font-medium text-brand-600 dark:text-brand-400">
+                        <div className="mt-2 flex items-center space-x-1.5 text-[10px] font-semibold text-brand-600 dark:text-brand-400">
                           {isAccount ? (
                             <span>View Account Profile &rarr;</span>
                           ) : (
@@ -311,7 +357,10 @@ export function NotificationCenter() {
 
                       {/* Right: Unread Dot Indicator */}
                       {!notif.read && (
-                        <div className="w-2 h-2 rounded-full bg-brand-500 shrink-0 self-center shadow-xs shadow-brand-500/50" />
+                        <div
+                          className="w-2 h-2 rounded-full bg-brand-500 shrink-0 self-center shadow-xs shadow-brand-500/50"
+                          title="Unread"
+                        />
                       )}
                     </motion.div>
                   );
@@ -320,21 +369,25 @@ export function NotificationCenter() {
             </div>
 
             {/* Footer */}
-            <div className="p-2.5 px-4 border-t border-borderSubtle-light dark:border-white/[0.06] bg-surfaceSecondary-light/30 dark:bg-white/[0.01] flex items-center justify-between text-[11px] text-zinc-400">
-              <span>Auto-synced with Instagram DM bot</span>
+            <div className="p-3.5 px-4 border-t border-black/[0.06] dark:border-white/[0.06] bg-white dark:bg-[#14181F] flex items-center justify-between text-[11px] text-secondaryText-light dark:text-zinc-400 shrink-0">
+              <span className="flex items-center gap-1.5">
+                <Sparkles className="w-3 h-3 text-brand-500" />
+                <span>Auto-synced with Instagram DM bot</span>
+              </span>
               <button
                 onClick={() => {
                   setIsNotificationOpen(false);
-                  router.push("/settings");
+                  router.push("/integrations/instagram");
                 }}
-                className="text-brand-500 hover:underline cursor-pointer"
+                className="text-brand-600 dark:text-brand-400 font-medium hover:underline cursor-pointer"
               >
-                Settings
+                DM Bot Settings
               </button>
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
+          </motion.aside>
+        </div>
+      )}
+    </AnimatePresence>
   );
 }
+

@@ -32,6 +32,7 @@ import {
   Cpu,
   Sun,
   Moon,
+  Bell,
 } from "lucide-react";
 
 function getSidebarCategoryIcon(name: string) {
@@ -96,6 +97,8 @@ export function Sidebar() {
     setSearchQuery,
     theme,
     toggleTheme,
+    unreadNotificationsCount,
+    setIsNotificationOpen,
   } = useReels();
   const { user, logout } = useAuth();
   const [isAccountDropdownOpen, setIsAccountDropdownOpen] = useState(false);
@@ -625,6 +628,20 @@ export function Sidebar() {
             </div>
           </Link>
           <div className="flex items-center gap-0.5 shrink-0">
+            <button
+              type="button"
+              onClick={() => setIsNotificationOpen(true)}
+              className="p-1.5 text-[#787470] hover:text-[#E8E5E1] hover:bg-white/[0.03] rounded-lg transition-colors cursor-pointer relative"
+              title="Notifications & Activity"
+              aria-label="Open notifications"
+            >
+              <Bell className="w-4 h-4" strokeWidth={1.5} />
+              {unreadNotificationsCount > 0 && (
+                <span className="absolute -top-1 -right-1 min-w-[15px] h-[15px] px-0.5 rounded-full bg-rose-500 text-white text-[8px] font-bold flex items-center justify-center ring-2 ring-[#1D1B1A]">
+                  {unreadNotificationsCount > 9 ? "9+" : unreadNotificationsCount}
+                </span>
+              )}
+            </button>
             <button
               onClick={toggleTheme}
               className="p-1.5 text-[#787470] hover:text-[#E8E5E1] hover:bg-white/[0.03] rounded-lg transition-colors cursor-pointer"

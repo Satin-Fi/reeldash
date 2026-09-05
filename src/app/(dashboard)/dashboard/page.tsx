@@ -51,6 +51,7 @@ export default function DashboardPage() {
     activeCategory,
     setActiveCategory,
     selectedInstagramAccount,
+    isNotificationOpen,
     setIsNotificationOpen,
     unreadNotificationsCount,
   } = useReels();
@@ -140,10 +141,11 @@ export default function DashboardPage() {
 
         <div className="flex items-center gap-2">
           <button
-            onClick={() => setIsNotificationOpen(true)}
+            onClick={() => setIsNotificationOpen(!isNotificationOpen)}
             className="w-9 h-9 rounded-full bg-white dark:bg-surface-dark border border-black/[0.04] dark:border-white/[0.06] shadow-[0_2px_8px_rgba(0,0,0,0.02)] flex items-center justify-center text-secondaryText-light dark:text-secondaryText-dark hover:text-primaryText-light transition-colors relative cursor-pointer"
-            title="Notifications"
-            aria-label="Open notifications"
+            title="Notifications & Activity"
+            aria-label="Open notifications & activity"
+            aria-expanded={isNotificationOpen}
           >
             <Bell className="w-4 h-4" strokeWidth={1.5} />
             {unreadNotificationsCount > 0 && (

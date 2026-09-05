@@ -11,6 +11,7 @@ import { CommandPalette } from "@/components/shell/CommandPalette";
 import { ToastContainer } from "@/components/ui/Toast";
 import { ReelProvider, useReels } from "@/context/ReelContext";
 import { ReelPlayerModal } from "@/components/reels/ReelPlayerModal";
+import { NotificationCenter } from "@/components/shell/NotificationCenter";
 
 function GlobalNotificationReelModal() {
   const { activeNotificationReel, setActiveNotificationReel } = useReels();
@@ -75,6 +76,7 @@ export default function DashboardLayout({
         <CommandPalette />
         <ToastContainer />
         <GlobalNotificationReelModal />
+        <NotificationCenter />
       </div>
     </ReelProvider>
   );
