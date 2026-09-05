@@ -198,12 +198,12 @@ export function Sidebar() {
   };
 
   return (
-    <aside className="dark hidden md:flex w-[250px] min-w-[250px] max-w-[250px] h-full flex-col justify-between shrink-0 select-none overflow-x-hidden">
+    <aside className="dark hidden md:flex w-[250px] min-w-[250px] max-w-[250px] h-full flex-col justify-between shrink-0 select-none overflow-x-hidden rounded-none">
       <div className="space-y-3 flex-1 overflow-y-auto overflow-x-hidden scrollbar-none no-scrollbar">
         {/* ─── 1. Primary Navigation Surface (Floating Panel like Payflow) ─── */}
         <div
           style={surfaceStyle}
-          className="rounded-[24px] p-2 space-y-2 border border-white/[0.03] shadow-[0_4px_24px_rgba(0,0,0,0.35)]"
+          className="rounded-none p-2 space-y-2 border border-white/[0.03] shadow-[0_4px_24px_rgba(0,0,0,0.35)]"
         >
           {/* Brand Header (Covered inside the container) */}
           <div className="flex items-center justify-between px-2 pt-1.5 pb-0.5">
@@ -424,7 +424,7 @@ export function Sidebar() {
         {/* ─── 4. Categories Surface ─── */}
         <div
           style={surfaceStyle}
-          className="rounded-[20px] p-2 space-y-1 border border-white/[0.02]"
+          className="rounded-none p-2 space-y-1 border border-white/[0.02]"
         >
           <div className="flex items-center justify-between px-2 pt-0.5">
             <span className="text-[10px] uppercase tracking-wider font-medium text-[#787470]">
@@ -573,7 +573,7 @@ export function Sidebar() {
         {/* ─── Payflow User Profile Card (Layered Warm Surface) ─── */}
         <div
           style={surfaceStyle}
-          className="flex items-center justify-between p-2.5 rounded-[18px] border border-white/[0.02]"
+          className="flex items-center justify-between p-2.5 rounded-none border border-white/[0.02]"
         >
           <Link href="/settings" className="flex items-center space-x-2.5 min-w-0 flex-1 hover:opacity-90 transition-opacity">
             <div className="w-9 h-9 rounded-full overflow-hidden bg-[#302E2C] border border-white/[0.05] text-[#E8E5E1] font-medium text-xs flex items-center justify-center shrink-0 relative">
