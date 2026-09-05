@@ -29,6 +29,7 @@ interface ReelContextType {
   searchQuery: string;
   sortOption: SortOption;
   viewMode: ViewMode;
+  gridCols: number;
   theme: "light" | "dark";
   toasts: ToastMessage[];
   isSaveModalOpen: boolean;
@@ -55,6 +56,7 @@ interface ReelContextType {
   setSearchQuery: (query: string) => void;
   setSortOption: (sort: SortOption) => void;
   setViewMode: (mode: ViewMode) => void;
+  setGridCols: (cols: number) => void;
   toggleTheme: () => void;
   setIsSaveModalOpen: (open: boolean) => void;
   setIsCommandPaletteOpen: (open: boolean) => void;
@@ -119,6 +121,27 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [sortOption, setSortOption] = useState<SortOption>("newest");
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
+  const [gridCols, setGridColsState] = useState<number>(4);
+
+  // Initialize gridCols from localStorage
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("reeldash_grid_cols");
+      if (saved) {
+        const num = parseInt(saved, 10);
+        if ([3, 4, 5, 6].includes(num)) {
+          setGridColsState(num);
+        }
+      }
+    } catch {}
+  }, []);
+
+  const setGridCols = (cols: number) => {
+    setGridColsState(cols);
+    try {
+      localStorage.setItem("reeldash_grid_cols", cols.toString());
+    } catch {}
+  };
   const [theme, setTheme] = useState<"light" | "dark">("dark");
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
@@ -1331,6 +1354,8 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
         setSearchQuery,
         setSortOption,
         setViewMode,
+        gridCols,
+        setGridCols,
         toggleTheme,
         setIsSaveModalOpen,
         setIsCommandPaletteOpen,

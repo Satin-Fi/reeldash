@@ -31,6 +31,8 @@ export function FilterToolbar() {
     setSortOption,
     viewMode,
     setViewMode,
+    gridCols,
+    setGridCols,
   } = useReels();
 
   const [isSortOpen, setIsSortOpen] = useState(false);
@@ -137,6 +139,31 @@ export function FilterToolbar() {
             )}
           </AnimatePresence>
         </div>
+
+        {/* Grid Columns Count Selector (Grid View Only) */}
+        {viewMode === "grid" && (
+          <div className="flex items-center p-1 rounded-2xl bg-[#ECEEF2] dark:bg-white/[0.08] gap-0.5 border border-black/[0.02] dark:border-white/[0.04] shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+            <span className="hidden sm:inline-block px-2 text-[11px] font-medium text-mutedText-light dark:text-zinc-400 select-none">
+              Cols:
+            </span>
+            {[3, 4, 5, 6].map((cols) => (
+              <button
+                key={cols}
+                type="button"
+                onClick={() => setGridCols(cols)}
+                className={`px-2.5 py-1 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                  gridCols === cols
+                    ? "bg-white dark:bg-[#181716] text-primaryText-light dark:text-white shadow-[0_1px_3px_rgba(0,0,0,0.08)]"
+                    : "text-mutedText-light dark:text-zinc-400 hover:text-primaryText-light dark:hover:text-white"
+                }`}
+                title={`${cols} reels per row`}
+                aria-label={`${cols} reels per row`}
+              >
+                {cols}
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* View Mode Switcher Pill matching user reference image */}
         <div className="flex items-center p-1 rounded-2xl bg-[#ECEEF2] dark:bg-white/[0.08] gap-1 border border-black/[0.02] dark:border-white/[0.04] shadow-[0_1px_2px_rgba(0,0,0,0.02)]">

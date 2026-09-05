@@ -3,23 +3,43 @@
 import React from "react";
 import { Reel, ViewMode } from "@/types/reel";
 import { ReelCard } from "@/components/reels/ReelCard";
+import { useReels } from "@/context/ReelContext";
 
 interface ReelGridProps {
   reels: Reel[];
   viewMode?: ViewMode;
+  gridCols?: number;
   emptyTitle?: string;
   emptySubtitle?: string;
   /** Maximum number of reels to display */
   limit?: number;
 }
 
+const getGridColsClass = (count: number) => {
+  switch (count) {
+    case 3:
+      return "grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-3";
+    case 4:
+      return "grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-4";
+    case 5:
+      return "grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-5";
+    case 6:
+      return "grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6";
+    default:
+      return "grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-4";
+  }
+};
+
 export function ReelGrid({
   reels,
   viewMode = "grid",
+  gridCols: propGridCols,
   emptyTitle = "No items found",
   emptySubtitle = "Save a link or adjust your filters.",
   limit,
 }: ReelGridProps) {
+  const { gridCols: contextGridCols } = useReels();
+  const cols = propGridCols || contextGridCols || 4;
   const displayReels = limit ? reels.slice(0, limit) : reels;
 
   if (displayReels.length === 0) {
@@ -56,7 +76,7 @@ export function ReelGrid({
   }
 
   return (
-    <div className="grid grid-cols-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-[1.5px] bg-borderSubtle-light dark:bg-black/80">
+    <div className={`grid ${getGridColsClass(cols)} gap-[1.5px] bg-borderSubtle-light dark:bg-black/80`}>
       {displayReels.map((reel) => (
         <ReelCard key={reel.id} reel={reel} viewMode="grid" />
       ))}
@@ -64,10 +84,13 @@ export function ReelGrid({
   );
 }
 
-/** Skeleton loader matching the 3-column mobile layout */
-export function ReelGridSkeleton({ count = 12 }: { count?: number }) {
+/** Skeleton loader matching the dynamic grid columns layout */
+export function ReelGridSkeleton({ count = 12, gridCols: propGridCols }: { count?: number; gridCols?: number }) {
+  const { gridCols: contextGridCols } = useReels();
+  const cols = propGridCols || contextGridCols || 4;
+
   return (
-    <div className="grid grid-cols-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-[1.5px] bg-borderSubtle-light dark:bg-black/80">
+    <div className={`grid ${getGridColsClass(cols)} gap-[1.5px] bg-borderSubtle-light dark:bg-black/80`}>
       {Array.from({ length: count }).map((_, i) => (
         <div
           key={i}
