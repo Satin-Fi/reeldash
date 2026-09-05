@@ -6,7 +6,6 @@ import { useReels } from "@/context/ReelContext";
 import { MediaTypeFilter } from "@/types/reel";
 import { FilterToolbar } from "@/components/ui/FilterToolbar";
 import { ReelGrid } from "@/components/reels/ReelGrid";
-import { Plus, Film, Image as ImageIcon, Music2, CircleDashed, LayoutGrid } from "lucide-react";
 
 function ReelsContent() {
   const searchParams = useSearchParams();
@@ -23,7 +22,6 @@ function ReelsContent() {
     searchQuery,
     sortOption,
     viewMode,
-    setIsSaveModalOpen,
   } = useReels();
 
   // Sync activeMediaType & activeCategory with URL search parameters
@@ -44,7 +42,9 @@ function ReelsContent() {
       const catLower = activeCategory.trim().toLowerCase();
       const allAssigned = reel.categories && reel.categories.length > 0 ? reel.categories : [reel.category || ""];
       const matchCat = allAssigned.some((c) => c.toLowerCase() === catLower);
-      const matchTags = (Array.isArray(reel.tags) && reel.tags.some((t) => t.toLowerCase() === catLower)) || (Array.isArray(reel.hashtags) && reel.hashtags.some((h) => h.toLowerCase() === catLower));
+      const matchTags =
+        (Array.isArray(reel.tags) && reel.tags.some((t) => t.toLowerCase() === catLower)) ||
+        (Array.isArray(reel.hashtags) && reel.hashtags.some((h) => h.toLowerCase() === catLower));
       const matchKeywords = Array.isArray(reel.aiKeywords) && reel.aiKeywords.some((k) => k.toLowerCase() === catLower);
       const matchSub = Array.isArray(reel.subcategories) && reel.subcategories.some((s) => s.toLowerCase() === catLower);
       if (!matchCat && !matchTags && !matchKeywords && !matchSub) {
@@ -97,86 +97,18 @@ function ReelsContent() {
     return 0;
   });
 
-  // Dynamic header info
-  const getHeaderInfo = () => {
-    switch (activeMediaType) {
-      case "reel":
-        return {
-          title: "Reels",
-          description: `${filteredReels.length} saved video Reels`,
-          icon: Film,
-          saveBtnText: "Save Reel",
-        };
-      case "post":
-        return {
-          title: "Posts & Carousels",
-          description: `${filteredReels.length} saved photo posts & carousels`,
-          icon: ImageIcon,
-          saveBtnText: "Save Post",
-        };
-      case "audio":
-        return {
-          title: "Songs & Audio Tracks",
-          description: `${filteredReels.length} saved soundtrack & audio tracks`,
-          icon: Music2,
-          saveBtnText: "Save Song",
-        };
-      case "story":
-        return {
-          title: "Stories & Highlights",
-          description: `${filteredReels.length} saved 24h stories`,
-          icon: CircleDashed,
-          saveBtnText: "Save Story",
-        };
-      default:
-        return {
-          title: "All Library",
-          description: `${filteredReels.length} total saved items across all media`,
-          icon: LayoutGrid,
-          saveBtnText: "Save Media",
-        };
-    }
-  };
-
-  // When viewing Reels, display ONLY the reels grid — no header text, no save button, no bloatware menu
-  const isReelsView = typeParam === "reel" || activeMediaType === "reel" || !typeParam;
-
-  if (isReelsView) {
-    return (
-      <div className="w-full">
-        <ReelGrid reels={filteredReels} viewMode="grid" emptyTitle="No reels yet" emptySubtitle="Save a reel via Instagram DM or paste a link on the dashboard." />
-      </div>
-    );
-  }
-
-  const headerInfo = getHeaderInfo();
-
   return (
-    <div className="space-y-4">
-      {/* Sleek Page Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-baseline space-x-2">
-          <h1 className="text-xl font-semibold tracking-tight text-primaryText-light dark:text-primaryText-dark">
-            {headerInfo.title}
-          </h1>
-          <span className="text-xs text-zinc-500 font-normal">
-            · {filteredReels.length} {filteredReels.length === 1 ? "item" : "items"}
-          </span>
-        </div>
-        <button
-          onClick={() => setIsSaveModalOpen(true)}
-          className="flex items-center space-x-1.5 px-3 py-1.5 bg-[#5B52E8] hover:bg-[#4E45D9] active:scale-95 text-white text-xs font-medium rounded-lg shadow-sm transition-all cursor-pointer"
-        >
-          <Plus className="w-3.5 h-3.5" />
-          <span>{headerInfo.saveBtnText}</span>
-        </button>
-      </div>
-
-      {/* Modern Unified Toolbar */}
+    <div className="w-full space-y-5">
+      {/* Payflow-Style Top Search & Action Bar */}
       <FilterToolbar />
 
-      {/* Grid / List View */}
-      <ReelGrid reels={filteredReels} viewMode={viewMode} />
+      {/* Grid / Feed / Compact View */}
+      <ReelGrid
+        reels={filteredReels}
+        viewMode={viewMode}
+        emptyTitle="No reels found"
+        emptySubtitle="Try adjusting your search query or filters."
+      />
     </div>
   );
 }
