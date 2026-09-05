@@ -40,12 +40,12 @@ export default function DashboardLayout({
 
   return (
     <ReelProvider>
-      <div className="flex h-screen bg-[#ECEAE7] dark:bg-[#0E0D0C] text-primaryText-light dark:text-primaryText-dark overflow-hidden md:p-3 md:gap-3">
+      <div className="dark flex h-screen bg-black text-primaryText-dark overflow-hidden md:p-3 md:gap-3">
         {/* Floating Desktop Left Sidebar */}
         <Sidebar />
 
         {/* Main Content Area — Floating Island */}
-        <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden md:rounded-[20px] md:border md:border-borderSubtle-light md:dark:border-white/[0.06] bg-surface-light dark:bg-surface-dark shadow-[0_4px_24px_rgba(0,0,0,0.04)] dark:shadow-[0_4px_32px_rgba(0,0,0,0.3)]">
+        <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden md:rounded-[20px] md:border md:border-white/[0.06] bg-[#0E0D0C] text-primaryText-dark shadow-[0_4px_32px_rgba(0,0,0,0.5)]">
           <div className="flex-1 overflow-y-auto pb-[calc(5rem+env(safe-area-inset-bottom,0px))] md:pb-0 scrollbar-thin">
             <main className="p-3.5 sm:p-5 md:p-6 lg:p-8 max-w-7xl w-full mx-auto">
               {children}
