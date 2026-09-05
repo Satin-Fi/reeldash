@@ -166,23 +166,18 @@ export function Sidebar() {
     boxShadow: "0 1px 2px rgba(0, 0, 0, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.03)",
   };
 
-  // Subtle left-to-right tonal gradient for the active row (pool of light)
+  // Atmospheric ambient light for active row — melts seamlessly into the #242220 panel without hard edges
   const activeRowStyle: React.CSSProperties = {
-    background: "linear-gradient(90deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.04) 45%, rgba(255, 255, 255, 0.01) 100%), #292725",
-    boxShadow: "0 2px 6px rgba(0, 0, 0, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.04)",
+    background: "linear-gradient(90deg, rgba(255, 255, 255, 0.065) 0%, rgba(255, 255, 255, 0.03) 45%, rgba(255, 255, 255, 0.005) 80%, transparent 100%)",
   };
 
-  // Raised, slightly brighter icon disc for active item
+  // Flat, soft frosted disc for active icon — completely flat, no bevel, no rim, no shadow
   const activeCircleStyle: React.CSSProperties = {
-    background: "linear-gradient(180deg, #484440 0%, #3C3835 100%)",
-    boxShadow: "0 2px 5px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.16)",
-    border: "1px solid rgba(255, 255, 255, 0.09)",
+    background: "rgba(255, 255, 255, 0.085)",
   };
 
   const activeCategoryCircleStyle: React.CSSProperties = {
-    background: "linear-gradient(180deg, #484440 0%, #3C3835 100%)",
-    boxShadow: "0 2px 4px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.14)",
-    border: "1px solid rgba(255, 255, 255, 0.08)",
+    background: "rgba(255, 255, 255, 0.085)",
   };
 
   return (
@@ -380,16 +375,16 @@ export function Sidebar() {
                   }`}
                 >
                   <div className="flex items-center space-x-2.5 min-w-0">
-                    {/* Circular Icon Container (Translucent disc or raised active disc) */}
+                    {/* Circular Icon Container (Translucent frosted disc) */}
                     <div
                       style={item.isActive ? activeCircleStyle : undefined}
-                      className={`w-[30px] h-[30px] rounded-full flex items-center justify-center shrink-0 transition-all ${
+                      className={`w-[30px] h-[30px] rounded-full flex items-center justify-center shrink-0 transition-colors ${
                         item.isActive
                           ? "text-[#F5F3F0]"
                           : "bg-white/[0.035] text-[#AAA6A1] group-hover:text-[#D4D0CB] group-hover:bg-white/[0.055]"
                       }`}
                     >
-                      <Icon className="w-[15px] h-[15px]" strokeWidth={item.isActive ? 1.65 : 1.5} />
+                      <Icon className="w-[15px] h-[15px]" strokeWidth={1.5} />
                     </div>
                     <span className="truncate">{item.label}</span>
                   </div>
@@ -454,13 +449,13 @@ export function Sidebar() {
                     <div className="flex items-center space-x-2.5 min-w-0">
                       <div
                         style={isSelected ? activeCategoryCircleStyle : undefined}
-                        className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 transition-all ${
+                        className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 transition-colors ${
                           isSelected
                             ? "text-[#F5F3F0]"
                             : "bg-white/[0.035] text-[#AAA6A1] group-hover:text-[#D4D0CB] group-hover:bg-white/[0.05]"
                         }`}
                       >
-                        <CatIcon className="w-3 h-3" strokeWidth={isSelected ? 1.6 : 1.5} />
+                        <CatIcon className="w-3 h-3" strokeWidth={1.5} />
                       </div>
                       <span className="truncate">{cat.name}</span>
                     </div>
@@ -504,7 +499,7 @@ export function Sidebar() {
           >
             <div
               style={pathname === "/pricing" ? activeCircleStyle : undefined}
-              className={`w-[30px] h-[30px] rounded-full flex items-center justify-center shrink-0 transition-all ${
+              className={`w-[30px] h-[30px] rounded-full flex items-center justify-center shrink-0 transition-colors ${
                 pathname === "/pricing"
                   ? "text-[#F5F3F0]"
                   : "bg-white/[0.035] text-[#AAA6A1] group-hover:text-[#E8E5E1] group-hover:bg-white/[0.05]"
@@ -527,7 +522,7 @@ export function Sidebar() {
             <div className="flex items-center space-x-2.5 min-w-0">
               <div
                 style={pathname === "/recycle-bin" ? activeCircleStyle : undefined}
-                className={`w-[30px] h-[30px] rounded-full flex items-center justify-center shrink-0 transition-all ${
+                className={`w-[30px] h-[30px] rounded-full flex items-center justify-center shrink-0 transition-colors ${
                   pathname === "/recycle-bin"
                     ? "text-[#F5F3F0]"
                     : "bg-white/[0.035] text-[#AAA6A1] group-hover:text-[#E8E5E1] group-hover:bg-white/[0.05]"
