@@ -87,10 +87,13 @@ export function Sidebar() {
     smartCategories,
     activeCategory,
     setActiveCategory,
+    activeCollection,
+    setActiveCollection,
     activeMediaType,
     setActiveMediaType,
     selectedInstagramAccount,
     setSelectedInstagramAccount,
+    setSearchQuery,
     theme,
     toggleTheme,
   } = useReels();
@@ -135,32 +138,52 @@ export function Sidebar() {
       href: "/reels?type=reel",
       icon: Film,
       count: counts.reel > 0 ? counts.reel : undefined,
-      isActive: isReelsPath && activeMediaType === "reel",
-      onClick: () => setActiveMediaType("reel"),
+      isActive: isReelsPath && !activeCategory && !activeCollection && activeMediaType === "reel",
+      onClick: () => {
+        setActiveMediaType("reel");
+        setActiveCategory(null);
+        setActiveCollection(null);
+        setSearchQuery("");
+      },
     },
     {
       label: "Posts & Photos",
       href: "/reels?type=post",
       icon: ImageIcon,
       count: counts.post > 0 ? counts.post : undefined,
-      isActive: isReelsPath && activeMediaType === "post",
-      onClick: () => setActiveMediaType("post"),
+      isActive: isReelsPath && !activeCategory && !activeCollection && activeMediaType === "post",
+      onClick: () => {
+        setActiveMediaType("post");
+        setActiveCategory(null);
+        setActiveCollection(null);
+        setSearchQuery("");
+      },
     },
     {
       label: "Songs & Audio",
       href: "/reels?type=audio",
       icon: Music2,
       count: counts.audio > 0 ? counts.audio : undefined,
-      isActive: isReelsPath && activeMediaType === "audio",
-      onClick: () => setActiveMediaType("audio"),
+      isActive: isReelsPath && !activeCategory && !activeCollection && activeMediaType === "audio",
+      onClick: () => {
+        setActiveMediaType("audio");
+        setActiveCategory(null);
+        setActiveCollection(null);
+        setSearchQuery("");
+      },
     },
     {
       label: "All Library",
       href: "/reels?type=all",
       icon: Layers,
       count: counts.all > 0 ? counts.all : undefined,
-      isActive: isReelsPath && activeMediaType === "all",
-      onClick: () => setActiveMediaType("all"),
+      isActive: isReelsPath && !activeCategory && !activeCollection && (activeMediaType === "all" || !activeMediaType),
+      onClick: () => {
+        setActiveMediaType("all");
+        setActiveCategory(null);
+        setActiveCollection(null);
+        setSearchQuery("");
+      },
     },
     {
       label: "Favorites",
@@ -440,10 +463,17 @@ export function Sidebar() {
                 return (
                   <Link
                     key={cat.name}
-                    href={isSelected ? "/reels" : `/reels?category=${encodeURIComponent(cat.name)}`}
+                    href={isSelected ? "/reels?type=all" : `/reels?category=${encodeURIComponent(cat.name)}`}
                     onClick={() => {
-                      setActiveCategory(isSelected ? null : cat.name);
-                      setActiveMediaType("all");
+                      if (isSelected) {
+                        setActiveCategory(null);
+                        setActiveMediaType("all");
+                      } else {
+                        setActiveCategory(cat.name);
+                        setActiveMediaType("all");
+                      }
+                      setActiveCollection(null);
+                      setSearchQuery("");
                     }}
                     style={isSelected ? activeRowStyle : undefined}
                     className={`group w-full h-[38px] flex items-center justify-between pl-1.5 pr-3 rounded-full text-[12.5px] transition-colors duration-150 cursor-pointer ${

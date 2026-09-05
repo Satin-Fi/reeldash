@@ -11,12 +11,14 @@ function ReelsContent() {
   const searchParams = useSearchParams();
   const typeParam = searchParams.get("type") as MediaTypeFilter | null;
   const categoryParam = searchParams.get("category");
+  const collectionParam = searchParams.get("collection");
 
   const {
     reels,
     activeCategory,
     setActiveCategory,
     activeCollection,
+    setActiveCollection,
     activeMediaType,
     setActiveMediaType,
     searchQuery,
@@ -26,14 +28,24 @@ function ReelsContent() {
 
   // Sync activeMediaType & activeCategory with URL search parameters
   useEffect(() => {
-    if (typeParam && ["all", "reel", "post", "audio", "story"].includes(typeParam)) {
-      setActiveMediaType(typeParam);
-    }
     if (categoryParam) {
       setActiveCategory(categoryParam);
       setActiveMediaType("all");
+      setActiveCollection(null);
+    } else if (collectionParam) {
+      setActiveCollection(collectionParam);
+      setActiveCategory(null);
+      setActiveMediaType("all");
+    } else {
+      setActiveCategory(null);
+      setActiveCollection(null);
+      if (typeParam && ["all", "reel", "post", "audio", "story"].includes(typeParam)) {
+        setActiveMediaType(typeParam);
+      } else {
+        setActiveMediaType("all");
+      }
     }
-  }, [typeParam, categoryParam, setActiveMediaType, setActiveCategory]);
+  }, [typeParam, categoryParam, collectionParam, setActiveMediaType, setActiveCategory, setActiveCollection]);
 
   // Filter Reels based on mediaType, search, category, and collection
   let filteredReels = reels.filter((reel) => {
