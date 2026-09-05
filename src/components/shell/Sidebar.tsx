@@ -166,18 +166,18 @@ export function Sidebar() {
     boxShadow: "0 1px 2px rgba(0, 0, 0, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.03)",
   };
 
-  // Atmospheric ambient light for active row — melts seamlessly into the #242220 panel without hard edges
+  // Warm charcoal active pill (pure dark charcoal, no white glow or gray hotspot)
   const activeRowStyle: React.CSSProperties = {
-    background: "linear-gradient(90deg, rgba(255, 255, 255, 0.065) 0%, rgba(255, 255, 255, 0.03) 45%, rgba(255, 255, 255, 0.005) 80%, transparent 100%)",
+    background: "linear-gradient(90deg, #373330 0%, #332F2C 65%, #2B2825 100%)",
   };
 
-  // Flat, soft frosted disc for active icon — completely flat, no bevel, no rim, no shadow
+  // Distinct lighter warm charcoal circular disc
   const activeCircleStyle: React.CSSProperties = {
-    background: "rgba(255, 255, 255, 0.085)",
+    background: "#4E4945",
   };
 
   const activeCategoryCircleStyle: React.CSSProperties = {
-    background: "rgba(255, 255, 255, 0.085)",
+    background: "#4E4945",
   };
 
   return (
@@ -357,9 +357,9 @@ export function Sidebar() {
         {/* ─── 3. Primary Navigation Surface (Restrained Material Layer) ─── */}
         <div
           style={surfaceStyle}
-          className="rounded-[22px] p-1.5 space-y-0.5 border border-white/[0.02]"
+          className="rounded-[24px] p-1.5 space-y-1 border border-white/[0.02]"
         >
-          <nav className="space-y-0.5">
+          <nav className="space-y-1">
             {navItems.map((item) => {
               const Icon = item.icon;
               return (
@@ -368,23 +368,28 @@ export function Sidebar() {
                   href={item.href}
                   onClick={item.onClick}
                   style={item.isActive ? activeRowStyle : undefined}
-                  className={`group w-full flex items-center justify-between px-2.5 py-1.5 rounded-[15px] text-[13px] transition-all duration-200 cursor-pointer ${
+                  className={`group w-full h-[46px] flex items-center justify-between pl-1.5 pr-3.5 rounded-full text-[13px] transition-colors duration-150 cursor-pointer ${
                     item.isActive
                       ? "text-[#F0EDE9] font-medium"
                       : "text-[#AAA6A1] hover:bg-white/[0.02] hover:text-[#D4D0CB]"
                   }`}
                 >
-                  <div className="flex items-center space-x-2.5 min-w-0">
-                    {/* Circular Icon Container (Translucent frosted disc) */}
+                  <div className="flex items-center space-x-3 min-w-0">
+                    {/* Concentric Circular Icon Container */}
                     <div
                       style={item.isActive ? activeCircleStyle : undefined}
-                      className={`w-[30px] h-[30px] rounded-full flex items-center justify-center shrink-0 transition-colors ${
+                      className={`w-[34px] h-[34px] rounded-full flex items-center justify-center shrink-0 transition-colors ${
                         item.isActive
-                          ? "text-[#F5F3F0]"
-                          : "bg-white/[0.035] text-[#AAA6A1] group-hover:text-[#D4D0CB] group-hover:bg-white/[0.055]"
+                          ? "text-white"
+                          : "bg-[#2D2A27] text-[#9A9590] group-hover:text-[#D4D0CB] group-hover:bg-[#34302D]"
                       }`}
                     >
-                      <Icon className="w-[15px] h-[15px]" strokeWidth={1.5} />
+                      <Icon
+                        className={`w-[17px] h-[17px] transition-colors ${
+                          item.isActive ? "text-white fill-white" : "fill-none"
+                        }`}
+                        strokeWidth={1.5}
+                      />
                     </div>
                     <span className="truncate">{item.label}</span>
                   </div>
@@ -440,7 +445,7 @@ export function Sidebar() {
                       setActiveMediaType("all");
                     }}
                     style={isSelected ? activeRowStyle : undefined}
-                    className={`group w-full flex items-center justify-between px-2.5 py-1.5 rounded-[13px] text-[12.5px] transition-all duration-200 cursor-pointer ${
+                    className={`group w-full h-[38px] flex items-center justify-between pl-1.5 pr-3 rounded-full text-[12.5px] transition-colors duration-150 cursor-pointer ${
                       isSelected
                         ? "text-[#F0EDE9] font-medium"
                         : "text-[#AAA6A1] hover:bg-white/[0.02] hover:text-[#D4D0CB]"
@@ -449,13 +454,18 @@ export function Sidebar() {
                     <div className="flex items-center space-x-2.5 min-w-0">
                       <div
                         style={isSelected ? activeCategoryCircleStyle : undefined}
-                        className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 transition-colors ${
+                        className={`w-[26px] h-[26px] rounded-full flex items-center justify-center shrink-0 transition-colors ${
                           isSelected
-                            ? "text-[#F5F3F0]"
-                            : "bg-white/[0.035] text-[#AAA6A1] group-hover:text-[#D4D0CB] group-hover:bg-white/[0.05]"
+                            ? "text-white"
+                            : "bg-[#2D2A27] text-[#9A9590] group-hover:text-[#D4D0CB] group-hover:bg-[#34302D]"
                         }`}
                       >
-                        <CatIcon className="w-3 h-3" strokeWidth={1.5} />
+                        <CatIcon
+                          className={`w-[13px] h-[13px] transition-colors ${
+                            isSelected ? "text-white fill-white" : "fill-none"
+                          }`}
+                          strokeWidth={1.5}
+                        />
                       </div>
                       <span className="truncate">{cat.name}</span>
                     </div>
@@ -475,7 +485,7 @@ export function Sidebar() {
             {/* View all categories link */}
             <Link
               href="/categories"
-              className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-[10px] text-[11px] font-normal text-[#8E8A85] hover:text-[#E8E5E1] hover:bg-white/[0.02] transition-colors pt-0.5"
+              className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-full text-[11px] font-normal text-[#8E8A85] hover:text-[#E8E5E1] hover:bg-white/[0.02] transition-colors pt-0.5"
             >
               <span>View all categories</span>
               <span className="text-xs">→</span>
@@ -491,7 +501,7 @@ export function Sidebar() {
           <Link
             href="/pricing"
             style={pathname === "/pricing" ? activeRowStyle : undefined}
-            className={`group flex items-center space-x-2.5 px-2.5 py-1.5 rounded-[15px] text-[12.5px] transition-all duration-200 ${
+            className={`group w-full h-[42px] flex items-center space-x-3 pl-1.5 pr-3.5 rounded-full text-[12.5px] transition-colors duration-150 ${
               pathname === "/pricing"
                 ? "text-[#F0EDE9] font-medium"
                 : "text-[#AAA6A1] hover:bg-white/[0.02] hover:text-[#D4D0CB]"
@@ -501,11 +511,16 @@ export function Sidebar() {
               style={pathname === "/pricing" ? activeCircleStyle : undefined}
               className={`w-[30px] h-[30px] rounded-full flex items-center justify-center shrink-0 transition-colors ${
                 pathname === "/pricing"
-                  ? "text-[#F5F3F0]"
-                  : "bg-white/[0.035] text-[#AAA6A1] group-hover:text-[#E8E5E1] group-hover:bg-white/[0.05]"
+                  ? "text-white"
+                  : "bg-[#2D2A27] text-[#9A9590] group-hover:text-[#E8E5E1] group-hover:bg-[#34302D]"
               }`}
             >
-              <Crown className="w-3.5 h-3.5" strokeWidth={1.5} />
+              <Crown
+                className={`w-4 h-4 ${
+                  pathname === "/pricing" ? "text-white fill-white" : "fill-none"
+                }`}
+                strokeWidth={1.5}
+              />
             </div>
             <span className="truncate">Plans & Pricing</span>
           </Link>
@@ -513,22 +528,27 @@ export function Sidebar() {
           <Link
             href="/recycle-bin"
             style={pathname === "/recycle-bin" ? activeRowStyle : undefined}
-            className={`group flex items-center justify-between px-2.5 py-1.5 rounded-[15px] text-[12.5px] transition-all duration-200 ${
+            className={`group w-full h-[42px] flex items-center justify-between pl-1.5 pr-3.5 rounded-full text-[12.5px] transition-colors duration-150 ${
               pathname === "/recycle-bin"
                 ? "text-[#F0EDE9] font-medium"
                 : "text-[#AAA6A1] hover:bg-white/[0.02] hover:text-[#D4D0CB]"
             }`}
           >
-            <div className="flex items-center space-x-2.5 min-w-0">
+            <div className="flex items-center space-x-3 min-w-0">
               <div
                 style={pathname === "/recycle-bin" ? activeCircleStyle : undefined}
                 className={`w-[30px] h-[30px] rounded-full flex items-center justify-center shrink-0 transition-colors ${
                   pathname === "/recycle-bin"
-                    ? "text-[#F5F3F0]"
-                    : "bg-white/[0.035] text-[#AAA6A1] group-hover:text-[#E8E5E1] group-hover:bg-white/[0.05]"
+                    ? "text-white"
+                    : "bg-[#2D2A27] text-[#9A9590] group-hover:text-[#E8E5E1] group-hover:bg-[#34302D]"
                 }`}
               >
-                <Trash2 className="w-3.5 h-3.5" strokeWidth={1.5} />
+                <Trash2
+                  className={`w-4 h-4 ${
+                    pathname === "/recycle-bin" ? "text-white fill-white" : "fill-none"
+                  }`}
+                  strokeWidth={1.5}
+                />
               </div>
               <span className="truncate">Recycle Bin</span>
             </div>
