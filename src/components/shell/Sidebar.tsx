@@ -198,14 +198,9 @@ export function Sidebar() {
   };
 
   return (
-    <aside className="dark hidden md:flex w-[250px] min-w-[250px] max-w-[250px] h-full flex-col justify-between shrink-0 select-none overflow-x-hidden rounded-none">
-      <div className="space-y-3 flex-1 overflow-y-auto overflow-x-hidden scrollbar-none no-scrollbar">
-        {/* ─── 1. Primary Navigation Surface (Floating Panel like Payflow) ─── */}
-        <div
-          style={surfaceStyle}
-          className="rounded-none p-2 space-y-2 border border-white/[0.03] shadow-[0_4px_24px_rgba(0,0,0,0.35)]"
-        >
-          {/* Brand Header (Covered inside the container) */}
+    <aside className="dark hidden md:flex w-[260px] min-w-[260px] max-w-[260px] h-full flex-col justify-between p-3.5 shrink-0 select-none overflow-x-hidden bg-[#181716] border-r border-black/[0.06] dark:border-white/[0.06]">
+      <div className="space-y-3 flex-1 overflow-y-auto overflow-x-hidden scrollbar-none no-scrollbar pr-0.5">
+        {/* Brand Header */}
           <div className="flex items-center justify-between px-2 pt-1.5 pb-0.5">
             <ReelDashLogo href="/dashboard" size={25} showText={true} textSize="text-[16px]" />
             <Link
@@ -419,14 +414,10 @@ export function Sidebar() {
               );
             })}
           </nav>
-        </div>
 
-        {/* ─── 4. Categories Surface ─── */}
-        <div
-          style={surfaceStyle}
-          className="rounded-none p-2 space-y-1 border border-white/[0.02]"
-        >
-          <div className="flex items-center justify-between px-2 pt-0.5">
+          {/* ─── Categories Section ─── */}
+          <div className="pt-3 space-y-1">
+            <div className="flex items-center justify-between px-2 pt-0.5">
             <span className="text-[10px] uppercase tracking-wider font-medium text-[#787470]">
               Categories
             </span>
@@ -570,10 +561,9 @@ export function Sidebar() {
           </Link>
         </div>
 
-        {/* ─── Payflow User Profile Card (Layered Warm Surface) ─── */}
+        {/* ─── Payflow User Profile Card ─── */}
         <div
-          style={surfaceStyle}
-          className="flex items-center justify-between p-2.5 rounded-none border border-white/[0.02]"
+          className="flex items-center justify-between p-2 rounded-2xl bg-white/[0.03] hover:bg-white/[0.05] transition-colors border border-white/[0.04]"
         >
           <Link href="/settings" className="flex items-center space-x-2.5 min-w-0 flex-1 hover:opacity-90 transition-opacity">
             <div className="w-9 h-9 rounded-full overflow-hidden bg-[#302E2C] border border-white/[0.05] text-[#E8E5E1] font-medium text-xs flex items-center justify-center shrink-0 relative">
