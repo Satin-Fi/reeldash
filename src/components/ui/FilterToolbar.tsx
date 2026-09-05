@@ -185,21 +185,11 @@ export function FilterToolbar() {
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: -4, scale: 0.98 }}
                   transition={{ duration: 0.12 }}
-                  className="absolute right-0 top-full mt-2 w-52 sm:w-56 z-50 bg-white dark:bg-[#181716] border border-black/[0.06] dark:border-white/[0.1] rounded-2xl shadow-2xl p-2.5 backdrop-blur-xl space-y-2.5"
+                  className="absolute right-0 top-full mt-2 w-36 z-50 bg-white dark:bg-[#181716] border border-black/[0.06] dark:border-white/[0.1] rounded-2xl shadow-xl p-1.5 backdrop-blur-xl space-y-0.5"
                 >
-                  {/* Header */}
-                  <div className="flex items-center justify-between px-1 pt-0.5">
-                    <span className="text-[10px] font-bold tracking-wider text-mutedText-light dark:text-zinc-400 uppercase">
-                      Reels Per Row
-                    </span>
-                    <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-md bg-black/[0.04] dark:bg-white/[0.08] text-secondaryText-light dark:text-zinc-300 font-semibold">
-                      {gridCols} cols
-                    </span>
-                  </div>
-
-                  {/* 1-Tap Quick Segmented Buttons (2, 3, 4, 5, 6) */}
-                  <div className="grid grid-cols-5 gap-1 p-1 rounded-xl bg-black/[0.03] dark:bg-white/[0.05] border border-black/[0.02] dark:border-white/[0.03]">
-                    {[2, 3, 4, 5, 6].map((cols) => (
+                  {[2, 3, 4, 5, 6].map((cols) => {
+                    const isSelected = gridCols === cols;
+                    return (
                       <button
                         key={cols}
                         type="button"
@@ -207,55 +197,19 @@ export function FilterToolbar() {
                           setGridCols(cols);
                           setIsGridMenuOpen(false);
                         }}
-                        className={`py-1 text-xs font-semibold rounded-lg transition-all cursor-pointer text-center ${
-                          gridCols === cols
-                            ? "bg-white dark:bg-zinc-800 text-primaryText-light dark:text-white shadow-[0_1px_3px_rgba(0,0,0,0.08)]"
-                            : "text-secondaryText-light dark:text-zinc-400 hover:text-primaryText-light dark:hover:text-white"
+                        className={`w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-xs font-medium transition-colors cursor-pointer text-left ${
+                          isSelected
+                            ? "bg-black/[0.04] dark:bg-white/[0.1] text-primaryText-light dark:text-white font-semibold"
+                            : "text-secondaryText-light dark:text-zinc-300 hover:bg-black/[0.03] dark:hover:bg-white/[0.05] hover:text-primaryText-light dark:hover:text-white"
                         }`}
-                        title={`${cols} per row`}
                       >
-                        {cols}
+                        <span>{cols} columns</span>
+                        {isSelected && (
+                          <Check className="w-3.5 h-3.5 text-primaryText-light dark:text-white shrink-0" strokeWidth={2.5} />
+                        )}
                       </button>
-                    ))}
-                  </div>
-
-                  {/* Detailed options with helper descriptions */}
-                  <div className="space-y-0.5 pt-1 border-t border-black/[0.04] dark:border-white/[0.06]">
-                    {[
-                      { cols: 2, label: "2 per row", hint: "Showcase" },
-                      { cols: 3, label: "3 per row", hint: "Instagram" },
-                      { cols: 4, label: "4 per row", hint: "Default" },
-                      { cols: 5, label: "5 per row", hint: "Dense" },
-                      { cols: 6, label: "6 per row", hint: "Compact" },
-                    ].map((item) => {
-                      const isSelected = gridCols === item.cols;
-                      return (
-                        <button
-                          key={item.cols}
-                          type="button"
-                          onClick={() => {
-                            setGridCols(item.cols);
-                            setIsGridMenuOpen(false);
-                          }}
-                          className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-xs transition-colors cursor-pointer text-left ${
-                            isSelected
-                              ? "bg-black/[0.04] dark:bg-white/[0.08] text-primaryText-light dark:text-white font-semibold"
-                              : "text-secondaryText-light dark:text-zinc-300 hover:bg-black/[0.03] dark:hover:bg-white/[0.05] hover:text-primaryText-light dark:hover:text-white"
-                          }`}
-                        >
-                          <div className="flex items-center gap-2">
-                            <span>{item.label}</span>
-                            <span className="text-[10px] text-mutedText-light dark:text-zinc-500 font-normal">
-                              ({item.hint})
-                            </span>
-                          </div>
-                          {isSelected && (
-                            <Check className="w-3.5 h-3.5 text-primaryText-light dark:text-white shrink-0" strokeWidth={2.5} />
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
+                    );
+                  })}
                 </motion.div>
               )}
             </AnimatePresence>
