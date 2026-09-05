@@ -204,22 +204,6 @@
 .delay-3 { animation-delay: 240ms; }
 .delay-4 { animation-delay: 320ms; }
 
-/* ─── Active nav indicator (Linear-style) ─── */
-.nav-active-indicator {
-  position: relative;
-}
-.nav-active-indicator::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  height: 16px;
-  width: 2px;
-  border-radius: 9999px;
-  background: var(--brand-500, #4F6AE8);
-}
-
 /* ─── Gradient stripe refinement ─── */
 .gradient-stripe {
   background: linear-gradient(90deg, rgba(79,106,232,0.6) 0%, rgba(79,106,232,0.2) 50%, transparent 100%);

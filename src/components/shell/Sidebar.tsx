@@ -12,14 +12,13 @@ import {
   Image as ImageIcon,
   Music2,
   CircleDashed,
-  LayoutGrid,
+  Layers,
   Heart,
   Folder,
   Settings,
   Plus,
   LogOut,
   Instagram,
-  ChevronDown,
   ChevronsUpDown,
   Check,
   Crown,
@@ -77,7 +76,6 @@ export function Sidebar() {
   };
 
   const connectedAccounts = user?.connectedAccounts || [];
-  // SINGLE SOURCE OF TRUTH: strictly active accounts
   const activeAccounts = connectedAccounts.filter((a) => a.status === "active");
   const legacyAccounts = connectedAccounts.filter((a) => a.status === "legacy_unverified");
 
@@ -135,7 +133,7 @@ export function Sidebar() {
     {
       label: "All Library",
       href: "/reels?type=all",
-      icon: LayoutGrid,
+      icon: Layers,
       count: counts.all > 0 ? counts.all : undefined,
       isActive: isReelsPath && activeMediaType === "all",
       onClick: () => setActiveMediaType("all"),
@@ -149,7 +147,7 @@ export function Sidebar() {
     },
     {
       label: "Collections",
-      icon: LayoutGrid,
+      icon: Folder,
       href: "/collections",
       badge: collections.length > 0 ? collections.length : null,
       isActive: pathname === "/collections",
@@ -163,16 +161,16 @@ export function Sidebar() {
     : "U";
 
   return (
-    <aside className="hidden md:flex w-64 min-w-[16rem] max-w-[16rem] border-r border-borderSubtle-light dark:border-borderSubtle-dark bg-surface-light dark:bg-surface-dark flex-col justify-between p-4 shrink-0 select-none h-screen sticky top-0 overflow-x-hidden">
+    <aside className="dark hidden md:flex w-64 min-w-[16rem] max-w-[16rem] h-full flex-col justify-between p-4 shrink-0 select-none overflow-x-hidden rounded-[20px] bg-[#0C0E14] ring-1 ring-white/[0.06] shadow-[0_8px_32px_rgba(0,0,0,0.35)]">
       <div className="space-y-4 flex-1 overflow-y-auto overflow-x-hidden scrollbar-none no-scrollbar pr-0.5">
-        {/* Brand Logo Header */}
+        {/* ─── Brand Logo Header ─── */}
         <div className="flex items-center justify-between px-1 pt-1">
           <ReelDashLogo href="/dashboard" size={24} showText={true} textSize="text-base" />
           <Link
             href="/pricing"
-            className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-brand-500/10 hover:bg-brand-500/20 text-brand-600 dark:text-brand-400 font-semibold text-[10px] transition-colors shrink-0"
+            className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-brand-500/15 hover:bg-brand-500/25 text-brand-400 font-semibold text-[10px] transition-colors shrink-0"
           >
-            <Crown className="w-3 h-3 text-brand-500" />
+            <Crown className="w-3 h-3 text-brand-400" strokeWidth={1.5} />
             <span>{user?.plan === "Free Plan" ? "Upgrade" : "Pro"}</span>
           </Link>
         </div>
@@ -182,16 +180,16 @@ export function Sidebar() {
           /* ZERO ACTIVE ACCOUNTS */
           <div className="pt-1 pb-1">
             {legacyAccounts.length > 0 ? (
-              <div className="p-2.5 rounded-rd-md bg-amber-500/5 border border-amber-500/20 text-xs flex items-center justify-between">
+              <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs flex items-center justify-between">
                 <div className="min-w-0 pr-2">
-                  <p className="text-[11px] font-semibold text-amber-500 flex items-center gap-1 truncate font-mono">
+                  <p className="text-[11px] font-semibold text-amber-400 flex items-center gap-1 truncate font-mono">
                     <span>⚠️</span> @{legacyAccounts[0].username}
                   </p>
                   <p className="text-[10px] text-amber-500/70">Unverified</p>
                 </div>
                 <Link
                   href="/connect-instagram"
-                  className="px-2 py-1 rounded bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 text-[10px] font-semibold transition-colors shrink-0"
+                  className="px-2 py-1 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 text-amber-400 text-[10px] font-semibold transition-colors shrink-0"
                 >
                   Verify
                 </Link>
@@ -199,33 +197,33 @@ export function Sidebar() {
             ) : (
               <Link
                 href="/settings"
-                className="w-full flex items-center justify-between p-2 rounded-rd-md bg-surfaceSecondary-light dark:bg-white/[0.03] hover:bg-brand-500/5 border border-dashed border-borderSubtle-light dark:border-white/[0.08] hover:border-brand-500/30 transition-all text-left group"
+                className="w-full flex items-center justify-between p-2.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.06] border border-dashed border-white/[0.08] hover:border-brand-500/30 transition-all text-left group"
               >
                 <div className="flex items-center gap-2 min-w-0">
-                  <div className="w-6 h-6 rounded-md bg-brand-500/10 text-brand-500 flex items-center justify-center shrink-0">
-                    <Instagram className="w-3.5 h-3.5" />
+                  <div className="w-6 h-6 rounded-lg bg-brand-500/15 text-brand-400 flex items-center justify-center shrink-0">
+                    <Instagram className="w-3.5 h-3.5" strokeWidth={1.5} />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-[11px] font-medium text-secondaryText-light dark:text-zinc-400 group-hover:text-brand-500 transition-colors truncate">
+                    <p className="text-[11px] font-medium text-[#8B95A4] group-hover:text-brand-400 transition-colors truncate">
                       Instagram not connected
                     </p>
                   </div>
                 </div>
-                <span className="text-[10px] font-semibold text-brand-500 px-1.5 py-0.5 rounded bg-brand-500/10 shrink-0">
+                <span className="text-[10px] font-semibold text-brand-400 px-1.5 py-0.5 rounded-md bg-brand-500/15 shrink-0">
                   Connect
                 </span>
               </Link>
             )}
           </div>
         ) : activeAccounts.length === 1 ? (
-          /* EXACTLY ONE ACTIVE ACCOUNT — Hide redundant active connection box; account is already shown in the user tile below */
+          /* ONE ACTIVE — already shown in user tile below */
           null
         ) : (
-          /* TWO OR MORE ACTIVE ACCOUNTS — Full switcher with All Accounts */
+          /* TWO+ ACTIVE ACCOUNTS — Full switcher */
           <div className="relative pt-1 pb-1">
             <button
               onClick={() => setIsAccountDropdownOpen(!isAccountDropdownOpen)}
-              className="w-full flex items-center justify-between px-2.5 py-2 rounded-rd-md hover:bg-surfaceSecondary-light dark:hover:bg-white/[0.05] transition-colors cursor-pointer text-left focus:outline-none group"
+              className="w-full flex items-center justify-between px-2.5 py-2 rounded-xl hover:bg-white/[0.04] transition-colors cursor-pointer text-left focus:outline-none group"
             >
               <div className="flex items-center gap-2.5 min-w-0">
                 {selectedInstagramAccount ? (
@@ -240,46 +238,46 @@ export function Sidebar() {
                       }}
                       className="w-full h-full object-cover z-10"
                     />
-                    <Instagram className="w-3.5 h-3.5 text-brand-600 dark:text-brand-400 absolute" />
+                    <Instagram className="w-3.5 h-3.5 text-brand-400 absolute" />
                   </div>
                 ) : (
                   <div className="w-7 h-7 rounded-lg bg-brand-500/15 flex items-center justify-center shrink-0">
-                    <Instagram className="w-3.5 h-3.5 text-brand-600 dark:text-brand-400" />
+                    <Instagram className="w-3.5 h-3.5 text-brand-400" strokeWidth={1.5} />
                   </div>
                 )}
                 <div className="min-w-0">
-                  <span className="block text-xs font-semibold truncate text-primaryText-light dark:text-zinc-200 leading-tight">
+                  <span className="block text-xs font-semibold truncate text-zinc-200 leading-tight">
                     {selectedInstagramAccount ? `@${selectedInstagramAccount}` : "All Accounts"}
                   </span>
-                  <span className="block text-[10px] text-secondaryText-light dark:text-zinc-500 leading-tight mt-0.5">
+                  <span className="block text-[10px] text-[#5A6370] leading-tight mt-0.5">
                     Instagram ({activeAccounts.length})
                   </span>
                 </div>
               </div>
-              <ChevronsUpDown className="w-3.5 h-3.5 text-zinc-400 dark:text-zinc-500 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
+              <ChevronsUpDown className="w-3.5 h-3.5 text-[#5A6370] shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
             </button>
 
             {/* Dropdown Menu */}
             {isAccountDropdownOpen && (
-              <div className="absolute top-full left-0 right-0 mt-1 z-50 p-1 rounded-rd-md bg-surface-light dark:bg-zinc-900 border border-borderSubtle-light dark:border-white/[0.08] shadow-xl shadow-black/20 space-y-0.5 animate-slide-down">
+              <div className="absolute top-full left-0 right-0 mt-1 z-50 p-1 rounded-xl bg-[#161A1F] border border-white/[0.08] shadow-xl shadow-black/30 space-y-0.5 animate-slide-down">
                 <button
                   onClick={() => {
                     setSelectedInstagramAccount(null);
                     setIsAccountDropdownOpen(false);
                   }}
-                  className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-rd-sm text-[11px] transition-colors cursor-pointer text-left ${
+                  className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-[11px] transition-colors cursor-pointer text-left ${
                     !selectedInstagramAccount
-                      ? "bg-brand-500/10 text-brand-600 dark:text-brand-400 font-semibold"
-                      : "text-secondaryText-light dark:text-zinc-400 hover:bg-surfaceSecondary-light dark:hover:bg-white/[0.05] hover:text-primaryText-light dark:hover:text-zinc-200"
+                      ? "bg-brand-500/15 text-brand-400 font-semibold"
+                      : "text-[#8B95A4] hover:bg-white/[0.04] hover:text-zinc-200"
                   }`}
                 >
                   <div className="flex items-center gap-2 min-w-0">
                     <div className="w-4 h-4 rounded-full bg-brand-500/15 flex items-center justify-center shrink-0">
-                      <Instagram className="w-2.5 h-2.5 text-brand-500" />
+                      <Instagram className="w-2.5 h-2.5 text-brand-400" />
                     </div>
                     <span>All Accounts</span>
                   </div>
-                  {!selectedInstagramAccount && <Check className="w-3 h-3 text-brand-500 shrink-0" />}
+                  {!selectedInstagramAccount && <Check className="w-3 h-3 text-brand-400 shrink-0" />}
                 </button>
 
                 {activeAccounts.map((acc) => {
@@ -292,10 +290,10 @@ export function Sidebar() {
                         setSelectedInstagramAccount(handle);
                         setIsAccountDropdownOpen(false);
                       }}
-                      className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-rd-sm text-[11px] transition-colors cursor-pointer text-left ${
+                      className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-[11px] transition-colors cursor-pointer text-left ${
                         isSelected
-                          ? "bg-brand-500/10 text-brand-600 dark:text-brand-400 font-semibold"
-                          : "text-secondaryText-light dark:text-zinc-400 hover:bg-surfaceSecondary-light dark:hover:bg-white/[0.05] hover:text-primaryText-light dark:hover:text-zinc-200"
+                          ? "bg-brand-500/15 text-brand-400 font-semibold"
+                          : "text-[#8B95A4] hover:bg-white/[0.04] hover:text-zinc-200"
                       }`}
                     >
                       <div className="flex items-center gap-2 min-w-0">
@@ -310,22 +308,22 @@ export function Sidebar() {
                             }}
                             className="w-full h-full object-cover z-10"
                           />
-                          <Instagram className="w-2.5 h-2.5 text-brand-500 absolute" />
+                          <Instagram className="w-2.5 h-2.5 text-brand-400 absolute" />
                         </div>
                         <span className="truncate font-mono">@{handle}</span>
                       </div>
-                      {isSelected && <Check className="w-3 h-3 text-brand-500 shrink-0" />}
+                      {isSelected && <Check className="w-3 h-3 text-brand-400 shrink-0" />}
                     </button>
                   );
                 })}
 
-                <div className="pt-1 mt-0.5 border-t border-borderSubtle-light dark:border-white/[0.06]">
+                <div className="pt-1 mt-0.5 border-t border-white/[0.06]">
                   <Link
                     href="/settings"
                     onClick={() => setIsAccountDropdownOpen(false)}
-                    className="w-full flex items-center gap-1.5 px-2.5 py-1.5 rounded-rd-sm text-[11px] font-medium text-brand-600 dark:text-brand-400 hover:bg-brand-500/10 transition-colors"
+                    className="w-full flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium text-brand-400 hover:bg-brand-500/10 transition-colors"
                   >
-                    <Plus className="w-3 h-3 shrink-0" />
+                    <Plus className="w-3 h-3 shrink-0" strokeWidth={1.5} />
                     <span>Connect Account</span>
                   </Link>
                 </div>
@@ -334,8 +332,8 @@ export function Sidebar() {
           </div>
         )}
 
-        {/* Primary Navigation List */}
-        <nav className="space-y-0.5">
+        {/* ─── Primary Navigation ─── */}
+        <nav className="space-y-1">
           {navItems.map((item) => {
             const Icon = item.icon;
             return (
@@ -343,18 +341,32 @@ export function Sidebar() {
                 key={item.label}
                 href={item.href}
                 onClick={item.onClick}
-                className={`w-full flex items-center justify-between px-3 py-2 rounded-rd-md text-xs font-medium transition-colors cursor-pointer ${
+                className={`group w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-[13px] font-medium transition-all duration-200 cursor-pointer ${
                   item.isActive
-                    ? "bg-brand-500/10 text-brand-600 dark:text-brand-400 font-semibold nav-active-indicator"
-                    : "text-secondaryText-light dark:text-secondaryText-dark hover:bg-surfaceSecondary-light dark:hover:bg-surfaceSecondary-dark hover:text-primaryText-light dark:hover:text-primaryText-dark"
+                    ? "bg-white/[0.08] text-white font-medium shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)] border border-white/[0.06]"
+                    : "text-[#8B95A4] hover:bg-white/[0.03] hover:text-[#D1D5DB]"
                 }`}
               >
                 <div className="flex items-center space-x-2.5 min-w-0">
-                  <Icon className="w-4 h-4 shrink-0" strokeWidth={item.isActive ? 2.25 : 1.75} />
+                  <div
+                    className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
+                      item.isActive
+                        ? "bg-white/10 text-white shadow-sm"
+                        : "text-[#717886] group-hover:text-[#A0A8B7] group-hover:bg-white/[0.04]"
+                    }`}
+                  >
+                    <Icon className="w-4 h-4" strokeWidth={item.isActive ? 1.8 : 1.5} />
+                  </div>
                   <span className="truncate">{item.label}</span>
                 </div>
                 {item.count !== undefined && (
-                  <span className="text-[10px] font-mono text-mutedText-light dark:text-mutedText-dark shrink-0">
+                  <span
+                    className={`text-[10px] font-mono px-1.5 py-0.5 rounded-md shrink-0 transition-colors ${
+                      item.isActive
+                        ? "bg-white/10 text-white"
+                        : "text-[#5A6370] group-hover:text-[#8B95A4]"
+                    }`}
+                  >
                     {item.count}
                   </span>
                 )}
@@ -363,16 +375,18 @@ export function Sidebar() {
           })}
         </nav>
 
-        {/* ─── Categories Section (Top 5 + View all) ──────────── */}
-        <div className="space-y-2 pt-2 border-t border-borderSubtle-light dark:border-borderSubtle-dark">
-          <div className="flex items-center justify-between px-2 text-xs font-medium text-secondaryText-light dark:text-secondaryText-dark">
-            <span className="font-semibold text-primaryText-light dark:text-primaryText-dark">Categories</span>
+        {/* ─── Categories Section ─── */}
+        <div className="space-y-2 pt-2 border-t border-white/[0.06]">
+          <div className="flex items-center justify-between px-2">
+            <span className="text-[10px] uppercase tracking-wider font-semibold text-[#5A6370]">
+              Categories
+            </span>
             <Link
               href="/categories"
-              className="p-1 text-secondaryText-light dark:text-secondaryText-dark hover:text-brand-500 dark:hover:text-brand-400 hover:bg-surfaceSecondary-light dark:hover:bg-surfaceSecondary-dark rounded-rd-sm transition-colors cursor-pointer"
+              className="p-1 text-[#5A6370] hover:text-brand-400 hover:bg-white/[0.04] rounded-lg transition-colors cursor-pointer"
               title="Create or Manage Categories"
             >
-              <Plus className="w-3.5 h-3.5" />
+              <Plus className="w-3.5 h-3.5" strokeWidth={1.5} />
             </Link>
           </div>
 
@@ -391,17 +405,31 @@ export function Sidebar() {
                       setActiveCategory(isSelected ? null : cat.name);
                       setActiveMediaType("all");
                     }}
-                    className={`w-full flex items-center justify-between px-3 py-2 rounded-rd-md text-xs font-medium transition-colors cursor-pointer ${
+                    className={`group w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-[12.5px] font-medium transition-all duration-200 cursor-pointer ${
                       isSelected
-                        ? "bg-brand-500/10 text-brand-600 dark:text-brand-400 font-semibold nav-active-indicator"
-                        : "text-secondaryText-light dark:text-secondaryText-dark hover:bg-surfaceSecondary-light dark:hover:bg-surfaceSecondary-dark hover:text-primaryText-light dark:hover:text-primaryText-dark"
+                        ? "bg-white/[0.08] text-white font-medium border border-white/[0.06]"
+                        : "text-[#8B95A4] hover:bg-white/[0.03] hover:text-[#D1D5DB]"
                     }`}
                   >
                     <div className="flex items-center space-x-2.5 min-w-0">
-                      <CatIcon className="w-3.5 h-3.5 text-zinc-400 dark:text-zinc-500 shrink-0" strokeWidth={1.75} />
+                      <div
+                        className={`w-6 h-6 rounded-md flex items-center justify-center shrink-0 transition-colors ${
+                          isSelected
+                            ? "bg-white/10 text-white"
+                            : "text-[#6B7280] group-hover:text-[#9CA3AF]"
+                        }`}
+                      >
+                        <CatIcon className="w-3.5 h-3.5" strokeWidth={1.5} />
+                      </div>
                       <span className="truncate">{cat.name}</span>
                     </div>
-                    <span className="text-[10px] font-mono text-mutedText-light dark:text-mutedText-dark shrink-0">
+                    <span
+                      className={`text-[10px] font-mono px-1.5 py-0.2 rounded shrink-0 transition-colors ${
+                        isSelected
+                          ? "bg-white/10 text-white"
+                          : "text-[#5A6370] group-hover:text-[#8B95A4]"
+                      }`}
+                    >
                       {cat.count}
                     </span>
                   </Link>
@@ -411,7 +439,7 @@ export function Sidebar() {
             {/* View all categories link */}
             <Link
               href="/categories"
-              className="w-full flex items-center justify-between px-3 py-1.5 rounded-rd-md text-[11px] font-medium text-brand-600 dark:text-brand-400 hover:bg-brand-500/10 transition-colors pt-1"
+              className="w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-[11px] font-medium text-brand-400 hover:bg-white/[0.04] transition-colors pt-1"
             >
               <span>View all categories</span>
               <span className="text-xs">→</span>
@@ -420,55 +448,47 @@ export function Sidebar() {
         </div>
       </div>
 
-      {/* Bottom Area: Settings & User Tile */}
-      <div className="pt-3 border-t border-borderSubtle-light dark:border-borderSubtle-dark space-y-2 shrink-0 overflow-x-hidden">
+      {/* ─── Bottom Area: Settings & User Tile ─── */}
+      <div className="pt-3 border-t border-white/[0.06] space-y-1 shrink-0 overflow-x-hidden">
         <Link
           href="/pricing"
-          className={`flex items-center space-x-2.5 px-3 py-2 rounded-rd-md text-xs font-medium transition-colors ${
+          className={`group flex items-center space-x-2.5 px-2.5 py-2 rounded-xl text-[13px] font-medium transition-all duration-200 ${
             pathname === "/pricing"
-              ? "bg-brand-500/10 text-brand-600 dark:text-brand-400 font-semibold"
-              : "text-secondaryText-light dark:text-secondaryText-dark hover:bg-surfaceSecondary-light dark:hover:bg-surfaceSecondary-dark hover:text-primaryText-light dark:hover:text-primaryText-dark"
+              ? "bg-white/[0.08] text-white font-semibold"
+              : "text-[#8B95A4] hover:bg-white/[0.04] hover:text-[#C4C9D4]"
           }`}
         >
-          <Crown className="w-4 h-4 text-brand-500 shrink-0" strokeWidth={1.75} />
+          <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 bg-white/[0.04] text-brand-400 group-hover:bg-brand-500/15 transition-colors">
+            <Crown className="w-4 h-4" strokeWidth={1.5} />
+          </div>
           <span className="truncate">Plans & Pricing</span>
         </Link>
 
         <Link
           href="/recycle-bin"
-          className={`flex items-center justify-between px-3 py-2 rounded-rd-md text-xs font-medium transition-colors ${
+          className={`group flex items-center justify-between px-2.5 py-2 rounded-xl text-[13px] font-medium transition-all duration-200 ${
             pathname === "/recycle-bin"
-              ? "bg-brand-500/10 text-brand-600 dark:text-brand-400 font-semibold"
-              : "text-secondaryText-light dark:text-secondaryText-dark hover:bg-surfaceSecondary-light dark:hover:bg-surfaceSecondary-dark hover:text-primaryText-light dark:hover:text-primaryText-dark"
+              ? "bg-white/[0.08] text-white font-semibold"
+              : "text-[#8B95A4] hover:bg-white/[0.04] hover:text-[#C4C9D4]"
           }`}
         >
           <div className="flex items-center space-x-2.5 min-w-0">
-            <Trash2 className="w-4 h-4 shrink-0 text-zinc-400" strokeWidth={1.75} />
+            <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 bg-white/[0.04] text-[#717886] group-hover:bg-white/[0.08] transition-colors">
+              <Trash2 className="w-4 h-4" strokeWidth={1.5} />
+            </div>
             <span className="truncate">Recycle Bin</span>
           </div>
           {recycleBin.length > 0 && (
-            <span className="text-[10px] font-mono font-semibold px-1.5 py-0.2 rounded-full bg-rose-500/15 text-rose-400 shrink-0">
+            <span className="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded-full bg-rose-500/15 text-rose-400 shrink-0">
               {recycleBin.length}
             </span>
           )}
         </Link>
 
-        <Link
-          href="/settings"
-          className={`flex items-center space-x-2.5 px-3 py-2 rounded-rd-md text-xs font-medium transition-colors ${
-            pathname === "/settings"
-              ? "bg-brand-500/10 text-brand-600 dark:text-brand-400 font-semibold"
-              : "text-secondaryText-light dark:text-secondaryText-dark hover:bg-surfaceSecondary-light dark:hover:bg-surfaceSecondary-dark hover:text-primaryText-light dark:hover:text-primaryText-dark"
-          }`}
-        >
-          <Settings className="w-4 h-4 shrink-0" strokeWidth={1.75} />
-          <span className="truncate">Settings</span>
-        </Link>
-
-        {/* User Profile Bar */}
-        <div className="flex items-center justify-between p-2 rounded-rd-md bg-surfaceSecondary-light/80 dark:bg-surfaceSecondary-dark/80 backdrop-blur-sm border border-borderSubtle-light dark:border-white/[0.06]">
-          <Link href="/settings" className="flex items-center space-x-2.5 min-w-0 flex-1 hover:opacity-80 transition-opacity">
-            <div className="w-7 h-7 rounded-full overflow-hidden bg-brand-500/15 border border-brand-500/30 text-brand-600 dark:text-brand-400 font-bold text-xs flex items-center justify-center shrink-0 relative">
+        {/* ─── User Profile Bar (Payflow-Inspired) ─── */}
+        <div className="flex items-center justify-between p-2.5 mt-1 rounded-xl bg-white/[0.04] border border-white/[0.06]">
+          <Link href="/settings" className="flex items-center space-x-2.5 min-w-0 flex-1 hover:opacity-90 transition-opacity">
+            <div className="w-9 h-9 rounded-full overflow-hidden bg-brand-500/20 border border-brand-500/30 text-brand-400 font-bold text-sm flex items-center justify-center shrink-0 relative">
               {user?.avatar ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
@@ -484,10 +504,10 @@ export function Sidebar() {
               <span className="text-xs uppercase absolute">{userInitial}</span>
             </div>
             <div className="flex flex-col text-left min-w-0">
-              <span className="text-xs font-semibold text-primaryText-light dark:text-primaryText-dark truncate">
+              <span className="text-[13px] font-semibold text-white truncate">
                 {user?.name || "User"}
               </span>
-              <span className="text-[10px] text-secondaryText-light dark:text-secondaryText-dark truncate font-mono">
+              <span className="text-[11px] text-[#8B95A4] truncate font-mono">
                 {activeAccounts.length === 1
                   ? `@${activeAccounts[0].username}`
                   : activeAccounts.length > 1
@@ -496,13 +516,22 @@ export function Sidebar() {
               </span>
             </div>
           </Link>
-          <button
-            onClick={logout}
-            className="p-1.5 text-secondaryText-light dark:text-secondaryText-dark hover:text-rose-500 dark:hover:text-rose-400 hover:bg-rose-500/10 rounded-rd-sm transition-colors cursor-pointer shrink-0"
-            title="Log Out"
-          >
-            <LogOut className="w-3.5 h-3.5" />
-          </button>
+          <div className="flex items-center gap-0.5 shrink-0">
+            <Link
+              href="/settings"
+              className="p-1.5 text-[#717886] hover:text-white hover:bg-white/[0.06] rounded-lg transition-colors cursor-pointer"
+              title="Settings"
+            >
+              <Settings className="w-4 h-4" strokeWidth={1.5} />
+            </Link>
+            <button
+              onClick={logout}
+              className="p-1.5 text-[#717886] hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors cursor-pointer"
+              title="Log Out"
+            >
+              <LogOut className="w-4 h-4" strokeWidth={1.5} />
+            </button>
+          </div>
         </div>
       </div>
     </aside>
