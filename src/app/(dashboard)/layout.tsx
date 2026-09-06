@@ -9,21 +9,7 @@ import { SaveReelModal } from "@/components/reels/SaveReelModal";
 import { CreateCollectionModal } from "@/components/collections/CreateCollectionModal";
 import { CommandPalette } from "@/components/shell/CommandPalette";
 import { ToastContainer } from "@/components/ui/Toast";
-import { ReelProvider, useReels } from "@/context/ReelContext";
-import { ReelPlayerModal } from "@/components/reels/ReelPlayerModal";
-import { NotificationCenter } from "@/components/shell/NotificationCenter";
-
-function GlobalNotificationReelModal() {
-  const { activeNotificationReel, setActiveNotificationReel } = useReels();
-  if (!activeNotificationReel) return null;
-  return (
-    <ReelPlayerModal
-      isOpen={!!activeNotificationReel}
-      reel={activeNotificationReel}
-      onClose={() => setActiveNotificationReel(null)}
-    />
-  );
-}
+import { ReelProvider } from "@/context/ReelContext";
 
 export default function DashboardLayout({
   children,
@@ -70,13 +56,11 @@ export default function DashboardLayout({
         {/* Touch Bottom Bar for Mobile (<768px) */}
         <MobileNav />
 
-        {/* Global Modals & Notifications */}
+        {/* Global Modals */}
         <SaveReelModal />
         <CreateCollectionModal />
         <CommandPalette />
         <ToastContainer />
-        <GlobalNotificationReelModal />
-        <NotificationCenter />
       </div>
     </ReelProvider>
   );

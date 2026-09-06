@@ -8,7 +8,6 @@ import { ReelGrid } from "@/components/reels/ReelGrid";
 import {
   ArrowRight,
   ArrowUpRight,
-  Bell,
   Film,
   Heart,
   Image as ImageIcon,
@@ -51,9 +50,6 @@ export default function DashboardPage() {
     activeCategory,
     setActiveCategory,
     selectedInstagramAccount,
-    isNotificationOpen,
-    setIsNotificationOpen,
-    unreadNotificationsCount,
   } = useReels();
   const { user } = useAuth();
   const [inputUrl, setInputUrl] = useState("");
@@ -140,22 +136,8 @@ export default function DashboardPage() {
         </button>
 
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => setIsNotificationOpen(!isNotificationOpen)}
-            className="w-9 h-9 rounded-full bg-white dark:bg-surface-dark border border-black/[0.04] dark:border-white/[0.06] shadow-[0_2px_8px_rgba(0,0,0,0.02)] flex items-center justify-center text-secondaryText-light dark:text-secondaryText-dark hover:text-primaryText-light transition-colors relative cursor-pointer"
-            title="Notifications & Activity"
-            aria-label="Open notifications & activity"
-            aria-expanded={isNotificationOpen}
-          >
-            <Bell className="w-4 h-4" strokeWidth={1.5} />
-            {unreadNotificationsCount > 0 && (
-              <span className="absolute -top-1 -right-1 min-w-[17px] h-[17px] px-1 rounded-full bg-rose-500 text-white text-[9px] font-bold flex items-center justify-center ring-2 ring-white dark:ring-surface-dark shadow-xs animate-in zoom-in-50">
-                {unreadNotificationsCount > 9 ? "9+" : unreadNotificationsCount}
-              </span>
-            )}
-          </button>
           <Link
-            href="/integrations/instagram"
+            href="/connect-instagram"
             className="w-9 h-9 rounded-full bg-white dark:bg-surface-dark border border-black/[0.04] dark:border-white/[0.06] shadow-[0_2px_8px_rgba(0,0,0,0.02)] flex items-center justify-center text-secondaryText-light dark:text-secondaryText-dark hover:text-primaryText-light transition-colors"
             title="Instagram Integration & DM Bot"
           >
