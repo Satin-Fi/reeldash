@@ -13,7 +13,6 @@ import {
   Image as ImageIcon,
   Link2,
   Loader2,
-  Mail,
   Music2,
   Plus,
   Search,
@@ -134,16 +133,6 @@ export default function DashboardPage() {
           <span className="font-normal text-mutedText-light dark:text-mutedText-dark">Search anything...</span>
           <kbd className="ml-auto font-mono text-[10px] px-1.5 py-0.5 rounded bg-[#F5F5F5] dark:bg-white/[0.06] text-mutedText-light">⌘ F</kbd>
         </button>
-
-        <div className="flex items-center gap-2">
-          <Link
-            href="/connect-instagram"
-            className="w-9 h-9 rounded-full bg-white dark:bg-surface-dark border border-black/[0.04] dark:border-white/[0.06] shadow-[0_2px_8px_rgba(0,0,0,0.02)] flex items-center justify-center text-secondaryText-light dark:text-secondaryText-dark hover:text-primaryText-light transition-colors"
-            title="Instagram Integration & DM Bot"
-          >
-            <Mail className="w-4 h-4" strokeWidth={1.5} />
-          </Link>
-        </div>
       </div>
 
       {/* Top Layer: Quick Ingest & Overview Bar + Library Summary */}
