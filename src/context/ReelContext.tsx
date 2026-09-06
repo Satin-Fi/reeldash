@@ -87,8 +87,9 @@ interface ReelContextType {
   updateNote: (id: string, note: string) => void;
   updateCategory: (id: string, category: string) => void;
   updateReelCreator: (id: string, newHandle: string) => Promise<void>;
-  createCollection: (name: string, description?: string, icon?: string) => void;
-  deleteCollection: (id: string) => void;
+  createCollection: (name: string, description?: string, icon?: string) => Promise<void> | void;
+  updateCollection: (id: string, name: string, description?: string) => Promise<void> | void;
+  deleteCollection: (id: string) => Promise<void> | void;
   addReelToCollection: (reelId: string, collectionId: string) => void;
   removeReelFromCollection: (reelId: string, collectionId: string) => void;
   generateAiSummary: (reelId: string) => void;
@@ -314,6 +315,23 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
           }
         })
         .catch((err) => console.warn("[ReelContext] fetch categories notice:", err));
+
+      // 1b. Fetch live collections from database
+      fetch(`/api/collections?userId=${encodeURIComponent(user.id)}`)
+        .then((res) => (res.ok ? res.json() : { collections: [] }))
+        .then((data) => {
+          if (data.collections && Array.isArray(data.collections) && data.collections.length > 0) {
+            setCollections((prev) => {
+              const dbIds = new Set(data.collections.map((c: Collection) => c.id));
+              const localOnly = prev.filter((c) => !dbIds.has(c.id));
+              return [...data.collections, ...localOnly];
+            });
+            if (typeof window !== "undefined") {
+              localStorage.setItem(userColsKey, JSON.stringify(data.collections));
+            }
+          }
+        })
+        .catch((err) => console.warn("[ReelContext] fetch collections notice:", err));
 
       // 2. Fetch live reels from Supabase database (including DM-saved reels & handle filter)
       const activeAccounts = (user?.connectedAccounts || []).filter(
@@ -835,24 +853,115 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const createCollection = (name: string, description?: string, icon: string = "") => {
+  const createCollection = async (name: string, description?: string, icon: string = "📁") => {
+    const trimmedName = name.trim();
+    if (!trimmedName) return;
+
+    const tempId = "col-" + Math.random().toString(36).substring(2, 9);
     const newCol: Collection = {
-      id: "col-" + Math.random().toString(36).substring(2, 9),
-      name: name.trim(),
-      description,
-      icon,
+      id: tempId,
+      name: trimmedName,
+      description: description?.trim() || "",
+      icon: icon || "📁",
       reelIds: [],
       updatedAt: "Just now",
       reelCount: 0,
+      createdAt: new Date().toISOString(),
     };
+
     saveUserCollections([newCol, ...collections]);
-    showToast(`Created collection "${name}"`);
+    showToast(`Created collection "${trimmedName}"`);
+
+    // Sync with database
+    try {
+      const res = await fetch("/api/collections", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: user?.id,
+          name: trimmedName,
+          description: description?.trim(),
+          icon,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.collection?.id) {
+          setCollections((prev) =>
+            prev.map((c) => (c.id === tempId ? { ...c, id: data.collection.id } : c))
+          );
+        }
+      }
+    } catch (e) {
+      console.warn("[ReelContext] createCollection sync notice:", e);
+    }
   };
 
-  const deleteCollection = (id: string) => {
-    const updatedCols = collections.filter((c) => c.id !== id);
+  const updateCollection = async (id: string, name: string, description?: string) => {
+    const trimmedName = name.trim();
+    if (!trimmedName) return;
+
+    const updatedCols = collections.map((col) => {
+      if (col.id === id) {
+        return {
+          ...col,
+          name: trimmedName,
+          description: description !== undefined ? description.trim() : col.description,
+          updatedAt: "Just now",
+        };
+      }
+      return col;
+    });
+
     saveUserCollections(updatedCols);
-    showToast("Collection deleted");
+    showToast(`Updated collection "${trimmedName}"`);
+
+    // Sync with database
+    try {
+      await fetch("/api/collections", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id,
+          userId: user?.id,
+          name: trimmedName,
+          description: description !== undefined ? description.trim() : undefined,
+        }),
+      });
+    } catch (e) {
+      console.warn("[ReelContext] updateCollection sync notice:", e);
+    }
+  };
+
+  const deleteCollection = async (id: string) => {
+    const targetCol = collections.find((c) => c.id === id);
+    const updatedCols = collections.filter((c) => c.id !== id);
+
+    // Clean up collection reference from all reels
+    const updatedReels = reels.map((r) => {
+      if (r.collections?.includes(id)) {
+        return { ...r, collections: r.collections.filter((cid) => cid !== id) };
+      }
+      return r;
+    });
+
+    saveUserCollections(updatedCols);
+    saveUserReels(updatedReels);
+
+    if (activeCollection === id) {
+      setActiveCollection(null);
+    }
+
+    showToast(targetCol ? `Deleted collection "${targetCol.name}"` : "Collection deleted");
+
+    // Sync with database
+    try {
+      await fetch(`/api/collections?id=${encodeURIComponent(id)}&userId=${encodeURIComponent(user?.id || "")}`, {
+        method: "DELETE",
+      });
+    } catch (e) {
+      console.warn("[ReelContext] deleteCollection sync notice:", e);
+    }
   };
 
   const addReelToCollection = (reelId: string, collectionId: string) => {
@@ -881,6 +990,13 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
     saveUserCollections(updatedCols);
     saveUserReels(updatedReels);
     showToast(`Added to ${targetCol.name}`);
+
+    // Sync in background
+    fetch("/api/collections", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ collectionId, reelId, action: "add" }),
+    }).catch((e) => console.warn("[ReelContext] addReelToCollection sync notice:", e));
   };
 
   const removeReelFromCollection = (reelId: string, collectionId: string) => {
@@ -906,6 +1022,13 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
     saveUserCollections(updatedCols);
     saveUserReels(updatedReels);
     showToast("Removed from collection");
+
+    // Sync in background
+    fetch("/api/collections", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ collectionId, reelId, action: "remove" }),
+    }).catch((e) => console.warn("[ReelContext] removeReelFromCollection sync notice:", e));
   };
 
   const refreshReelMetadata = async (id: string): Promise<Reel | null> => {
@@ -1259,6 +1382,7 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
         updateCategory,
         updateReelCreator,
         createCollection,
+        updateCollection,
         deleteCollection,
         addReelToCollection,
         removeReelFromCollection,

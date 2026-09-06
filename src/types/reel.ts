@@ -89,6 +89,7 @@ export interface Collection {
   reelIds: string[];
   updatedAt: string;
   reelCount: number;
+  createdAt?: string;
 }
 
 export interface SmartCategory {

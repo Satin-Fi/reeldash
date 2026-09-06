@@ -16,6 +16,7 @@ import {
   Loader2,
   Instagram,
   RefreshCw,
+  AlertCircle,
 } from "lucide-react";
 import { getClientAuthHeaders } from "@/lib/clientAuth";
 
@@ -31,6 +32,7 @@ function SignupContent() {
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const [signupError, setSignupError] = useState<string | null>(null);
 
   // Step 2: Challenge code state
   const [linkCode, setLinkCode] = useState<string | null>(null);
@@ -177,14 +179,24 @@ function SignupContent() {
 
   const handleEmailSignup = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name || !email || !password) return;
+    if (!name.trim() || !email.trim() || !password.trim()) return;
+    if (password.length < 6) {
+      setSignupError("Password must be at least 6 characters.");
+      return;
+    }
     setIsSubmitting(true);
+    setSignupError(null);
 
     try {
-      signup(name, email, false);
-      setIsSubmitting(false);
-      setStep(2);
-    } catch {
+      const res = await signup(name, email, password, false);
+      if (res.success) {
+        setStep(2);
+      } else {
+        setSignupError(res.error || "Failed to create account. Please try again.");
+      }
+    } catch (err: any) {
+      setSignupError(err?.message || "An unexpected error occurred.");
+    } finally {
       setIsSubmitting(false);
     }
   };
@@ -299,6 +311,12 @@ function SignupContent() {
 
               {/* Email form */}
               <form onSubmit={handleEmailSignup} className="space-y-3.5">
+                {signupError && (
+                  <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs flex items-center space-x-2">
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    <span>{signupError}</span>
+                  </div>
+                )}
                 <div className="space-y-1">
                   <label className="block text-[11px] font-medium text-zinc-400">Full Name</label>
                   <input

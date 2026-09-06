@@ -21,9 +21,9 @@ interface AuthContextType {
   user: UserProfile | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (email: string, name?: string) => void;
+  login: (email: string, password?: string) => Promise<{ success: boolean; error?: string }>;
   loginWithGoogle: (nextPath?: string) => Promise<void>;
-  signup: (name: string, email: string, autoRedirect?: boolean) => UserProfile;
+  signup: (name: string, email: string, password?: string, autoRedirect?: boolean) => Promise<{ success: boolean; error?: string; user?: UserProfile }>;
   signupWithGoogle: (customData?: { name?: string; email?: string; avatar?: string }, autoRedirect?: boolean) => Promise<UserProfile | void>;
   updateUser: (data: Partial<UserProfile>) => void;
   addInstagramAccount: (username: string) => Promise<{ success: boolean; message?: string; error?: string }>;
@@ -252,20 +252,48 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const login = (email: string, name?: string) => {
-    const rawName = name || email.split("@")[0];
-    const cleanName = rawName.charAt(0).toUpperCase() + rawName.slice(1);
-    const existingUser: UserProfile = {
-      id: "usr-" + email.replace(/[^a-zA-Z0-9]/g, "").toLowerCase(),
-      name: cleanName,
-      email,
-      handle: `@${email.split("@")[0].toLowerCase()}`,
-      avatar: "",
-      plan: "Free Plan",
-    };
-    setUser(existingUser);
-    localStorage.setItem("reeldash_user", JSON.stringify(existingUser));
-    router.push("/dashboard");
+  const login = async (email: string, password?: string): Promise<{ success: boolean; error?: string }> => {
+    const supabase = getSupabaseClient();
+    if (!supabase) {
+      return { success: false, error: "Database client is not available." };
+    }
+    if (!password) {
+      return { success: false, error: "Password is required to sign in." };
+    }
+
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: email.trim().toLowerCase(),
+        password: password.trim(),
+      });
+
+      if (error) {
+        return { success: false, error: error.message };
+      }
+
+      if (data?.session?.user) {
+        const meta = data.session.user.user_metadata || {};
+        const fullName = meta.full_name || meta.name || email.split("@")[0];
+        const cleanName = fullName.charAt(0).toUpperCase() + fullName.slice(1);
+        const authedUser: UserProfile = {
+          id: data.session.user.id,
+          name: cleanName,
+          email: data.session.user.email || email,
+          handle: `@${(data.session.user.email || email).split("@")[0].toLowerCase()}`,
+          avatar: meta.avatar_url || meta.picture || "",
+          plan: "Pro Plan",
+        };
+        setUser(authedUser);
+        localStorage.setItem("reeldash_user", JSON.stringify(authedUser));
+        await refreshAccounts();
+        router.push("/dashboard");
+        return { success: true };
+      }
+
+      return { success: false, error: "Unable to start session." };
+    } catch (err: any) {
+      return { success: false, error: err?.message || "Failed to sign in." };
+    }
   };
 
   const loginWithGoogle = async (nextPath = "/dashboard") => {
@@ -288,22 +316,68 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const signup = (name: string, email: string, autoRedirect = true): UserProfile => {
-    const cleanName = name.trim() || email.split("@")[0];
-    const newUser: UserProfile = {
-      id: "usr-" + Date.now(),
-      name: cleanName.charAt(0).toUpperCase() + cleanName.slice(1),
-      email,
-      handle: `@${email.split("@")[0].toLowerCase()}`,
-      avatar: "",
-      plan: "Free Plan",
-    };
-    setUser(newUser);
-    localStorage.setItem("reeldash_user", JSON.stringify(newUser));
-    if (autoRedirect) {
-      router.push("/dashboard");
+  const signup = async (
+    name: string,
+    email: string,
+    password?: string,
+    autoRedirect = true
+  ): Promise<{ success: boolean; error?: string; user?: UserProfile }> => {
+    const supabase = getSupabaseClient();
+    if (!supabase) {
+      return { success: false, error: "Database client is not available." };
     }
-    return newUser;
+    if (!password || password.length < 6) {
+      return { success: false, error: "Password must be at least 6 characters." };
+    }
+
+    try {
+      const res = await fetch("/api/auth/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: name.trim(),
+          email: email.trim().toLowerCase(),
+          password: password.trim(),
+        }),
+      });
+
+      const resData = await res.json().catch(() => null);
+      if (!res.ok || !resData?.success) {
+        return { success: false, error: resData?.error || "Failed to create account." };
+      }
+
+      // Automatically sign in the newly created, auto-confirmed user
+      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+        email: email.trim().toLowerCase(),
+        password: password.trim(),
+      });
+
+      if (signInError) {
+        return { success: false, error: signInError.message };
+      }
+
+      const authedUserId = signInData?.session?.user?.id || resData.user?.id;
+      const cleanName = name.trim() || email.split("@")[0];
+      const newUser: UserProfile = {
+        id: authedUserId,
+        name: cleanName.charAt(0).toUpperCase() + cleanName.slice(1),
+        email: email.trim().toLowerCase(),
+        handle: `@${email.split("@")[0].toLowerCase()}`,
+        avatar: "",
+        plan: "Pro Plan",
+      };
+
+      setUser(newUser);
+      localStorage.setItem("reeldash_user", JSON.stringify(newUser));
+
+      if (autoRedirect) {
+        router.push("/dashboard");
+      }
+
+      return { success: true, user: newUser };
+    } catch (err: any) {
+      return { success: false, error: err?.message || "Failed to complete signup." };
+    }
   };
 
   const signupWithGoogle = async (
@@ -358,6 +432,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     setUser(null);
     localStorage.removeItem("reeldash_user");
+    sessionStorage.clear();
     router.push("/login");
   };
 
