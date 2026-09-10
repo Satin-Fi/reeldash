@@ -13,7 +13,7 @@ import {
   Image as ImageIcon,
   Link2,
   Loader2,
-  Mail,
+
   Music2,
   Plus,
   Search,
@@ -135,15 +135,7 @@ export default function DashboardPage() {
           <kbd className="ml-auto font-mono text-[10px] px-1.5 py-0.5 rounded bg-[#F5F5F5] dark:bg-white/[0.06] text-mutedText-light">⌘ F</kbd>
         </button>
 
-        <div className="flex items-center gap-2">
-          <Link
-            href="/integrations/instagram"
-            className="w-9 h-9 rounded-full bg-white dark:bg-surface-dark border border-black/[0.04] dark:border-white/[0.06] shadow-[0_2px_8px_rgba(0,0,0,0.02)] flex items-center justify-center text-secondaryText-light dark:text-secondaryText-dark hover:text-primaryText-light transition-colors"
-            title="Instagram Integration & DM Bot"
-          >
-            <Mail className="w-4 h-4" strokeWidth={1.5} />
-          </Link>
-        </div>
+
       </div>
 
       {/* Top Layer: Quick Ingest & Overview Bar + Library Summary */}
@@ -269,42 +261,75 @@ export default function DashboardPage() {
             </div>
         </section>
 
-        {/* Right Rail Library Summary (Desktop Only) */}
+        {/* Right Rail Library Summary (Desktop Only) — Premium Pastel */}
         <aside className="hidden lg:block animate-fade-up delay-1">
-          <section className="h-full rounded-[24px] border border-black/[0.04] dark:border-white/[0.06] bg-white dark:bg-surface-dark p-6 shadow-[0_2px_12px_rgba(0,0,0,0.03)] dark:shadow-rd-card flex flex-col justify-between">
+          <section className="h-full rounded-[24px] border border-black/[0.03] dark:border-white/[0.06] bg-gradient-to-b from-[#FDFAFF] via-white to-[#FFF8FB] dark:from-[#12111A] dark:via-surface-dark dark:to-[#130F14] p-6 shadow-[0_4px_24px_rgba(0,0,0,0.04),0_1px_3px_rgba(0,0,0,0.02)] dark:shadow-rd-card flex flex-col">
+            {/* Header */}
             <div>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-semibold text-secondaryText-light dark:text-secondaryText-dark">Library Summary</p>
-                  <p className="mt-1 text-sm font-semibold text-primaryText-light dark:text-primaryText-dark">
-                    {selectedInstagramAccount ? `@${selectedInstagramAccount}` : "What you have saved"}
-                  </p>
-                </div>
-              </div>
-              <div className="mt-5 space-y-3.5">
-                {libraryViews.slice(0, 3).map((view) => {
+              <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#9B8EC0] dark:text-[#A78BDB]">Library</p>
+              <p className="mt-1.5 text-[15px] font-bold text-primaryText-light dark:text-primaryText-dark tracking-[-0.01em]">
+                {selectedInstagramAccount ? `@${selectedInstagramAccount}` : "Your collection"}
+              </p>
+            </div>
+
+            {/* Category Breakdown */}
+            <div className="mt-6 space-y-4 flex-1">
+              {(() => {
+                const pastelConfig = [
+                  { bg: "bg-[#F0EAFF]", fill: "bg-[#B8A4E8]", darkBg: "dark:bg-[#1E1A2E]", darkFill: "dark:bg-[#9B7FD4]", iconBg: "bg-[#E8DEFF]", darkIconBg: "dark:bg-[#2A2440]", iconColor: "text-[#8B6FC0]", darkIconColor: "dark:text-[#B899E8]" },
+                  { bg: "bg-[#FFF0F3]", fill: "bg-[#E8A4B8]", darkBg: "dark:bg-[#2E1A22]", darkFill: "dark:bg-[#D47F9B]", iconBg: "bg-[#FFE4EB]", darkIconBg: "dark:bg-[#3A2030]", iconColor: "text-[#C06F8B]", darkIconColor: "dark:text-[#E899B3]" },
+                  { bg: "bg-[#EEFFF5]", fill: "bg-[#7DD4A4]", darkBg: "dark:bg-[#132E1E]", darkFill: "dark:bg-[#5CB882]", iconBg: "bg-[#DEFFEC]", darkIconBg: "dark:bg-[#1A3A26]", iconColor: "text-[#4CA87A]", darkIconColor: "dark:text-[#7FD4A0]" },
+                ];
+                return libraryViews.slice(0, 3).map((view, i) => {
+                  const colors = pastelConfig[i];
                   const value = view.getValue(counts);
-                  const percentage = reels.length ? Math.max((value / reels.length) * 100, value ? 8 : 0) : 0;
+                  const percentage = reels.length ? Math.max((value / reels.length) * 100, value ? 10 : 0) : 0;
+                  const Icon = view.icon;
                   return (
                     <Link key={view.label} href={view.href} className="group block">
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="text-secondaryText-light group-hover:text-primaryText-light dark:text-secondaryText-dark dark:group-hover:text-primaryText-dark">
-                          {view.label}
-                        </span>
-                        <span className="font-mono font-semibold tabular-nums text-primaryText-light dark:text-primaryText-dark">
-                          {value}
-                        </span>
-                      </div>
-                      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[#F0F0F0] dark:bg-surfaceTertiary-dark">
-                        <div className="h-full rounded-full bg-[#171615] dark:bg-white transition-[width] duration-300" style={{ width: `${percentage}%` }} />
+                      <div className="flex items-center gap-2.5">
+                        <div className={`w-7 h-7 rounded-lg ${colors.iconBg} ${colors.darkIconBg} flex items-center justify-center shrink-0 transition-transform duration-300 ease-premium group-hover:scale-110`}>
+                          <Icon className={`w-3.5 h-3.5 ${colors.iconColor} ${colors.darkIconColor}`} strokeWidth={1.75} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-medium text-secondaryText-light group-hover:text-primaryText-light dark:text-secondaryText-dark dark:group-hover:text-primaryText-dark transition-colors duration-200">
+                              {view.label}
+                            </span>
+                            <span className="font-mono text-xs font-bold tabular-nums text-primaryText-light dark:text-primaryText-dark">
+                              {value}
+                            </span>
+                          </div>
+                          <div className={`mt-1.5 h-[5px] overflow-hidden rounded-full ${colors.bg} ${colors.darkBg}`}>
+                            <div className={`h-full rounded-full ${colors.fill} ${colors.darkFill} transition-[width] duration-500 ease-premium`} style={{ width: `${percentage}%` }} />
+                          </div>
+                        </div>
                       </div>
                     </Link>
                   );
-                })}
+                });
+              })()}
+            </div>
+
+            {/* Summary Footer */}
+            <div className="mt-6 pt-4 border-t border-black/[0.04] dark:border-white/[0.06]">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-[10px] font-medium uppercase tracking-[0.1em] text-mutedText-light dark:text-mutedText-dark">Total saved</p>
+                  <p className="mt-0.5 font-mono text-xl font-bold tabular-nums text-primaryText-light dark:text-primaryText-dark">{reels.length}</p>
+                </div>
+                <Link
+                  href="/reels"
+                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-[#FFF5E6] hover:bg-[#FFEFCC] dark:bg-[#2E2518] dark:hover:bg-[#3A2E1E] text-[11px] font-semibold text-[#B8860B] dark:text-[#E8C260] transition-all duration-300 ease-premium"
+                >
+                  <span>View all</span>
+                  <ArrowRight className="w-3 h-3" />
+                </Link>
               </div>
             </div>
           </section>
         </aside>
+
       </div>
 
       {/* Seamless Library Pulse Views Strip - Full Width */}
