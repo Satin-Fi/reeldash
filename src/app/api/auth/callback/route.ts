@@ -14,11 +14,21 @@ export async function GET(request: NextRequest) {
   const code = searchParams.get("code");
   const next = searchParams.get("next") ?? "/dashboard";
 
-  // Determine host safely to prevent redirecting to localhost in Vercel/serverless environments
+  // Allowed hosts for redirect — prevents host header injection
+  const ALLOWED_HOSTS = new Set([
+    "reeldash-nine.vercel.app",
+    "www.reeldash.app",
+    "reeldash.app",
+    "localhost:3000",
+  ]);
+
   const forwardedHost = request.headers.get("x-forwarded-host");
   const forwardedProto = request.headers.get("x-forwarded-proto") || "https";
   const host = forwardedHost || request.headers.get("host");
-  const baseUrl = host
+
+  // Only use the detected host if it's in our allowed list
+  const isAllowedHost = host ? ALLOWED_HOSTS.has(host) : false;
+  const baseUrl = isAllowedHost
     ? `${forwardedProto}://${host}`
     : (process.env.NEXT_PUBLIC_APP_URL || "https://reeldash-nine.vercel.app");
 
