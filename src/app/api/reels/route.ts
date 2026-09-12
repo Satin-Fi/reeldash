@@ -80,10 +80,15 @@ export async function GET(req: NextRequest) {
     `);
 
     if (filterAccount && filterAccount !== "all") {
-      const cleanFilter = filterAccount.replace(/^@/, "").trim().toLowerCase();
-      query = query
-        .in("user_id", userIds)
-        .or(`instagram_username.ilike.${cleanFilter},instagram_username.is.null,source.eq.manual`);
+      // Sanitize: only allow valid Instagram username characters (alphanumeric, dots, underscores)
+      const cleanFilter = filterAccount.replace(/^@/, "").trim().toLowerCase().replace(/[^a-z0-9_.]/g, "");
+      if (cleanFilter) {
+        query = query
+          .in("user_id", userIds)
+          .or(`instagram_username.ilike.${cleanFilter},instagram_username.is.null,source.eq.manual`);
+      } else {
+        query = query.in("user_id", userIds);
+      }
     } else if (userIds.length > 0) {
       query = query.in("user_id", userIds);
     } else {

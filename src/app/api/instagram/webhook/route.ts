@@ -1,11 +1,42 @@
 import { NextRequest, NextResponse } from "next/server";
 import { processInstagramMessage } from "@/lib/instagramBot";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { createHmac, timingSafeEqual } from "crypto";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
 
 const VERIFY_TOKEN = process.env.INSTAGRAM_VERIFY_TOKEN || "reeldash_webhook_2026";
+const APP_SECRET = process.env.META_APP_SECRET || "";
+
+/**
+ * Verify the X-Hub-Signature-256 header sent by Meta on every webhook POST.
+ * Returns true only if the HMAC-SHA256 of the raw body matches the header.
+ */
+function verifyWebhookSignature(rawBody: string, signatureHeader: string | null): boolean {
+  if (!APP_SECRET) {
+    // If META_APP_SECRET isn't configured, log a warning but allow (graceful degradation)
+    console.warn("[Instagram Webhook] META_APP_SECRET not set — skipping signature verification");
+    return true;
+  }
+  if (!signatureHeader) return false;
+
+  const [algo, signature] = signatureHeader.split("=");
+  if (algo !== "sha256" || !signature) return false;
+
+  const expectedSignature = createHmac("sha256", APP_SECRET)
+    .update(rawBody, "utf-8")
+    .digest("hex");
+
+  try {
+    return timingSafeEqual(
+      Buffer.from(signature, "hex"),
+      Buffer.from(expectedSignature, "hex")
+    );
+  } catch {
+    return false;
+  }
+}
 
 /**
  * 1. GET: Meta Webhook Verification Challenge
@@ -27,13 +58,24 @@ export async function GET(req: NextRequest) {
  * 2. POST: Receive Instagram DM Events from Meta Messenger API
  *
  * Now includes:
+ * - HMAC-SHA256 signature verification via X-Hub-Signature-256
  * - Webhook idempotency via processed_webhook_events table
  * - Message ID extraction from Meta's message.mid field
  * - Per-event deduplication before processing
  */
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
+    // Read raw body for signature verification, then parse as JSON
+    const rawBody = await req.text();
+
+    // Verify Meta's webhook signature
+    const signatureHeader = req.headers.get("x-hub-signature-256");
+    if (!verifyWebhookSignature(rawBody, signatureHeader)) {
+      console.warn("[Instagram Webhook] Invalid signature — rejecting request");
+      return new NextResponse("Unauthorized", { status: 401 });
+    }
+
+    const body = JSON.parse(rawBody);
     const entries = body?.entry ?? [];
 
     const results = [];

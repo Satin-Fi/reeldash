@@ -6,14 +6,26 @@ export const dynamic = "force-dynamic";
 // In-memory cache for live shortcode cover images (24-hour TTL)
 const coverCache = new Map<string, { url: string; expiresAt: number }>();
 
+/** Escape a string for safe use inside XML/SVG attributes and text nodes */
+function escapeXml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 function serveCleanEditorialCardSvg(creator?: string | null, shortcode?: string | null): NextResponse {
-  const cleanCreator = (creator || "").replace(/^@/, "").trim();
-  const displayName = cleanCreator
-    ? `@${cleanCreator}`
-    : shortcode
-    ? `Reel #${shortcode.slice(0, 8)}`
-    : "Instagram Reel";
-  const initial = cleanCreator ? cleanCreator.charAt(0).toUpperCase() : "IG";
+  const cleanCreator = (creator || "").replace(/^@/, "").replace(/[^a-zA-Z0-9_.]/g, "").trim();
+  const displayName = escapeXml(
+    cleanCreator
+      ? `@${cleanCreator}`
+      : shortcode
+      ? `Reel #${shortcode.slice(0, 8)}`
+      : "Instagram Reel"
+  );
+  const initial = escapeXml(cleanCreator ? cleanCreator.charAt(0).toUpperCase() : "IG");
 
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 600" width="100%" height="100%">
     <defs>
@@ -275,7 +287,8 @@ export async function GET(req: NextRequest) {
       const supabase = getSupabaseAdmin();
       if (supabase) {
         // Query by matching URL snippet
-        const snippet = directUrl.slice(0, 45);
+        // Sanitize snippet: escape LIKE wildcards to prevent filter injection
+        const snippet = directUrl.slice(0, 45).replace(/[%_\\]/g, "\\$&");
         const { data: row } = await supabase
           .from("reels")
           .select("shortcode, creator_handle")

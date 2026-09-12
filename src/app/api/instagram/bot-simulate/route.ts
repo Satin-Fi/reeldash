@@ -3,7 +3,23 @@ import { processInstagramMessage } from "@/lib/instagramBot";
 
 export const dynamic = "force-dynamic";
 
+/**
+ * Bot simulation endpoint — restricted to development environments only.
+ * Blocks access in production to prevent unauthorized bot command execution.
+ */
 export async function POST(req: NextRequest) {
+  // Block in production — this endpoint is for local testing only
+  const isDev =
+    process.env.NODE_ENV === "development" ||
+    req.headers.get("host")?.startsWith("localhost");
+
+  if (!isDev) {
+    return NextResponse.json(
+      { error: "This endpoint is disabled in production" },
+      { status: 403 }
+    );
+  }
+
   try {
     const body = await req.json();
     const {
@@ -36,7 +52,8 @@ export async function POST(req: NextRequest) {
 }
 
 export async function GET() {
-  return NextResponse.json({
-    message: "Bot simulate endpoint. Use POST to test.",
-  });
+  return NextResponse.json(
+    { error: "This endpoint is disabled in production" },
+    { status: 403 }
+  );
 }

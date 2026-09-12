@@ -17,8 +17,12 @@ export async function GET(req: NextRequest) {
   }
 
   if (code) {
-    console.log("[Instagram OAuth] Received auth code:", code.substring(0, 10) + "...");
-    return NextResponse.redirect(`${baseUrl}/settings?connected=true&code=${encodeURIComponent(code)}`);
+    console.log("[Instagram OAuth] Received auth code (length:", code.length, ")");
+    // Redirect without exposing the OAuth code in the URL.
+    // The code was a one-time-use token from Meta that has already been
+    // delivered to this server endpoint. Passing it to the client via
+    // query params leaked it into browser history, Referer headers, and logs.
+    return NextResponse.redirect(`${baseUrl}/settings?connected=true`);
   }
 
   return NextResponse.redirect(`${baseUrl}/settings`);
