@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import youtubedl from "youtube-dl-exec";
+import { isAllowedMediaUrl } from "@/lib/urlValidation";
 
 import { resolveViaSnapSave } from "@/lib/instagram";
 
@@ -10,11 +11,13 @@ export async function GET(req: NextRequest) {
   const passedUrl = searchParams.get("url");
   const shortcode = searchParams.get("shortcode");
 
+  // SSRF protection: validate user-supplied URL against allowed domains
   let targetUrl =
     passedUrl &&
     !passedUrl.includes("zencdn.net") &&
     !passedUrl.includes("googleapis.com") &&
-    passedUrl.startsWith("http")
+    passedUrl.startsWith("http") &&
+    isAllowedMediaUrl(passedUrl)
       ? passedUrl
       : "";
 
@@ -108,9 +111,9 @@ export async function GET(req: NextRequest) {
       headers.set("Content-Range", contentRange);
     }
 
-    const buffer = await videoRes.arrayBuffer();
-
-    return new NextResponse(buffer, {
+    // Stream response body directly instead of buffering entire video in memory.
+    // This prevents unbounded memory DoS from large video files.
+    return new NextResponse(videoRes.body, {
       status: videoRes.status,
       headers,
     });

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import youtubedl from "youtube-dl-exec";
+import { isAllowedMediaUrl, MAX_DOWNLOAD_BYTES } from "@/lib/urlValidation";
 
 export const dynamic = "force-dynamic";
 
@@ -132,7 +133,7 @@ export async function GET(req: NextRequest) {
     if (match) shortcode = match[1];
   }
 
-  let downloadUrl = directUrl && directUrl.startsWith("http") ? directUrl : null;
+  let downloadUrl = directUrl && directUrl.startsWith("http") && isAllowedMediaUrl(directUrl) ? directUrl : null;
 
   if (!downloadUrl && shortcode && mediaType !== "audio") {
     downloadUrl = await resolveDirectVideoUrl(shortcode);
@@ -194,6 +195,14 @@ export async function GET(req: NextRequest) {
     );
 
     const contentLength = mediaFetch.headers.get("content-length");
+
+    // Prevent memory DoS: reject responses larger than the size limit
+    if (contentLength && parseInt(contentLength, 10) > MAX_DOWNLOAD_BYTES) {
+      return NextResponse.json(
+        { error: "Media file exceeds maximum allowed size (100 MB)" },
+        { status: 413 }
+      );
+    }
     if (contentLength) {
       headers.set("Content-Length", contentLength);
     }

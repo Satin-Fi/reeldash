@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { getAuthenticatedUser } from "@/lib/serverAuth";
 import { parseCategoryCommand, formatCategoryDisplayName } from "@/lib/parseCategory";
 
 export const dynamic = "force-dynamic";
@@ -411,6 +412,11 @@ export async function POST(req: NextRequest) {
 // ─── DELETE /api/reels (Delete a reel permanently) ────────────────────
 export async function DELETE(req: NextRequest) {
   try {
+    const authUser = await getAuthenticatedUser(req);
+    if (!authUser) {
+      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+    }
+
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
     const shortcode = searchParams.get("shortcode");
@@ -421,7 +427,8 @@ export async function DELETE(req: NextRequest) {
 
     const supabase = getSupabaseAdmin();
     if (supabase) {
-      let query = supabase.from("reels").delete();
+      // Ownership check: only delete if the reel belongs to the authenticated user
+      let query = supabase.from("reels").delete().eq("user_id", authUser.id);
       if (id) {
         query = query.eq("id", id);
       } else if (shortcode) {
@@ -443,6 +450,11 @@ export async function DELETE(req: NextRequest) {
 // ─── PATCH /api/reels (Update reel metadata such as creator handle, caption, category) ───
 export async function PATCH(req: NextRequest) {
   try {
+    const authUser = await getAuthenticatedUser(req);
+    if (!authUser) {
+      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+    }
+
     const body = await req.json();
     const { id, creator_handle, creator_name, creator_avatar, caption, category, note } = body;
 
@@ -471,10 +483,12 @@ export async function PATCH(req: NextRequest) {
     if (category !== undefined) updates.category = category;
     if (note !== undefined) updates.note = note;
 
+    // Ownership check: only update if the reel belongs to the authenticated user
     const { data: updatedReel, error } = await supabase
       .from("reels")
       .update(updates)
       .eq("id", id)
+      .eq("user_id", authUser.id)
       .select()
       .single();
 

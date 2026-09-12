@@ -16,7 +16,6 @@ import { NextRequest } from "next/server";
  * Supports:
  * 1. Authorization: Bearer <token> (verified via Supabase Auth)
  * 2. Supabase SSR cookies via @supabase/ssr
- * 3. Verified x-user-id header
  */
 export async function getAuthenticatedUser(req?: NextRequest): Promise<{
   id: string;
@@ -69,41 +68,6 @@ export async function getAuthenticatedUser(req?: NextRequest): Promise<{
     }
   } catch (err) {
     // Cookie read exception
-  }
-
-  // 3. Fallback: check x-user-id header
-  if (req && supabaseAdmin) {
-    const headerUserId = req.headers.get("x-user-id");
-    if (headerUserId) {
-      try {
-        // Check if user exists in auth.users
-        const { data: authUserRecord } =
-          await supabaseAdmin.auth.admin.getUserById(headerUserId);
-        if (authUserRecord?.user) {
-          return {
-            id: authUserRecord.user.id,
-            email: authUserRecord.user.email || "",
-          };
-        }
-
-        // Check if user has accounts in instagram_accounts
-        const { data: userRecord } = await supabaseAdmin
-          .from("instagram_accounts")
-          .select("reeldash_user_id")
-          .eq("reeldash_user_id", headerUserId)
-          .limit(1)
-          .maybeSingle();
-
-        if (userRecord) {
-          return { id: headerUserId, email: "" };
-        }
-
-        // Valid local/demo user format
-        if (headerUserId.startsWith("usr-") || headerUserId.length >= 10) {
-          return { id: headerUserId, email: "" };
-        }
-      } catch {}
-    }
   }
 
   return null;

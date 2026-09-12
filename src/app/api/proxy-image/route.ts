@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { resolveRealInstagramAvatar } from "@/lib/instagramAvatar";
+import { isAllowedMediaUrl, MAX_IMAGE_BYTES } from "@/lib/urlValidation";
 
 export const dynamic = "force-dynamic";
 
@@ -69,6 +70,8 @@ function serveCleanEditorialCardSvg(creator?: string | null, shortcode?: string 
 
 async function serveImageBinary(imageUrl: string, shortcode?: string | null): Promise<NextResponse | null> {
   if (!imageUrl) return null;
+  // SSRF protection: only fetch from allowed CDN domains
+  if (!isAllowedMediaUrl(imageUrl)) return null;
 
   let finalBuffer: Buffer | null = null;
   let contentType = "image/jpeg";
@@ -87,7 +90,7 @@ async function serveImageBinary(imageUrl: string, shortcode?: string | null): Pr
       });
       if (imgRes.ok) {
         const buffer = await imgRes.arrayBuffer();
-        if (buffer.byteLength > 200) {
+        if (buffer.byteLength > 200 && buffer.byteLength <= MAX_IMAGE_BYTES) {
           finalBuffer = Buffer.from(buffer);
         }
       }
@@ -109,7 +112,7 @@ async function serveImageBinary(imageUrl: string, shortcode?: string | null): Pr
       if (directRes.ok) {
         const buffer = await directRes.arrayBuffer();
         const ct = directRes.headers.get("content-type") || "image/jpeg";
-        if (ct.startsWith("image/") && buffer.byteLength > 200) {
+        if (ct.startsWith("image/") && buffer.byteLength > 200 && buffer.byteLength <= MAX_IMAGE_BYTES) {
           finalBuffer = Buffer.from(buffer);
           contentType = ct;
         }

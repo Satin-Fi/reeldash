@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { getAuthenticatedUser } from "@/lib/serverAuth";
 import { formatCategoryDisplayName } from "@/lib/parseCategory";
 
 export const dynamic = "force-dynamic";
@@ -152,6 +153,11 @@ export async function POST(req: NextRequest) {
  */
 export async function PATCH(req: NextRequest) {
   try {
+    const authUser = await getAuthenticatedUser(req);
+    if (!authUser) {
+      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+    }
+
     const body = await req.json();
     const { id, name, icon, description } = body;
 
@@ -171,10 +177,12 @@ export async function PATCH(req: NextRequest) {
 
     const supabase = getSupabaseAdmin();
     if (supabase) {
+      // Ownership check: only update if the category belongs to the authenticated user
       const { data, error } = await supabase
         .from("categories")
         .update(updates)
         .eq("id", id)
+        .eq("user_id", authUser.id)
         .select()
         .single();
 
@@ -196,6 +204,11 @@ export async function PATCH(req: NextRequest) {
  */
 export async function DELETE(req: NextRequest) {
   try {
+    const authUser = await getAuthenticatedUser(req);
+    if (!authUser) {
+      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+    }
+
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
 
@@ -205,7 +218,8 @@ export async function DELETE(req: NextRequest) {
 
     const supabase = getSupabaseAdmin();
     if (supabase) {
-      const { error } = await supabase.from("categories").delete().eq("id", id);
+      // Ownership check: only delete if the category belongs to the authenticated user
+      const { error } = await supabase.from("categories").delete().eq("id", id).eq("user_id", authUser.id);
       if (error) {
         return NextResponse.json({ error: error.message }, { status: 500 });
       }
