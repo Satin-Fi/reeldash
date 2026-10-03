@@ -1,415 +1,456 @@
 "use client";
 
-import React, { useEffect, useRef } from "react";
 import Link from "next/link";
-import { motion, useInView } from "framer-motion";
+import { MotionConfig, motion, useReducedMotion } from "framer-motion";
 import {
+  ArrowDown,
+  ArrowLeft,
   ArrowRight,
-  Zap,
-  Search,
-  MessageCircle,
-  Film,
-  BookOpen,
+  ArrowUpRight,
+  AudioLines,
+  Bookmark,
+  Check,
   ChevronRight,
-  Play,
+  FolderOpen,
+  Instagram,
+  Layers3,
+  MoveUpRight,
+  Plus,
+  Search,
+  Send,
+  Sparkles,
 } from "lucide-react";
 
-const ease = [0.32, 0.72, 0, 1];
+type Reel = {
+  id: string;
+  title: string;
+  creator: string;
+  category: string;
+  image: string;
+  color: string;
+  duration: string;
+};
 
-function FadeUp({ children, delay = 0, className = "" }: { children: React.ReactNode; delay?: number; className?: string }) {
-  const ref = useRef(null);
-  const inView = useInView(ref, { once: true, margin: "-80px" });
+const photo = (id: string, width = 700) =>
+  `https://images.unsplash.com/${id}?auto=format&fit=crop&w=${width}&q=85`;
+
+const reels: Reel[] = [
+  {
+    id: "slow-mornings",
+    title: "Make ordinary feel cinematic.",
+    creator: "The everyday edit",
+    category: "Visual storytelling",
+    image: photo("photo-1441974231531-c6227db76b6e"),
+    color: "#324338",
+    duration: "0:24",
+  },
+  {
+    id: "color-theory",
+    title: "A little outside the lines.",
+    creator: "Color studies",
+    category: "Art direction",
+    image: photo("photo-1618005182384-a83a8bd57fbe"),
+    color: "#847098",
+    duration: "0:18",
+  },
+  {
+    id: "spaces",
+    title: "Let the space do the talking.",
+    creator: "Objects & spaces",
+    category: "Brand building",
+    image: photo("photo-1600210492486-724fe5c67fb0"),
+    color: "#9B8877",
+    duration: "0:32",
+  },
+  {
+    id: "perspective",
+    title: "A different point of view.",
+    creator: "Out of office",
+    category: "Opening hooks",
+    image: photo("photo-1464822759023-fed622ff2c3b"),
+    color: "#697981",
+    duration: "0:16",
+  },
+  {
+    id: "ritual",
+    title: "Small ritual. Big feeling.",
+    creator: "Daily details",
+    category: "Product stories",
+    image: photo("photo-1442512595331-e89e73853f31"),
+    color: "#735342",
+    duration: "0:21",
+  },
+];
+
+const waveHeights = [
+  14, 22, 35, 19, 42, 57, 29, 47, 66, 38, 24, 50, 71, 44, 27,
+  54, 36, 63, 45, 23, 39, 58, 32, 48, 67, 41, 26, 51, 34, 18,
+];
+
+const reveal = {
+  initial: { opacity: 0, y: 18 },
+  whileInView: { opacity: 1, y: 0 },
+  viewport: { once: true, amount: 0.15 },
+  transition: { duration: 0.55 },
+};
+
+const solidButton =
+  "inline-flex min-h-12 items-center justify-center gap-3 rounded-full bg-[#17181C] px-6 text-sm font-semibold text-white transition-colors hover:bg-[#34353C] dark:bg-white dark:text-[#090A0D] dark:hover:bg-zinc-200";
+
+const ghostButton =
+  "inline-flex min-h-12 items-center justify-center gap-3 rounded-full border border-black/15 px-6 text-sm font-semibold transition-colors hover:bg-black/5 dark:border-white/20 dark:hover:bg-white/10";
+
+function Brand({ inverted = false }: { inverted?: boolean }) {
   return (
-    <motion.div
-      ref={ref}
-      initial={{ opacity: 0, y: 20 }}
-      animate={inView ? { opacity: 1, y: 0 } : {}}
-      transition={{ duration: 0.6, delay, ease }}
-      className={className}
+    <Link
+      href="/"
+      aria-label="Reeldash home"
+      className={`inline-flex items-center gap-2.5 text-xl font-bold tracking-[-0.06em] ${
+        inverted ? "text-white" : "text-[#17181C] dark:text-white"
+      }`}
     >
-      {children}
-    </motion.div>
+      <span
+        className={`flex size-8 items-center justify-center rounded-[10px] ${
+          inverted ? "bg-white text-[#17181C]" : "bg-[#CBB5FD] text-[#24163D]"
+        }`}
+      >
+        <Bookmark size={17} strokeWidth={2.6} aria-hidden="true" />
+      </span>
+      reeldash<span className="-ml-2 text-[#9C7ADA]">.</span>
+    </Link>
   );
 }
 
-const features = [
-  {
-    icon: MessageCircle,
-    label: "DM to Save",
-    color: "text-violet-400",
-    bg: "bg-violet-500/10",
-    border: "border-violet-500/20",
-    desc: "Send any Reel to @ReelDash_app on Instagram. It appears in your library within seconds — no copy-paste needed.",
-  },
-  {
-    icon: Zap,
-    label: "Auto-Categorized",
-    color: "text-amber-400",
-    bg: "bg-amber-500/10",
-    border: "border-amber-500/20",
-    desc: "AI reads captions, hashtags, and creator metadata. Every Reel is filed under the right category automatically.",
-  },
-  {
-    icon: Search,
-    label: "Search Anything",
-    color: "text-emerald-400",
-    bg: "bg-emerald-500/10",
-    border: "border-emerald-500/20",
-    desc: "Find that recipe Reel from 3 months ago. Search by topic, creator, keyword, or your own notes.",
-  },
-  {
-    icon: BookOpen,
-    label: "Browse Creators",
-    color: "text-sky-400",
-    bg: "bg-sky-500/10",
-    border: "border-sky-500/20",
-    desc: "Search any public Instagram account and browse their posts directly inside ReelDash.",
-  },
-];
-
-const stats = [
-  { value: "2s", label: "DM to saved" },
-  { value: "100%", label: "Free forever" },
-  { value: "0", label: "Ads, ever" },
-];
-
-export default function LandingPage() {
-  // Dark mode by default for landing
-  useEffect(() => {
-    document.documentElement.classList.add("dark");
-    return () => {}; // keep dark on leave — user picks in dashboard
-  }, []);
-
+function Header() {
   return (
-    <div className="min-h-[100dvh] bg-background-dark text-primaryText-dark selection:bg-brand-500/30 selection:text-white overflow-x-hidden">
-
-      {/* Ambient mesh gradient */}
-      <div className="fixed inset-0 pointer-events-none z-0">
-        <div className="absolute inset-0 bg-dark-mesh" />
-        <div className="absolute top-0 left-1/4 w-[600px] h-[600px] rounded-full bg-brand-500/4 blur-[120px]" />
-        <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] rounded-full bg-violet-600/3 blur-[100px]" />
-      </div>
-
-      {/* ─── NAV ─── */}
-      <nav className="relative z-20 max-w-7xl mx-auto px-6 py-5 flex items-center justify-between">
-        <Link href="/" className="flex items-center gap-2.5 group">
-          <div className="w-8 h-8 rounded-rd-md bg-brand-500 flex items-center justify-center shadow-rd-glow shrink-0">
-            <Zap className="w-4 h-4 text-white" strokeWidth={2.5} />
-          </div>
-          <span className="text-[15px] font-semibold tracking-tight text-primaryText-dark">ReelDash</span>
+    <header className="relative z-20 mx-auto flex h-24 max-w-6xl items-center justify-between px-5 sm:px-8">
+      <Brand />
+      <nav aria-label="Main navigation" className="flex items-center gap-8">
+        <Link href="#features" className="hidden text-sm text-zinc-500 transition-colors hover:text-zinc-950 sm:block dark:hover:text-white">
+          How it works
         </Link>
-
-        <div className="hidden md:flex items-center gap-1">
-          {["Features", "How it works", "Creators"].map((item) => (
-            <button key={item} className="px-3.5 py-2 text-[13px] text-secondaryText-dark hover:text-primaryText-dark transition-colors duration-200">
-              {item}
-            </button>
-          ))}
-        </div>
-
-        <div className="flex items-center gap-3">
-          <Link href="/login" className="px-4 py-2 text-[13px] text-secondaryText-dark hover:text-primaryText-dark transition-colors">
-            Sign in
-          </Link>
-          <Link
-            href="/signup"
-            className="group flex items-center gap-2 px-4 py-2 bg-brand-500 hover:bg-brand-600 text-white text-[13px] font-semibold rounded-full transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.97] shadow-rd-glow"
-          >
-            Get started free
-            <span className="w-5 h-5 rounded-full bg-white/15 flex items-center justify-center group-hover:translate-x-0.5 transition-transform">
-              <ArrowRight className="w-3 h-3" />
-            </span>
-          </Link>
-        </div>
+        <Link href="#collections" className="hidden text-sm text-zinc-500 transition-colors hover:text-zinc-950 md:block dark:hover:text-white">
+          The inspiration
+        </Link>
+        <Link href="#join" className="inline-flex min-h-10 items-center gap-2 rounded-full border border-black/15 px-4 text-xs font-semibold transition-colors hover:bg-black/5 dark:border-white/20 dark:hover:bg-white/10">
+          Get started <ArrowUpRight size={14} aria-hidden="true" />
+        </Link>
       </nav>
+    </header>
+  );
+}
 
-      {/* ─── HERO ─── */}
-      <section className="relative z-10 max-w-7xl mx-auto px-6 pt-20 pb-24 md:pt-28">
-        <div className="grid md:grid-cols-2 gap-16 items-center">
-
-          {/* Left — Copy */}
-          <div className="space-y-8">
-            <motion.div
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, ease }}
+function ReelCard({
+  reel,
+  index,
+  featured = false,
+}: {
+  reel: Reel;
+  index: number;
+  featured?: boolean;
+}) {
+  const inputId = `${featured ? "hero" : "tray"}-save-${reel.id}`;
+  return (
+    <motion.article
+      whileHover={{ y: -8 }}
+      transition={{ type: "spring", stiffness: 280, damping: 24 }}
+      className={`group relative isolate aspect-[9/16] shrink-0 overflow-hidden rounded-[24px] text-white ${
+        featured ? "w-full shadow-2xl shadow-black/20" : "w-[230px] snap-start sm:w-[252px]"
+      }`}
+      style={{ backgroundColor: reel.color }}
+      aria-label={`${reel.title} — inspiration preview`}
+    >
+      <div
+        aria-hidden="true"
+        className="absolute inset-0 -z-20 bg-cover bg-center transition-transform duration-700 group-hover:scale-105 motion-reduce:transform-none"
+        style={{ backgroundImage: `url("${reel.image}")` }}
+      />
+      <div aria-hidden="true" className="absolute inset-0 -z-10 bg-gradient-to-t from-black/85 via-black/5 to-black/25" />
+      <div className="absolute inset-x-4 top-4 flex items-center justify-between">
+        <span className="rounded-full border border-white/25 bg-black/15 px-3 py-1.5 text-[10px] font-medium backdrop-blur-md">
+          {reel.category}
+        </span>
+        <span className="text-[10px] tabular-nums">{reel.duration}</span>
+      </div>
+      <div className="absolute inset-x-5 bottom-5">
+        <p className="mb-3 text-[10px] font-medium uppercase tracking-[0.18em] text-white/70">
+          Inspiration / {String(index + 1).padStart(2, "0")}
+        </p>
+        <h3 className="max-w-[190px] text-[27px] font-medium leading-[1.08] tracking-[-0.045em]">
+          {reel.title}
+        </h3>
+        <div className="mt-6 flex items-center justify-between gap-3">
+          <span className="text-[11px] text-white/80">{reel.creator}</span>
+          <div className="relative shrink-0">
+            <input id={inputId} type="checkbox" className="peer sr-only" aria-label={`Save ${reel.title}`} />
+            <label
+              htmlFor={inputId}
+              className="flex size-10 cursor-pointer items-center justify-center rounded-full border border-white/30 bg-white/10 backdrop-blur-md transition-colors hover:bg-white/25 peer-checked:border-[#CBB5FD] peer-checked:bg-[#CBB5FD] peer-checked:text-[#24163D] peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-4 peer-focus-visible:outline-white"
             >
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-brand-500/10 border border-brand-500/20 text-brand-400 text-[11px] font-medium uppercase tracking-[0.14em]">
-                <span className="w-1.5 h-1.5 rounded-full bg-brand-400 animate-pulse-soft" />
-                Free public beta
-              </span>
-            </motion.div>
-
-            <motion.h1
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.05, ease }}
-              className="text-5xl md:text-6xl lg:text-7xl font-bold tracking-[-0.03em] leading-[1.05]"
-            >
-              Your Reels.
-              <br />
-              <span className="text-brand-400">Organized.</span>
-              <br />
-              Instantly.
-            </motion.h1>
-
-            <motion.p
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.1, ease }}
-              className="text-[15px] text-secondaryText-dark leading-relaxed max-w-[420px]"
-            >
-              Stop losing Reels you loved. Send any Reel to{" "}
-              <span className="text-brand-400 font-medium">@ReelDash_app</span> on Instagram and
-              it's instantly saved, categorized, and searchable in your personal library.
-            </motion.p>
-
-            <motion.div
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.15, ease }}
-              className="flex flex-col sm:flex-row gap-3"
-            >
-              <Link
-                href="/signup"
-                className="group flex items-center justify-center gap-2.5 px-6 py-3.5 bg-brand-500 hover:bg-brand-600 text-white text-[14px] font-semibold rounded-rd-xl transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.97] shadow-rd-glow"
-              >
-                Start free — no card needed
-                <span className="w-6 h-6 rounded-full bg-white/15 flex items-center justify-center group-hover:translate-x-0.5 transition-transform">
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </span>
-              </Link>
-              <Link
-                href="/demo"
-                className="flex items-center justify-center gap-2 px-6 py-3.5 bg-surfaceSecondary-dark border border-borderSubtle-dark hover:border-borderDefault-dark text-[14px] font-medium rounded-rd-xl transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)]"
-              >
-                <Play className="w-4 h-4" />
-                Live demo
-              </Link>
-            </motion.div>
-
-            {/* Stats row */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.5, delay: 0.25, ease }}
-              className="flex items-center gap-8 pt-2"
-            >
-              {stats.map((s) => (
-                <div key={s.label}>
-                  <p className="text-2xl font-bold tracking-tight text-primaryText-dark">{s.value}</p>
-                  <p className="text-[11px] text-mutedText-dark mt-0.5">{s.label}</p>
-                </div>
-              ))}
-            </motion.div>
+              <Bookmark size={17} aria-hidden="true" />
+            </label>
           </div>
-
-          {/* Right — Product preview */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.96, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.2, ease }}
-            className="relative hidden md:block"
-          >
-            {/* Outer bezel */}
-            <div className="p-[6px] rounded-[22px] bg-white/[0.03] border border-white/[0.06] shadow-rd-dark">
-              {/* Inner card */}
-              <div className="rounded-[17px] bg-surface-dark border border-borderSubtle-dark overflow-hidden shadow-rd-inner">
-                {/* Mock top bar */}
-                <div className="flex items-center justify-between px-4 py-3 border-b border-borderSubtle-dark">
-                  <div className="flex items-center gap-2">
-                    <div className="w-5 h-5 rounded-rd-sm bg-brand-500 flex items-center justify-center">
-                      <Zap className="w-3 h-3 text-white" strokeWidth={2.5} />
-                    </div>
-                    <span className="text-[12px] font-semibold text-primaryText-dark">ReelDash</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-[11px] text-mutedText-dark bg-surfaceSecondary-dark px-3 py-1.5 rounded-rd-md border border-borderSubtle-dark">
-                    <Search className="w-3 h-3" />
-                    Search your Reels...
-                    <kbd className="ml-1 px-1 py-0.5 rounded bg-surfaceTertiary-dark text-[9px] font-mono">⌘K</kbd>
-                  </div>
-                  <div className="w-7 h-7 rounded-full bg-brand-500/20 border border-brand-500/30 flex items-center justify-center text-[10px] font-bold text-brand-400">
-                    PK
-                  </div>
-                </div>
-                {/* Mock reel grid */}
-                <div className="p-3 grid grid-cols-3 gap-2">
-                  {[
-                    { color: "from-violet-900 to-purple-800", label: "@fitlife" },
-                    { color: "from-rose-900 to-pink-800", label: "@chef_rami" },
-                    { color: "from-sky-900 to-blue-800", label: "@devtips" },
-                    { color: "from-amber-900 to-orange-800", label: "@travelwith" },
-                    { color: "from-emerald-900 to-green-800", label: "@codeaday" },
-                    { color: "from-indigo-900 to-brand-800", label: "@lifestyle" },
-                  ].map((card, i) => (
-                    <div key={i} className={`aspect-[9/16] rounded-rd-md bg-gradient-to-b ${card.color} relative overflow-hidden`}>
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
-                      <div className="absolute top-1.5 left-1.5">
-                        <span className="px-1.5 py-0.5 rounded-full bg-violet-500/80 text-[8px] font-medium text-white">Reel</span>
-                      </div>
-                      <div className="absolute bottom-1.5 left-1.5 right-1.5">
-                        <p className="text-[9px] text-white/80 font-medium truncate">{card.label}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* Floating DM badge */}
-            <motion.div
-              initial={{ opacity: 0, x: 20, y: 10 }}
-              animate={{ opacity: 1, x: 0, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.6, ease }}
-              className="absolute -bottom-4 -left-6 flex items-center gap-2.5 px-4 py-2.5 bg-surfaceSecondary-dark border border-borderDefault-dark rounded-rd-xl shadow-rd-dark"
-            >
-              <div className="w-7 h-7 rounded-full bg-emerald-500/15 flex items-center justify-center">
-                <MessageCircle className="w-3.5 h-3.5 text-emerald-400" />
-              </div>
-              <div>
-                <p className="text-[11px] font-semibold text-primaryText-dark">Reel saved ✓</p>
-                <p className="text-[10px] text-mutedText-dark">via Instagram DM</p>
-              </div>
-            </motion.div>
-          </motion.div>
         </div>
-      </section>
+      </div>
+    </motion.article>
+  );
+}
 
-      {/* ─── FEATURES ─── */}
-      <section className="relative z-10 max-w-7xl mx-auto px-6 py-20">
-        <FadeUp className="text-center mb-12">
-          <h2 className="text-3xl md:text-4xl font-bold tracking-[-0.025em]">
-            Everything your Reels deserve
-          </h2>
-          <p className="mt-3 text-[14px] text-secondaryText-dark max-w-md mx-auto">
-            Built around how you actually discover and consume Instagram content.
-          </p>
-        </FadeUp>
-
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {features.map((f, i) => {
-            const Icon = f.icon;
-            return (
-              <FadeUp key={f.label} delay={i * 0.07}>
-                {/* Double bezel card */}
-                <div className="p-[5px] rounded-rd-xl bg-white/[0.02] border border-white/[0.05] h-full">
-                  <div className="h-full p-5 rounded-[13px] bg-surface-dark border border-borderSubtle-dark shadow-rd-inner space-y-4">
-                    <div className={`w-9 h-9 rounded-rd-md ${f.bg} border ${f.border} flex items-center justify-center`}>
-                      <Icon className={`w-4.5 h-4.5 ${f.color}`} strokeWidth={1.75} />
-                    </div>
-                    <div className="space-y-1.5">
-                      <h3 className="text-[13px] font-semibold text-primaryText-dark">{f.label}</h3>
-                      <p className="text-[12px] text-secondaryText-dark leading-relaxed">{f.desc}</p>
-                    </div>
-                  </div>
-                </div>
-              </FadeUp>
-            );
-          })}
+function Hero() {
+  return (
+    <section aria-labelledby="hero-heading" className="relative mx-auto max-w-6xl px-4 pb-20 pt-12 text-center sm:px-8 sm:pt-16">
+      <motion.div {...reveal}>
+        <p className="mb-6 inline-flex items-center gap-2 text-xs font-medium text-zinc-500 dark:text-zinc-400">
+          <span className="size-1.5 rounded-full bg-[#9C7ADA]" />
+          Less scrolling. More creating.
+        </p>
+        <h1 id="hero-heading" className="text-[clamp(2.5rem,5vw,4.5rem)] font-medium leading-[1.08] tracking-[-0.065em]">
+          <span className="block whitespace-nowrap">Save your next</span>
+          <span className="block whitespace-nowrap">
+            <span
+              aria-hidden="true"
+              className="inline-block w-20 h-9 rounded-full align-middle mx-2 bg-cover bg-center border border-black/10"
+              style={{ backgroundImage: "url('https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=200&auto=format&fit=crop&q=80')" }}
+            />
+            great idea.
+          </span>
+        </h1>
+        <p className="mx-auto mt-6 max-w-[410px] text-base leading-relaxed text-zinc-500 dark:text-zinc-400">
+          Your best finds deserve better than a saved folder.
+          Collect Reels, carousels, and audio. Make something original.
+        </p>
+        <div className="mt-8 flex flex-wrap justify-center gap-3">
+          <Link href="#join" className={solidButton}>
+            Start Swipe File <ArrowUpRight size={16} aria-hidden="true" />
+          </Link>
+          <Link href="#demo" className={ghostButton}>
+            View Demo <ArrowDown size={15} aria-hidden="true" />
+          </Link>
         </div>
-      </section>
-
-      {/* ─── HOW IT WORKS ─── */}
-      <section className="relative z-10 max-w-7xl mx-auto px-6 py-20">
-        <FadeUp className="max-w-lg">
-          <h2 className="text-3xl md:text-4xl font-bold tracking-[-0.025em] mb-2">
-            Works in 2 steps
-          </h2>
-          <p className="text-[14px] text-secondaryText-dark">
-            No extensions. No copy-paste. Just send a DM.
-          </p>
-        </FadeUp>
-
-        <div className="mt-12 grid md:grid-cols-2 gap-6">
-          {[
-            {
-              step: "01",
-              title: "Send the Reel to @ReelDash_app",
-              desc: "While browsing Instagram, tap Share → Send to @ReelDash_app. Or paste any Instagram reel link directly in the app.",
-              color: "brand",
-            },
-            {
-              step: "02",
-              title: "It's in your library instantly",
-              desc: "ReelDash fetches metadata, auto-categorizes it, and sends you a confirmation DM. Open your dashboard on any device.",
-              color: "emerald",
-            },
-          ].map((item, i) => (
-            <FadeUp key={i} delay={i * 0.1}>
-              <div className="p-[5px] rounded-rd-xl bg-white/[0.02] border border-white/[0.05]">
-                <div className="p-6 rounded-[13px] bg-surface-dark border border-borderSubtle-dark shadow-rd-inner space-y-4">
-                  <span className={`text-5xl font-bold tracking-tighter ${item.color === "brand" ? "text-brand-500/20" : "text-emerald-500/20"}`}>
-                    {item.step}
-                  </span>
-                  <div className="space-y-2">
-                    <h3 className="text-[15px] font-semibold text-primaryText-dark">{item.title}</h3>
-                    <p className="text-[13px] text-secondaryText-dark leading-relaxed">{item.desc}</p>
-                  </div>
-                  <ChevronRight className={`w-4 h-4 ${item.color === "brand" ? "text-brand-400" : "text-emerald-400"}`} />
-                </div>
-              </div>
-            </FadeUp>
-          ))}
-        </div>
-      </section>
-
-      {/* ─── CTA BANNER ─── */}
-      <section className="relative z-10 max-w-7xl mx-auto px-6 py-20">
-        <FadeUp>
-          <div className="p-[5px] rounded-[22px] bg-brand-500/10 border border-brand-500/20">
-            <div className="p-10 md:p-16 rounded-[18px] bg-surface-dark border border-brand-500/10 text-center space-y-6 relative overflow-hidden">
-              <div className="absolute inset-0 bg-gradient-to-br from-brand-500/5 via-transparent to-violet-500/5 pointer-events-none" />
-              <div className="relative z-10 space-y-4">
-                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-brand-500/15 border border-brand-500/25 text-brand-400 text-[11px] font-medium uppercase tracking-[0.14em]">
-                  <Film className="w-3 h-3" />
-                  Start free today
-                </div>
-                <h2 className="text-3xl md:text-5xl font-bold tracking-[-0.03em]">
-                  Build your Reel library.
-                  <br />
-                  <span className="text-brand-400">Stop losing content you love.</span>
-                </h2>
-                <p className="text-[14px] text-secondaryText-dark max-w-sm mx-auto">
-                  Free forever. No credit card. Starts working from your first DM.
-                </p>
-              </div>
-              <div className="relative z-10 flex flex-col sm:flex-row items-center justify-center gap-3">
-                <Link
-                  href="/signup"
-                  className="group flex items-center gap-2.5 px-7 py-3.5 bg-brand-500 hover:bg-brand-600 text-white text-[14px] font-semibold rounded-rd-xl transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.97] shadow-rd-glow"
-                >
-                  Create free account
-                  <span className="w-6 h-6 rounded-full bg-white/15 flex items-center justify-center group-hover:translate-x-0.5 transition-transform">
-                    <ArrowRight className="w-3.5 h-3.5" />
-                  </span>
-                </Link>
-              </div>
-            </div>
+      </motion.div>
+      <div id="demo" className="relative mx-auto mt-16 max-w-[720px] scroll-mt-10">
+        <div aria-hidden="true" className="pointer-events-none absolute inset-x-[12%] inset-y-[15%] rounded-full bg-[#DDCCFF]/65 blur-[75px] dark:bg-[#7052B3]/25" />
+        <div aria-hidden="true" className="pointer-events-none absolute left-[8%] top-16 hidden w-[190px] -rotate-[12deg] rounded-[22px] border border-black/5 bg-white p-2 shadow-xl shadow-black/5 sm:block dark:border-white/10 dark:bg-[#0F1114]">
+          <div className="aspect-[4/5] rounded-[16px] bg-cover bg-center" style={{ backgroundImage: `url("${reels[2].image}")` }} />
+          <div className="flex items-center justify-between px-2 py-4 text-left">
+            <span className="text-xs font-medium">Spaces worth saving</span>
+            <Layers3 size={14} />
           </div>
-        </FadeUp>
-      </section>
-
-      {/* ─── FOOTER ─── */}
-      <footer className="relative z-10 border-t border-borderSubtle-dark py-8 px-6">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-rd-sm bg-brand-500 flex items-center justify-center">
-              <Zap className="w-3 h-3 text-white" strokeWidth={2.5} />
-            </div>
-            <span className="text-[13px] font-semibold text-primaryText-dark">ReelDash</span>
-          </div>
-          <p className="text-[12px] text-mutedText-dark">
-            © 2026 ReelDash. Not affiliated with Instagram or Meta.
-          </p>
-          <div className="flex items-center gap-4">
-            {["Privacy", "Terms"].map((l) => (
-              <button key={l} className="text-[12px] text-mutedText-dark hover:text-secondaryText-dark transition-colors">
-                {l}
-              </button>
+        </div>
+        <div aria-hidden="true" className="pointer-events-none absolute right-[8%] top-24 hidden w-[180px] rotate-[10deg] rounded-[22px] border border-[#CCEBD7] bg-[#F0FDF4] p-5 text-left text-[#286641] shadow-xl shadow-black/5 sm:block dark:border-[#1E3B29] dark:bg-[#101C15] dark:text-[#80CFA0]">
+          <AudioLines size={24} />
+          <p className="mt-5 text-lg font-medium leading-tight tracking-tight">That sound you can’t forget.</p>
+          <div className="mt-5 flex h-10 items-center gap-1">
+            {waveHeights.slice(0, 18).map((height, i) => (
+              <span key={i} className="w-1 rounded-full bg-current opacity-50" style={{ height: `${height / 2}px` }} />
             ))}
           </div>
+          <p className="mt-3 text-[10px]">Filed under: next big idea</p>
         </div>
-      </footer>
-    </div>
+        <motion.div {...reveal} className="relative mx-auto w-[240px] sm:w-[260px]">
+          <ReelCard reel={reels[0]} index={0} featured />
+          <div className="absolute -right-5 top-[45%] flex items-center gap-2 rounded-full border border-black/5 bg-white px-3 py-2.5 text-[11px] font-medium shadow-lg sm:-right-20 dark:border-white/10 dark:bg-[#17181C]">
+            <span className="flex size-5 items-center justify-center rounded-full bg-[#E7F5E9] text-[#286641]">
+              <Check size={12} aria-hidden="true" />
+            </span>
+            A little more organized.
+          </div>
+        </motion.div>
+        <p className="relative mt-7 text-xs text-zinc-500 dark:text-zinc-400">
+          Try the bookmark. Saves in this preview reset when you leave.
+        </p>
+      </div>
+      <div className="mt-16 border-t border-black/10 pt-8 dark:border-white/10">
+        <p className="text-[11px] text-zinc-400">For people who see inspiration everywhere.</p>
+        <ul className="mt-5 flex flex-wrap justify-center gap-x-9 gap-y-3 text-sm font-medium tracking-tight text-zinc-600 dark:text-zinc-300">
+          {["Creators", "Founders", "Creative directors", "Independent studios", "Ad agencies"].map((role) => (
+            <li key={role}>{role}</li>
+          ))}
+        </ul>
+      </div>
+    </section>
+  );
+}
+
+function Features() {
+  return (
+    <section id="features" aria-labelledby="features-heading" className="mx-auto max-w-6xl scroll-mt-12 px-5 py-16 sm:px-8">
+      <motion.div {...reveal} className="mb-10 flex flex-col justify-between gap-5 md:flex-row md:items-end">
+        <h2 id="features-heading" className="max-w-md text-4xl font-medium leading-[1.1] tracking-[-0.055em] sm:text-5xl">
+          A messy mind.<br /><span className="text-zinc-400">A beautifully tidy vault.</span>
+        </h2>
+        <p className="max-w-[290px] text-sm leading-relaxed text-zinc-500 dark:text-zinc-400">
+          Keep the spark. Lose the screenshot pile.
+          Everything that catches your eye, finally in one place.
+        </p>
+      </motion.div>
+      <div className="grid grid-flow-dense grid-cols-1 gap-0 overflow-hidden rounded-[28px] border border-black/10 md:grid-cols-12 dark:border-white/10">
+        <article className="overflow-hidden border-b border-black/10 bg-white p-7 md:col-span-7 md:border-r md:p-9 dark:border-white/10 dark:bg-[#0F1114]">
+          <div className="mb-6 flex size-10 items-center justify-center rounded-xl border border-black/10 dark:border-white/10">
+            <Send size={19} aria-hidden="true" />
+          </div>
+          <h3 className="text-2xl font-medium tracking-[-0.04em]">See it. Send it. Saved.</h3>
+          <p className="mt-3 max-w-sm text-sm leading-relaxed text-zinc-500 dark:text-zinc-400">
+            DM a Reel to Reeldash on Instagram. One tap into your swipe file, without breaking your scroll.
+          </p>
+          <div className="mx-auto mt-8 max-w-[340px] rounded-t-[22px] border border-b-0 border-black/10 bg-[#FAFAF8] p-4 dark:border-white/10 dark:bg-[#090A0D]">
+            <div className="flex items-center gap-2 border-b border-black/5 pb-3 text-xs font-semibold dark:border-white/10">
+              <Instagram size={16} aria-hidden="true" /> reeldash
+              <span className="ml-auto text-[10px] font-normal text-zinc-400">DM preview</span>
+            </div>
+            <div className="ml-auto mt-4 w-fit rounded-2xl rounded-tr-sm bg-[#EDE4FF] px-4 py-3 text-xs text-[#6E47C7]">
+              This one. For the next campaign.
+            </div>
+            <div className="mt-3 flex max-w-[245px] items-center gap-3 rounded-2xl rounded-tl-sm border border-black/5 bg-white p-3 text-xs dark:border-white/10 dark:bg-[#17181C]">
+              <div className="h-12 w-9 shrink-0 rounded-md bg-cover bg-center" style={{ backgroundImage: `url("${reels[1].image}")` }} aria-hidden="true" />
+              <div><p className="font-medium">Added to your vault</p><p className="mt-1 text-zinc-500">Ready when you are.</p></div>
+              <Check size={14} className="ml-auto text-[#286641] dark:text-[#80CFA0]" aria-hidden="true" />
+            </div>
+          </div>
+        </article>
+        <article className="overflow-hidden border-b border-[#F6E3B5] bg-[#FFFBF0] p-7 text-[#8A6715] md:col-span-5 md:p-9 dark:border-[#382E16] dark:bg-[#1C180E] dark:text-[#E8C265]">
+          <FolderOpen size={24} className="mb-10" aria-hidden="true" />
+          <h3 className="text-2xl font-medium tracking-[-0.04em]">A mood for every board.</h3>
+          <p className="mt-3 max-w-xs text-sm leading-relaxed opacity-80">Cluster your finds by client, campaign, or that feeling you can’t quite name.</p>
+          <div className="relative mx-auto mt-9 h-[162px] max-w-[285px]" aria-hidden="true">
+            {[reels[2], reels[4], reels[1]].map((reel, index) => (
+              <div key={reel.id} className="absolute top-2 h-36 w-[110px] rounded-xl border-[5px] border-white bg-cover bg-center shadow-lg dark:border-[#302719]" style={{ backgroundImage: `url("${reel.image}")`, left: `${index * 27}%`, transform: `rotate(${(index - 1) * 11}deg)` }} />
+            ))}
+            <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-white px-4 py-2 text-[11px] font-medium shadow-sm dark:bg-[#382E16]">The next campaign · 12 ideas</span>
+          </div>
+        </article>
+        <article className="border-b border-[#CCEBD7] bg-[#F0FDF4] p-7 text-[#286641] md:col-span-5 md:border-b-0 md:border-r md:p-9 dark:border-[#1E3B29] dark:bg-[#101C15] dark:text-[#80CFA0]">
+          <AudioLines size={24} className="mb-8" aria-hidden="true" />
+          <h3 className="text-2xl font-medium tracking-[-0.04em]">Keep the hook. And the beat.</h3>
+          <p className="mt-3 max-w-xs text-sm leading-relaxed opacity-80">The opening line. The perfect audio. Save the details that make an idea stick.</p>
+          <div className="mt-8 rounded-2xl border border-[#CCEBD7] bg-white/50 p-4 dark:border-[#1E3B29] dark:bg-white/5">
+            <div className="flex items-center justify-between text-[11px]"><span>Original audio</span><span className="opacity-60">0:24</span></div>
+            <div className="mt-4 flex h-[72px] items-center justify-between gap-1" aria-hidden="true">
+              {waveHeights.map((height, index) => (
+                <span key={index} className={`w-1.5 rounded-full bg-current ${index > 18 ? "opacity-20" : "opacity-65"}`} style={{ height: `${height}px` }} />
+              ))}
+            </div>
+            <p className="mt-3 border-t border-current/10 pt-3 text-[11px] opacity-80">“What if we started with the unexpected?”</p>
+          </div>
+        </article>
+        <article className="overflow-hidden bg-[#F7F3FF] p-7 text-[#6E47C7] md:col-span-7 md:p-9 dark:bg-[#161224] dark:text-[#CBB5FD]">
+          <Search size={24} className="mb-8" aria-hidden="true" />
+          <h3 className="text-2xl font-medium tracking-[-0.04em]">Find that one thing. Instantly.</h3>
+          <p className="mt-3 max-w-sm text-sm leading-relaxed opacity-80">Search by topic or creator. Get back to the Reel you remember, not another hour of scrolling.</p>
+          <div className="mt-8 rounded-2xl border border-[#E5DAFD] bg-white/65 p-4 dark:border-[#2E2250] dark:bg-white/5">
+            <div className="flex items-center gap-3 rounded-xl border border-[#E5DAFD] bg-white px-3 py-3 text-xs dark:border-[#2E2250] dark:bg-[#161224]">
+              <Search size={15} aria-hidden="true" /><span>Slow living, strong opening</span><span className="ml-auto text-[10px] opacity-40">Search preview</span>
+            </div>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {["Visual hooks", "Interiors", "Storytelling"].map((tag) => (
+                <span key={tag} className="rounded-full border border-[#E5DAFD] px-3 py-1.5 text-[10px] dark:border-[#2E2250]">{tag}</span>
+              ))}
+            </div>
+            <div className="mt-4 flex items-center gap-3">
+              <div aria-hidden="true" className="size-10 rounded-lg bg-cover bg-center" style={{ backgroundImage: `url("${reels[2].image}")` }} />
+              <div className="text-xs"><p className="font-medium">Let the space do the talking.</p><p className="mt-1 text-[10px] opacity-60">Objects & spaces · Brand building</p></div>
+              <ChevronRight size={16} className="ml-auto shrink-0" aria-hidden="true" />
+            </div>
+          </div>
+        </article>
+      </div>
+    </section>
+  );
+}
+
+function Collections() {
+  const reducedMotion = useReducedMotion();
+  function scrollTray(direction: number) {
+    const tray = document.getElementById("reel-tray");
+    if (!tray) return;
+    tray.scrollBy({ left: direction * 276, behavior: reducedMotion ? "auto" : "smooth" });
+  }
+  return (
+    <section id="collections" aria-labelledby="collections-heading" className="overflow-hidden py-16 sm:py-24">
+      <div className="mx-auto flex max-w-6xl items-end justify-between gap-5 px-5 sm:px-8">
+        <motion.div {...reveal}>
+          <p className="mb-4 flex items-center gap-2 text-xs text-zinc-500"><Sparkles size={14} aria-hidden="true" /> Follow your curiosity</p>
+          <h2 id="collections-heading" className="text-4xl font-medium leading-[1.1] tracking-[-0.055em] sm:text-5xl">Your taste.<br />An unfair advantage.</h2>
+          <p className="mt-5 max-w-md text-sm leading-relaxed text-zinc-500 dark:text-zinc-400">A swipe file is more than a collection. It’s a little map of where your mind wants to go next.</p>
+        </motion.div>
+        <div className="hidden gap-2 sm:flex">
+          <button type="button" onClick={() => scrollTray(-1)} aria-label="Scroll inspiration left" aria-controls="reel-tray" className="flex size-11 items-center justify-center rounded-full border border-black/15 transition-colors hover:bg-black/5 dark:border-white/20 dark:hover:bg-white/10"><ArrowLeft size={17} aria-hidden="true" /></button>
+          <button type="button" onClick={() => scrollTray(1)} aria-label="Scroll inspiration right" aria-controls="reel-tray" className="flex size-11 items-center justify-center rounded-full border border-black/15 transition-colors hover:bg-black/5 dark:border-white/20 dark:hover:bg-white/10"><ArrowRight size={17} aria-hidden="true" /></button>
+        </div>
+      </div>
+      <div id="reel-tray" role="region" aria-label="Curated inspiration previews" tabIndex={0} className="reel-tray mx-auto mt-8 flex max-w-6xl snap-x snap-mandatory gap-5 overflow-x-auto overscroll-x-contain px-5 pb-8 pt-4 sm:px-8">
+        {reels.map((reel, index) => <ReelCard key={reel.id} reel={reel} index={index} />)}
+        <Link href="#join" className="flex aspect-[9/16] w-[230px] shrink-0 snap-start flex-col items-center justify-center rounded-[24px] border border-dashed border-black/20 bg-[#F2F0EB] p-7 text-center transition-colors hover:bg-[#EAE6DE] sm:w-[252px] dark:border-white/20 dark:bg-[#0F1114] dark:hover:bg-[#17181C]">
+          <span className="mb-5 flex size-14 items-center justify-center rounded-full bg-white dark:bg-white/10"><Plus size={23} aria-hidden="true" /></span>
+          <span className="text-2xl font-medium leading-tight tracking-tight">Make room for<br />your next idea.</span>
+          <span className="mt-5 flex items-center gap-2 text-xs text-zinc-500">Start your collection <ArrowUpRight size={14} aria-hidden="true" /></span>
+        </Link>
+      </div>
+      <p className="mx-auto max-w-6xl px-5 text-[11px] text-zinc-400 sm:px-8">A sample of what your vault could look like. Photography via Unsplash.</p>
+    </section>
+  );
+}
+
+function Footer() {
+  return (
+    <footer id="join" className="relative overflow-hidden bg-[#17181C] text-white dark:border-t dark:border-white/10 dark:bg-[#0F1114]">
+      <div aria-hidden="true" className="pointer-events-none absolute -right-32 top-0 size-[400px] rounded-full bg-[#8860C5]/15 blur-[100px]" />
+      <div className="relative mx-auto max-w-6xl px-5 pb-8 pt-20 sm:px-8 sm:pt-24">
+        <div className="grid gap-10 md:grid-cols-[1.25fr_1fr] md:items-end">
+          <motion.div {...reveal}>
+            <p className="mb-6 text-xs text-[#CBB5FD]">For the ideas you haven’t made yet.</p>
+            <h2 className="text-[clamp(3.5rem,8vw,6.5rem)] font-medium leading-[0.98] tracking-[-0.065em]">Less lost.<br /><span className="text-[#CBB5FD]">More made.</span></h2>
+          </motion.div>
+          <div className="max-w-sm md:pb-2">
+            <p className="mb-7 text-sm leading-relaxed text-zinc-400">Your next great project starts with something you saved. Give it a home.</p>
+            <form action="/signup" method="get">
+              <label htmlFor="signup-email" className="sr-only">Your email address</label>
+              <div className="flex items-center gap-2 rounded-full border border-white/20 bg-white/5 p-1.5 focus-within:border-[#CBB5FD] focus-within:ring-2 focus-within:ring-[#CBB5FD]/20">
+                <input id="signup-email" name="email" type="email" autoComplete="email" placeholder="Your email address" required maxLength={254} className="min-w-0 flex-1 rounded-full bg-transparent px-4 py-3 text-sm text-white outline-none placeholder:text-zinc-500" />
+                <button type="submit" aria-label="Start your swipe file with this email" className="flex size-11 shrink-0 items-center justify-center rounded-full bg-[#CBB5FD] text-[#24163D] transition-colors hover:bg-[#DECEFF]"><MoveUpRight size={20} aria-hidden="true" /></button>
+              </div>
+              <p className="mt-3 px-4 text-[11px] leading-relaxed text-zinc-500">Enter your email to continue to account creation.</p>
+            </form>
+          </div>
+        </div>
+        <div className="mt-20 flex flex-col justify-between gap-6 border-t border-white/10 pt-7 sm:flex-row sm:items-center">
+          <Brand inverted />
+          <p className="text-[11px] text-zinc-500">© {new Date().getFullYear()} Reeldash. Keep your inspiration close.</p>
+          <Link href="#features" className="flex items-center gap-2 text-xs text-zinc-400 transition-colors hover:text-white">Back to the good stuff <ArrowUpRight size={13} aria-hidden="true" /></Link>
+        </div>
+      </div>
+    </footer>
+  );
+}
+
+export default function HomePage() {
+  return (
+    <MotionConfig reducedMotion="user">
+      <div className="min-h-screen bg-[#FAF9F6] font-sans text-[#17181C] antialiased selection:bg-[#DDCCFF] selection:text-[#24163D] dark:bg-[#090A0D] dark:text-[#F4F3F6]">
+        <a href="#main-content" className="sr-only fixed left-4 top-4 z-50 rounded-full bg-[#17181C] px-5 py-3 text-sm text-white focus:not-sr-only">Skip to content</a>
+        <Header />
+        <main id="main-content">
+          <Hero />
+          <Features />
+          <Collections />
+        </main>
+        <Footer />
+        <style jsx global>{`
+          html { scroll-behavior: smooth; }
+          section[id], footer[id] { scroll-margin-top: 2rem; }
+          .reel-tray { scrollbar-width: thin; scrollbar-color: #c9c3d2 transparent; }
+          .reel-tray::-webkit-scrollbar { height: 4px; }
+          .reel-tray::-webkit-scrollbar-thumb { background: #c9c3d2; border-radius: 8px; }
+          a:focus-visible, button:focus-visible, [tabindex="0"]:focus-visible {
+            outline: 2px solid #9c7ada;
+            outline-offset: 5px;
+          }
+          @media (prefers-reduced-motion: reduce) {
+            html { scroll-behavior: auto; }
+            *, *::before, *::after { transition-duration: 0.01ms !important; }
+          }
+        `}</style>
+      </div>
+    </MotionConfig>
   );
 }
