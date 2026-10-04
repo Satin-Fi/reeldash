@@ -54,6 +54,7 @@ export function MobileNav() {
   const isReelsActive =
     pathname === "/reels" && (currentType === "reel" || (!currentType && false));
   const isFavoritesActive = pathname === "/favorites";
+  const isCategoriesActive = pathname === "/categories" || pathname.startsWith("/categories");
   const isHomeActive = pathname === "/dashboard";
 
   const closeMenu = () => setIsMenuOpen(false);
@@ -111,9 +112,9 @@ export function MobileNav() {
           <Plus className="w-6 h-6" strokeWidth={2.5} />
         </button>
 
-        {/* 4. Favorites */}
+        {/* 4. Categories */}
         <Link
-          href="/favorites"
+          href="/categories"
           onClick={() => {
             setActiveCategory(null);
             setActiveCollection(null);
@@ -121,16 +122,16 @@ export function MobileNav() {
             closeMenu();
           }}
           className={`flex flex-col items-center space-y-1 py-1 px-2.5 rounded-xl transition-all active:scale-95 ${
-            isFavoritesActive
-              ? "text-rose-500 font-semibold"
+            isCategoriesActive
+              ? "text-zinc-950 dark:text-white font-semibold"
               : "text-zinc-500 dark:text-zinc-400"
           }`}
         >
-          <Heart
-            className={`w-5 h-5 ${isFavoritesActive ? "fill-rose-500 text-rose-500" : ""}`}
-            strokeWidth={isFavoritesActive ? 2.5 : 2}
+          <Folder
+            className="w-5 h-5"
+            strokeWidth={isCategoriesActive ? 2.5 : 2}
           />
-          <span className="text-[10px] tracking-tight">Favorites</span>
+          <span className="text-[10px] tracking-tight">Categories</span>
         </Link>
 
         {/* 5. Mobile Drawer Trigger */}
