@@ -811,11 +811,14 @@ export function ReelPlayerModal({ reel, isOpen, onClose }: ReelPlayerModalProps)
                       onClick={async () => {
                         await saveReel(activeReel.instagramUrl, {
                           mediaType: "audio",
-                          audioTitle: activeReel.audioTitle,
+                          shortcode: `audio_${activeReel.shortcode || activeReel.id}`,
+                          audioTitle: activeReel.audioTitle || "Original audio",
                           audioArtist: activeReel.audioArtist || `@${activeReel.creatorUsername}`,
                           creator: activeReel.creatorUsername,
-                          caption: `Soundtrack from @${activeReel.creatorUsername}`,
+                          caption: `Soundtrack from @${activeReel.creatorUsername}: ${activeReel.audioTitle || "Original audio"}`,
                           category: "Music & Audio",
+                          thumbnailUrl: activeReel.thumbnailUrl,
+                          mediaUrl: activeReel.videoUrl || activeReel.mediaUrl,
                         });
                         showToast("Audio track saved to Songs & Audio!");
                       }}

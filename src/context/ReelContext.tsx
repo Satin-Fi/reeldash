@@ -71,6 +71,9 @@ interface ReelContextType {
       mediaType?: MediaType;
       audioTitle?: string;
       audioArtist?: string;
+      audioUrl?: string;
+      mediaUrl?: string;
+      videoUrl?: string;
       isCarousel?: boolean;
       carouselImages?: string[];
       likes?: string;
@@ -432,11 +435,14 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
                   aiTopics: Array.isArray(dbR.aiTopics) ? dbR.aiTopics : Array.isArray(dbR.ai_topics) ? dbR.ai_topics : [],
                   notes: dbR.note || "",
                   isFavorite: !!dbR.is_favorite,
-                  mediaType: isCarousel ? "post" : (dbR.media_type || "reel"),
+                  mediaType: isCarousel ? "post" : (dbR.media_type || dbR.mediaType || "reel"),
                   duration: dbR.duration || (isCarousel ? `Carousel (${carouselImages?.length || ""})` : "0:15"),
                   likes: dbR.likes_count || "",
                   videoUrl: isCarousel ? "" : dbR.video_url,
                   mediaUrl: isCarousel ? "" : dbR.video_url,
+                  audioTitle: dbR.audio_title || dbR.audioTitle || undefined,
+                  audioArtist: dbR.audio_artist || dbR.audioArtist || undefined,
+                  audioUrl: dbR.audio_url || dbR.audioUrl || undefined,
                   isCarousel,
                   carouselImages,
                   createdAt: dbR.created_at || new Date().toISOString(),
@@ -1089,6 +1095,9 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
       mediaType?: MediaType;
       audioTitle?: string;
       audioArtist?: string;
+      audioUrl?: string;
+      mediaUrl?: string;
+      videoUrl?: string;
       isCarousel?: boolean;
       carouselImages?: string[];
       likes?: string;
@@ -1101,25 +1110,15 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
     const cleanUrl = (parsedCmd.cleanUrl || parsedCmd.cleanText || url).trim();
     if (!cleanUrl) return;
 
-    // Duplicate check
-    const cleanNormalized = cleanUrl.replace(/\/$/, "");
-    const alreadyExists = reels.find(
-      (r) =>
-        r.instagramUrl.replace(/\/$/, "") === cleanNormalized ||
-        (customDetails?.shortcode && r.shortcode === customDetails.shortcode)
-    );
-    if (alreadyExists) {
-      showToast("Already in your library", `@${alreadyExists.creatorUsername}'s Reel`);
-      setIsSaveModalOpen(false);
-      return;
-    }
+    const isExplicitAudio =
+      customDetails?.mediaType === "audio" ||
+      cleanUrl.includes("/audio/") ||
+      cleanUrl.includes("/reels/audio/") ||
+      cleanUrl.includes("#audio");
 
-    const audioIdMatch = cleanUrl.match(/\/reels\/audio\/(\d+)/);
-    const shortcodeMatch = audioIdMatch || cleanUrl.match(/\/(?:reel|p|stories)\/([A-Za-z0-9_-]+)/);
-    const shortcode = customDetails?.shortcode || (shortcodeMatch ? shortcodeMatch[1] : `sc_${Date.now().toString(36)}`);
     const mediaType: MediaType =
       customDetails?.mediaType ||
-      (cleanUrl.includes("/audio/")
+      (isExplicitAudio
         ? "audio"
         : cleanUrl.includes("/stories/")
         ? "story"
@@ -1127,8 +1126,37 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
         ? "post"
         : "reel");
 
+    const audioIdMatch = cleanUrl.match(/\/(?:reels\/audio|share\/audio|audio)\/([A-Za-z0-9_.-]+)/i);
+    const shortcodeMatch = audioIdMatch || cleanUrl.match(/\/(?:reel|p|stories)\/([A-Za-z0-9_-]+)/);
+    let shortcode = customDetails?.shortcode;
+    if (!shortcode) {
+      if (audioIdMatch) {
+        shortcode = `audio_${audioIdMatch[1]}`;
+      } else if (mediaType === "audio" && shortcodeMatch) {
+        shortcode = `audio_${shortcodeMatch[1]}`;
+      } else if (shortcodeMatch) {
+        shortcode = shortcodeMatch[1];
+      } else {
+        shortcode = `${mediaType}_${Date.now().toString(36)}`;
+      }
+    }
+
+    // Duplicate check: only block if an item of the SAME mediaType has the same normalized URL or shortcode
+    const cleanNormalized = cleanUrl.replace(/\/$/, "");
+    const alreadyExists = reels.find(
+      (r) =>
+        (r.mediaType || "reel") === mediaType &&
+        (r.instagramUrl.replace(/\/$/, "") === cleanNormalized ||
+          (shortcode && r.shortcode === shortcode))
+    );
+    if (alreadyExists) {
+      showToast("Already in your library", `@${alreadyExists.creatorUsername}'s ${mediaType === "audio" ? "Audio Track" : "Reel"}`);
+      setIsSaveModalOpen(false);
+      return;
+    }
+
     const tempId = `${mediaType}-${Date.now()}`;
-    const initialCreator = customDetails?.creator || (shortcode ? `ig_${shortcode.substring(0, 6)}` : "creator");
+    const initialCreator = customDetails?.creator || (mediaType === "audio" ? "Instagram Audio" : (shortcode ? `ig_${shortcode.replace(/^audio_/, "").substring(0, 6)}` : "creator"));
     const primaryCategory = parsedCmd.primaryCategory || customDetails?.category;
     const allCategories = parsedCmd.categories.length > 0
       ? parsedCmd.categories
@@ -1139,7 +1167,7 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
       : [];
     const targetCategory = primaryCategory || (mediaType === "audio" ? "Music & Audio" : "General");
     const initialAvatar =
-      customDetails?.creatorAvatar || `/api/proxy-image?username=${encodeURIComponent(initialCreator)}`;
+      customDetails?.creatorAvatar || (mediaType === "audio" ? "" : `/api/proxy-image?username=${encodeURIComponent(initialCreator)}`);
     const initialThumbnail =
       customDetails?.thumbnailUrl || (shortcode ? `/api/proxy-image?shortcode=${shortcode}` : "");
 
@@ -1156,13 +1184,14 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
       mediaType,
       instagramUrl: cleanUrl,
       creatorUsername: initialCreator,
-      creatorFullName: customDetails?.creatorFullName || initialCreator.charAt(0).toUpperCase() + initialCreator.slice(1),
-      creatorProfileUrl: `https://instagram.com/${initialCreator}`,
+      creatorFullName: customDetails?.creatorFullName || (mediaType === "audio" ? "Instagram Audio" : initialCreator.charAt(0).toUpperCase() + initialCreator.slice(1)),
+      creatorProfileUrl: mediaType === "audio" ? cleanUrl : `https://instagram.com/${initialCreator}`,
       creatorAvatar: initialAvatar,
       thumbnailUrl: initialThumbnail,
-      mediaUrl: "",
-      embedUrl: `https://www.instagram.com/p/${shortcode}/embed/`,
-      caption: customDetails?.caption || `Instagram ${mediaType.toUpperCase()}: ${cleanUrl}`,
+      mediaUrl: customDetails?.mediaUrl || "",
+      videoUrl: customDetails?.mediaUrl || "",
+      embedUrl: mediaType === "audio" ? "" : `https://www.instagram.com/p/${shortcode.replace(/^audio_/, "")}/embed/`,
+      caption: customDetails?.caption || (mediaType === "audio" ? `Instagram Audio Track: ${customDetails?.audioTitle || "Original audio"}` : `Instagram ${mediaType.toUpperCase()}: ${cleanUrl}`),
       category: targetCategory,
       categories: allCategories.length > 0 ? allCategories : [targetCategory],
       subcategories: allCategories.length > 0 ? allCategories : [targetCategory],
@@ -1171,8 +1200,9 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
       notes: parsedCmd.note || undefined,
       isFavorite: false,
       duration: customDetails?.duration || (mediaType === "audio" ? "" : customDetails?.isCarousel ? `Carousel (${customDetails?.carouselImages?.length || 1})` : ""),
-      audioTitle: customDetails?.audioTitle,
-      audioArtist: customDetails?.audioArtist,
+      audioTitle: customDetails?.audioTitle || (mediaType === "audio" ? "Original audio" : undefined),
+      audioArtist: customDetails?.audioArtist || (mediaType === "audio" ? (customDetails?.creator || initialCreator) : undefined),
+      audioUrl: customDetails?.audioUrl || customDetails?.mediaUrl || undefined,
       isCarousel: customDetails?.isCarousel,
       carouselImages: customDetails?.carouselImages,
       likes: customDetails?.likes,
@@ -1214,6 +1244,14 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
           categories: allCategories.length > 0 ? allCategories : [targetCategory],
           mediaType,
           duration: optimisticReel.duration,
+          audioTitle: optimisticReel.audioTitle,
+          audio_title: optimisticReel.audioTitle,
+          audioArtist: optimisticReel.audioArtist,
+          audio_artist: optimisticReel.audioArtist,
+          audioUrl: optimisticReel.audioUrl,
+          audio_url: optimisticReel.audioUrl,
+          videoUrl: optimisticReel.videoUrl,
+          video_url: optimisticReel.videoUrl,
           likes: customDetails?.likes,
           commentsCount: customDetails?.commentsCount,
           notes: parsedCmd.note,
@@ -1276,9 +1314,9 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
                 category: finalCategory,
                 likes: customDetails?.likes || data.likes || r.likes,
                 commentsCount: customDetails?.commentsCount || data.commentsCount || r.commentsCount,
-                duration: customDetails?.duration || data.duration || r.duration,
-                audioTitle: customDetails?.audioTitle || data.audioTitle,
-                audioArtist: customDetails?.audioArtist || data.audioArtist,
+                audioTitle: customDetails?.audioTitle || data.audioTitle || r.audioTitle,
+                audioArtist: customDetails?.audioArtist || data.audioArtist || r.audioArtist,
+                audioUrl: customDetails?.audioUrl || data.mediaUrl || r.audioUrl,
                 isCarousel: customDetails?.isCarousel ?? r.isCarousel,
                 carouselImages: customDetails?.carouselImages ?? r.carouselImages,
                 aiSummary: data.aiSummary || r.aiSummary,

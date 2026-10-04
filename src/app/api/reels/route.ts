@@ -150,6 +150,10 @@ export async function GET(req: NextRequest) {
       return {
         ...row,
         shortcode: row.shortcode,
+        mediaType: row.media_type || row.mediaType || (row.is_carousel ? "post" : "reel"),
+        audioTitle: row.audio_title || row.audioTitle || undefined,
+        audioArtist: row.audio_artist || row.audioArtist || undefined,
+        audioUrl: row.audio_url || row.audioUrl || undefined,
         isCarousel: row.is_carousel || row.duration?.toLowerCase().includes("carousel") || (Array.isArray(row.carousel_images) && row.carousel_images.length > 1),
         carouselImages: Array.isArray(row.carousel_images) && row.carousel_images.length > 0 ? row.carousel_images : undefined,
         category: categoryList[0] || row.category || "General",
@@ -231,10 +235,38 @@ export async function POST(req: NextRequest) {
     }
     const primaryCategory = allCategories.length > 0 ? allCategories[0] : (parsedCmd.primaryCategory || "General");
 
-    const shortcodeMatch = url.match(/(?:reel|p|audio|stories)\/([A-Za-z0-9_-]+)/);
-    const shortcode = clientShortcode || (shortcodeMatch ? shortcodeMatch[1] : `sc_${Date.now()}`);
-    
-    const detectedMediaType = bodyMediaType || media_type || (url.includes("/audio/") ? "audio" : url.includes("/stories/") ? "story" : url.includes("/p/") ? "post" : "reel");
+    const isExplicitAudio =
+      bodyMediaType === "audio" ||
+      media_type === "audio" ||
+      url.includes("/audio/") ||
+      url.includes("/reels/audio/") ||
+      url.includes("#audio");
+
+    const detectedMediaType =
+      bodyMediaType ||
+      media_type ||
+      (isExplicitAudio
+        ? "audio"
+        : url.includes("/stories/")
+        ? "story"
+        : url.includes("/p/")
+        ? "post"
+        : "reel");
+
+    const audioIdMatch = url.match(/\/(?:reels\/audio|share\/audio|audio)\/([A-Za-z0-9_.-]+)/i);
+    const shortcodeMatch = audioIdMatch || url.match(/\/(?:reel|p|stories)\/([A-Za-z0-9_-]+)/);
+    let shortcode = clientShortcode;
+    if (!shortcode) {
+      if (audioIdMatch) {
+        shortcode = `audio_${audioIdMatch[1]}`;
+      } else if (detectedMediaType === "audio" && shortcodeMatch) {
+        shortcode = `audio_${shortcodeMatch[1]}`;
+      } else if (shortcodeMatch) {
+        shortcode = shortcodeMatch[1];
+      } else {
+        shortcode = `${detectedMediaType}_${Date.now()}`;
+      }
+    }
 
     const effectiveCreatorHandle = creator_handle || creator || "";
     const effectiveThumbnail = thumbnail_url || thumbnailUrl || "";
@@ -321,6 +353,9 @@ export async function POST(req: NextRequest) {
       ai_topics: Array.isArray(enrichedData.aiTopics) ? enrichedData.aiTopics : [],
       is_carousel: isCarouselPost,
       carousel_images: finalCarouselImages,
+      audio_title: body.audioTitle || body.audio_title || enrichedData.audioTitle || (detectedMediaType === "audio" ? "Original audio" : null),
+      audio_artist: body.audioArtist || body.audio_artist || enrichedData.audioArtist || (detectedMediaType === "audio" ? finalCreatorHandle : null),
+      audio_url: body.audioUrl || body.audio_url || (detectedMediaType === "audio" ? (video_url || videoUrl || enrichedData.mediaUrl || null) : null),
       source: bodySource || "manual",
       instagram_username: instagram_username || null,
       instagram_account_id: instagram_account_id || null,

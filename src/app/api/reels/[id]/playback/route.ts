@@ -220,12 +220,15 @@ export async function GET(
   const mediaType = searchParams.get("type");
   const forceRefresh = searchParams.get("refresh") === "true";
 
-  const audioIdMatch = instagramUrl?.match(/\/reels\/audio\/(\d+)/);
+  const audioIdMatch = instagramUrl?.match(/\/(?:reels\/audio|share\/audio|audio)\/([A-Za-z0-9_.-]+)/i);
   let shortcode = audioIdMatch ? audioIdMatch[1] : reelId.replace(/^(reel|audio|post|story)-/, "");
   if (instagramUrl && !audioIdMatch) {
     const match = instagramUrl.match(/(?:reel|reels|p|stories)\/([A-Za-z0-9_-]+)/);
     if (match) shortcode = match[1];
   }
+
+  // If shortcode starts with audio_, it came from a reel whose shortcode is after audio_
+  const underlyingShortcode = shortcode.replace(/^audio_/, "");
 
   if (!shortcode && !instagramUrl) {
     return NextResponse.json(
@@ -234,8 +237,9 @@ export async function GET(
     );
   }
 
-  // 1. Fast-path for standalone Instagram Audio URLs (no public CDN audio binary without browser session)
-  if (mediaType === "audio" || (instagramUrl && instagramUrl.includes("/audio/"))) {
+  // Standalone Instagram Audio tracks without an associated reel video
+  const isStandaloneAudioPage = (instagramUrl && (instagramUrl.includes("/audio/") || instagramUrl.includes("/reels/audio/")) && !instagramUrl.includes("/reel/"));
+  if (isStandaloneAudioPage && !underlyingShortcode) {
     return NextResponse.json({
       status: "external_only",
       reason: "Instagram audio tracks require Instagram session to play",
@@ -246,7 +250,7 @@ export async function GET(
 
   // 2. Check in-memory resolution cache
   if (!forceRefresh) {
-    const cached = mediaCache.get(shortcode);
+    const cached = mediaCache.get(underlyingShortcode);
     if (cached && Date.now() < cached.expiresAt) {
       return NextResponse.json({
         status: "available",
@@ -258,15 +262,15 @@ export async function GET(
     }
   }
 
-  const targetUrl = instagramUrl || `https://www.instagram.com/reel/${shortcode}/`;
+  const targetUrl = (instagramUrl && !instagramUrl.includes("/audio/")) ? instagramUrl : `https://www.instagram.com/reel/${underlyingShortcode}/`;
 
   let directCdnMp4Url: string | null = null;
 
   // 2. Try Pure-JS Extractors first (serverless friendly)
   try {
-    directCdnMp4Url = await resolveViaPureJs(shortcode);
+    directCdnMp4Url = await resolveViaPureJs(underlyingShortcode);
   } catch (err) {
-    console.warn(`[PureJS Resolution] error for ${shortcode}:`, err);
+    console.warn(`[PureJS Resolution] error for ${underlyingShortcode}:`, err);
   }
 
   // 3. Fallback to yt-dlp if pure JS didn't resolve and environment supports it

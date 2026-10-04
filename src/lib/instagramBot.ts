@@ -1114,10 +1114,18 @@ async function handleReady(
           ? parsedCmd.cleanText
           : `Instagram ${isAudio ? "Audio" : isPost ? "Post" : "Reel"} shared via Direct Message`);
 
-      const shortcodeMatch = mediaUrl.match(
-        /\/(?:share\/)?(?:reel|reels|p|stories|audio)\/([A-Za-z0-9_.-]+)/i
+      const audioMatch = mediaUrl.match(
+        /\/(?:reels\/audio|share\/audio|audio)\/([A-Za-z0-9_.-]+)/i
       );
-      let shortcode = shortcodeMatch ? shortcodeMatch[1] : "";
+      let shortcode = "";
+      if (audioMatch) {
+        shortcode = `audio_${audioMatch[1]}`;
+      } else {
+        const shortcodeMatch = mediaUrl.match(
+          /\/(?:share\/)?(?:reel|reels|p|stories)\/([A-Za-z0-9_.-]+)/i
+        );
+        shortcode = shortcodeMatch ? shortcodeMatch[1] : "";
+      }
       if (!shortcode) {
         const assetMatch = mediaUrl.match(/[?&]asset_id=(\d+)/);
         if (assetMatch && assetMatch[1]) {
@@ -1745,10 +1753,18 @@ async function storePendingReel(
   if (!supabase) return;
 
   try {
-    const shortcodeMatch = mediaUrl.match(
-      /\/(?:share\/)?(?:reel|reels|p|stories|audio)\/([A-Za-z0-9_.-]+)/i
+    const audioMatch = mediaUrl.match(
+      /\/(?:reels\/audio|share\/audio|audio)\/([A-Za-z0-9_.-]+)/i
     );
-    const shortcode = shortcodeMatch ? shortcodeMatch[1] : null;
+    let shortcode: string | null = null;
+    if (audioMatch) {
+      shortcode = `audio_${audioMatch[1]}`;
+    } else {
+      const shortcodeMatch = mediaUrl.match(
+        /\/(?:share\/)?(?:reel|reels|p|stories)\/([A-Za-z0-9_.-]+)/i
+      );
+      shortcode = shortcodeMatch ? shortcodeMatch[1] : null;
+    }
 
     // Check if this exact reel is already pending for this sender
     if (shortcode) {
@@ -2215,8 +2231,19 @@ async function fetchInstagramUserProfile(
 function extractCanonicalInstagramUrl(text: string): string | null {
   if (!text || typeof text !== "string") return null;
 
+  // 1. Audio URLs first (to prevent /reels/audio/[id] from matching as a reel with shortcode "audio")
+  const audioMatch =
+    text.match(/https?:\/\/(?:www\.)?(?:instagram\.com|instagr\.am)\/(?:share\/)?(?:reels\/audio|audio)\/([A-Za-z0-9_.-]+)/i) ||
+    text.match(/\/(?:reels\/audio|share\/audio|audio)\/([A-Za-z0-9_.-]+)/i);
+
+  if (audioMatch) {
+    const audioId = audioMatch[1];
+    return `https://www.instagram.com/reels/audio/${audioId}/`;
+  }
+
+  // 2. Full media URL matching (reel, post, stories)
   const fullUrlMatch = text.match(
-    /https?:\/\/(?:www\.)?(?:instagram\.com|instagr\.am)\/(?:share\/)?(?:[A-Za-z0-9_.]+\/)?(reel|reels|p|stories|audio)\/([A-Za-z0-9_.-]+)\/?/i
+    /https?:\/\/(?:www\.)?(?:instagram\.com|instagr\.am)\/(?:share\/)?(?:[A-Za-z0-9_.]+\/)?(reel|reels|p|stories)\/([A-Za-z0-9_.-]+)\/?/i
   );
 
   if (fullUrlMatch) {
@@ -2225,26 +2252,21 @@ function extractCanonicalInstagramUrl(text: string): string | null {
     if (type === "p") {
       return `https://www.instagram.com/p/${shortcode}/`;
     }
-    if (type === "audio") {
-      return `https://www.instagram.com/reels/audio/${shortcode}/`;
-    }
     if (type === "stories") {
       return fullUrlMatch[0];
     }
     return `https://www.instagram.com/reel/${shortcode}/`;
   }
 
+  // 3. Path matching fallback
   const shortcodeMatch = text.match(
-    /\/(?:share\/)?(reel|reels|p|stories|audio)\/([A-Za-z0-9_.-]+)/i
+    /\/(?:share\/)?(reel|reels|p|stories)\/([A-Za-z0-9_.-]+)/i
   );
   if (shortcodeMatch) {
     const type = shortcodeMatch[1].toLowerCase();
     const shortcode = shortcodeMatch[2];
     if (type === "p") {
       return `https://www.instagram.com/p/${shortcode}/`;
-    }
-    if (type === "audio") {
-      return `https://www.instagram.com/reels/audio/${shortcode}/`;
     }
     return `https://www.instagram.com/reel/${shortcode}/`;
   }

@@ -181,16 +181,16 @@ function AudioSongPlayer({ reel, coverImageSrc }: { reel: Reel; coverImageSrc: s
   const [durationStr, setDurationStr] = useState(
     reel.duration && reel.duration !== "0:00" && reel.duration !== "--:--" ? reel.duration : "--:--"
   );
-  const [audioSrc, setAudioSrc] = useState<string>(reel.audioUrl || reel.mediaUrl || "");
+  const [audioSrc, setAudioSrc] = useState<string>(reel.audioUrl || reel.mediaUrl || reel.videoUrl || "");
   const [isLoadingAudio, setIsLoadingAudio] = useState(false);
   const [hasAudioError, setHasAudioError] = useState(false);
   const [hasImageError, setHasImageError] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // /reels/audio/{numeric_id}/ — generic regex would capture the word "audio" as the shortcode
-  const audioIdMatch = reel.instagramUrl.match(/\/reels\/audio\/(\d+)/);
+  // Extract audio ID or shortcode
+  const audioIdMatch = reel.instagramUrl.match(/\/(?:reels\/audio|share\/audio|audio)\/([A-Za-z0-9_.-]+)/i);
   const shortcodeMatch = audioIdMatch || reel.instagramUrl.match(/\/(?:reel|p|stories)\/([A-Za-z0-9_-]+)/);
-  const shortcode = shortcodeMatch ? shortcodeMatch[1] : reel.id.replace(/^(audio|reel|post|story)-/, "");
+  const shortcode = audioIdMatch ? `audio_${audioIdMatch[1]}` : (shortcodeMatch ? shortcodeMatch[1] : reel.id.replace(/^(audio|reel|post|story)-/, ""));
 
   const trackTitle = reel.audioTitle || `Original Audio`;
   const artistName = reel.audioArtist || reel.creatorFullName || `@${reel.creatorUsername} • Original Audio`;

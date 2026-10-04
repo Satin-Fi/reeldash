@@ -16,6 +16,8 @@ import { ReelGrid } from '@/components/reels/ReelGrid';
 function normalizeInstagramUrl(value: string): string | null {
   try {
     const trimmed = value.trim();
+    if (!trimmed) return null;
+
     const url = new URL(
       /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`,
     );
@@ -24,25 +26,41 @@ function normalizeInstagramUrl(value: string): string | null {
     const isInstagram =
       hostname === 'instagram.com' ||
       hostname === 'www.instagram.com' ||
-      hostname === 'm.instagram.com';
+      hostname === 'm.instagram.com' ||
+      hostname === 'instagr.am';
 
     if (
       !isInstagram ||
       !['http:', 'https:'].includes(url.protocol) ||
       url.username ||
       url.password ||
-      url.port ||
-      !/^\/(?:reel|reels|p)\/[a-zA-Z0-9_-]+\/?$/.test(url.pathname)
+      url.port
     ) {
       return null;
     }
 
-    url.protocol = 'https:';
-    url.hostname = 'www.instagram.com';
-    url.hash = '';
-    url.search = '';
+    const pathname = url.pathname.replace(/\/$/, "");
 
-    return url.toString();
+    // 1. Audio track pattern (/reels/audio/<id> or /audio/<id> or /share/audio/<id>)
+    const audioMatch = pathname.match(/\/(?:reels\/audio|share\/audio|audio)\/([a-zA-Z0-9_.-]+)/i);
+    if (audioMatch) {
+      return `https://www.instagram.com/reels/audio/${audioMatch[1]}/`;
+    }
+
+    // 2. Reel or Post pattern (/reel/<id>, /reels/<id>, /p/<id>, /share/reel/<id>, /share/p/<id>)
+    const mediaMatch = pathname.match(/\/(?:share\/)?(?:reel|reels|p)\/([a-zA-Z0-9_-]+)/i);
+    if (mediaMatch) {
+      const type = pathname.includes('/p/') ? 'p' : 'reel';
+      return `https://www.instagram.com/${type}/${mediaMatch[1]}/`;
+    }
+
+    // 3. Stories pattern (/stories/<user>/<id> or /stories/<id>)
+    const storyMatch = pathname.match(/\/stories\/(?:[a-zA-Z0-9_.]+\/)?([a-zA-Z0-9_-]+)/i);
+    if (storyMatch) {
+      return `https://www.instagram.com${pathname}/`;
+    }
+
+    return null;
   } catch {
     return null;
   }
@@ -143,7 +161,7 @@ export default function DashboardPage() {
     if (!normalizedUrl) {
       setFeedback({
         kind: 'error',
-        message: 'Please paste a valid Instagram reel or post link.',
+        message: 'Please paste a valid Instagram reel, post, or audio link.',
       });
       return;
     }

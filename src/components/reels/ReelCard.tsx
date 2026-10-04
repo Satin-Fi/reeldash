@@ -583,27 +583,36 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
               )}
             </div>
 
-            {/* Center: Crisp 1:1 circular avatar badge */}
+            {/* Center: Crisp 1:1 circular badge / audio vinyl */}
             <div className="relative z-10 flex flex-col items-center justify-center my-auto">
-              <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-white/15 shadow-xl bg-zinc-800 shrink-0">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={imageSrc || reel.creatorAvatar || `/api/proxy-image?username=${encodeURIComponent(cleanUsername || "creator")}`}
-                  alt={creatorName}
-                  draggable={false}
-                  onContextMenu={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                  }}
-                  className="w-full h-full object-cover pointer-events-none"
-                  onError={(e) => {
-                    (e.target as HTMLElement).style.display = "none";
-                  }}
-                />
+              <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-white/15 shadow-xl bg-zinc-800 flex items-center justify-center shrink-0">
+                {mediaType === "audio" && (!imageSrc || imageSrc.includes("username=")) ? (
+                  <Music2 className="w-7 h-7 text-emerald-400" />
+                ) : (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img
+                    src={imageSrc || reel.creatorAvatar || `/api/proxy-image?username=${encodeURIComponent(cleanUsername || "creator")}`}
+                    alt={creatorName}
+                    draggable={false}
+                    onContextMenu={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                    }}
+                    className="w-full h-full object-cover pointer-events-none"
+                    onError={(e) => {
+                      (e.target as HTMLElement).style.display = "none";
+                    }}
+                  />
+                )}
               </div>
-              <p className="mt-2 text-xs font-semibold text-white/90 text-center truncate max-w-[90%] drop-shadow-sm font-mono">
-                {creatorName}
+              <p className="mt-2 text-xs font-semibold text-white/90 text-center truncate max-w-[90%] drop-shadow-sm font-sans">
+                {mediaType === "audio" ? (reel.audioTitle || creatorName) : creatorName}
               </p>
+              {mediaType === "audio" && reel.audioArtist && (
+                <p className="text-[10px] text-emerald-400/80 text-center truncate max-w-[90%] mt-0.5">
+                  {reel.audioArtist}
+                </p>
+              )}
             </div>
 
             {/* Bottom: Preserved caption / what was happening in it */}

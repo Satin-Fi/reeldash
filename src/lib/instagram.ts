@@ -13,7 +13,7 @@ export function extractInstagramUsername(input: string): string {
       if (parts) {
         const firstSegment = parts.split("?")[0].split("/")[0].replace(/^@/, "").trim();
         // Ignore Instagram non-user routes
-        if (firstSegment && !["p", "reel", "reels", "stories", "explore", "tv", "accounts", "direct"].includes(firstSegment.toLowerCase())) {
+        if (firstSegment && !["p", "reel", "reels", "stories", "audio", "share", "explore", "tv", "accounts", "direct"].includes(firstSegment.toLowerCase())) {
           return firstSegment;
         }
       }

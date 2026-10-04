@@ -27,7 +27,7 @@ export function SaveReelModal() {
 
     const clean = url.toLowerCase();
     let detected: MediaType = "reel";
-    if (clean.includes("/audio/") || clean.includes("/reels/audio/")) {
+    if (clean.includes("/audio/") || clean.includes("/reels/audio/") || clean.includes("#audio")) {
       detected = "audio";
     } else if (clean.includes("/stories/")) {
       detected = "story";

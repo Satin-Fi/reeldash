@@ -94,11 +94,9 @@ async function fetchDirectInstagramMeta(url: string, signal: AbortSignal) {
 }
 
 async function fetchCloudflareWorkerMeta(shortcode: string, mediaType: string, signal: AbortSignal) {
-  const targetUrl = `https://www.instagram.com/${mediaType === "post" ? "p" : "reel"}/${shortcode}/`;
-  const workerProxy = `https://reeldash-ig-proxy.reeldash-ig-proxy.workers.dev/api/info?url=${encodeURIComponent(
-    targetUrl
-  )}`;
-  const res = await fetch(workerProxy, { signal });
+  const cleanSc = shortcode.replace(/^audio_/, "");
+  const targetUrl = `https://reeldash-ig-proxy.reeldash-ig-proxy.workers.dev/reel?shortcode=${encodeURIComponent(cleanSc)}`;
+  const res = await fetch(targetUrl, { signal });
   if (!res.ok) throw new Error(`Worker proxy failed: ${res.status}`);
   return await res.json();
 }
@@ -126,7 +124,7 @@ async function extractMetadata(url: string, startTime: number) {
     let mediaType: "reel" | "post" | "audio" | "story" = "reel";
     let duration = "";
 
-    if (lowerUrl.includes("/audio/") || lowerUrl.includes("/reels/audio/")) {
+    if (lowerUrl.includes("/audio/") || lowerUrl.includes("/reels/audio/") || cleanUrl.includes("#audio")) {
       mediaType = "audio";
       duration = "";
     } else if (lowerUrl.includes("/stories/")) {
@@ -140,11 +138,19 @@ async function extractMetadata(url: string, startTime: number) {
       duration = "";
     }
 
-    // For /reels/audio/{numeric_id}/ URLs the generic regex captures the word "audio" instead of the ID
-    // So we special-case it first
-    const audioIdMatch = cleanUrl.match(/\/reels\/audio\/(\d+)/);
+    // Extract audio ID or media shortcode
+    const audioIdMatch = cleanUrl.match(/\/(?:reels\/audio|share\/audio|audio)\/([A-Za-z0-9_.-]+)/i);
     const shortcodeMatch = audioIdMatch || cleanUrl.match(/\/(?:reel|p|stories)\/([A-Za-z0-9_-]+)/);
-    const shortcode = shortcodeMatch ? shortcodeMatch[1] : `sc_${Date.now().toString(36)}`;
+    let shortcode = "";
+    if (audioIdMatch) {
+      shortcode = `audio_${audioIdMatch[1]}`;
+    } else if (mediaType === "audio" && shortcodeMatch) {
+      shortcode = `audio_${shortcodeMatch[1]}`;
+    } else if (shortcodeMatch) {
+      shortcode = shortcodeMatch[1];
+    } else {
+      shortcode = `sc_${Date.now().toString(36)}`;
+    }
 
     let creatorUsername = "";
     let creatorFullName = "";
@@ -515,7 +521,7 @@ async function extractMetadata(url: string, startTime: number) {
       creatorAvatar: creatorAvatar || `/api/proxy-image?username=${encodeURIComponent(creatorUsername)}`,
       thumbnailUrl: formattedThumbnailUrl,
       mediaUrl,
-      embedUrl: `https://www.instagram.com/p/${shortcode}/embed/`,
+      embedUrl: mediaType === "audio" ? "" : `https://www.instagram.com/p/${shortcode.replace(/^audio_/, "")}/embed/`,
       caption,
       category,
       hashtags,

@@ -33,6 +33,7 @@ export interface Reel {
   creatorAvatar?: string;
   thumbnailUrl: string;
   mediaUrl?: string;
+  videoUrl?: string;
   embedUrl?: string;
   caption: string;
   category: string; // Primary category name for display
