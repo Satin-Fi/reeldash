@@ -452,11 +452,12 @@ function CollectionCard({
 }: {
   collection: Collection;
   index: number;
-  onExplore: (id: string) => void;
+  onExplore: (name: string) => void;
   onEdit: (collection: Collection) => void;
   onDelete: (collection: Collection) => void;
 }) {
   const reduceMotion = useReducedMotion();
+  const exploreHref = `/reels?category=${encodeURIComponent(collection.name)}`;
 
   return (
     <motion.article
@@ -472,8 +473,8 @@ function CollectionCard({
       className="relative min-w-0 rounded-[28px] border border-black/[0.07] bg-white p-2.5 transition-shadow duration-300 hover:shadow-[0_16px_50px_-28px_rgba(41,31,63,0.3)] dark:border-white/[0.08] dark:bg-[#121316] dark:hover:shadow-[0_16px_50px_-28px_rgba(0,0,0,0.8)]"
     >
       <Link
-        href="/"
-        onClick={() => onExplore(collection.id)}
+        href={exploreHref}
+        onClick={() => onExplore(collection.name)}
         aria-label={`Explore ${collection.name}, ${collection.count} ${
           collection.count === 1 ? 'reel' : 'reels'
         }`}
@@ -871,6 +872,9 @@ export default function CategoriesPage() {
     updateUserCategory,
     deleteUserCategory,
     setActiveCategory,
+    setActiveMediaType,
+    setActiveCollection,
+    setSearchQuery,
   } = useReels();
 
   const [query, setQuery] = useState('');
@@ -1059,7 +1063,12 @@ export default function CategoriesPage() {
                     key={`${collection.kind}:${collection.id}`}
                     collection={collection}
                     index={index}
-                    onExplore={(id) => setActiveCategory(id)}
+                    onExplore={(name) => {
+                      setActiveCategory(name);
+                      setActiveMediaType?.('all');
+                      setActiveCollection?.(null);
+                      setSearchQuery?.('');
+                    }}
                     onEdit={(item) =>
                       setDialog({ mode: 'edit', collection: item })
                     }
@@ -1109,7 +1118,7 @@ export default function CategoriesPage() {
                 </button>
               ) : filter === 'smart' ? (
                 <Link
-                  href="/"
+                  href="/reels"
                   className={`${primaryButton} mt-6 ${focusRing}`}
                 >
                   <Layers className="h-3.5 w-3.5" />
