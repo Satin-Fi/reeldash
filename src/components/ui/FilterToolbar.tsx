@@ -62,7 +62,7 @@ export function FilterToolbar({
         setIsGridMenuOpen(false);
       }
     };
-    const handleClickOutside = (e: MouseEvent) => {
+    const handleClickOutside = (e: MouseEvent | TouchEvent) => {
       if (sortRef.current && !sortRef.current.contains(e.target as Node)) {
         setIsSortOpen(false);
       }
@@ -72,9 +72,11 @@ export function FilterToolbar({
     };
     window.addEventListener("keydown", handleKeyDown);
     document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("touchstart", handleClickOutside, { passive: true });
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
       document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("touchstart", handleClickOutside);
     };
   }, []);
 
@@ -189,11 +191,8 @@ export function FilterToolbar({
             <button
               type="button"
               onClick={() => {
-                if (viewMode !== "grid") {
-                  setViewMode("grid");
-                } else {
-                  setIsGridMenuOpen(!isGridMenuOpen);
-                }
+                setViewMode("grid");
+                setIsGridMenuOpen((prev) => !prev);
               }}
               className={`h-9 flex items-center gap-1 px-3 rounded-full text-xs transition-all cursor-pointer ${
                 viewMode === "grid"
@@ -221,9 +220,9 @@ export function FilterToolbar({
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: -4, scale: 0.98 }}
                   transition={{ duration: 0.12 }}
-                  className="absolute right-0 top-full mt-2 w-36 z-50 rounded-2xl border border-black/[0.08] bg-white p-1.5 shadow-xl backdrop-blur-xl dark:border-white/[0.1] dark:bg-[#121316] space-y-0.5"
+                  className="absolute right-0 top-full mt-2 w-40 z-50 rounded-2xl border border-black/[0.08] bg-white p-1.5 shadow-xl backdrop-blur-xl dark:border-white/[0.1] dark:bg-[#121316] space-y-0.5"
                 >
-                  {[2, 3, 4, 5, 6].map((cols) => {
+                  {[1, 2, 3, 4, 5, 6].map((cols) => {
                     const isSelected = gridCols === cols;
                     return (
                       <button
@@ -233,13 +232,13 @@ export function FilterToolbar({
                           setGridCols(cols);
                           setIsGridMenuOpen(false);
                         }}
-                        className={`w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-xs font-medium transition-colors cursor-pointer text-left ${
+                        className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition-colors cursor-pointer text-left ${
                           isSelected
                             ? "bg-black/[0.05] dark:bg-white/[0.1] text-zinc-950 dark:text-white font-semibold"
                             : "text-zinc-600 dark:text-zinc-400 hover:bg-black/[0.03] dark:hover:bg-white/[0.05] hover:text-zinc-950 dark:hover:text-white"
                         }`}
                       >
-                        <span>{cols} columns</span>
+                        <span>{cols === 1 ? "1 column" : `${cols} columns`}</span>
                         {isSelected && (
                           <Check
                             className="w-3.5 h-3.5 text-zinc-950 dark:text-white shrink-0"

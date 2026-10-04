@@ -121,7 +121,7 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
       const saved = localStorage.getItem("reeldash_grid_cols");
       if (saved) {
         const num = parseInt(saved, 10);
-        if ([2, 3, 4, 5, 6].includes(num)) {
+        if ([1, 2, 3, 4, 5, 6].includes(num)) {
           setGridColsState(num);
         }
       }
