@@ -70,56 +70,70 @@ function extractTsx(content) {
 }
 
 async function main() {
-  const SIDEBAR_PROMPT = `You are an elite, Awwwards-winning principal UI/UX engineer and design systems architect specializing in high-agency workspaces (Linear, Raycast, Cosmos, Payflow, Apple).
-Rebuild the REELDASH SIDEBAR component from scratch (saved at src/components/shell/Sidebar.tsx).
+  const SIDEBAR_PROMPT = `You are an elite, Awwwards-winning principal UI/UX designer and design systems engineer.
+Rebuild the REELDASH SIDEBAR component (saved at src/components/shell/Sidebar.tsx) strictly matching the Payflow design references provided by the user.
 
 ---
-### USER FEEDBACK & STRICT MANDATORY REQUIREMENTS:
-1. REMOVE THE SCROLL BAR (MANDATORY):
-   - Zero visible scrollbars anywhere in the sidebar across all browsers (Chrome, Safari, Firefox, Edge).
-   - Use 'no-scrollbar scrollbar-none [scrollbar-width:none] [&::-webkit-scrollbar]:hidden' on any scrollable container. It must scroll smoothly with pointer wheel without any ugly scrollbar track or thumb.
+### USER FEEDBACK & STRICT MANDATORY VISUAL SPECS:
 
-2. REMOVE CONNECT TO INSTAGRAM BUTTON (MANDATORY):
-   - Completely remove the "Connect Instagram" button and banner. Do not render any connect button or placeholder banner in the sidebar.
+1. ACTIVE NAVIGATION BAR FADED TOWARDS THE END (MATCHING IMAGE 2 EXACTLY):
+   - Look at Image 2 from Payflow:
+     * The active item is a rounded pill (rounded-full h-[46px] px-1.5 flex items-center gap-3).
+     * Background MUST BE A HORIZONTAL GRADIENT THAT FADES OUT TOWARDS THE RIGHT END:
+       style={{ background: 'linear-gradient(90deg, #44403C 0%, #322E2A 55%, rgba(38, 35, 32, 0) 100%)' }}
+       In light mode: linear-gradient(90deg, #E8E5DF 0%, #F0EDE8 55%, rgba(240, 237, 232, 0) 100%).
+     * On the left inside the pill: A circular disc (size-[34px] rounded-full bg-[#78716A] text-white flex items-center justify-center shrink-0 shadow-sm).
+     * Inside this circle, the icon is FILLED, solid, and slightly bigger/scaled!
+     * Text label: text-white font-medium text-[13.5px].
+   - Inactive items:
+     * Transparent background, rounded-full h-[46px] px-1.5 flex items-center gap-3 transition-colors hover:bg-white/[0.03].
+     * Left: Subtle circle (size-[34px] rounded-full flex items-center justify-center text-zinc-400 group-hover:text-zinc-200 group-hover:bg-white/[0.04]).
+     * Icon is outline / stroke (fill="none").
+     * Text label: text-zinc-400 group-hover:text-zinc-200 text-[13.5px].
 
-3. ORIGINAL BESPOKE SVGS ONLY — STRICTLY BAN GENERIC LUCIDE ICONS (MANDATORY):
-   - The user explicitly rejected generic stock icons (like default Lucide Home, Film, Image, Music, Layers, Heart).
-   - You MUST write ORIGINAL, ART-DIRECTED, HAND-CRAFTED BESPOKE INLINE SVGs for every navigation item:
-     * NavDashboardIcon: Bespoke geometric 4-cell bento architecture glyph with delicate 1.4px stroke and rounded micro-vertices.
-     * NavReelsIcon: Bespoke vertical 9:16 cinematic frame glyph with dual film perforation markers.
-     * NavPostsIcon: Bespoke canvas / media artboard glyph with delicate aspect frame and geometric sun/horizon disc.
-     * NavAudioIcon: Bespoke acoustic waveform pulse glyph with stylized alternating sound bars.
-     * NavLibraryIcon: Bespoke architectural stack of 3 floating rounded media planes.
-     * NavFavoritesIcon: Bespoke geometric faceted heart crest with fine precision contouring.
-     * NavPricingIcon: Bespoke minimalist crown / celestial sparkle glyph.
-     * NavRecycleBinIcon: Bespoke archive vault / translucent wireframe canister glyph.
-     * FolderGlyph: Bespoke minimalist folder tab glyph.
-     * SettingsGearGlyph: Bespoke refined 6-tooth micro-machined gear glyph matching Payflow reference.
-   - All bespoke SVGs must be 17px or 18px with stroke="currentColor" and strokeWidth="1.5", rendering cleanly in both dark and light modes.
+2. DYNAMIC FILLED SVGS THAT BECOME SOLID / BIGGER ON ACTIVE:
+   - The user explicitly requested: "when i click on any menu like dashboard svgs get bigger or filled looks good just like payflow have".
+   - Each icon component MUST accept { active: boolean, className?: string }:
+     * NavDashboardIcon: Home glyph. Active: SOLID FILLED house shape (fill="currentColor", matching Image 2). Inactive: clean outlined house.
+     * NavReelsIcon: Cinematic reel / play glyph. Active: SOLID FILLED play badge / reel. Inactive: clean outlined frame.
+     * NavPostsIcon: Photo / media frame. Active: SOLID FILLED gallery canvas. Inactive: clean outline.
+     * NavAudioIcon: Soundwave / note. Active: SOLID FILLED waveform pulse. Inactive: clean outline.
+     * NavLibraryIcon: Stacked layers. Active: SOLID FILLED overlapping cards. Inactive: clean outline.
+     * NavFavoritesIcon: Heart. Active: SOLID FILLED heart. Inactive: clean outline.
+     * NavPricingIcon: Crown. Active: SOLID FILLED crown. Inactive: clean outline.
+     * NavRecycleBinIcon: Archive / trash. Active: SOLID FILLED archive vault. Inactive: clean outline.
+     * FolderGlyph: Folder. Active: SOLID FILLED folder. Inactive: clean outline.
+   - When active, the icon can have a slight scale effect: className="scale-105 transition-transform" so it feels tactile and alive!
 
-4. PROFILE BUTTON MATCHING THE PAYFLOW REFERENCE IMAGE (STRICT MANDATORY):
-   - The user provided the "Payflow" dashboard design reference image.
-   - The profile card at the bottom MUST be a single, elegant horizontal row:
-     * Left: Circular avatar (size-9 rounded-full ring-1 ring-white/[0.08] overflow-hidden bg-zinc-800 text-xs font-medium text-white flex items-center justify-center) with avatar image or fallback letter.
-     * Center: Column with User Name (text-[13px] font-medium text-zinc-900 dark:text-zinc-100 truncate) and Email/Handle (text-[11px] font-mono text-zinc-500 truncate).
-     * Right: A single sleek Settings gear button (size-8 flex items-center justify-center rounded-lg text-zinc-400 hover:text-zinc-100 hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition-colors).
-     * STRICTLY BANNED: The awkward 2-row layout with Sun, Gear, and Logout buttons dumped underneath.
-     * Clicking the profile card navigates to /settings.
-     * Clicking the gear button navigates to /settings.
+3. PROFILE BUTTON MATCHING PAYFLOW REFERENCE (MATCHING IMAGE 3 EXACTLY):
+   - Look at Image 3 from Payflow:
+     * Container: rounded-full p-2 bg-[#24211E] border border-white/[0.04] hover:border-white/[0.08] transition-all flex items-center justify-between.
+     * Left: Circular avatar (size-10 rounded-full overflow-hidden bg-zinc-800 text-white font-medium flex items-center justify-center shrink-0).
+     * Center: User Name (text-[13px] font-medium text-white truncate) and Email/Handle (text-[11px] text-zinc-400 font-mono truncate).
+     * Right: The EXACT 6-petal daisy flower gear icon from Image 3:
+       <svg viewBox="0 0 24 24" className="w-5 h-5 text-zinc-400 hover:text-white transition-colors" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+         <path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" />
+         <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1Z" />
+       </svg>
+     * Links to /settings.
+     * NO second row with Sun and Logout buttons! Single row only!
 
-5. ZERO UNNECESSARY DATABASE COUNTS:
-   - No counter numbers (no 172, 48, 1, 221, etc.) on the navigation links. Keep the sidebar serene, clean, and distraction-free.
+4. ZERO VISIBLE SCROLLBARS:
+   - 'no-scrollbar scrollbar-none [scrollbar-width:none] [&::-webkit-scrollbar]:hidden' and msOverflowStyle: 'none'.
 
-6. REFINED ACTIVE STATE & PROPORTIONS:
-   - Width: 256px (w-64 min-w-[256px] max-w-[256px]).
-   - Active nav item: Subtle elevated pill (bg-black/[0.05] dark:bg-white/[0.08] text-zinc-950 dark:text-white font-medium) with a delicate vertical pastel lavender (#CBB5FD) accent indicator on the left edge.
-   - Inactive: text-zinc-500 dark:text-zinc-400 hover:bg-black/[0.03] dark:hover:bg-white/[0.04] hover:text-zinc-800 dark:hover:text-zinc-200.
+5. NO "CONNECT INSTAGRAM" BUTTON:
+   - Completely deleted.
 
-7. BRAND HEADER:
-   - Header with <ReelDashLogo href="/dashboard" size={24} showText={true} textSize="text-[17px]" /> and a subtle Pro pill badge (Crown icon + "Pro") linking to "/pricing".
-
-8. MULTI-ACCOUNT SWITCHER:
-   - If user has multiple active Instagram accounts, show a clean dropdown trigger. If only 0 or 1 account, do not render extra buttons.
+6. PROPER REELDASH ROUTES:
+   - Dashboard: /dashboard
+   - Reels: /reels?type=reel
+   - Posts & Photos: /reels?type=post
+   - Songs & Audio: /reels?type=audio
+   - All Library: /reels?type=all
+   - Favorites: /favorites
+   - Collections: /reels?category=... and /categories
+   - Pricing: /pricing
+   - Recycle Bin: /recycle-bin
 
 ---
 ### TECHNICAL SPECIFICATIONS:

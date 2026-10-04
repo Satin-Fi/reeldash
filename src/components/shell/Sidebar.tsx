@@ -1,652 +1,595 @@
 'use client';
 
-import {
-  Suspense,
-  useEffect,
-  useId,
-  useRef,
-  useState,
-  type ComponentType,
-  type CSSProperties,
-  type SVGProps,
-} from 'react';
-import Image from 'next/image';
+import { Suspense, type CSSProperties, type ComponentType } from 'react';
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { useReels } from '@/context/ReelContext';
 import { useAuth } from '@/context/AuthContext';
 import { ReelDashLogo } from '@/components/ui/ReelDashLogo';
 
-type GlyphProps = SVGProps<SVGSVGElement>;
-type UnknownRecord = Record<string, unknown>;
-
-type Account = {
-  id: string;
-  label: string;
-  raw: UnknownRecord;
+type IconProps = {
+  active: boolean;
+  className?: string;
 };
 
-type NavigationItem = {
-  label: string;
+type NavItemProps = {
   href: string;
-  icon: ComponentType<GlyphProps>;
-  mediaType?: 'reel' | 'post' | 'audio' | 'all';
+  label: string;
+  icon: ComponentType<IconProps>;
+  active: boolean;
+  count?: number;
+  onClick?: () => void;
 };
 
-const HIDDEN_SCROLLBAR =
+const ACTIVE_GRADIENTS = {
+  '--sidebar-active-gradient-light':
+    'linear-gradient(90deg, #E8E5DF 0%, #F0EDE8 55%, rgba(240, 237, 232, 0) 100%)',
+  '--sidebar-active-gradient-dark':
+    'linear-gradient(90deg, #44403C 0%, #322E2A 55%, rgba(38, 35, 32, 0) 100%)',
+} as CSSProperties;
+
+const SCROLLBAR_CLASSES =
   'no-scrollbar scrollbar-none [scrollbar-width:none] [&::-webkit-scrollbar]:hidden';
 
-const HIDDEN_SCROLLBAR_STYLE: CSSProperties & {
-  msOverflowStyle: 'none';
-} = {
-  scrollbarWidth: 'none',
-  msOverflowStyle: 'none',
-};
+const SIDEBAR_CLASSES =
+  'sticky top-0 flex h-dvh w-[260px] shrink-0 flex-col overflow-hidden ' +
+  'border-r border-black/[0.05] bg-[#F8F6F2] text-zinc-900 ' +
+  'dark:border-white/[0.04] dark:bg-[#262320] dark:text-white ' +
+  '[--sidebar-active-gradient:var(--sidebar-active-gradient-light)] ' +
+  'dark:[--sidebar-active-gradient:var(--sidebar-active-gradient-dark)]';
 
-// ─── Bespoke Original SVGs (No Generic Icons) ──────────────────
+function iconAttributes(active: boolean, className?: string) {
+  return {
+    viewBox: '0 0 24 24',
+    width: 20,
+    height: 20,
+    fill: active ? 'currentColor' : 'none',
+    stroke: active ? 'none' : 'currentColor',
+    strokeWidth: 1.65,
+    strokeLinecap: 'round' as const,
+    strokeLinejoin: 'round' as const,
+    'aria-hidden': true as const,
+    focusable: false as const,
+    className: [
+      'size-5 origin-center transition-transform duration-200 ease-out',
+      'motion-reduce:transform-none motion-reduce:transition-none',
+      active ? 'scale-105' : 'scale-100',
+      className,
+    ]
+      .filter(Boolean)
+      .join(' '),
+  };
+}
 
-function Glyph({ children, ...props }: GlyphProps) {
+// ─── Bespoke Payflow SVGs: Solid & Scaled-105 when Active, Crisp Outline when Inactive ───
+
+function NavDashboardIcon({ active, className }: IconProps) {
+  return (
+    <svg {...iconAttributes(active, className)}>
+      {active ? (
+        <path
+          fillRule="evenodd"
+          clipRule="evenodd"
+          d="M10.8 3.2a1.8 1.8 0 0 1 2.4 0l6.2 5.3a1.4 1.4 0 0 1 .48 1.06V18a2.5 2.5 0 0 1-2.5 2.5H6.6A2.5 2.5 0 0 1 4.1 18V9.56a1.4 1.4 0 0 1 .48-1.06l6.22-5.3ZM11.25 15.5a.75.75 0 0 1 1.5 0v3.5a.75.75 0 0 1-1.5 0v-3.5Z"
+        />
+      ) : (
+        <>
+          <path d="M3 10.5 12 3l9 7.5" />
+          <path d="M5.5 9v9.5A1.5 1.5 0 0 0 7 20h10a1.5 1.5 0 0 0 1.5-1.5V9" />
+          <path d="M12 15.5v4" />
+        </>
+      )}
+    </svg>
+  );
+}
+
+function NavReelsIcon({ active, className }: IconProps) {
+  return (
+    <svg {...iconAttributes(active, className)}>
+      {active ? (
+        <path
+          fillRule="evenodd"
+          clipRule="evenodd"
+          d="M5 3.5a2.5 2.5 0 0 0-2.5 2.5v12A2.5 2.5 0 0 0 5 20.5h14a2.5 2.5 0 0 0 2.5-2.5V6a2.5 2.5 0 0 0-2.5-2.5H5Zm.25 2.5a.75.75 0 0 1 .75-.75h2a.75.75 0 0 1 0 1.5H6a.75.75 0 0 1-.75-.75Zm6.5-.75a.75.75 0 0 0 0 1.5h2a.75.75 0 0 0 0-1.5h-2Zm6.5 0a.75.75 0 0 0 0 1.5h.75a.75.75 0 0 0 0-1.5h-.75ZM10 10.2a.75.75 0 0 1 1.14-.65l4.5 2.7a.75.75 0 0 1 0 1.3l-4.5 2.7A.75.75 0 0 1 10 15.6v-5.4Z"
+        />
+      ) : (
+        <>
+          <rect x="3.5" y="3.5" width="17" height="17" rx="2.5" />
+          <path d="M3.5 8h17M8 3.5l2.5 4.5m3.5-4.5 2.5 4.5" />
+          <polygon points="10 11.5 15 14.5 10 17.5 10 11.5" />
+        </>
+      )}
+    </svg>
+  );
+}
+
+function NavPostsIcon({ active, className }: IconProps) {
+  return (
+    <svg {...iconAttributes(active, className)}>
+      {active ? (
+        <path
+          fillRule="evenodd"
+          clipRule="evenodd"
+          d="M5 3.5a2.5 2.5 0 0 0-2.5 2.5v12A2.5 2.5 0 0 0 5 20.5h14a2.5 2.5 0 0 0 2.5-2.5V6a2.5 2.5 0 0 0-2.5-2.5H5Zm2.75 3a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Zm7.47 5.18a.75.75 0 0 0-1.1 0l-3.62 4.2-1.65-1.64a.75.75 0 0 0-1.08.02l-2.4 2.8A.75.75 0 0 0 5.94 18.5h12.12a.75.75 0 0 0 .58-1.22l-3.42-5.6Z"
+        />
+      ) : (
+        <>
+          <rect x="3.5" y="3.5" width="17" height="17" rx="2.5" />
+          <circle cx="8" cy="8" r="1.5" />
+          <path d="m4 17 4.5-4.5 3 3L16 11l4.5 5" />
+        </>
+      )}
+    </svg>
+  );
+}
+
+function NavAudioIcon({ active, className }: IconProps) {
+  return (
+    <svg {...iconAttributes(active, className)}>
+      {active ? (
+        <>
+          <rect x="2.5" y="9" width="2.75" height="6" rx="1.375" />
+          <rect x="6.75" y="5.5" width="2.75" height="13" rx="1.375" />
+          <rect x="11" y="2.5" width="2.75" height="19" rx="1.375" />
+          <rect x="15.25" y="6.5" width="2.75" height="11" rx="1.375" />
+          <rect x="19.5" y="9" width="2.75" height="6" rx="1.375" />
+        </>
+      ) : (
+        <path d="M3.87 9.5v5m4.25-8v11M12.37 3.5v17m4.25-13v9m4.25-7v5" />
+      )}
+    </svg>
+  );
+}
+
+function NavLibraryIcon({ active, className }: IconProps) {
+  return (
+    <svg {...iconAttributes(active, className)}>
+      {active ? (
+        <>
+          <rect x="7" y="3.5" width="13.5" height="13.5" rx="2.5" />
+          <path d="M4.5 7.5A2.5 2.5 0 0 0 2 10v7.5A2.5 2.5 0 0 0 4.5 20h11a2.5 2.5 0 0 0 2.5-2.5V17h-11A2.5 2.5 0 0 1 4.5 14.5V7.5Z" />
+        </>
+      ) : (
+        <>
+          <rect x="7.5" y="3.5" width="13" height="13" rx="2.5" />
+          <path d="M4.5 7.5h-1a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2v-1" />
+        </>
+      )}
+    </svg>
+  );
+}
+
+function NavFavoritesIcon({ active, className }: IconProps) {
+  return (
+    <svg {...iconAttributes(active, className)}>
+      {active ? (
+        <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35Z" />
+      ) : (
+        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+      )}
+    </svg>
+  );
+}
+
+function NavPricingIcon({ active, className }: IconProps) {
+  return (
+    <svg {...iconAttributes(active, className)}>
+      {active ? (
+        <>
+          <path d="M11.14 3.49a1 1 0 0 1 1.72 0l3.77 6.33 3.81-3.1a1 1 0 0 1 1.6.96l-1.7 9a1 1 0 0 1-.98.82H4.64a1 1 0 0 1-.98-.82l-1.7-9a1 1 0 0 1 1.6-.96l3.81 3.1 3.77-6.33Z" />
+          <rect x="4" y="19" width="16" height="2.25" rx="1.125" />
+        </>
+      ) : (
+        <>
+          <path d="m3 7 4.5 3.5L12 3l4.5 7.5L21 7l-2 10H5L3 7Z" />
+          <path d="M5 20.5h14" />
+        </>
+      )}
+    </svg>
+  );
+}
+
+function NavRecycleBinIcon({ active, className }: IconProps) {
+  return (
+    <svg {...iconAttributes(active, className)}>
+      {active ? (
+        <>
+          <rect x="3" y="3.5" width="18" height="4" rx="1.5" />
+          <path
+            fillRule="evenodd"
+            clipRule="evenodd"
+            d="M4.5 9h15v9.5A2.5 2.5 0 0 1 17 21H7a2.5 2.5 0 0 1-2.5-2.5V9Zm5 3.5a.75.75 0 0 0 0 1.5h5a.75.75 0 0 0 0-1.5h-5Z"
+          />
+        </>
+      ) : (
+        <>
+          <rect x="3" y="3.5" width="18" height="4" rx="1.25" />
+          <path d="M4.5 8v10.5a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V8M9.5 12.5h5" />
+        </>
+      )}
+    </svg>
+  );
+}
+
+function FolderGlyph({ active, className }: IconProps) {
+  return (
+    <svg {...iconAttributes(active, className)}>
+      {active ? (
+        <path d="M4.5 4A2.5 2.5 0 0 0 2 6.5v11A2.5 2.5 0 0 0 4.5 20h15a2.5 2.5 0 0 0 2.5-2.5v-9A2.5 2.5 0 0 0 19.5 6h-7.09l-1.27-1.27A2.5 2.5 0 0 0 9.37 4H4.5Z" />
+      ) : (
+        <path d="M3 7a2 2 0 0 1 2-2h4.17a2 2 0 0 1 1.42.59L12 7h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z" />
+      )}
+    </svg>
+  );
+}
+
+// ─── Exact 6-Petal Daisy Flower Gear Matching Payflow Reference ───
+function ProfileSettingsIcon() {
   return (
     <svg
-      {...props}
-      xmlns="http://www.w3.org/2000/svg"
-      width={17}
-      height={17}
       viewBox="0 0 24 24"
+      className="h-[18px] w-[18px] shrink-0 text-zinc-400 transition-colors group-hover:text-zinc-900 dark:group-hover:text-white"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.5"
+      strokeWidth="1.65"
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden="true"
       focusable="false"
     >
-      {children}
+      <circle cx="12" cy="12" r="2.75" />
+      <path d="M9.10 6.98 C 9.59 4.58, 10.84 2.57, 12.00 2.80 C 13.16 2.57, 14.41 4.58, 14.90 6.98 C 17.22 6.20, 19.59 6.28, 19.97 7.40 C 20.74 8.29, 19.63 10.38, 17.80 12.00 C 19.63 13.62, 20.74 15.71, 19.97 16.60 C 19.59 17.72, 17.22 17.80, 14.90 17.02 C 14.41 19.42, 13.16 21.43, 12.00 21.20 C 10.84 21.43, 9.59 19.42, 9.10 17.02 C 6.78 17.80, 4.41 17.72, 4.03 16.60 C 3.26 15.71, 4.37 13.62, 6.20 12.00 C 4.37 10.38, 3.26 8.29, 4.03 7.40 C 4.41 6.28, 6.78 6.20, 9.10 6.98 Z" />
     </svg>
   );
 }
 
-// Bespoke 4-cell Bento Dashboard Architecture Glyph
-function NavDashboardIcon(props: GlyphProps) {
-  return (
-    <Glyph {...props}>
-      <rect x="3.5" y="3.5" width="7" height="9.5" rx="1.8" />
-      <rect x="13.5" y="3.5" width="7" height="5.5" rx="1.8" />
-      <rect x="3.5" y="16" width="7" height="4.5" rx="1.6" />
-      <rect x="13.5" y="12" width="7" height="8.5" rx="1.8" />
-    </Glyph>
-  );
-}
-
-// Bespoke 9:16 Cinematic Filmstrip Frame Glyph
-function NavReelsIcon(props: GlyphProps) {
-  return (
-    <Glyph {...props}>
-      <rect x="6.5" y="2.75" width="11" height="18.5" rx="2.2" />
-      <path d="M6.75 6.75h10.5M6.75 17.25h10.5" opacity=".5" />
-      <path d="m10.5 9.75 4 2.25-4 2.25V9.75Z" />
-    </Glyph>
-  );
-}
-
-// Bespoke Media Artboard / Photo Canvas Glyph
-function NavPostsIcon(props: GlyphProps) {
-  return (
-    <Glyph {...props}>
-      <rect x="3.5" y="4" width="17" height="16" rx="2.2" />
-      <circle cx="15.5" cy="8.5" r="1.5" />
-      <path d="m3.75 15.5 5-4.5a1.2 1.2 0 0 1 1.6 0l4.15 3.9" />
-      <path d="m12.5 16.5 3-2.6a1.2 1.2 0 0 1 1.6 0l3.15 2.6" />
-    </Glyph>
-  );
-}
-
-// Bespoke Acoustic Frequency Pulse Glyph
-function NavAudioIcon(props: GlyphProps) {
-  return (
-    <Glyph {...props}>
-      <path d="M3.5 10.5v3M7 7v10M10.5 4v16" />
-      <path d="M14 8.5v7M17.5 6v12M20.5 10.5v3" />
-    </Glyph>
-  );
-}
-
-// Bespoke Architectural Stack of Media Planes Glyph
-function NavLibraryIcon(props: GlyphProps) {
-  return (
-    <Glyph {...props}>
-      <path d="m4 7.5 6.8-3.7a2.5 2.5 0 0 1 2.4 0L20 7.5a1 1 0 0 1 0 1.7l-6.8 3.7a2.5 2.5 0 0 1-2.4 0L4 9.2a1 1 0 0 1 0-1.7Z" />
-      <path d="m3.75 12 7 3.8a2.5 2.5 0 0 0 2.4 0l7-3.8" opacity=".75" />
-      <path d="m3.75 16 7 3.8a2.5 2.5 0 0 0 2.4 0l7-3.8" opacity=".45" />
-    </Glyph>
-  );
-}
-
-// Bespoke Faceted Celestial Heart Crest Glyph
-function NavFavoritesIcon(props: GlyphProps) {
-  return (
-    <Glyph {...props}>
-      <path d="m12 20-7.8-7.4a4.8 4.8 0 0 1-.5-6.4 4.4 4.4 0 0 1 6.6-.6L12 7l1.7-1.4a4.4 4.4 0 0 1 6.6.6 4.8 4.8 0 0 1-.5 6.4L12 20Z" />
-      <path d="m3.8 7 4.5 3.2L12 20l3.7-9.8 4.5-3.2" opacity=".35" />
-    </Glyph>
-  );
-}
-
-// Bespoke Minimalist Crown / Sparkle Glyph
-function NavPricingIcon(props: GlyphProps) {
-  return (
-    <Glyph {...props}>
-      <path d="m4 8.2 4 3.1L12 5.2l4 6.1 4-3.1-1.8 9.1H5.8L4 8.2Z" />
-      <path d="M7 20.2h10" opacity=".6" />
-    </Glyph>
-  );
-}
-
-// Bespoke Archive Chamber / Vault Glyph
-function NavRecycleBinIcon(props: GlyphProps) {
-  return (
-    <Glyph {...props}>
-      <path d="M5.2 7.2 6.4 19a1.8 1.8 0 0 0 1.8 1.7h7.6a1.8 1.8 0 0 0 1.8-1.7l1.2-11.8" />
-      <path d="m4 6.2 7-2.4a2.5 2.5 0 0 1 1.8 0l7 2.4V7.5H4V6.2Z" />
-      <path d="m9.2 11 .4 6.5M14.4 11l-.4 6.5" opacity=".6" />
-    </Glyph>
-  );
-}
-
-// Bespoke Minimal Folder Glyph
-function FolderGlyph(props: GlyphProps) {
-  return (
-    <Glyph {...props}>
-      <path d="M3.25 7V5.8A1.55 1.55 0 0 1 4.8 4.25h4.1a1.7 1.7 0 0 1 1.2.5l1.65 1.65H19.2a1.55 1.55 0 0 1 1.55 1.55V17.5a1.6 1.6 0 0 1-1.6 1.6H4.85a1.6 1.6 0 0 1-1.6-1.6V7Z" />
-      <path d="M3.5 9h17" opacity=".4" />
-    </Glyph>
-  );
-}
-
-// Bespoke Micro-Machined Settings Gear Glyph (Matching Payflow Reference)
-function SettingsGearGlyph(props: GlyphProps) {
-  return (
-    <Glyph {...props}>
-      <path d="m10.3 2.75-.45 2.1-2.05 1.2-2.05-.65-1.7 2.95 1.6 1.45v2.4l-1.6 1.45 1.7 2.95 2.05-.65 2.05 1.2.45 2.1h3.4l.45-2.1 2.05-1.2 2.05.65 1.7-2.95-1.6-1.45v-2.4l1.6-1.45-1.7-2.95-2.05.65-2.05-1.2-.45-2.1h-3.4Z" transform="translate(0 1)" />
-      <circle cx="12" cy="12" r="3" />
-    </Glyph>
-  );
-}
-
-function PlusGlyph(props: GlyphProps) {
-  return (
-    <Glyph {...props}>
-      <path d="M12 5v14M5 12h14" />
-    </Glyph>
-  );
-}
-
-function ChevronGlyph(props: GlyphProps) {
-  return (
-    <Glyph {...props}>
-      <path d="m8 10 4 4 4-4" />
-    </Glyph>
-  );
-}
-
-function CheckGlyph(props: GlyphProps) {
-  return (
-    <Glyph {...props}>
-      <path d="m6.5 12.2 3.6 3.6 7.4-7.6" />
-    </Glyph>
-  );
-}
-
-const PRIMARY_NAVIGATION: NavigationItem[] = [
-  { label: 'Dashboard', href: '/dashboard', icon: NavDashboardIcon },
-  { label: 'Reels', href: '/reels?type=reel', icon: NavReelsIcon, mediaType: 'reel' },
-  { label: 'Posts & Photos', href: '/reels?type=post', icon: NavPostsIcon, mediaType: 'post' },
-  { label: 'Songs & Audio', href: '/reels?type=audio', icon: NavAudioIcon, mediaType: 'audio' },
-  { label: 'All Library', href: '/reels?type=all', icon: NavLibraryIcon, mediaType: 'all' },
-  { label: 'Favorites', href: '/favorites', icon: NavFavoritesIcon },
-];
-
-function asRecord(value: unknown): UnknownRecord {
-  return value !== null && typeof value === 'object'
-    ? (value as UnknownRecord)
-    : {};
-}
-
-function asText(...values: unknown[]): string {
-  for (const value of values) {
-    if (typeof value === 'string' && value.trim()) return value.trim();
-    if (typeof value === 'number' && Number.isFinite(value)) {
-      return String(value);
-    }
-  }
-  return '';
-}
-
-function firstArray(...values: unknown[]): unknown[] {
-  return values.find((value): value is unknown[] => Array.isArray(value)) ?? [];
-}
-
-function getAccounts(context: UnknownRecord, user: UnknownRecord): Account[] {
-  const seen = new Set<string>();
-
-  return firstArray(
-    user.connectedAccounts,
-    user.instagramAccounts,
-    context.activeAccounts,
-    context.instagramAccounts,
-  ).flatMap((value) => {
-    const account = asRecord(value);
-    const status = asText(account.status).toLowerCase();
-
-    if (
-      account.isActive === false ||
-      account.is_active === false ||
-      account.active === false ||
-      ['inactive', 'disconnected', 'revoked', 'expired', 'disabled'].includes(status)
-    ) {
-      return [];
-    }
-
-    const id = asText(account.id, account.accountId, account.instagram_account_id, account.username);
-    if (!id || seen.has(id)) return [];
-    seen.add(id);
-
-    const username = asText(account.username, account.instagram_username);
-    const label = username ? `@${username.replace(/^@/, '')}` : 'Instagram Account';
-
-    return [{ id, label, raw: account }];
-  });
-}
-
-function Avatar({ src, name }: { src: string; name: string }) {
-  const [failed, setFailed] = useState(false);
-
-  return (
-    <span className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-zinc-800 text-xs font-medium text-white ring-1 ring-white/[0.08]">
-      {src && !failed ? (
-        <Image
-          src={src}
-          alt=""
-          width={36}
-          height={36}
-          unoptimized
-          className="size-full object-cover"
-          onError={() => setFailed(true)}
-        />
-      ) : (
-        <span aria-hidden="true">{Array.from(name)[0]?.toUpperCase() || 'P'}</span>
-      )}
-    </span>
-  );
-}
-
-function NavigationLink({
-  item,
-  active,
-  onClick,
-}: {
-  item: NavigationItem;
-  active: boolean;
-  onClick?: () => void;
-}) {
-  const Icon = item.icon;
-
+// ─── NavItem: Pill with Faded Horizontal Gradient on Active & Distinct Circle Disc ───
+function NavItem({ href, label, icon: Icon, active, count, onClick }: NavItemProps) {
   return (
     <Link
-      href={item.href}
+      href={href}
       onClick={onClick}
       aria-current={active ? 'page' : undefined}
-      className={[
-        'group relative flex min-h-10 items-center gap-3 rounded-xl px-3 py-2.5',
-        'text-[13px] leading-5 tracking-[-0.01em] outline-none transition-colors duration-150',
-        'focus-visible:ring-2 focus-visible:ring-[#CBB5FD] focus-visible:ring-offset-2',
-        'focus-visible:ring-offset-zinc-50 dark:focus-visible:ring-offset-[#0C0D10]',
+      title={label}
+      style={
         active
-          ? 'bg-black/[0.05] font-medium text-zinc-950 dark:bg-white/[0.08] dark:text-white'
-          : 'text-zinc-500 hover:bg-black/[0.03] hover:text-zinc-800 dark:text-zinc-400 dark:hover:bg-white/[0.04] dark:hover:text-zinc-200',
+          ? { background: 'var(--sidebar-active-gradient)' }
+          : undefined
+      }
+      className={[
+        'group flex h-[46px] w-full min-w-0 items-center justify-between rounded-full pl-1.5 pr-3.5',
+        'transition-colors duration-200 motion-reduce:transition-none cursor-pointer',
+        'focus-visible:outline-none focus-visible:ring-2',
+        'focus-visible:ring-stone-400 focus-visible:ring-offset-2',
+        'focus-visible:ring-offset-[#F8F6F2] dark:focus-visible:ring-offset-[#262320]',
+        active
+          ? 'font-medium text-zinc-900 dark:text-white'
+          : 'bg-transparent text-zinc-500 hover:bg-black/[0.03] dark:text-zinc-400 dark:hover:bg-white/[0.03]',
       ].join(' ')}
     >
-      {active && (
+      <div className="flex items-center gap-3 min-w-0">
         <span
-          aria-hidden="true"
-          className="absolute left-0 top-1/2 h-4 w-[2.5px] -translate-y-1/2 rounded-full bg-[#CBB5FD]"
-        />
+          className={[
+            'flex size-[34px] shrink-0 items-center justify-center rounded-full',
+            'transition-colors duration-200 motion-reduce:transition-none',
+            active
+              ? 'bg-[#D6D2CA] text-stone-900 dark:bg-[#68615A] dark:text-white shadow-sm'
+              : 'text-zinc-500 group-hover:bg-black/[0.04] group-hover:text-zinc-800 dark:text-zinc-400 dark:group-hover:bg-white/[0.04] dark:group-hover:text-zinc-200',
+          ].join(' ')}
+        >
+          <Icon active={active} />
+        </span>
+
+        <span
+          className={[
+            'min-w-0 truncate text-[13.5px] leading-5',
+            active
+              ? 'font-medium text-zinc-900 dark:text-white'
+              : 'text-zinc-500 group-hover:text-zinc-800 dark:text-zinc-400 dark:group-hover:text-zinc-200',
+          ].join(' ')}
+        >
+          {label}
+        </span>
+      </div>
+
+      {count !== undefined && count > 0 && (
+        <span
+          className={[
+            'text-[10px] font-mono px-1.5 py-0.5 rounded-full shrink-0 transition-colors',
+            active
+              ? 'text-zinc-700 dark:text-zinc-300'
+              : 'text-zinc-400 dark:text-zinc-500 group-hover:text-zinc-600 dark:group-hover:text-zinc-400',
+          ].join(' ')}
+        >
+          {count}
+        </span>
       )}
-      <Icon className="shrink-0" />
-      <span className="min-w-0 truncate">{item.label}</span>
     </Link>
   );
 }
 
-function AccountSwitcher({
-  accounts,
-  selectedId,
-  onSelect,
-}: {
-  accounts: Account[];
-  selectedId: string;
-  onSelect: (id: string | null) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const rootRef = useRef<HTMLDivElement>(null);
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  const listId = useId();
-  const selected = accounts.find((a) => a.id === selectedId) ?? accounts[0];
-
-  useEffect(() => {
-    if (!open) return;
-    function onPointerDown(event: PointerEvent) {
-      if (event.target instanceof Node && !rootRef.current?.contains(event.target)) {
-        setOpen(false);
-      }
-    }
-    function onKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') {
-        setOpen(false);
-        triggerRef.current?.focus();
-      }
-    }
-    document.addEventListener('pointerdown', onPointerDown);
-    document.addEventListener('keydown', onKeyDown);
-    return () => {
-      document.removeEventListener('pointerdown', onPointerDown);
-      document.removeEventListener('keydown', onKeyDown);
-    };
-  }, [open]);
-
-  if (accounts.length <= 1) return null;
-
-  return (
-    <div ref={rootRef} className="mb-4">
-      <button
-        ref={triggerRef}
-        type="button"
-        aria-expanded={open}
-        aria-controls={listId}
-        onClick={() => setOpen((v) => !v)}
-        className="flex min-h-10 w-full items-center gap-2.5 rounded-xl border border-black/[0.06] bg-white/60 px-3 text-left text-zinc-600 outline-none transition-colors hover:bg-black/[0.03] focus-visible:ring-2 focus-visible:ring-[#CBB5FD] dark:border-white/[0.07] dark:bg-white/[0.025] dark:text-zinc-300 dark:hover:bg-white/[0.04]"
-      >
-        <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-[#CBB5FD]/20 text-[10px] font-medium text-violet-700 dark:text-[#D7C7FF]">
-          {selected?.label.replace(/^@/, '')[0]?.toUpperCase() || 'I'}
-        </span>
-        <span className="min-w-0 flex-1 truncate text-[12px] font-medium">
-          {selected ? selected.label : 'All Accounts'}
-        </span>
-        <ChevronGlyph
-          className={`shrink-0 text-zinc-400 transition-transform ${open ? 'rotate-180' : ''}`}
-        />
-      </button>
-
-      {open && (
-        <div
-          id={listId}
-          className="mt-1.5 rounded-xl border border-black/[0.06] bg-white p-1 shadow-lg dark:border-white/[0.08] dark:bg-[#15161A]"
-        >
-          <ul
-            className={`max-h-44 space-y-0.5 overflow-y-auto overscroll-contain ${HIDDEN_SCROLLBAR}`}
-            style={HIDDEN_SCROLLBAR_STYLE}
-          >
-            <li>
-              <button
-                type="button"
-                onClick={() => {
-                  onSelect(null);
-                  setOpen(false);
-                }}
-                className="flex min-h-8 w-full items-center justify-between rounded-lg px-2.5 text-[12px] text-zinc-600 hover:bg-black/[0.04] dark:text-zinc-300 dark:hover:bg-white/[0.05]"
-              >
-                <span>All Accounts</span>
-                {!selectedId && <CheckGlyph className="shrink-0 text-[#CBB5FD]" />}
-              </button>
-            </li>
-            {accounts.map((acc) => {
-              const active = acc.id === selectedId;
-              return (
-                <li key={acc.id}>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onSelect(acc.id);
-                      setOpen(false);
-                    }}
-                    className="flex min-h-8 w-full items-center justify-between rounded-lg px-2.5 text-[12px] text-zinc-600 hover:bg-black/[0.04] dark:text-zinc-300 dark:hover:bg-white/[0.05]"
-                  >
-                    <span className="truncate">{acc.label}</span>
-                    {active && <CheckGlyph className="shrink-0 text-[#CBB5FD]" />}
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-      )}
-    </div>
-  );
-}
-
 function SidebarContent() {
-  const pathname = usePathname() || '/dashboard';
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
   const {
-    smartCategories,
+    reels = [],
+    favorites = [],
+    recycleBin = [],
+    smartCategories = [],
     activeCategory,
     setActiveCategory,
-    activeCollection,
     setActiveCollection,
     activeMediaType,
     setActiveMediaType,
-    selectedInstagramAccount,
-    setSelectedInstagramAccount,
     setSearchQuery,
   } = useReels();
+
   const { user } = useAuth();
 
-  const userData = asRecord(user);
-  const metadata = asRecord(userData.user_metadata);
+  const email = user?.email || '';
+  const handle = user?.handle || user?.instagramUsername || '';
+  const userName = user?.name || handle || (email ? email.split('@')[0] : 'User');
+  const userSubtitle = email || (handle ? `@${handle.replace(/^@/, '')}` : 'Account settings');
+  const avatarUrl = user?.avatar || '';
 
-  const name = asText(
-    userData.name,
-    userData.fullName,
-    metadata.full_name,
-    metadata.name,
-    'Piyush kumar',
-  );
+  const initials =
+    userName
+      .split(/\s+/)
+      .slice(0, 2)
+      .map((part: string) => Array.from(part)[0] ?? '')
+      .join('')
+      .toUpperCase() || 'RD';
 
-  const email = asText(userData.email, metadata.email);
-  const username = asText(userData.username, metadata.username);
-  const secondaryLabel = email || (username ? `@${username.replace(/^@/, '')}` : 'Personal Workspace');
+  const isRoute = (route: string) =>
+    pathname === route || Boolean(pathname?.startsWith(`${route}/`));
 
-  const avatarUrl = asText(
-    userData.avatar,
-    userData.avatarUrl,
-    userData.avatar_url,
-    metadata.avatar_url,
-    metadata.picture,
-  );
+  const isReelsRoute = isRoute('/reels');
+  const selectedCategory = searchParams.get('category');
+  const selectedType = searchParams.get('type') || 'all';
+  const hasSelectedCategory = Boolean(selectedCategory || activeCategory);
 
-  const accounts = getAccounts({}, userData);
-  const isReelsPath = pathname === '/reels';
+  const isMediaActive = (type: string) =>
+    isReelsRoute && !hasSelectedCategory && ((activeMediaType === type) || (!activeMediaType && selectedType === type));
 
-  const categoriesList = (smartCategories || [])
-    .filter((cat) => !cat.name.startsWith('#'))
-    .slice(0, 5);
+  // Compute live counts
+  const reelsCount = reels.filter((r) => r.mediaType === 'reel').length;
+  const postsCount = reels.filter((r) => r.mediaType === 'post').length;
+  const audioCount = reels.filter((r) => r.mediaType === 'audio').length;
+  const allCount = reels.length;
+  const favsCount = favorites.length;
+  const recycleCount = recycleBin.length;
 
   return (
     <aside
       aria-label="ReelDash sidebar"
-      className={`isolate flex h-dvh max-h-dvh w-64 min-w-[256px] max-w-[256px] shrink-0 flex-col overflow-hidden border-r border-black/[0.06] bg-[#FAFAF9] text-zinc-900 dark:border-white/[0.06] dark:bg-[#0C0D10] dark:text-zinc-100 ${HIDDEN_SCROLLBAR}`}
-      style={HIDDEN_SCROLLBAR_STYLE}
+      className={SIDEBAR_CLASSES}
+      style={ACTIVE_GRADIENTS}
     >
       {/* Brand Header */}
-      <header className="flex h-[72px] shrink-0 items-center justify-between gap-2 px-5">
-        <ReelDashLogo
-          href="/dashboard"
-          size={24}
-          showText={true}
-          textSize="text-[17px]"
-        />
-
+      <header className="flex h-[92px] shrink-0 items-center px-7">
         <Link
-          href="/pricing"
-          aria-label="Explore ReelDash Pro"
-          className="flex shrink-0 items-center gap-1 rounded-full border border-violet-500/10 bg-violet-500/[0.06] px-2.5 py-0.5 text-[10.5px] font-medium leading-none text-violet-700 outline-none transition-colors hover:bg-violet-500/[0.1] focus-visible:ring-2 focus-visible:ring-[#CBB5FD] dark:border-[#CBB5FD]/15 dark:bg-[#CBB5FD]/[0.07] dark:text-[#D7C7FF] dark:hover:bg-[#CBB5FD]/[0.12]"
+          href="/dashboard"
+          onClick={() => {
+            setActiveCategory(null);
+            setActiveCollection(null);
+            setActiveMediaType('all');
+            setSearchQuery('');
+          }}
+          aria-label="ReelDash home"
+          className="inline-flex items-center rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-400"
         >
-          <NavPricingIcon className="shrink-0 size-3" />
-          <span>Pro</span>
+          <ReelDashLogo />
         </Link>
       </header>
 
-      {/* Main Navigation Area (NO SCROLLBAR) */}
+      {/* Main Navigation (Zero Scrollbar) */}
       <div
-        className={`flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden overscroll-contain px-3 pb-4 pt-1 ${HIDDEN_SCROLLBAR}`}
-        style={HIDDEN_SCROLLBAR_STYLE}
+        className={`min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-5 ${SCROLLBAR_CLASSES}`}
+        style={{ msOverflowStyle: 'none' }}
       >
-        {/* Instagram Account Switcher (Only if multiple accounts exist) */}
-        {accounts.length > 1 && (
-          <AccountSwitcher
-            accounts={accounts}
-            selectedId={selectedInstagramAccount || ''}
-            onSelect={(id) => setSelectedInstagramAccount(id)}
-          />
-        )}
-
-        {/* Primary Links */}
         <nav aria-label="Main navigation" className="space-y-1">
-          {PRIMARY_NAVIGATION.map((item) => {
-            const active = item.mediaType
-              ? isReelsPath &&
-                !activeCategory &&
-                !activeCollection &&
-                (activeMediaType === item.mediaType ||
-                  (!activeMediaType && item.mediaType === 'all'))
-              : pathname === item.href;
-
-            return (
-              <NavigationLink
-                key={item.href}
-                item={item}
-                active={active}
-                onClick={() => {
-                  if (item.mediaType) {
-                    setActiveMediaType(item.mediaType);
-                    setActiveCategory(null);
-                    setActiveCollection(null);
-                    setSearchQuery('');
-                  }
-                }}
-              />
-            );
-          })}
+          <NavItem
+            href="/dashboard"
+            label="Dashboard"
+            icon={NavDashboardIcon}
+            active={isRoute('/dashboard')}
+            onClick={() => {
+              setActiveCategory(null);
+              setActiveCollection(null);
+              setActiveMediaType('all');
+              setSearchQuery('');
+            }}
+          />
+          <NavItem
+            href="/reels?type=reel"
+            label="Reels"
+            icon={NavReelsIcon}
+            active={isMediaActive('reel')}
+            count={reelsCount}
+            onClick={() => {
+              setActiveMediaType('reel');
+              setActiveCategory(null);
+              setActiveCollection(null);
+              setSearchQuery('');
+            }}
+          />
+          <NavItem
+            href="/reels?type=post"
+            label="Posts & Photos"
+            icon={NavPostsIcon}
+            active={isMediaActive('post')}
+            count={postsCount}
+            onClick={() => {
+              setActiveMediaType('post');
+              setActiveCategory(null);
+              setActiveCollection(null);
+              setSearchQuery('');
+            }}
+          />
+          <NavItem
+            href="/reels?type=audio"
+            label="Songs & Audio"
+            icon={NavAudioIcon}
+            active={isMediaActive('audio')}
+            count={audioCount}
+            onClick={() => {
+              setActiveMediaType('audio');
+              setActiveCategory(null);
+              setActiveCollection(null);
+              setSearchQuery('');
+            }}
+          />
+          <NavItem
+            href="/reels?type=all"
+            label="All Library"
+            icon={NavLibraryIcon}
+            active={isMediaActive('all')}
+            count={allCount}
+            onClick={() => {
+              setActiveMediaType('all');
+              setActiveCategory(null);
+              setActiveCollection(null);
+              setSearchQuery('');
+            }}
+          />
+          <NavItem
+            href="/favorites"
+            label="Favorites"
+            icon={NavFavoritesIcon}
+            active={isRoute('/favorites')}
+            count={favsCount}
+            onClick={() => {
+              setActiveCategory(null);
+              setActiveCollection(null);
+              setSearchQuery('');
+            }}
+          />
         </nav>
 
         {/* Collections Section */}
-        <section className="mt-7" aria-labelledby="sidebar-collections-heading">
-          <div className="mb-2 flex items-center justify-between px-3">
+        <section aria-labelledby="sidebar-collections-heading" className="mt-7">
+          <div className="mb-2.5 flex h-6 items-center justify-between pl-4 pr-3">
             <h2
               id="sidebar-collections-heading"
-              className="text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-400 dark:text-zinc-500"
+              className="text-[10px] font-medium uppercase tracking-[0.16em] text-zinc-500"
             >
               Collections
             </h2>
+
             <Link
               href="/categories"
               aria-label="Manage collections"
               title="Manage collections"
-              className="rounded-md p-1 text-zinc-400 transition-colors hover:bg-black/[0.04] hover:text-zinc-900 dark:hover:bg-white/[0.06] dark:hover:text-white"
+              className="flex size-6 items-center justify-center rounded-full text-zinc-500 transition-colors hover:bg-black/[0.04] hover:text-zinc-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-400 dark:hover:bg-white/[0.04] dark:hover:text-zinc-200"
             >
-              <PlusGlyph className="size-3.5" />
+              <svg
+                viewBox="0 0 24 24"
+                className="size-3.5"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.7"
+                strokeLinecap="round"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <path d="M12 5v14M5 12h14" />
+              </svg>
             </Link>
           </div>
 
-          <nav aria-label="Collections" className="space-y-0.5">
-            {categoriesList.map((cat) => {
-              const isSelected = isReelsPath && activeCategory === cat.name;
-
-              return (
-                <Link
-                  key={cat.name}
-                  href={`/reels?category=${encodeURIComponent(cat.name)}`}
-                  onClick={() => {
-                    setActiveCategory(cat.name);
-                    setActiveCollection(null);
-                    setActiveMediaType('all');
-                    setSearchQuery('');
-                  }}
-                  className={[
-                    'group relative flex min-h-9 items-center gap-3 rounded-xl px-3 py-2',
-                    'text-[13px] leading-5 tracking-[-0.01em] outline-none transition-colors duration-150',
-                    isSelected
-                      ? 'bg-black/[0.05] font-medium text-zinc-950 dark:bg-white/[0.08] dark:text-white'
-                      : 'text-zinc-500 hover:bg-black/[0.03] hover:text-zinc-800 dark:text-zinc-400 dark:hover:bg-white/[0.04] dark:hover:text-zinc-200',
-                  ].join(' ')}
-                >
-                  {isSelected && (
-                    <span
-                      aria-hidden="true"
-                      className="absolute left-0 top-1/2 h-3.5 w-[2.5px] -translate-y-1/2 rounded-full bg-[#CBB5FD]"
-                    />
-                  )}
-                  <FolderGlyph className="shrink-0 size-4" />
-                  <span className="min-w-0 truncate">{cat.name}</span>
-                </Link>
-              );
-            })}
-
-            <Link
+          <nav aria-label="Collections" className="space-y-1">
+            <NavItem
               href="/categories"
-              className="flex min-h-8 items-center gap-1.5 rounded-xl px-3 py-1.5 text-[11px] text-zinc-400 transition-colors hover:text-zinc-900 dark:text-zinc-500 dark:hover:text-zinc-200"
-            >
-              <span>View all collections</span>
-              <span className="text-xs">→</span>
-            </Link>
+              label="All Collections"
+              icon={FolderGlyph}
+              active={isRoute('/categories')}
+            />
+
+            {smartCategories
+              .filter((cat) => !cat.name.startsWith('#'))
+              .slice(0, 5)
+              .map((cat) => {
+                const isSelected = isReelsRoute && (activeCategory === cat.name || selectedCategory === cat.name);
+                return (
+                  <NavItem
+                    key={cat.id || cat.name}
+                    href={`/reels?category=${encodeURIComponent(cat.name)}`}
+                    label={cat.name}
+                    icon={FolderGlyph}
+                    active={isSelected}
+                    count={cat.count}
+                    onClick={() => {
+                      setActiveCategory(cat.name);
+                      setActiveMediaType('all');
+                      setActiveCollection(null);
+                      setSearchQuery('');
+                    }}
+                  />
+                );
+              })}
           </nav>
         </section>
-
-        {/* Utilities: Plans & Pricing, Recycle Bin */}
-        <nav aria-label="Resources" className="mt-auto space-y-0.5 pt-6">
-          <NavigationLink
-            item={{ label: 'Plans & Pricing', href: '/pricing', icon: NavPricingIcon }}
-            active={pathname === '/pricing'}
-          />
-          <NavigationLink
-            item={{ label: 'Recycle Bin', href: '/recycle-bin', icon: NavRecycleBinIcon }}
-            active={pathname === '/recycle-bin'}
-          />
-        </nav>
       </div>
 
-      {/* ─── Profile Card Matching Payflow Reference (Single Row) ─── */}
-      <footer className="shrink-0 border-t border-black/[0.06] p-3 dark:border-white/[0.06]">
-        <div className="relative flex min-h-[52px] items-center gap-3 rounded-xl px-2 py-1.5 transition-colors hover:bg-black/[0.025] dark:hover:bg-white/[0.03]">
-          {/* Main Card Click -> /settings */}
-          <Link
-            href="/settings"
-            aria-label={`Open settings for ${name}`}
-            className="absolute inset-0 z-10 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-[#CBB5FD]"
+      {/* Footer Navigation & Payflow Profile Pill Card */}
+      <footer className="shrink-0 px-4 pb-4 pt-2">
+        <nav aria-label="Additional navigation" className="space-y-1">
+          <NavItem
+            href="/pricing"
+            label="Pricing"
+            icon={NavPricingIcon}
+            active={isRoute('/pricing')}
           />
+          <NavItem
+            href="/recycle-bin"
+            label="Recycle Bin"
+            icon={NavRecycleBinIcon}
+            active={isRoute('/recycle-bin')}
+            count={recycleCount}
+          />
+        </nav>
 
-          {/* Avatar (Left) */}
-          <Avatar src={avatarUrl} name={name} />
+        <div className="mx-3 mb-3.5 mt-3.5 h-px bg-black/[0.06] dark:bg-white/[0.06]" />
 
-          {/* User Name & Subtitle/Email (Center) */}
-          <div className="pointer-events-none min-w-0 flex-1">
-            <p className="truncate text-[13px] font-medium leading-5 text-zinc-900 dark:text-zinc-100">
-              {name}
-            </p>
-            <p className="truncate font-mono text-[11px] leading-[18px] text-zinc-500">
-              {secondaryLabel}
-            </p>
-          </div>
+        {/* ─── Exact Payflow Single Pill Profile Card with 6-Petal Flower Gear Icon ─── */}
+        <Link
+          href="/settings"
+          aria-label={`Open settings for ${userName}`}
+          aria-current={isRoute('/settings') ? 'page' : undefined}
+          className="group flex items-center justify-between gap-2.5 rounded-full border border-black/[0.05] bg-[#EFECE6] p-1.5 pl-2 pr-3.5 transition-all hover:border-black/[0.1] hover:bg-[#EAE6DF] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-400 motion-reduce:transition-none dark:border-white/[0.05] dark:bg-[#1E1C1A] dark:hover:border-white/[0.1] dark:hover:bg-[#242220]"
+        >
+          <span className="relative flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-zinc-800 text-[12px] font-medium text-white ring-1 ring-black/5 dark:ring-white/10">
+            <span aria-hidden="true">{initials}</span>
+            {avatarUrl ? (
+              <img
+                src={avatarUrl}
+                alt=""
+                width={36}
+                height={36}
+                decoding="async"
+                referrerPolicy="no-referrer"
+                className="absolute inset-0 size-full rounded-full object-cover"
+                onError={(event) => {
+                  event.currentTarget.style.display = 'none';
+                }}
+              />
+            ) : null}
+          </span>
 
-          {/* Single Settings Gear Icon Button (Right) */}
-          <Link
-            href="/settings"
-            aria-label="Settings"
-            title="Settings"
-            className="relative z-20 flex size-8 shrink-0 items-center justify-center rounded-lg text-zinc-400 outline-none transition-colors hover:bg-black/[0.04] hover:text-zinc-900 focus-visible:ring-2 focus-visible:ring-[#CBB5FD] dark:hover:bg-white/[0.06] dark:hover:text-zinc-100"
-          >
-            <SettingsGearGlyph />
-          </Link>
-        </div>
+          <span className="flex min-w-0 flex-1 flex-col justify-center gap-0.5">
+            <span className="truncate text-[13px] font-medium leading-tight text-zinc-900 dark:text-white">
+              {userName}
+            </span>
+            <span className="truncate font-mono text-[11px] leading-tight text-zinc-500 dark:text-zinc-400">
+              {userSubtitle}
+            </span>
+          </span>
+
+          <span className="flex size-7 shrink-0 items-center justify-center">
+            <ProfileSettingsIcon />
+          </span>
+        </Link>
       </footer>
     </aside>
   );
@@ -655,20 +598,26 @@ function SidebarContent() {
 function SidebarFallback() {
   return (
     <aside
-      aria-label="Loading sidebar"
+      aria-label="Loading ReelDash sidebar"
       aria-busy="true"
-      className={`flex h-dvh w-64 min-w-[256px] max-w-[256px] shrink-0 flex-col overflow-hidden border-r border-black/[0.06] bg-[#FAFAF9] dark:border-white/[0.06] dark:bg-[#0C0D10] ${HIDDEN_SCROLLBAR}`}
-      style={HIDDEN_SCROLLBAR_STYLE}
+      className={SIDEBAR_CLASSES}
+      style={ACTIVE_GRADIENTS}
     >
-      <div className="flex h-[72px] shrink-0 items-center px-5">
-        <ReelDashLogo
-          href="/dashboard"
-          size={24}
-          showText={true}
-          textSize="text-[17px]"
-        />
+      <div className="flex h-[92px] shrink-0 items-center px-7">
+        <ReelDashLogo />
       </div>
-      <span className="sr-only">Loading navigation…</span>
+
+      <div aria-hidden="true" className="space-y-1 px-4">
+        {Array.from({ length: 6 }, (_, index) => (
+          <div
+            key={index}
+            className="flex h-[46px] items-center gap-3 rounded-full px-1.5"
+          >
+            <div className="size-[34px] rounded-full bg-black/[0.04] dark:bg-white/[0.04]" />
+            <div className="h-3 w-24 rounded-full bg-black/[0.04] dark:bg-white/[0.04]" />
+          </div>
+        ))}
+      </div>
     </aside>
   );
 }
