@@ -601,17 +601,17 @@ function SidebarContent() {
           href="/settings"
           aria-label={`Open settings for ${userName}`}
           aria-current={isRoute('/settings') ? 'page' : undefined}
-          className="group flex items-center gap-3 rounded-full border border-black/[0.04] bg-[#EDEAE5] py-1.5 pl-1.5 pr-3 transition-all hover:border-black/[0.08] hover:bg-[#E8E4DE] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-400 motion-reduce:transition-none dark:border-white/[0.06] dark:bg-[#2E2B28] dark:hover:border-white/[0.1] dark:hover:bg-[#332F2C]"
+          className="group flex items-center gap-3 rounded-full border border-black/[0.04] bg-[#EDEAE5] p-1.5 pr-3.5 transition-all hover:border-black/[0.08] hover:bg-[#E8E4DE] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-400 motion-reduce:transition-none dark:border-white/[0.06] dark:bg-[#2E2B28] dark:hover:border-white/[0.1] dark:hover:bg-[#332F2C]"
         >
-          {/* Avatar — warm dark circle matching reference */}
-          <span className="relative flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#4A4440] text-[12px] font-semibold tracking-wide text-white/90">
+          {/* Avatar — size-11 (44px) matching Payflow reference */}
+          <span className="relative flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#4A4440] text-[13px] font-semibold tracking-wide text-white/90">
             <span aria-hidden="true">{initials}</span>
             {avatarUrl ? (
               <img
                 src={avatarUrl}
                 alt=""
-                width={36}
-                height={36}
+                width={44}
+                height={44}
                 decoding="async"
                 referrerPolicy="no-referrer"
                 className="absolute inset-0 size-full rounded-full object-cover"
@@ -623,17 +623,17 @@ function SidebarContent() {
           </span>
 
           {/* Name + Email */}
-          <span className="flex min-w-0 flex-1 flex-col justify-center gap-[2px]">
-            <span className="truncate text-[13px] font-semibold leading-[17px] text-zinc-900 dark:text-white">
+          <span className="flex min-w-0 flex-1 flex-col justify-center gap-[3px]">
+            <span className="truncate text-[13.5px] font-semibold leading-[18px] text-zinc-900 dark:text-white">
               {userName}
             </span>
-            <span className="truncate text-[11px] leading-[14px] text-zinc-500 dark:text-zinc-400">
+            <span className="truncate text-[11.5px] leading-[15px] text-zinc-500 dark:text-zinc-400">
               {userSubtitle}
             </span>
           </span>
 
-          {/* Gear icon — matches Payflow reference size/opacity */}
-          <span className="flex size-7 shrink-0 items-center justify-center">
+          {/* Gear icon */}
+          <span className="flex size-8 shrink-0 items-center justify-center">
             <ProfileSettingsIcon />
           </span>
         </Link>
