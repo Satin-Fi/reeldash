@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useId } from "react";
 import { useReels } from "@/context/ReelContext";
 import { SortOption } from "@/types/reel";
 import {
@@ -23,7 +23,16 @@ const sortLabels: Record<SortOption, string> = {
   creator: "Creator (A-Z)",
 };
 
-export function FilterToolbar() {
+interface FilterToolbarProps {
+  placeholder?: string;
+  className?: string;
+}
+
+export function FilterToolbar({
+  placeholder = "Find in library…",
+  className = "",
+}: FilterToolbarProps) {
+  const searchId = useId();
   const {
     searchQuery,
     setSearchQuery,
@@ -70,45 +79,67 @@ export function FilterToolbar() {
   }, []);
 
   return (
-    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
-      {/* ─── Left: Dashboard-Style Search Bar Pill ─── */}
-      <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-full bg-white dark:bg-surface-dark border border-black/[0.04] dark:border-white/[0.06] shadow-[0_2px_8px_rgba(0,0,0,0.02)] text-xs text-secondaryText-light dark:text-secondaryText-dark hover:border-black/[0.08] dark:hover:border-white/[0.12] transition-all w-full sm:max-w-xs md:max-w-sm group focus-within:border-black/20 dark:focus-within:border-white/20">
-        <Search className="w-3.5 h-3.5 text-mutedText-light dark:text-mutedText-dark group-focus-within:text-primaryText-light dark:group-focus-within:text-primaryText-dark transition-colors shrink-0" />
-        <input
-          ref={searchInputRef}
-          type="text"
-          placeholder="Search library..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full bg-transparent text-xs text-primaryText-light dark:text-primaryText-dark placeholder:text-mutedText-light dark:placeholder:text-mutedText-dark focus:outline-none"
+    <section
+      aria-label="Library controls"
+      className={`mt-8 sm:mt-10 mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between ${className}`}
+    >
+      {/* ─── Left: Categories-Style Search Bar Pill ─── */}
+      <div className="relative w-full sm:max-w-[340px]">
+        <label htmlFor={searchId} className="sr-only">
+          {placeholder}
+        </label>
+
+        <Search
+          aria-hidden="true"
+          className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400"
         />
+
+        <input
+          id={searchId}
+          ref={searchInputRef}
+          type="search"
+          value={searchQuery}
+          onChange={(event) => setSearchQuery(event.target.value)}
+          placeholder={placeholder}
+          autoComplete="off"
+          className="h-11 w-full rounded-full border border-black/[0.07] bg-white pl-11 pr-11 text-xs text-zinc-900 outline-none transition placeholder:text-zinc-400 focus:border-[#A589DB] focus:ring-4 focus:ring-[#CBB5FD]/15 [&::-webkit-search-cancel-button]:appearance-none dark:border-white/[0.08] dark:bg-[#121316] dark:text-white dark:placeholder:text-zinc-500"
+        />
+
         {searchQuery ? (
           <button
             type="button"
             onClick={() => setSearchQuery("")}
-            className="text-mutedText-light hover:text-primaryText-light dark:hover:text-white p-0.5 transition-colors cursor-pointer shrink-0"
-            title="Clear search"
+            aria-label="Clear search"
+            className="absolute right-2 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full text-zinc-400 hover:bg-zinc-100 hover:text-zinc-950 dark:hover:bg-white/[0.06] dark:hover:text-white transition-colors"
           >
-            <X className="w-3.5 h-3.5" />
+            <X className="h-3.5 w-3.5" />
           </button>
         ) : (
-          <kbd className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-[#F5F5F5] dark:bg-white/[0.06] text-mutedText-light shrink-0">⌘ K</kbd>
+          <div className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 flex items-center">
+            <kbd className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-black/[0.04] dark:bg-white/[0.06] text-zinc-400">
+              ⌘K
+            </kbd>
+          </div>
         )}
       </div>
 
-      {/* ─── Right: Controls & View Switcher ─── */}
-      <div className="flex items-center justify-between sm:justify-end gap-1.5 sm:gap-2 w-full sm:w-auto overflow-x-visible py-0.5 shrink-0">
+      {/* ─── Right: Controls & View Switcher (No New Category Button) ─── */}
+      <div className="flex items-center justify-between sm:justify-end gap-2 w-full sm:w-auto shrink-0">
         {/* Sort Dropdown Pill */}
         <div ref={sortRef} className="relative shrink-0">
           <button
             type="button"
             onClick={() => setIsSortOpen(!isSortOpen)}
-            className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-3.5 py-2 sm:py-2.5 rounded-full bg-white dark:bg-surface-dark border border-black/[0.04] dark:border-white/[0.06] shadow-[0_2px_8px_rgba(0,0,0,0.02)] text-xs font-medium text-secondaryText-light dark:text-secondaryText-dark hover:border-black/[0.08] dark:hover:border-white/[0.12] hover:text-primaryText-light dark:hover:text-white transition-all cursor-pointer"
+            className="flex h-11 items-center gap-2 px-4 rounded-full border border-black/[0.07] bg-white text-xs font-medium text-zinc-700 transition hover:border-black/20 hover:text-zinc-950 focus:border-[#A589DB] focus:outline-none focus:ring-4 focus:ring-[#CBB5FD]/15 dark:border-white/[0.08] dark:bg-[#121316] dark:text-zinc-300 dark:hover:border-white/20 dark:hover:text-white cursor-pointer shadow-[0_1px_2px_rgba(0,0,0,0.02)]"
             title="Sort items"
           >
-            <ArrowUpDown className="w-3.5 h-3.5 text-mutedText-light dark:text-mutedText-dark shrink-0" />
+            <ArrowUpDown className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
             <span className="hidden sm:inline">{sortLabels[sortOption] || "Sort"}</span>
-            <ChevronDown className={`w-3 h-3 text-mutedText-light dark:text-mutedText-dark transition-transform duration-150 ${isSortOpen ? "rotate-180" : ""}`} />
+            <ChevronDown
+              className={`w-3.5 h-3.5 text-zinc-400 transition-transform duration-150 ${
+                isSortOpen ? "rotate-180" : ""
+              }`}
+            />
           </button>
 
           <AnimatePresence>
@@ -118,7 +149,7 @@ export function FilterToolbar() {
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: -4, scale: 0.98 }}
                 transition={{ duration: 0.12 }}
-                className="absolute left-0 sm:left-auto sm:right-0 top-full mt-2 w-44 z-50 bg-white dark:bg-[#181716] border border-black/[0.06] dark:border-white/[0.1] rounded-2xl shadow-xl p-1.5 backdrop-blur-xl space-y-0.5"
+                className="absolute right-0 top-full mt-2 w-44 z-50 rounded-2xl border border-black/[0.08] bg-white p-1.5 shadow-xl backdrop-blur-xl dark:border-white/[0.1] dark:bg-[#121316] space-y-0.5"
               >
                 {(Object.keys(sortLabels) as SortOption[]).map((key) => {
                   const isSelected = sortOption === key;
@@ -130,14 +161,19 @@ export function FilterToolbar() {
                         setSortOption(key);
                         setIsSortOpen(false);
                       }}
-                      className={`w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-xs font-medium transition-colors cursor-pointer text-left ${
+                      className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition-colors cursor-pointer text-left ${
                         isSelected
-                          ? "bg-black/[0.04] dark:bg-white/[0.1] text-primaryText-light dark:text-white font-semibold"
-                          : "text-secondaryText-light dark:text-zinc-300 hover:bg-black/[0.03] dark:hover:bg-white/[0.05] hover:text-primaryText-light dark:hover:text-white"
+                          ? "bg-black/[0.05] dark:bg-white/[0.1] text-zinc-950 dark:text-white font-semibold"
+                          : "text-zinc-600 dark:text-zinc-400 hover:bg-black/[0.03] dark:hover:bg-white/[0.05] hover:text-zinc-950 dark:hover:text-white"
                       }`}
                     >
                       <span className="truncate">{sortLabels[key]}</span>
-                      {isSelected && <Check className="w-3.5 h-3.5 text-primaryText-light dark:text-white shrink-0" strokeWidth={2.5} />}
+                      {isSelected && (
+                        <Check
+                          className="w-3.5 h-3.5 text-zinc-950 dark:text-white shrink-0"
+                          strokeWidth={2.5}
+                        />
+                      )}
                     </button>
                   );
                 })}
@@ -146,10 +182,10 @@ export function FilterToolbar() {
           </AnimatePresence>
         </div>
 
-        {/* View Mode Switcher Pill with integrated column dropdown */}
-        <div className="flex items-center p-1 rounded-2xl bg-[#ECEEF2] dark:bg-white/[0.08] gap-1 border border-black/[0.02] dark:border-white/[0.04] shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+        {/* View Mode Switcher Pill */}
+        <div className="flex h-11 items-center p-1 rounded-full border border-black/[0.07] bg-white dark:border-white/[0.08] dark:bg-[#121316] gap-1 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
           {/* Grid Button with popover for column options */}
-          <div ref={gridMenuRef} className="relative">
+          <div ref={gridMenuRef} className="relative h-full flex items-center">
             <button
               type="button"
               onClick={() => {
@@ -159,18 +195,18 @@ export function FilterToolbar() {
                   setIsGridMenuOpen(!isGridMenuOpen);
                 }
               }}
-              className={`flex items-center gap-1 px-2 py-1.5 rounded-xl transition-all cursor-pointer ${
+              className={`h-9 flex items-center gap-1 px-3 rounded-full text-xs transition-all cursor-pointer ${
                 viewMode === "grid"
-                  ? "bg-white dark:bg-[#181716] text-primaryText-light dark:text-white shadow-[0_1px_3px_rgba(0,0,0,0.08)]"
-                  : "text-mutedText-light dark:text-zinc-400 hover:text-primaryText-light dark:hover:text-white"
+                  ? "bg-black/[0.06] dark:bg-white/[0.1] text-zinc-950 dark:text-white font-medium"
+                  : "text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200"
               }`}
               title={viewMode === "grid" ? `Grid View (${gridCols} cols) - click to change` : "Grid View"}
               aria-label="Grid View"
             >
-              <LayoutGrid className="w-4 h-4" />
+              <LayoutGrid className="w-3.5 h-3.5" />
               {viewMode === "grid" && (
                 <ChevronDown
-                  className={`w-2.5 h-2.5 text-mutedText-light dark:text-zinc-400 transition-transform duration-150 ${
+                  className={`w-2.5 h-2.5 text-zinc-400 transition-transform duration-150 ${
                     isGridMenuOpen ? "rotate-180" : ""
                   }`}
                 />
@@ -185,7 +221,7 @@ export function FilterToolbar() {
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: -4, scale: 0.98 }}
                   transition={{ duration: 0.12 }}
-                  className="absolute right-0 top-full mt-2 w-36 z-50 bg-white dark:bg-[#181716] border border-black/[0.06] dark:border-white/[0.1] rounded-2xl shadow-xl p-1.5 backdrop-blur-xl space-y-0.5"
+                  className="absolute right-0 top-full mt-2 w-36 z-50 rounded-2xl border border-black/[0.08] bg-white p-1.5 shadow-xl backdrop-blur-xl dark:border-white/[0.1] dark:bg-[#121316] space-y-0.5"
                 >
                   {[2, 3, 4, 5, 6].map((cols) => {
                     const isSelected = gridCols === cols;
@@ -199,13 +235,16 @@ export function FilterToolbar() {
                         }}
                         className={`w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-xs font-medium transition-colors cursor-pointer text-left ${
                           isSelected
-                            ? "bg-black/[0.04] dark:bg-white/[0.1] text-primaryText-light dark:text-white font-semibold"
-                            : "text-secondaryText-light dark:text-zinc-300 hover:bg-black/[0.03] dark:hover:bg-white/[0.05] hover:text-primaryText-light dark:hover:text-white"
+                            ? "bg-black/[0.05] dark:bg-white/[0.1] text-zinc-950 dark:text-white font-semibold"
+                            : "text-zinc-600 dark:text-zinc-400 hover:bg-black/[0.03] dark:hover:bg-white/[0.05] hover:text-zinc-950 dark:hover:text-white"
                         }`}
                       >
                         <span>{cols} columns</span>
                         {isSelected && (
-                          <Check className="w-3.5 h-3.5 text-primaryText-light dark:text-white shrink-0" strokeWidth={2.5} />
+                          <Check
+                            className="w-3.5 h-3.5 text-zinc-950 dark:text-white shrink-0"
+                            strokeWidth={2.5}
+                          />
                         )}
                       </button>
                     );
@@ -221,34 +260,35 @@ export function FilterToolbar() {
               setViewMode("feed");
               setIsGridMenuOpen(false);
             }}
-            className={`p-1.5 rounded-xl transition-all cursor-pointer ${
+            className={`h-9 w-9 flex items-center justify-center rounded-full text-xs transition-all cursor-pointer ${
               viewMode === "feed"
-                ? "bg-white dark:bg-[#181716] text-primaryText-light dark:text-white shadow-[0_1px_3px_rgba(0,0,0,0.08)]"
-                : "text-mutedText-light dark:text-zinc-400 hover:text-primaryText-light dark:hover:text-white"
+                ? "bg-black/[0.06] dark:bg-white/[0.1] text-zinc-950 dark:text-white font-medium"
+                : "text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200"
             }`}
             title="Feed View"
             aria-label="Feed View"
           >
-            <Rows className="w-4 h-4" />
+            <Rows className="w-3.5 h-3.5" />
           </button>
+
           <button
             type="button"
             onClick={() => {
               setViewMode("compact");
               setIsGridMenuOpen(false);
             }}
-            className={`p-1.5 rounded-xl transition-all cursor-pointer ${
+            className={`h-9 w-9 flex items-center justify-center rounded-full text-xs transition-all cursor-pointer ${
               viewMode === "compact"
-                ? "bg-white dark:bg-[#181716] text-primaryText-light dark:text-white shadow-[0_1px_3px_rgba(0,0,0,0.08)]"
-                : "text-mutedText-light dark:text-zinc-400 hover:text-primaryText-light dark:hover:text-white"
+                ? "bg-black/[0.06] dark:bg-white/[0.1] text-zinc-950 dark:text-white font-medium"
+                : "text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200"
             }`}
             title="Compact List View"
             aria-label="Compact List View"
           >
-            <List className="w-4 h-4" />
+            <List className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>
-    </div>
+    </section>
   );
 }

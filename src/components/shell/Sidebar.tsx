@@ -410,8 +410,8 @@ function SidebarContent() {
       className={SIDEBAR_CLASSES}
       style={ACTIVE_GRADIENTS}
     >
-      {/* Brand Header */}
-      <header className="flex h-[92px] shrink-0 items-center px-7">
+      {/* Brand Header with Pricing Upgrade chip */}
+      <header className="flex h-[80px] shrink-0 items-center justify-between px-5 pr-4">
         <Link
           href="/dashboard"
           onClick={() => {
@@ -424,6 +424,23 @@ function SidebarContent() {
           className="inline-flex items-center rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-400"
         >
           <ReelDashLogo />
+        </Link>
+
+        {/* Pricing upgrade chip — top-right of header, like Linear/Notion */}
+        <Link
+          href="/pricing"
+          title="View pricing plans"
+          aria-label="View pricing plans"
+          className={[
+            'flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors',
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-400',
+            isRoute('/pricing')
+              ? 'bg-stone-200 text-stone-700 dark:bg-stone-700/60 dark:text-stone-200'
+              : 'bg-black/[0.04] text-zinc-500 hover:bg-black/[0.07] hover:text-zinc-700 dark:bg-white/[0.05] dark:text-zinc-400 dark:hover:bg-white/[0.09] dark:hover:text-zinc-200',
+          ].join(' ')}
+        >
+          <NavPricingIcon active={isRoute('/pricing')} className="!size-3" />
+          <span>Plans</span>
         </Link>
       </header>
 
@@ -509,6 +526,14 @@ function SidebarContent() {
               setSearchQuery('');
             }}
           />
+          {/* Recycle Bin — belongs in main nav alongside other content destinations */}
+          <NavItem
+            href="/recycle-bin"
+            label="Recycle Bin"
+            icon={NavRecycleBinIcon}
+            active={isRoute('/recycle-bin')}
+            count={recycleCount}
+          />
         </nav>
 
         {/* Collections Section */}
@@ -576,25 +601,9 @@ function SidebarContent() {
         </section>
       </div>
 
-      {/* Footer Navigation & Payflow Profile Pill Card */}
+      {/* Footer — Profile Pill only */}
       <footer className="shrink-0 px-4 pb-4 pt-2">
-        <nav aria-label="Additional navigation" className="space-y-1">
-          <NavItem
-            href="/pricing"
-            label="Pricing"
-            icon={NavPricingIcon}
-            active={isRoute('/pricing')}
-          />
-          <NavItem
-            href="/recycle-bin"
-            label="Recycle Bin"
-            icon={NavRecycleBinIcon}
-            active={isRoute('/recycle-bin')}
-            count={recycleCount}
-          />
-        </nav>
-
-        <div className="mx-3 mb-3.5 mt-3.5 h-px bg-black/[0.06] dark:bg-white/[0.06]" />
+        <div className="mx-1 mb-3 h-px bg-black/[0.06] dark:bg-white/[0.06]" />
 
         {/* ─── Payflow-exact Single Pill Profile Card ─── */}
         <Link
