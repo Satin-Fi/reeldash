@@ -320,20 +320,6 @@ export function MobileNav() {
                   </div>
                 </Link>
 
-                <Link
-                  href="/collections"
-                  onClick={closeMenu}
-                  className={`flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-sm font-medium transition-colors ${
-                    pathname === "/collections"
-                      ? "bg-black/[0.06] dark:bg-white/[0.1] text-zinc-950 dark:text-white"
-                      : "text-zinc-700 dark:text-zinc-300 hover:bg-black/[0.03] dark:hover:bg-white/[0.04]"
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <Folder className="w-4 h-4 text-zinc-500" />
-                    <span>Collections</span>
-                  </div>
-                </Link>
 
                 <Link
                   href="/recycle-bin"
