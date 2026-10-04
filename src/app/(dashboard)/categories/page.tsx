@@ -945,7 +945,7 @@ export default function CategoriesPage() {
     } else {
       await createUserCategory(name, undefined, description);
       setQuery('');
-      setFilter('custom');
+      setFilter('all');
       setAnnouncement(`“${name}” is ready for your discoveries.`);
     }
   }
@@ -955,12 +955,6 @@ export default function CategoriesPage() {
     setAnnouncement(`“${collection.name}” deleted. Your reels are still saved.`);
   }
 
-  const filters: Array<{ value: CollectionFilter; label: string }> = [
-    { value: 'all', label: 'All collections' },
-    { value: 'smart', label: 'Smart' },
-    { value: 'custom', label: 'Yours' },
-  ];
-
   const hasSearch = query.trim().length > 0;
 
   return (
@@ -968,13 +962,7 @@ export default function CategoriesPage() {
       <div className="mx-auto max-w-[1440px] px-5 pb-16 pt-10 sm:px-8 sm:pt-14 lg:px-12 lg:pt-16">
         <header className="flex items-end justify-between gap-8">
           <div className="max-w-2xl">
-            <div className="mb-5 flex items-center gap-2.5 text-[10px] font-semibold uppercase tracking-[0.22em] text-zinc-500 dark:text-zinc-400">
-              <span className="relative flex h-2 w-2">
-                <span className="absolute inset-0 rounded-full bg-[#80CFA0]/25 ring-4 ring-[#80CFA0]/10" />
-                <span className="relative h-2 w-2 rounded-full bg-[#80CFA0]" />
-              </span>
-              Your visual index
-            </div>
+
 
             <h1
               className={`${bricolage.className} text-[clamp(3rem,6vw,5rem)] font-bold leading-[0.98] tracking-[-0.065em]`}
@@ -1060,47 +1048,6 @@ export default function CategoriesPage() {
             </button>
           </div>
 
-          <div className="mt-7 flex flex-wrap items-center justify-between gap-3 border-b border-black/[0.07] pb-4 dark:border-white/[0.08]">
-            <div
-              role="group"
-              aria-label="Filter collections"
-              className="flex flex-wrap items-center gap-1"
-            >
-              {filters.map((item) => (
-                <button
-                  key={item.value}
-                  type="button"
-                  aria-pressed={filter === item.value}
-                  onClick={() => setFilter(item.value)}
-                  className={`inline-flex items-center gap-2 rounded-full px-3.5 py-2 text-[11px] font-medium transition-colors ${focusRing} ${
-                    filter === item.value
-                      ? 'bg-[#EDE6F8] text-[#655080] dark:bg-[#CBB5FD]/15 dark:text-[#DCCDF8]'
-                      : 'text-zinc-500 hover:bg-black/[0.03] hover:text-zinc-950 dark:text-zinc-400 dark:hover:bg-white/[0.04] dark:hover:text-white'
-                  }`}
-                >
-                  {item.label}
-                  <span
-                    className={`text-[10px] tabular-nums ${
-                      filter === item.value ? 'opacity-75' : 'opacity-60'
-                    }`}
-                  >
-                    {counts[item.value]}
-                  </span>
-                </button>
-              ))}
-            </div>
-
-            <p
-              role="status"
-              aria-live="polite"
-              aria-atomic="true"
-              className="px-1 text-[10px] text-zinc-400 dark:text-zinc-500"
-            >
-              {visibleCollections.length}{' '}
-              {visibleCollections.length === 1 ? 'collection' : 'collections'}
-              {hasSearch ? ' found' : ''}
-            </p>
-          </div>
         </section>
 
         <section aria-label="Categories" className="mt-7">

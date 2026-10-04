@@ -562,13 +562,6 @@ export default function RecycleBinPage() {
       <div className="mx-auto w-full max-w-[1600px] px-5 pb-12 pt-9 sm:px-9 sm:pt-12 lg:px-14 lg:pt-14">
         <header className="flex flex-wrap items-end justify-between gap-5 border-b border-black/[0.07] pb-7 dark:border-white/[0.08]">
           <div>
-            <div className="mb-3 flex items-center gap-2.5 text-[10px] font-medium uppercase tracking-[0.2em] text-zinc-500 dark:text-zinc-400">
-              <span className="h-1.5 w-1.5 rounded-full bg-[#6E47C7] dark:bg-[#CBB5FD]" />
-              Your workspace
-              <span className="text-zinc-300 dark:text-zinc-700">/</span>
-              Archive
-            </div>
-
             <div className="flex items-center gap-4">
               <h1
                 ref={headingRef}

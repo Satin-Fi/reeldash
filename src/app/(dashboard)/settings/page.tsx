@@ -661,20 +661,12 @@ export default function SettingsPage() {
         <div className="mx-auto max-w-[1240px] px-5 py-10 sm:px-8 sm:py-14 lg:px-12 lg:py-16">
           <header className="mb-10 flex flex-wrap items-end justify-between gap-6 lg:mb-12">
             <div>
-              <div className="mb-4 flex items-center gap-2.5 text-[10px] font-semibold uppercase tracking-[0.22em] text-zinc-400 dark:text-zinc-500">
-                <span className="h-1.5 w-1.5 rounded-full bg-[#81916F]" />
-                Your workspace, refined
-              </div>
               <h1 className="text-[38px] font-medium leading-[1.1] tracking-[-0.055em] sm:text-5xl">
                 Settings<span className="text-zinc-300 dark:text-zinc-600"> & </span>preferences
               </h1>
               <p className="mt-4 text-sm leading-6 text-zinc-500 dark:text-zinc-400">
                 A little housekeeping. A workspace that feels like you.
               </p>
-            </div>
-            <div className="flex items-center gap-2 rounded-full border border-black/[0.06] bg-white/60 px-3 py-1.5 text-[11px] text-zinc-500 dark:border-white/[0.07] dark:bg-white/[0.025] dark:text-zinc-400">
-              <ShieldCheck size={13} strokeWidth={1.5} />
-              Workspace controls
             </div>
           </header>
 
