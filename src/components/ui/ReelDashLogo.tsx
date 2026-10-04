@@ -2,7 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
-import Image from "next/image";
+import { Bookmark } from "lucide-react";
 
 interface ReelDashLogoProps {
   size?: number;
@@ -10,6 +10,7 @@ interface ReelDashLogoProps {
   href?: string;
   className?: string;
   textSize?: string;
+  inverted?: boolean;
 }
 
 export function ReelDashLogo({
@@ -17,31 +18,32 @@ export function ReelDashLogo({
   showText = true,
   href,
   className = "",
-  textSize = "text-[22px]",
+  textSize = "text-[20px]",
+  inverted = false,
 }: ReelDashLogoProps) {
-  const content = (
-    <div className={`inline-flex items-center space-x-2.5 select-none ${className}`}>
-      {/* Precision Icon Mark */}
-      <div
-        className="relative flex items-center justify-center shrink-0"
-        style={{ width: size, height: size }}
-      >
-        <Image
-          src="/logo.png"
-          alt="ReelDash"
-          width={size}
-          height={size}
-          priority
-          className="object-contain w-full h-full transition-transform duration-200 group-hover:scale-105"
-        />
-      </div>
+  const badgeSize = Math.max(26, size);
+  const iconSize = Math.max(13, Math.round(badgeSize * 0.52));
 
-      {/* Supahub-Calibrated Bricolage Grotesque Wordmark (Theme-Aware) */}
+  const content = (
+    <div
+      className={`inline-flex items-center gap-2.5 font-bold tracking-[-0.06em] select-none ${textSize} ${
+        inverted ? "text-white" : "text-[#17181C] dark:text-white"
+      } ${className}`}
+    >
+      {/* Precision Lavender Squircle Badge */}
+      <span
+        style={{ width: badgeSize, height: badgeSize }}
+        className={`flex shrink-0 items-center justify-center rounded-[10px] transition-transform duration-200 group-hover:scale-105 ${
+          inverted ? "bg-white text-[#17181C]" : "bg-[#CBB5FD] text-[#24163D]"
+        }`}
+      >
+        <Bookmark size={iconSize} strokeWidth={2.6} aria-hidden="true" />
+      </span>
+
+      {/* reeldash. Wordmark */}
       {showText && (
-        <span
-          className={`font-bricolage font-extrabold ${textSize} tracking-[-0.035em] text-zinc-900 dark:text-white leading-none flex items-center transition-colors duration-150`}
-        >
-          ReelDash
+        <span className="leading-none flex items-center">
+          reeldash<span className="-ml-1 text-[#9C7ADA] font-extrabold">.</span>
         </span>
       )}
     </div>
@@ -49,7 +51,11 @@ export function ReelDashLogo({
 
   if (href) {
     return (
-      <Link href={href} className="inline-flex items-center group transition-opacity hover:opacity-90">
+      <Link
+        href={href}
+        aria-label="Reeldash home"
+        className="inline-flex items-center group transition-opacity hover:opacity-90"
+      >
         {content}
       </Link>
     );
@@ -57,3 +63,4 @@ export function ReelDashLogo({
 
   return content;
 }
+

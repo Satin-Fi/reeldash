@@ -125,15 +125,18 @@ function Header() {
   return (
     <header className="relative z-20 mx-auto flex h-24 max-w-6xl items-center justify-between px-5 sm:px-8">
       <Brand />
-      <nav aria-label="Main navigation" className="flex items-center gap-8">
+      <nav aria-label="Main navigation" className="flex items-center gap-5 sm:gap-7">
         <Link href="#features" className="hidden text-sm text-zinc-500 transition-colors hover:text-zinc-950 sm:block dark:hover:text-white">
           How it works
         </Link>
         <Link href="#collections" className="hidden text-sm text-zinc-500 transition-colors hover:text-zinc-950 md:block dark:hover:text-white">
-          The inspiration
+          Inspiration
         </Link>
-        <Link href="#join" className="inline-flex min-h-10 items-center gap-2 rounded-full border border-black/15 px-4 text-xs font-semibold transition-colors hover:bg-black/5 dark:border-white/20 dark:hover:bg-white/10">
-          Get started <ArrowUpRight size={14} aria-hidden="true" />
+        <Link href="/login" className="text-sm font-medium text-zinc-700 transition-colors hover:text-zinc-950 dark:text-zinc-300 dark:hover:text-white">
+          Log in
+        </Link>
+        <Link href="/signup" className="inline-flex min-h-10 items-center gap-1.5 rounded-full bg-[#17181C] px-4 text-xs font-semibold text-white transition-colors hover:bg-[#34353C] dark:bg-white dark:text-[#090A0D] dark:hover:bg-zinc-200">
+          Get started <ArrowUpRight size={13} aria-hidden="true" />
         </Link>
       </nav>
     </header>
@@ -220,11 +223,11 @@ function Hero() {
           Collect Reels, carousels, and audio. Make something original.
         </p>
         <div className="mt-8 flex flex-wrap justify-center gap-3">
-          <Link href="#join" className={solidButton}>
+          <Link href="/signup" className={solidButton}>
             Start Swipe File <ArrowUpRight size={16} aria-hidden="true" />
           </Link>
-          <Link href="#demo" className={ghostButton}>
-            View Demo <ArrowDown size={15} aria-hidden="true" />
+          <Link href="/login" className={ghostButton}>
+            Log In <ArrowRight size={15} aria-hidden="true" />
           </Link>
         </div>
       </motion.div>
@@ -415,6 +418,11 @@ function Footer() {
         </div>
         <div className="mt-20 flex flex-col justify-between gap-6 border-t border-white/10 pt-7 sm:flex-row sm:items-center">
           <Brand inverted />
+          <div className="flex items-center gap-6 text-xs text-zinc-400">
+            <Link href="/login" className="hover:text-white transition-colors">Log in</Link>
+            <Link href="/signup" className="hover:text-white transition-colors">Sign up</Link>
+            <Link href="/dashboard" className="hover:text-white transition-colors">Dashboard</Link>
+          </div>
           <p className="text-[11px] text-zinc-500">© {new Date().getFullYear()} Reeldash. Keep your inspiration close.</p>
           <Link href="#features" className="flex items-center gap-2 text-xs text-zinc-400 transition-colors hover:text-white">Back to the good stuff <ArrowUpRight size={13} aria-hidden="true" /></Link>
         </div>

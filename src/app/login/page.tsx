@@ -33,9 +33,15 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen bg-[#050608] text-zinc-100 flex flex-col items-center justify-center p-6 sm:p-8 font-sans selection:bg-white/20 selection:text-white">
-      {/* Top Header Logo */}
-      <div className="mb-8">
-        <ReelDashLogo href="/" size={32} textSize="text-[24px]" />
+      {/* Top Header Logo & Back Navigation */}
+      <div className="mb-6 flex flex-col items-center gap-2.5">
+        <ReelDashLogo href="/" size={34} textSize="text-[24px]" />
+        <Link
+          href="/"
+          className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors flex items-center gap-1 group"
+        >
+          <span className="transition-transform group-hover:-translate-x-0.5">←</span> Back to home
+        </Link>
       </div>
 
       {/* Main Centered Minimalist Card */}
