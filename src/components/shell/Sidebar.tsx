@@ -4,278 +4,429 @@ import {
   Suspense,
   useEffect,
   useId,
-  useMemo,
   useRef,
   useState,
   type ComponentType,
+  type CSSProperties,
+  type SVGProps,
 } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
-import {
-  Home,
-  Film,
-  Image as ImageIcon,
-  Music2,
-  Layers,
-  Heart,
-  Folder,
-  Settings,
-  Plus,
-  LogOut,
-  Instagram,
-  ChevronsUpDown,
-  Check,
-  Crown,
-  Trash2,
-  Sun,
-  Moon,
-  ArrowRight,
-  Code2,
-  Palette,
-  Compass,
-  Camera,
-  ShoppingBag,
-  Activity,
-  Utensils,
-  Cpu,
-  type LucideProps,
-} from 'lucide-react';
-
 import { useReels } from '@/context/ReelContext';
 import { useAuth } from '@/context/AuthContext';
 import { ReelDashLogo } from '@/components/ui/ReelDashLogo';
 
-type IconComponent = ComponentType<LucideProps>;
-type MediaType = 'reel' | 'post' | 'audio' | 'all';
+type GlyphProps = SVGProps<SVGSVGElement>;
+type UnknownRecord = Record<string, unknown>;
+
+type Account = {
+  id: string;
+  label: string;
+  raw: UnknownRecord;
+};
 
 type NavigationItem = {
   label: string;
   href: string;
-  icon: IconComponent;
-  mediaType?: MediaType;
+  icon: ComponentType<GlyphProps>;
+  mediaType?: 'reel' | 'post' | 'audio' | 'all';
 };
 
-type CollectionItem = {
-  id: string;
-  name: string;
-  kind: 'collection' | 'category';
+const HIDDEN_SCROLLBAR =
+  'no-scrollbar scrollbar-none [scrollbar-width:none] [&::-webkit-scrollbar]:hidden';
+
+const HIDDEN_SCROLLBAR_STYLE: CSSProperties & {
+  msOverflowStyle: 'none';
+} = {
+  scrollbarWidth: 'none',
+  msOverflowStyle: 'none',
 };
 
-type InstagramAccount = {
-  id: string;
-  username: string;
-  avatarUrl: string | null;
-};
+// ─── Bespoke Original SVGs (No Generic Icons) ──────────────────
 
-const navigation: NavigationItem[] = [
-  { label: 'Dashboard', href: '/dashboard', icon: Home },
-  { label: 'Reels', href: '/reels?type=reel', icon: Film, mediaType: 'reel' },
-  {
-    label: 'Posts & Photos',
-    href: '/reels?type=post',
-    icon: ImageIcon,
-    mediaType: 'post',
-  },
-  {
-    label: 'Audio & Songs',
-    href: '/reels?type=audio',
-    icon: Music2,
-    mediaType: 'audio',
-  },
-  {
-    label: 'All Library',
-    href: '/reels?type=all',
-    icon: Layers,
-    mediaType: 'all',
-  },
-  { label: 'Favorites', href: '/favorites', icon: Heart },
+function Glyph({ children, ...props }: GlyphProps) {
+  return (
+    <svg
+      {...props}
+      xmlns="http://www.w3.org/2000/svg"
+      width={17}
+      height={17}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      focusable="false"
+    >
+      {children}
+    </svg>
+  );
+}
+
+// Bespoke 4-cell Bento Dashboard Architecture Glyph
+function NavDashboardIcon(props: GlyphProps) {
+  return (
+    <Glyph {...props}>
+      <rect x="3.5" y="3.5" width="7" height="9.5" rx="1.8" />
+      <rect x="13.5" y="3.5" width="7" height="5.5" rx="1.8" />
+      <rect x="3.5" y="16" width="7" height="4.5" rx="1.6" />
+      <rect x="13.5" y="12" width="7" height="8.5" rx="1.8" />
+    </Glyph>
+  );
+}
+
+// Bespoke 9:16 Cinematic Filmstrip Frame Glyph
+function NavReelsIcon(props: GlyphProps) {
+  return (
+    <Glyph {...props}>
+      <rect x="6.5" y="2.75" width="11" height="18.5" rx="2.2" />
+      <path d="M6.75 6.75h10.5M6.75 17.25h10.5" opacity=".5" />
+      <path d="m10.5 9.75 4 2.25-4 2.25V9.75Z" />
+    </Glyph>
+  );
+}
+
+// Bespoke Media Artboard / Photo Canvas Glyph
+function NavPostsIcon(props: GlyphProps) {
+  return (
+    <Glyph {...props}>
+      <rect x="3.5" y="4" width="17" height="16" rx="2.2" />
+      <circle cx="15.5" cy="8.5" r="1.5" />
+      <path d="m3.75 15.5 5-4.5a1.2 1.2 0 0 1 1.6 0l4.15 3.9" />
+      <path d="m12.5 16.5 3-2.6a1.2 1.2 0 0 1 1.6 0l3.15 2.6" />
+    </Glyph>
+  );
+}
+
+// Bespoke Acoustic Frequency Pulse Glyph
+function NavAudioIcon(props: GlyphProps) {
+  return (
+    <Glyph {...props}>
+      <path d="M3.5 10.5v3M7 7v10M10.5 4v16" />
+      <path d="M14 8.5v7M17.5 6v12M20.5 10.5v3" />
+    </Glyph>
+  );
+}
+
+// Bespoke Architectural Stack of Media Planes Glyph
+function NavLibraryIcon(props: GlyphProps) {
+  return (
+    <Glyph {...props}>
+      <path d="m4 7.5 6.8-3.7a2.5 2.5 0 0 1 2.4 0L20 7.5a1 1 0 0 1 0 1.7l-6.8 3.7a2.5 2.5 0 0 1-2.4 0L4 9.2a1 1 0 0 1 0-1.7Z" />
+      <path d="m3.75 12 7 3.8a2.5 2.5 0 0 0 2.4 0l7-3.8" opacity=".75" />
+      <path d="m3.75 16 7 3.8a2.5 2.5 0 0 0 2.4 0l7-3.8" opacity=".45" />
+    </Glyph>
+  );
+}
+
+// Bespoke Faceted Celestial Heart Crest Glyph
+function NavFavoritesIcon(props: GlyphProps) {
+  return (
+    <Glyph {...props}>
+      <path d="m12 20-7.8-7.4a4.8 4.8 0 0 1-.5-6.4 4.4 4.4 0 0 1 6.6-.6L12 7l1.7-1.4a4.4 4.4 0 0 1 6.6.6 4.8 4.8 0 0 1-.5 6.4L12 20Z" />
+      <path d="m3.8 7 4.5 3.2L12 20l3.7-9.8 4.5-3.2" opacity=".35" />
+    </Glyph>
+  );
+}
+
+// Bespoke Minimalist Crown / Sparkle Glyph
+function NavPricingIcon(props: GlyphProps) {
+  return (
+    <Glyph {...props}>
+      <path d="m4 8.2 4 3.1L12 5.2l4 6.1 4-3.1-1.8 9.1H5.8L4 8.2Z" />
+      <path d="M7 20.2h10" opacity=".6" />
+    </Glyph>
+  );
+}
+
+// Bespoke Archive Chamber / Vault Glyph
+function NavRecycleBinIcon(props: GlyphProps) {
+  return (
+    <Glyph {...props}>
+      <path d="M5.2 7.2 6.4 19a1.8 1.8 0 0 0 1.8 1.7h7.6a1.8 1.8 0 0 0 1.8-1.7l1.2-11.8" />
+      <path d="m4 6.2 7-2.4a2.5 2.5 0 0 1 1.8 0l7 2.4V7.5H4V6.2Z" />
+      <path d="m9.2 11 .4 6.5M14.4 11l-.4 6.5" opacity=".6" />
+    </Glyph>
+  );
+}
+
+// Bespoke Minimal Folder Glyph
+function FolderGlyph(props: GlyphProps) {
+  return (
+    <Glyph {...props}>
+      <path d="M3.25 7V5.8A1.55 1.55 0 0 1 4.8 4.25h4.1a1.7 1.7 0 0 1 1.2.5l1.65 1.65H19.2a1.55 1.55 0 0 1 1.55 1.55V17.5a1.6 1.6 0 0 1-1.6 1.6H4.85a1.6 1.6 0 0 1-1.6-1.6V7Z" />
+      <path d="M3.5 9h17" opacity=".4" />
+    </Glyph>
+  );
+}
+
+// Bespoke Micro-Machined Settings Gear Glyph (Matching Payflow Reference)
+function SettingsGearGlyph(props: GlyphProps) {
+  return (
+    <Glyph {...props}>
+      <path d="m10.3 2.75-.45 2.1-2.05 1.2-2.05-.65-1.7 2.95 1.6 1.45v2.4l-1.6 1.45 1.7 2.95 2.05-.65 2.05 1.2.45 2.1h3.4l.45-2.1 2.05-1.2 2.05.65 1.7-2.95-1.6-1.45v-2.4l1.6-1.45-1.7-2.95-2.05.65-2.05-1.2-.45-2.1h-3.4Z" transform="translate(0 1)" />
+      <circle cx="12" cy="12" r="3" />
+    </Glyph>
+  );
+}
+
+function PlusGlyph(props: GlyphProps) {
+  return (
+    <Glyph {...props}>
+      <path d="M12 5v14M5 12h14" />
+    </Glyph>
+  );
+}
+
+function ChevronGlyph(props: GlyphProps) {
+  return (
+    <Glyph {...props}>
+      <path d="m8 10 4 4 4-4" />
+    </Glyph>
+  );
+}
+
+function CheckGlyph(props: GlyphProps) {
+  return (
+    <Glyph {...props}>
+      <path d="m6.5 12.2 3.6 3.6 7.4-7.6" />
+    </Glyph>
+  );
+}
+
+const PRIMARY_NAVIGATION: NavigationItem[] = [
+  { label: 'Dashboard', href: '/dashboard', icon: NavDashboardIcon },
+  { label: 'Reels', href: '/reels?type=reel', icon: NavReelsIcon, mediaType: 'reel' },
+  { label: 'Posts & Photos', href: '/reels?type=post', icon: NavPostsIcon, mediaType: 'post' },
+  { label: 'Songs & Audio', href: '/reels?type=audio', icon: NavAudioIcon, mediaType: 'audio' },
+  { label: 'All Library', href: '/reels?type=all', icon: NavLibraryIcon, mediaType: 'all' },
+  { label: 'Favorites', href: '/favorites', icon: NavFavoritesIcon },
 ];
 
-const focusRing =
-  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/60 focus-visible:ring-offset-2 focus-visible:ring-offset-[#FAFAF9] dark:focus-visible:ring-violet-300/60 dark:focus-visible:ring-offset-[#0C0D10]';
-
-const iconButton =
-  `inline-flex size-8 shrink-0 items-center justify-center rounded-lg ` +
-  `text-zinc-500 transition-colors duration-150 hover:bg-black/[0.04] hover:text-zinc-900 ` +
-  `dark:text-zinc-400 dark:hover:bg-white/[0.06] dark:hover:text-white ` +
-  `motion-reduce:transition-none ${focusRing}`;
-
-function asRecord(value: unknown): Record<string, unknown> {
-  return typeof value === 'object' && value !== null
-    ? (value as Record<string, unknown>)
+function asRecord(value: unknown): UnknownRecord {
+  return value !== null && typeof value === 'object'
+    ? (value as UnknownRecord)
     : {};
 }
 
-function stringValue(...values: unknown[]): string | null {
+function asText(...values: unknown[]): string {
   for (const value of values) {
     if (typeof value === 'string' && value.trim()) return value.trim();
     if (typeof value === 'number' && Number.isFinite(value)) {
       return String(value);
     }
   }
-
-  return null;
+  return '';
 }
 
-function normalizeCollections(
-  value: unknown,
-  kind: CollectionItem['kind'],
-): CollectionItem[] {
-  const entries: Array<[string, unknown]> = Array.isArray(value)
-    ? value.map((entry, index) => [String(index), entry])
-    : Object.entries(asRecord(value));
+function firstArray(...values: unknown[]): unknown[] {
+  return values.find((value): value is unknown[] => Array.isArray(value)) ?? [];
+}
 
+function getAccounts(context: UnknownRecord, user: UnknownRecord): Account[] {
   const seen = new Set<string>();
 
-  return entries.flatMap(([key, entry]) => {
-    const data = asRecord(entry);
-    const name = stringValue(
-      data.name,
-      data.label,
-      data.title,
-      typeof entry === 'string' ? entry : null,
-      !Array.isArray(value) ? key : null,
-    );
+  return firstArray(
+    user.connectedAccounts,
+    user.instagramAccounts,
+    context.activeAccounts,
+    context.instagramAccounts,
+  ).flatMap((value) => {
+    const account = asRecord(value);
+    const status = asText(account.status).toLowerCase();
 
-    if (!name) return [];
+    if (
+      account.isActive === false ||
+      account.is_active === false ||
+      account.active === false ||
+      ['inactive', 'disconnected', 'revoked', 'expired', 'disabled'].includes(status)
+    ) {
+      return [];
+    }
 
-    const id = stringValue(
-      data.id,
-      data.slug,
-      data.key,
-      kind === 'category' ? name : null,
-      !Array.isArray(value) ? key : null,
-      name,
-    )!;
-
-    if (seen.has(id)) return [];
+    const id = asText(account.id, account.accountId, account.instagram_account_id, account.username);
+    if (!id || seen.has(id)) return [];
     seen.add(id);
 
-    return [{ id, name, kind }];
+    const username = asText(account.username, account.instagram_username);
+    const label = username ? `@${username.replace(/^@/, '')}` : 'Instagram Account';
+
+    return [{ id, label, raw: account }];
   });
 }
 
-function normalizeAccounts(...sources: unknown[]): InstagramAccount[] {
-  const accounts = new Map<string, InstagramAccount>();
-
-  for (const source of sources) {
-    const entries = Array.isArray(source)
-      ? source
-      : Object.values(asRecord(source));
-
-    for (const entry of entries) {
-      const data = asRecord(entry);
-      const username = stringValue(
-        data.username,
-        data.instagramUsername,
-        data.instagram_username,
-        typeof entry === 'string' ? entry : null,
-      )?.replace(/^@/, '');
-
-      if (!username) continue;
-
-      const id = stringValue(
-        data.id,
-        data.accountId,
-        data.instagramAccountId,
-        data.instagramId,
-        username,
-      )!;
-
-      if (!accounts.has(id)) {
-        accounts.set(id, {
-          id,
-          username,
-          avatarUrl: stringValue(
-            data.avatarUrl,
-            data.profilePictureUrl,
-            data.profile_picture_url,
-            data.profilePicture,
-            data.avatar,
-          ),
-        });
-      }
-    }
-  }
-
-  return [...accounts.values()];
-}
-
-function categoryIcon(name: string): IconComponent {
-  const value = name.toLowerCase();
-
-  if (/code|develop|program/.test(value)) return Code2;
-  if (/music|audio|song/.test(value)) return Music2;
-  if (/design|art|creativ/.test(value)) return Palette;
-  if (/photo|camera/.test(value)) return Camera;
-  if (/travel|explor/.test(value)) return Compass;
-  if (/shop|fashion|style/.test(value)) return ShoppingBag;
-  if (/fitness|health|sport/.test(value)) return Activity;
-  if (/food|cook|recipe/.test(value)) return Utensils;
-  if (/tech|(^|\s)ai(\s|$)/.test(value)) return Cpu;
-
-  return Folder;
-}
-
-function itemClasses(active: boolean): string {
-  return [
-    'group relative flex min-h-10 items-center gap-3 rounded-lg px-3 py-2',
-    'text-[13px] leading-5 tracking-[-0.01em]',
-    'transition-colors duration-150 motion-reduce:transition-none',
-    focusRing,
-    active
-      ? 'bg-black/[0.05] font-medium text-zinc-950 dark:bg-white/[0.08] dark:text-white'
-      : 'font-normal text-zinc-500 hover:bg-black/[0.03] hover:text-zinc-700 dark:text-zinc-400 dark:hover:bg-white/[0.04] dark:hover:text-zinc-300',
-  ].join(' ');
-}
-
-function Avatar({
-  src,
-  name,
-  size = 'sm',
-}: {
-  src: string | null;
-  name: string;
-  size?: 'sm' | 'md';
-}) {
-  const [failedSource, setFailedSource] = useState<string | null>(null);
-  const showImage = Boolean(src && src !== failedSource);
+function Avatar({ src, name }: { src: string; name: string }) {
+  const [failed, setFailed] = useState(false);
 
   return (
-    <span
-      aria-hidden="true"
-      className={[
-        'relative inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full',
-        'bg-zinc-200/70 font-medium text-zinc-600 ring-1 ring-black/[0.05]',
-        'dark:bg-zinc-800 dark:text-zinc-300 dark:ring-white/[0.08]',
-        size === 'md' ? 'size-9 text-[13px]' : 'size-7 text-[11px]',
-      ].join(' ')}
-    >
-      {showImage ? (
-        // Account avatars are remote, user-provided URLs.
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={src!}
+    <span className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-zinc-800 text-xs font-medium text-white ring-1 ring-white/[0.08]">
+      {src && !failed ? (
+        <Image
+          src={src}
           alt=""
+          width={36}
+          height={36}
+          unoptimized
           className="size-full object-cover"
-          loading="lazy"
-          decoding="async"
-          referrerPolicy="no-referrer"
-          onError={() => setFailedSource(src)}
+          onError={() => setFailed(true)}
         />
       ) : (
-        name.replace(/^@/, '').slice(0, 1).toUpperCase() || 'U'
+        <span aria-hidden="true">{Array.from(name)[0]?.toUpperCase() || 'P'}</span>
       )}
     </span>
   );
 }
 
+function NavigationLink({
+  item,
+  active,
+  onClick,
+}: {
+  item: NavigationItem;
+  active: boolean;
+  onClick?: () => void;
+}) {
+  const Icon = item.icon;
+
+  return (
+    <Link
+      href={item.href}
+      onClick={onClick}
+      aria-current={active ? 'page' : undefined}
+      className={[
+        'group relative flex min-h-10 items-center gap-3 rounded-xl px-3 py-2.5',
+        'text-[13px] leading-5 tracking-[-0.01em] outline-none transition-colors duration-150',
+        'focus-visible:ring-2 focus-visible:ring-[#CBB5FD] focus-visible:ring-offset-2',
+        'focus-visible:ring-offset-zinc-50 dark:focus-visible:ring-offset-[#0C0D10]',
+        active
+          ? 'bg-black/[0.05] font-medium text-zinc-950 dark:bg-white/[0.08] dark:text-white'
+          : 'text-zinc-500 hover:bg-black/[0.03] hover:text-zinc-800 dark:text-zinc-400 dark:hover:bg-white/[0.04] dark:hover:text-zinc-200',
+      ].join(' ')}
+    >
+      {active && (
+        <span
+          aria-hidden="true"
+          className="absolute left-0 top-1/2 h-4 w-[2.5px] -translate-y-1/2 rounded-full bg-[#CBB5FD]"
+        />
+      )}
+      <Icon className="shrink-0" />
+      <span className="min-w-0 truncate">{item.label}</span>
+    </Link>
+  );
+}
+
+function AccountSwitcher({
+  accounts,
+  selectedId,
+  onSelect,
+}: {
+  accounts: Account[];
+  selectedId: string;
+  onSelect: (id: string | null) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const listId = useId();
+  const selected = accounts.find((a) => a.id === selectedId) ?? accounts[0];
+
+  useEffect(() => {
+    if (!open) return;
+    function onPointerDown(event: PointerEvent) {
+      if (event.target instanceof Node && !rootRef.current?.contains(event.target)) {
+        setOpen(false);
+      }
+    }
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        setOpen(false);
+        triggerRef.current?.focus();
+      }
+    }
+    document.addEventListener('pointerdown', onPointerDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [open]);
+
+  if (accounts.length <= 1) return null;
+
+  return (
+    <div ref={rootRef} className="mb-4">
+      <button
+        ref={triggerRef}
+        type="button"
+        aria-expanded={open}
+        aria-controls={listId}
+        onClick={() => setOpen((v) => !v)}
+        className="flex min-h-10 w-full items-center gap-2.5 rounded-xl border border-black/[0.06] bg-white/60 px-3 text-left text-zinc-600 outline-none transition-colors hover:bg-black/[0.03] focus-visible:ring-2 focus-visible:ring-[#CBB5FD] dark:border-white/[0.07] dark:bg-white/[0.025] dark:text-zinc-300 dark:hover:bg-white/[0.04]"
+      >
+        <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-[#CBB5FD]/20 text-[10px] font-medium text-violet-700 dark:text-[#D7C7FF]">
+          {selected?.label.replace(/^@/, '')[0]?.toUpperCase() || 'I'}
+        </span>
+        <span className="min-w-0 flex-1 truncate text-[12px] font-medium">
+          {selected ? selected.label : 'All Accounts'}
+        </span>
+        <ChevronGlyph
+          className={`shrink-0 text-zinc-400 transition-transform ${open ? 'rotate-180' : ''}`}
+        />
+      </button>
+
+      {open && (
+        <div
+          id={listId}
+          className="mt-1.5 rounded-xl border border-black/[0.06] bg-white p-1 shadow-lg dark:border-white/[0.08] dark:bg-[#15161A]"
+        >
+          <ul
+            className={`max-h-44 space-y-0.5 overflow-y-auto overscroll-contain ${HIDDEN_SCROLLBAR}`}
+            style={HIDDEN_SCROLLBAR_STYLE}
+          >
+            <li>
+              <button
+                type="button"
+                onClick={() => {
+                  onSelect(null);
+                  setOpen(false);
+                }}
+                className="flex min-h-8 w-full items-center justify-between rounded-lg px-2.5 text-[12px] text-zinc-600 hover:bg-black/[0.04] dark:text-zinc-300 dark:hover:bg-white/[0.05]"
+              >
+                <span>All Accounts</span>
+                {!selectedId && <CheckGlyph className="shrink-0 text-[#CBB5FD]" />}
+              </button>
+            </li>
+            {accounts.map((acc) => {
+              const active = acc.id === selectedId;
+              return (
+                <li key={acc.id}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onSelect(acc.id);
+                      setOpen(false);
+                    }}
+                    className="flex min-h-8 w-full items-center justify-between rounded-lg px-2.5 text-[12px] text-zinc-600 hover:bg-black/[0.04] dark:text-zinc-300 dark:hover:bg-white/[0.05]"
+                  >
+                    <span className="truncate">{acc.label}</span>
+                    {active && <CheckGlyph className="shrink-0 text-[#CBB5FD]" />}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function SidebarContent() {
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const reelContext = useReels();
+  const pathname = usePathname() || '/dashboard';
   const {
-    collections,
     smartCategories,
     activeCategory,
     setActiveCategory,
@@ -286,528 +437,245 @@ function SidebarContent() {
     selectedInstagramAccount,
     setSelectedInstagramAccount,
     setSearchQuery,
-    theme,
-    toggleTheme,
-  } = reelContext;
-  const { user, logout } = useAuth();
-
-  const [accountsOpen, setAccountsOpen] = useState(false);
-  const [loggingOut, setLoggingOut] = useState(false);
-  const [logoutError, setLogoutError] = useState<string | null>(null);
-
-  const switcherRef = useRef<HTMLDivElement>(null);
-  const switcherButtonRef = useRef<HTMLButtonElement>(null);
-  const accountsPanelId = useId();
+  } = useReels();
+  const { user } = useAuth();
 
   const userData = asRecord(user);
   const metadata = asRecord(userData.user_metadata);
-  const contextData = asRecord(reelContext);
 
-  const userEmail = stringValue(userData.email, metadata.email);
-  const userHandle = stringValue(userData.username, metadata.username);
-  const userName =
-    stringValue(
-      userData.name,
-      userData.displayName,
-      userData.fullName,
-      metadata.full_name,
-      metadata.name,
-      userHandle,
-      userEmail?.split('@')[0],
-    ) ?? 'Your workspace';
+  const name = asText(
+    userData.name,
+    userData.fullName,
+    metadata.full_name,
+    metadata.name,
+    'Piyush kumar',
+  );
 
-  const userSubtitle = userEmail ?? (userHandle ? `@${userHandle}` : 'Personal workspace');
-  const userAvatar = stringValue(
-    userData.avatarUrl,
+  const email = asText(userData.email, metadata.email);
+  const username = asText(userData.username, metadata.username);
+  const secondaryLabel = email || (username ? `@${username.replace(/^@/, '')}` : 'Personal Workspace');
+
+  const avatarUrl = asText(
     userData.avatar,
-    userData.image,
-    userData.photoURL,
+    userData.avatarUrl,
+    userData.avatar_url,
     metadata.avatar_url,
     metadata.picture,
   );
 
-  const accounts = useMemo(
-    () =>
-      normalizeAccounts(
-        contextData.instagramAccounts,
-        contextData.connectedInstagramAccounts,
-        userData.instagramAccounts,
-        userData.connectedInstagramAccounts,
-      ),
-    [
-      contextData.instagramAccounts,
-      contextData.connectedInstagramAccounts,
-      userData.instagramAccounts,
-      userData.connectedInstagramAccounts,
-    ],
-  );
+  const accounts = getAccounts({}, userData);
+  const isReelsPath = pathname === '/reels';
 
-  const collectionItems = useMemo(() => {
-    const saved = normalizeCollections(collections, 'collection');
-    const categories = normalizeCollections(smartCategories, 'category');
-
-    return [...saved.slice(0, 3), ...categories.slice(0, 3)];
-  }, [collections, smartCategories]);
-
-  const selectedAccount = accounts.find(
-    (account) =>
-      account.id === selectedInstagramAccount ||
-      account.username === selectedInstagramAccount,
-  );
-
-  const isLibrary = pathname === '/reels';
-  const hasRouteFilters =
-    searchParams.has('type') ||
-    searchParams.has('category') ||
-    searchParams.has('collection');
-
-  const currentCategory = hasRouteFilters
-    ? searchParams.get('category')
-    : stringValue(activeCategory);
-
-  const currentCollection = hasRouteFilters
-    ? searchParams.get('collection')
-    : stringValue(activeCollection);
-
-  const currentMediaType = hasRouteFilters
-    ? searchParams.get('type') ?? 'all'
-    : activeMediaType ?? 'all';
-
-  const isDark = theme === 'dark';
-
-  useEffect(() => {
-    if (!accountsOpen) return;
-
-    function handlePointerDown(event: PointerEvent) {
-      if (
-        event.target instanceof Node &&
-        !switcherRef.current?.contains(event.target)
-      ) {
-        setAccountsOpen(false);
-      }
-    }
-
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        setAccountsOpen(false);
-        switcherButtonRef.current?.focus();
-      }
-    }
-
-    document.addEventListener('pointerdown', handlePointerDown);
-    document.addEventListener('keydown', handleKeyDown);
-
-    return () => {
-      document.removeEventListener('pointerdown', handlePointerDown);
-      document.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [accountsOpen]);
-
-  useEffect(() => {
-    setAccountsOpen(false);
-  }, [pathname, searchParams]);
-
-  function resetLibrary(mediaType: MediaType = 'all') {
-    setActiveCategory(null);
-    setActiveCollection(null);
-    setActiveMediaType(mediaType);
-    setSearchQuery('');
-  }
-
-  function selectCollection(item: CollectionItem) {
-    setSearchQuery('');
-    setActiveMediaType('all');
-
-    if (item.kind === 'collection') {
-      setActiveCategory(null);
-      setActiveCollection(item.id);
-    } else {
-      setActiveCollection(null);
-      setActiveCategory(item.id);
-    }
-  }
-
-  function selectAccount(accountId: string | null) {
-    setSelectedInstagramAccount(accountId);
-    setAccountsOpen(false);
-    switcherButtonRef.current?.focus();
-  }
-
-  async function handleLogout() {
-    if (loggingOut) return;
-
-    setLoggingOut(true);
-    setLogoutError(null);
-
-    try {
-      await logout();
-    } catch {
-      setLogoutError('Could not sign out. Please try again.');
-    } finally {
-      setLoggingOut(false);
-    }
-  }
+  const categoriesList = (smartCategories || [])
+    .filter((cat) => !cat.name.startsWith('#'))
+    .slice(0, 5);
 
   return (
     <aside
-      aria-label="Workspace sidebar"
-      className="flex h-full min-h-0 w-64 min-w-[256px] max-w-[256px] flex-col justify-between border-r border-black/[0.06] bg-[#FAFAF9] p-3.5 text-zinc-950 dark:border-white/[0.06] dark:bg-[#0C0D10] dark:text-zinc-100"
+      aria-label="ReelDash sidebar"
+      className={`isolate flex h-dvh max-h-dvh w-64 min-w-[256px] max-w-[256px] shrink-0 flex-col overflow-hidden border-r border-black/[0.06] bg-[#FAFAF9] text-zinc-900 dark:border-white/[0.06] dark:bg-[#0C0D10] dark:text-zinc-100 ${HIDDEN_SCROLLBAR}`}
+      style={HIDDEN_SCROLLBAR_STYLE}
     >
-      <header className="shrink-0 px-2 pb-6 pt-2 flex items-center justify-between">
-        <ReelDashLogo href="/dashboard" size={24} showText={true} textSize="text-[17px]" />
+      {/* Brand Header */}
+      <header className="flex h-[72px] shrink-0 items-center justify-between gap-2 px-5">
+        <ReelDashLogo
+          href="/dashboard"
+          size={24}
+          showText={true}
+          textSize="text-[17px]"
+        />
+
         <Link
           href="/pricing"
-          className="flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-black/[0.04] hover:bg-black/[0.07] text-zinc-600 dark:bg-white/[0.04] dark:hover:bg-white/[0.08] dark:text-zinc-400 font-medium text-[11px] border border-black/[0.04] dark:border-white/[0.05] transition-colors shrink-0"
+          aria-label="Explore ReelDash Pro"
+          className="flex shrink-0 items-center gap-1 rounded-full border border-violet-500/10 bg-violet-500/[0.06] px-2.5 py-0.5 text-[10.5px] font-medium leading-none text-violet-700 outline-none transition-colors hover:bg-violet-500/[0.1] focus-visible:ring-2 focus-visible:ring-[#CBB5FD] dark:border-[#CBB5FD]/15 dark:bg-[#CBB5FD]/[0.07] dark:text-[#D7C7FF] dark:hover:bg-[#CBB5FD]/[0.12]"
         >
-          <Crown className="w-3 h-3 text-[#C5A059]" strokeWidth={1.5} />
+          <NavPricingIcon className="shrink-0 size-3" />
           <span>Pro</span>
         </Link>
       </header>
 
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-5 [scrollbar-width:thin]">
+      {/* Main Navigation Area (NO SCROLLBAR) */}
+      <div
+        className={`flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden overscroll-contain px-3 pb-4 pt-1 ${HIDDEN_SCROLLBAR}`}
+        style={HIDDEN_SCROLLBAR_STYLE}
+      >
+        {/* Instagram Account Switcher (Only if multiple accounts exist) */}
+        {accounts.length > 1 && (
+          <AccountSwitcher
+            accounts={accounts}
+            selectedId={selectedInstagramAccount || ''}
+            onSelect={(id) => setSelectedInstagramAccount(id)}
+          />
+        )}
+
+        {/* Primary Links */}
         <nav aria-label="Main navigation" className="space-y-1">
-          {navigation.map(({ label, href, icon: Icon, mediaType }) => {
-            const active = mediaType
-              ? isLibrary &&
-                !currentCategory &&
-                !currentCollection &&
-                currentMediaType === mediaType
-              : pathname === href;
+          {PRIMARY_NAVIGATION.map((item) => {
+            const active = item.mediaType
+              ? isReelsPath &&
+                !activeCategory &&
+                !activeCollection &&
+                (activeMediaType === item.mediaType ||
+                  (!activeMediaType && item.mediaType === 'all'))
+              : pathname === item.href;
 
             return (
-              <Link
-                key={href}
-                href={href}
-                aria-current={active ? 'page' : undefined}
-                onClick={() => resetLibrary(mediaType)}
-                className={itemClasses(active)}
-              >
-                {active && (
-                  <span
-                    aria-hidden="true"
-                    className="absolute left-0 top-1/2 h-3.5 w-0.5 -translate-y-1/2 rounded-full bg-violet-400 dark:bg-[#CBB5FD]"
-                  />
-                )}
-                <Icon
-                  aria-hidden="true"
-                  size={17}
-                  strokeWidth={1.5}
-                  className="shrink-0"
-                />
-                <span className="truncate">{label}</span>
-              </Link>
+              <NavigationLink
+                key={item.href}
+                item={item}
+                active={active}
+                onClick={() => {
+                  if (item.mediaType) {
+                    setActiveMediaType(item.mediaType);
+                    setActiveCategory(null);
+                    setActiveCollection(null);
+                    setSearchQuery('');
+                  }
+                }}
+              />
             );
           })}
         </nav>
 
-        <section aria-labelledby="sidebar-collections-heading" className="mt-8">
-          <div className="mb-2 flex items-center justify-between pl-3 pr-1">
+        {/* Collections Section */}
+        <section className="mt-7" aria-labelledby="sidebar-collections-heading">
+          <div className="mb-2 flex items-center justify-between px-3">
             <h2
               id="sidebar-collections-heading"
-              className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-400 dark:text-zinc-500"
+              className="text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-400 dark:text-zinc-500"
             >
               Collections
             </h2>
             <Link
               href="/categories"
-              aria-label="Create or manage collections"
+              aria-label="Manage collections"
               title="Manage collections"
-              className={iconButton}
+              className="rounded-md p-1 text-zinc-400 transition-colors hover:bg-black/[0.04] hover:text-zinc-900 dark:hover:bg-white/[0.06] dark:hover:text-white"
             >
-              <Plus aria-hidden="true" size={15} strokeWidth={1.5} />
+              <PlusGlyph className="size-3.5" />
             </Link>
           </div>
 
           <nav aria-label="Collections" className="space-y-0.5">
-            {collectionItems.map((item) => {
-              const Icon =
-                item.kind === 'collection' ? Folder : categoryIcon(item.name);
-              const active =
-                isLibrary &&
-                (item.kind === 'collection'
-                  ? currentCollection === item.id
-                  : !currentCollection && currentCategory === item.id);
+            {categoriesList.map((cat) => {
+              const isSelected = isReelsPath && activeCategory === cat.name;
 
               return (
                 <Link
-                  key={`${item.kind}:${item.id}`}
-                  href={`/reels?${item.kind}=${encodeURIComponent(item.id)}`}
-                  aria-current={active ? 'page' : undefined}
-                  onClick={() => selectCollection(item)}
-                  className={itemClasses(active)}
+                  key={cat.name}
+                  href={`/reels?category=${encodeURIComponent(cat.name)}`}
+                  onClick={() => {
+                    setActiveCategory(cat.name);
+                    setActiveCollection(null);
+                    setActiveMediaType('all');
+                    setSearchQuery('');
+                  }}
+                  className={[
+                    'group relative flex min-h-9 items-center gap-3 rounded-xl px-3 py-2',
+                    'text-[13px] leading-5 tracking-[-0.01em] outline-none transition-colors duration-150',
+                    isSelected
+                      ? 'bg-black/[0.05] font-medium text-zinc-950 dark:bg-white/[0.08] dark:text-white'
+                      : 'text-zinc-500 hover:bg-black/[0.03] hover:text-zinc-800 dark:text-zinc-400 dark:hover:bg-white/[0.04] dark:hover:text-zinc-200',
+                  ].join(' ')}
                 >
-                  <Icon
-                    aria-hidden="true"
-                    size={17}
-                    strokeWidth={1.5}
-                    className="shrink-0"
-                  />
-                  <span className="truncate">{item.name}</span>
+                  {isSelected && (
+                    <span
+                      aria-hidden="true"
+                      className="absolute left-0 top-1/2 h-3.5 w-[2.5px] -translate-y-1/2 rounded-full bg-[#CBB5FD]"
+                    />
+                  )}
+                  <FolderGlyph className="shrink-0 size-4" />
+                  <span className="min-w-0 truncate">{cat.name}</span>
                 </Link>
               );
             })}
 
-            {collectionItems.length === 0 && (
-              <p className="px-3 pb-2 pt-1 text-xs leading-5 text-zinc-400 dark:text-zinc-500">
-                A little order for your inspiration.
-              </p>
-            )}
-
             <Link
               href="/categories"
-              aria-current={pathname === '/categories' ? 'page' : undefined}
-              className={`group flex min-h-9 items-center gap-2 rounded-lg px-3 py-2 text-[12px] text-zinc-500 transition-colors hover:text-zinc-900 dark:text-zinc-500 dark:hover:text-zinc-300 motion-reduce:transition-none ${focusRing}`}
+              className="flex min-h-8 items-center gap-1.5 rounded-xl px-3 py-1.5 text-[11px] text-zinc-400 transition-colors hover:text-zinc-900 dark:text-zinc-500 dark:hover:text-zinc-200"
             >
               <span>View all collections</span>
-              <ArrowRight
-                aria-hidden="true"
-                size={13}
-                strokeWidth={1.5}
-                className="transition-transform duration-150 group-hover:translate-x-0.5 motion-reduce:transform-none motion-reduce:transition-none"
-              />
+              <span className="text-xs">→</span>
             </Link>
           </nav>
         </section>
+
+        {/* Utilities: Plans & Pricing, Recycle Bin */}
+        <nav aria-label="Resources" className="mt-auto space-y-0.5 pt-6">
+          <NavigationLink
+            item={{ label: 'Plans & Pricing', href: '/pricing', icon: NavPricingIcon }}
+            active={pathname === '/pricing'}
+          />
+          <NavigationLink
+            item={{ label: 'Recycle Bin', href: '/recycle-bin', icon: NavRecycleBinIcon }}
+            active={pathname === '/recycle-bin'}
+          />
+        </nav>
       </div>
 
-      <footer className="shrink-0">
-        <nav aria-label="Workspace tools" className="mb-4 space-y-0.5">
+      {/* ─── Profile Card Matching Payflow Reference (Single Row) ─── */}
+      <footer className="shrink-0 border-t border-black/[0.06] p-3 dark:border-white/[0.06]">
+        <div className="relative flex min-h-[52px] items-center gap-3 rounded-xl px-2 py-1.5 transition-colors hover:bg-black/[0.025] dark:hover:bg-white/[0.03]">
+          {/* Main Card Click -> /settings */}
           <Link
-            href="/pricing"
-            aria-current={pathname === '/pricing' ? 'page' : undefined}
-            className={itemClasses(pathname === '/pricing')}
-          >
-            <Crown aria-hidden="true" size={17} strokeWidth={1.5} />
-            <span>Plans &amp; Pricing</span>
-          </Link>
-          <Link
-            href="/recycle-bin"
-            aria-current={pathname === '/recycle-bin' ? 'page' : undefined}
-            className={itemClasses(pathname === '/recycle-bin')}
-          >
-            <Trash2 aria-hidden="true" size={17} strokeWidth={1.5} />
-            <span>Recycle Bin</span>
-          </Link>
-        </nav>
+            href="/settings"
+            aria-label={`Open settings for ${name}`}
+            className="absolute inset-0 z-10 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-[#CBB5FD]"
+          />
 
-        <div className="mb-4">
-          {accounts.length > 0 ? (
-            <div
-              ref={switcherRef}
-              className="relative"
-              onBlur={(event) => {
-                if (!event.currentTarget.contains(event.relatedTarget)) {
-                  setAccountsOpen(false);
-                }
-              }}
-            >
-              <button
-                ref={switcherButtonRef}
-                type="button"
-                aria-expanded={accountsOpen}
-                aria-controls={accountsPanelId}
-                aria-label={`Instagram account: ${
-                  selectedAccount ? `@${selectedAccount.username}` : 'All Accounts'
-                }`}
-                onClick={() => setAccountsOpen((open) => !open)}
-                className={`flex w-full items-center gap-2.5 rounded-xl border border-black/[0.07] bg-white/70 px-3 py-2.5 text-left transition-colors hover:bg-white dark:border-white/[0.08] dark:bg-white/[0.025] dark:hover:bg-white/[0.05] motion-reduce:transition-none ${focusRing}`}
-              >
-                {selectedAccount ? (
-                  <Avatar
-                    src={selectedAccount.avatarUrl}
-                    name={selectedAccount.username}
-                  />
-                ) : (
-                  <Instagram
-                    aria-hidden="true"
-                    size={17}
-                    strokeWidth={1.5}
-                    className="mx-[5.5px] shrink-0 text-zinc-500 dark:text-zinc-400"
-                  />
-                )}
-                <span className="min-w-0 flex-1 truncate text-[12px] font-medium text-zinc-700 dark:text-zinc-200">
-                  {selectedAccount
-                    ? `@${selectedAccount.username}`
-                    : 'All Accounts'}
-                </span>
-                <ChevronsUpDown
-                  aria-hidden="true"
-                  size={14}
-                  strokeWidth={1.5}
-                  className="shrink-0 text-zinc-400 dark:text-zinc-500"
-                />
-              </button>
+          {/* Avatar (Left) */}
+          <Avatar src={avatarUrl} name={name} />
 
-              <div
-                id={accountsPanelId}
-                aria-label="Select an Instagram account"
-                aria-hidden={!accountsOpen}
-                className={[
-                  'absolute inset-x-0 bottom-[calc(100%+8px)] z-50 origin-bottom rounded-xl',
-                  'border border-black/[0.08] bg-[#FAFAF9] p-1.5',
-                  'shadow-[0_12px_40px_-12px_rgba(0,0,0,0.22)]',
-                  'dark:border-white/[0.1] dark:bg-[#14151A] dark:shadow-[0_12px_40px_-12px_rgba(0,0,0,0.65)]',
-                  'transition-[opacity,transform,visibility] duration-150 motion-reduce:transition-none',
-                  accountsOpen
-                    ? 'visible translate-y-0 opacity-100'
-                    : 'pointer-events-none invisible translate-y-1 opacity-0',
-                ].join(' ')}
-              >
-                <p className="px-2.5 pb-2 pt-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-400 dark:text-zinc-500">
-                  Instagram workspace
-                </p>
-
-                <div className="max-h-60 space-y-0.5 overflow-y-auto overscroll-contain">
-                  <button
-                    type="button"
-                    tabIndex={accountsOpen ? 0 : -1}
-                    aria-pressed={!selectedAccount}
-                    onClick={() => selectAccount(null)}
-                    className={`${itemClasses(!selectedAccount)} w-full text-left`}
-                  >
-                    <Layers aria-hidden="true" size={17} strokeWidth={1.5} />
-                    <span className="flex-1 text-[12px]">All Accounts</span>
-                    {!selectedAccount && (
-                      <Check aria-hidden="true" size={14} strokeWidth={1.5} />
-                    )}
-                  </button>
-
-                  {accounts.map((account) => {
-                    const selected = selectedAccount?.id === account.id;
-
-                    return (
-                      <button
-                        key={account.id}
-                        type="button"
-                        tabIndex={accountsOpen ? 0 : -1}
-                        aria-pressed={selected}
-                        onClick={() => selectAccount(account.id)}
-                        className={`${itemClasses(selected)} w-full gap-2.5 text-left`}
-                      >
-                        <Avatar src={account.avatarUrl} name={account.username} />
-                        <span className="min-w-0 flex-1 truncate text-[12px]">
-                          @{account.username}
-                        </span>
-                        {selected && (
-                          <Check
-                            aria-hidden="true"
-                            size={14}
-                            strokeWidth={1.5}
-                            className="shrink-0"
-                          />
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                <div className="mt-1.5 border-t border-black/[0.06] pt-1.5 dark:border-white/[0.06]">
-                  <Link
-                    href="/settings?tab=instagram"
-                    tabIndex={accountsOpen ? 0 : -1}
-                    onClick={() => setAccountsOpen(false)}
-                    className={itemClasses(false)}
-                  >
-                    <Plus aria-hidden="true" size={17} strokeWidth={1.5} />
-                    <span className="text-[12px]">Connect another account</span>
-                  </Link>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <Link
-              href="/settings?tab=instagram"
-              className={`flex min-h-11 items-center justify-center gap-2.5 rounded-xl border border-black/[0.08] bg-white/60 px-3 py-2.5 text-[12px] font-medium text-zinc-700 transition-colors hover:border-black/[0.12] hover:bg-white dark:border-white/[0.08] dark:bg-white/[0.025] dark:text-zinc-300 dark:hover:border-white/[0.14] dark:hover:bg-white/[0.05] motion-reduce:transition-none ${focusRing}`}
-            >
-              <Instagram aria-hidden="true" size={17} strokeWidth={1.5} />
-              <span>Connect Instagram</span>
-            </Link>
-          )}
-        </div>
-
-        <div className="border-t border-black/[0.06] px-1 pt-4 dark:border-white/[0.06]">
-          <div className="flex items-center gap-3 px-1">
-            <Avatar src={userAvatar} name={userName} size="md" />
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-[13px] font-medium leading-5 text-zinc-900 dark:text-zinc-100">
-                {userName}
-              </p>
-              <p className="truncate font-mono text-[11px] leading-5 text-zinc-500 dark:text-zinc-500">
-                {userSubtitle}
-              </p>
-            </div>
-          </div>
-
-          <div className="mt-3 flex items-center justify-between">
-            <div className="flex items-center gap-1">
-              <button
-                type="button"
-                onClick={toggleTheme}
-                aria-label={`Switch to ${isDark ? 'light' : 'dark'} theme`}
-                title={`Switch to ${isDark ? 'light' : 'dark'} theme`}
-                className={iconButton}
-              >
-                {isDark ? (
-                  <Sun aria-hidden="true" size={17} strokeWidth={1.5} />
-                ) : (
-                  <Moon aria-hidden="true" size={17} strokeWidth={1.5} />
-                )}
-              </button>
-
-              <Link
-                href="/settings"
-                aria-label="Settings"
-                aria-current={pathname === '/settings' ? 'page' : undefined}
-                title="Settings"
-                className={iconButton}
-              >
-                <Settings aria-hidden="true" size={17} strokeWidth={1.5} />
-              </Link>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => void handleLogout()}
-              disabled={loggingOut}
-              aria-label={loggingOut ? 'Signing out' : 'Log out'}
-              aria-busy={loggingOut}
-              title="Log out"
-              className={`${iconButton} disabled:cursor-wait disabled:opacity-40`}
-            >
-              <LogOut aria-hidden="true" size={17} strokeWidth={1.5} />
-            </button>
-          </div>
-
-          {logoutError && (
-            <p
-              role="alert"
-              className="px-1 pt-2 text-[11px] leading-4 text-rose-600 dark:text-rose-300"
-            >
-              {logoutError}
+          {/* User Name & Subtitle/Email (Center) */}
+          <div className="pointer-events-none min-w-0 flex-1">
+            <p className="truncate text-[13px] font-medium leading-5 text-zinc-900 dark:text-zinc-100">
+              {name}
             </p>
-          )}
+            <p className="truncate font-mono text-[11px] leading-[18px] text-zinc-500">
+              {secondaryLabel}
+            </p>
+          </div>
+
+          {/* Single Settings Gear Icon Button (Right) */}
+          <Link
+            href="/settings"
+            aria-label="Settings"
+            title="Settings"
+            className="relative z-20 flex size-8 shrink-0 items-center justify-center rounded-lg text-zinc-400 outline-none transition-colors hover:bg-black/[0.04] hover:text-zinc-900 focus-visible:ring-2 focus-visible:ring-[#CBB5FD] dark:hover:bg-white/[0.06] dark:hover:text-zinc-100"
+          >
+            <SettingsGearGlyph />
+          </Link>
         </div>
       </footer>
     </aside>
   );
 }
 
+function SidebarFallback() {
+  return (
+    <aside
+      aria-label="Loading sidebar"
+      aria-busy="true"
+      className={`flex h-dvh w-64 min-w-[256px] max-w-[256px] shrink-0 flex-col overflow-hidden border-r border-black/[0.06] bg-[#FAFAF9] dark:border-white/[0.06] dark:bg-[#0C0D10] ${HIDDEN_SCROLLBAR}`}
+      style={HIDDEN_SCROLLBAR_STYLE}
+    >
+      <div className="flex h-[72px] shrink-0 items-center px-5">
+        <ReelDashLogo
+          href="/dashboard"
+          size={24}
+          showText={true}
+          textSize="text-[17px]"
+        />
+      </div>
+      <span className="sr-only">Loading navigation…</span>
+    </aside>
+  );
+}
+
 export function Sidebar() {
   return (
-    <Suspense
-      fallback={
-        <aside
-          aria-label="Loading workspace sidebar"
-          aria-busy="true"
-          className="flex h-full min-h-0 w-64 min-w-[256px] max-w-[256px] flex-col justify-between border-r border-black/[0.06] bg-[#FAFAF9] p-3.5 dark:border-white/[0.06] dark:bg-[#0C0D10]"
-        >
-          <div className="px-2 pb-6 pt-2">
-            <ReelDashLogo href="/dashboard" size={24} showText={true} textSize="text-[17px]" />
-          </div>
-        </aside>
-      }
-    >
+    <Suspense fallback={<SidebarFallback />}>
       <SidebarContent />
     </Suspense>
   );
