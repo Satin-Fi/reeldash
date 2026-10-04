@@ -223,22 +223,66 @@ function FolderGlyph({ active, className }: IconProps) {
   );
 }
 
-// ─── Exact 6-Petal Daisy Flower Gear Matching Payflow Reference ───
+// ─── Payflow-Exact 6-Lobe Thin Gear (Matching Reference Screenshot) ───
 function ProfileSettingsIcon() {
   return (
     <svg
       viewBox="0 0 24 24"
-      className="h-[18px] w-[18px] shrink-0 text-zinc-400 transition-colors group-hover:text-zinc-900 dark:group-hover:text-white"
+      className="h-[17px] w-[17px] shrink-0 text-zinc-400 transition-colors group-hover:text-zinc-500 dark:text-zinc-500 dark:group-hover:text-zinc-300"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.65"
+      strokeWidth="1.5"
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden="true"
       focusable="false"
     >
-      <circle cx="12" cy="12" r="2.75" />
-      <path d="M9.10 6.98 C 9.59 4.58, 10.84 2.57, 12.00 2.80 C 13.16 2.57, 14.41 4.58, 14.90 6.98 C 17.22 6.20, 19.59 6.28, 19.97 7.40 C 20.74 8.29, 19.63 10.38, 17.80 12.00 C 19.63 13.62, 20.74 15.71, 19.97 16.60 C 19.59 17.72, 17.22 17.80, 14.90 17.02 C 14.41 19.42, 13.16 21.43, 12.00 21.20 C 10.84 21.43, 9.59 19.42, 9.10 17.02 C 6.78 17.80, 4.41 17.72, 4.03 16.60 C 3.26 15.71, 4.37 13.62, 6.20 12.00 C 4.37 10.38, 3.26 8.29, 4.03 7.40 C 4.41 6.28, 6.78 6.20, 9.10 6.98 Z" />
+      {/* Center circle */}
+      <circle cx="12" cy="12" r="2.5" />
+      {/* 6 smooth rounded lobes, matching Payflow pill reference pixel-for-pixel */}
+      <path d="
+        M12 2.5
+        C12.9 2.5 13.7 3.1 14 4
+        L14.5 5.5
+        C15.2 5.3 15.9 5.2 16.6 5.4
+        L17.7 4.3
+        C18.4 3.6 19.5 3.6 20.1 4.3
+        C20.8 5 20.8 6.1 20.1 6.7
+        L19 7.8
+        C19.2 8.5 19.3 9.2 19.1 9.9
+        L20.6 10.4
+        C21.5 10.7 22.1 11.5 22.1 12.4
+        C22.1 13.3 21.5 14.1 20.6 14.4
+        L19.1 14.9
+        C19.3 15.6 19.2 16.3 19 17
+        L20.1 18.1
+        C20.8 18.8 20.8 19.9 20.1 20.5
+        C19.4 21.2 18.3 21.2 17.7 20.5
+        L16.6 19.4
+        C15.9 19.6 15.2 19.7 14.5 19.5
+        L14 21
+        C13.7 21.9 12.9 22.5 12 22.5
+        C11.1 22.5 10.3 21.9 10 21
+        L9.5 19.5
+        C8.8 19.7 8.1 19.8 7.4 19.6
+        L6.3 20.7
+        C5.6 21.4 4.5 21.4 3.9 20.7
+        C3.2 20 3.2 18.9 3.9 18.3
+        L5 17.2
+        C4.8 16.5 4.7 15.8 4.9 15.1
+        L3.4 14.6
+        C2.5 14.3 1.9 13.5 1.9 12.6
+        C1.9 11.7 2.5 10.9 3.4 10.6
+        L4.9 10.1
+        C4.7 9.4 4.8 8.7 5 8
+        L3.9 6.9
+        C3.2 6.2 3.2 5.1 3.9 4.5
+        C4.6 3.8 5.7 3.8 6.3 4.5
+        L7.4 5.6
+        C8.1 5.4 8.8 5.3 9.5 5.5
+        L10 4
+        C10.3 3.1 11.1 2.5 12 2.5Z
+      " />
     </svg>
   );
 }
@@ -552,14 +596,15 @@ function SidebarContent() {
 
         <div className="mx-3 mb-3.5 mt-3.5 h-px bg-black/[0.06] dark:bg-white/[0.06]" />
 
-        {/* ─── Exact Payflow Single Pill Profile Card with 6-Petal Flower Gear Icon ─── */}
+        {/* ─── Payflow-exact Single Pill Profile Card ─── */}
         <Link
           href="/settings"
           aria-label={`Open settings for ${userName}`}
           aria-current={isRoute('/settings') ? 'page' : undefined}
-          className="group flex items-center justify-between gap-2.5 rounded-full border border-black/[0.05] bg-[#EFECE6] p-1.5 pl-2 pr-3.5 transition-all hover:border-black/[0.1] hover:bg-[#EAE6DF] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-400 motion-reduce:transition-none dark:border-white/[0.05] dark:bg-[#1E1C1A] dark:hover:border-white/[0.1] dark:hover:bg-[#242220]"
+          className="group flex items-center gap-3 rounded-full border border-black/[0.04] bg-[#EDEAE5] py-1.5 pl-1.5 pr-3 transition-all hover:border-black/[0.08] hover:bg-[#E8E4DE] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-400 motion-reduce:transition-none dark:border-white/[0.06] dark:bg-[#2E2B28] dark:hover:border-white/[0.1] dark:hover:bg-[#332F2C]"
         >
-          <span className="relative flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-zinc-800 text-[12px] font-medium text-white ring-1 ring-black/5 dark:ring-white/10">
+          {/* Avatar — warm dark circle matching reference */}
+          <span className="relative flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#4A4440] text-[12px] font-semibold tracking-wide text-white/90">
             <span aria-hidden="true">{initials}</span>
             {avatarUrl ? (
               <img
@@ -577,15 +622,17 @@ function SidebarContent() {
             ) : null}
           </span>
 
-          <span className="flex min-w-0 flex-1 flex-col justify-center gap-0.5">
-            <span className="truncate text-[13px] font-medium leading-tight text-zinc-900 dark:text-white">
+          {/* Name + Email */}
+          <span className="flex min-w-0 flex-1 flex-col justify-center gap-[2px]">
+            <span className="truncate text-[13px] font-semibold leading-[17px] text-zinc-900 dark:text-white">
               {userName}
             </span>
-            <span className="truncate font-mono text-[11px] leading-tight text-zinc-500 dark:text-zinc-400">
+            <span className="truncate text-[11px] leading-[14px] text-zinc-500 dark:text-zinc-400">
               {userSubtitle}
             </span>
           </span>
 
+          {/* Gear icon — matches Payflow reference size/opacity */}
           <span className="flex size-7 shrink-0 items-center justify-center">
             <ProfileSettingsIcon />
           </span>
