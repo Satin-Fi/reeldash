@@ -19,6 +19,7 @@ type NavItemProps = {
   active: boolean;
   count?: number;
   onClick?: () => void;
+  hasRing?: boolean;
 };
 
 const ACTIVE_GRADIENTS = {
@@ -32,7 +33,7 @@ const SCROLLBAR_CLASSES =
   'no-scrollbar scrollbar-none [scrollbar-width:none] [&::-webkit-scrollbar]:hidden';
 
 const SIDEBAR_CLASSES =
-  'sticky top-0 flex h-dvh w-[260px] shrink-0 flex-col overflow-hidden ' +
+  'hidden md:flex sticky top-0 h-dvh w-[260px] shrink-0 flex-col overflow-hidden ' +
   'border-r border-black/[0.05] bg-[#F8F6F2] text-zinc-900 ' +
   'dark:border-white/[0.04] dark:bg-[#262320] dark:text-white ' +
   '[--sidebar-active-gradient:var(--sidebar-active-gradient-light)] ' +
@@ -288,7 +289,15 @@ function ProfileSettingsIcon() {
 }
 
 // ─── NavItem: Pill with Faded Horizontal Gradient on Active & Distinct Circle Disc ───
-function NavItem({ href, label, icon: Icon, active, count, onClick }: NavItemProps) {
+function NavItem({
+  href,
+  label,
+  icon: Icon,
+  active,
+  count,
+  onClick,
+  hasRing = true,
+}: NavItemProps) {
   return (
     <Link
       href={href}
@@ -301,7 +310,8 @@ function NavItem({ href, label, icon: Icon, active, count, onClick }: NavItemPro
           : undefined
       }
       className={[
-        'group flex h-[46px] w-full min-w-0 items-center justify-between rounded-full pl-1.5 pr-3.5',
+        'group flex w-full min-w-0 items-center justify-between rounded-full',
+        hasRing ? 'h-[46px] pl-1.5 pr-3.5' : 'h-[38px] pl-3.5 pr-3.5',
         'transition-colors duration-200 motion-reduce:transition-none cursor-pointer',
         'focus-visible:outline-none focus-visible:ring-2',
         'focus-visible:ring-stone-400 focus-visible:ring-offset-2',
@@ -311,22 +321,37 @@ function NavItem({ href, label, icon: Icon, active, count, onClick }: NavItemPro
           : 'bg-transparent text-zinc-500 hover:bg-black/[0.03] dark:text-zinc-400 dark:hover:bg-white/[0.03]',
       ].join(' ')}
     >
-      <div className="flex items-center gap-3 min-w-0">
-        <span
-          className={[
-            'flex size-[34px] shrink-0 items-center justify-center rounded-full',
-            'transition-colors duration-200 motion-reduce:transition-none',
-            active
-              ? 'bg-[#D6D2CA] text-stone-900 dark:bg-[#68615A] dark:text-white shadow-sm'
-              : 'text-zinc-500 group-hover:bg-black/[0.04] group-hover:text-zinc-800 dark:text-zinc-400 dark:group-hover:bg-white/[0.04] dark:group-hover:text-zinc-200',
-          ].join(' ')}
-        >
-          <Icon active={active} />
-        </span>
+      <div className={`flex items-center ${hasRing ? 'gap-3' : 'gap-2.5'} min-w-0`}>
+        {hasRing ? (
+          <span
+            className={[
+              'flex size-[34px] shrink-0 items-center justify-center rounded-full',
+              'transition-all duration-200 motion-reduce:transition-none',
+              active
+                ? 'bg-[#D6D2CA] text-stone-900 shadow-sm dark:bg-[#78716A] dark:text-white'
+                : 'bg-black/[0.05] text-zinc-600 group-hover:bg-black/[0.08] group-hover:text-zinc-900 dark:bg-[#34302D] dark:text-[#A8A29D] dark:group-hover:bg-[#3E3935] dark:group-hover:text-white',
+            ].join(' ')}
+          >
+            <Icon active={active} />
+          </span>
+        ) : (
+          <span
+            className={[
+              'flex size-5 shrink-0 items-center justify-center',
+              'transition-colors duration-200 motion-reduce:transition-none',
+              active
+                ? 'text-zinc-900 dark:text-white'
+                : 'text-zinc-400 group-hover:text-zinc-700 dark:text-zinc-400 dark:group-hover:text-zinc-200',
+            ].join(' ')}
+          >
+            <Icon active={active} />
+          </span>
+        )}
 
         <span
           className={[
-            'min-w-0 truncate text-[13.5px] leading-5',
+            'min-w-0 truncate',
+            hasRing ? 'text-[13.5px] leading-5' : 'text-[13px] leading-5',
             active
               ? 'font-medium text-zinc-900 dark:text-white'
               : 'text-zinc-500 group-hover:text-zinc-800 dark:text-zinc-400 dark:group-hover:text-zinc-200',
@@ -339,7 +364,8 @@ function NavItem({ href, label, icon: Icon, active, count, onClick }: NavItemPro
       {count !== undefined && count > 0 && (
         <span
           className={[
-            'text-[10px] font-mono px-1.5 py-0.5 rounded-full shrink-0 transition-colors',
+            'font-mono px-1.5 py-0.5 rounded-full shrink-0 transition-colors',
+            hasRing ? 'text-[10px]' : 'text-[11px]',
             active
               ? 'text-zinc-700 dark:text-zinc-300'
               : 'text-zinc-400 dark:text-zinc-500 group-hover:text-zinc-600 dark:group-hover:text-zinc-400',
@@ -573,6 +599,7 @@ function SidebarContent() {
               label="All Collections"
               icon={FolderGlyph}
               active={isRoute('/categories')}
+              hasRing={false}
             />
 
             {smartCategories
@@ -588,6 +615,7 @@ function SidebarContent() {
                     icon={FolderGlyph}
                     active={isSelected}
                     count={cat.count}
+                    hasRing={false}
                     onClick={() => {
                       setActiveCategory(cat.name);
                       setActiveMediaType('all');

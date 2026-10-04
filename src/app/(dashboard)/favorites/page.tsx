@@ -1,42 +1,112 @@
 "use client";
 
-import React from "react";
+import React, { useMemo } from "react";
 import { useReels } from "@/context/ReelContext";
+import { LibraryHeader } from "@/components/ui/LibraryHeader";
+import { FilterToolbar } from "@/components/ui/FilterToolbar";
 import { ReelGrid } from "@/components/reels/ReelGrid";
 import { Heart } from "lucide-react";
 import Link from "next/link";
 
 export default function FavoritesPage() {
-  const { favorites, viewMode } = useReels();
+  const { favorites, searchQuery, sortOption, viewMode } = useReels();
+
+  // Compute creators among favorites
+  const favCreatorsCount = useMemo(() => {
+    return new Set(favorites.map((r) => r.creatorUsername).filter(Boolean)).size;
+  }, [favorites]);
+
+  // Filter & Sort favorites
+  const filteredFavorites = useMemo(() => {
+    let result = favorites.filter((reel) => {
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        const matchCaption = reel.caption?.toLowerCase().includes(q);
+        const matchCreator = reel.creatorUsername?.toLowerCase().includes(q);
+        const matchCategory = reel.category?.toLowerCase().includes(q);
+        const matchAudio =
+          reel.audioTitle?.toLowerCase().includes(q) ||
+          reel.audioArtist?.toLowerCase().includes(q);
+        const matchKeywords = reel.aiKeywords?.some((k) =>
+          k.toLowerCase().includes(q)
+        );
+        if (
+          !matchCaption &&
+          !matchCreator &&
+          !matchCategory &&
+          !matchAudio &&
+          !matchKeywords
+        ) {
+          return false;
+        }
+      }
+      return true;
+    });
+
+    result.sort((a, b) => {
+      if (sortOption === "newest") {
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      }
+      if (sortOption === "oldest") {
+        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      }
+      if (sortOption === "creator") {
+        return a.creatorUsername.localeCompare(b.creatorUsername);
+      }
+      if (sortOption === "most_viewed") {
+        return (b.viewCount || 0) - (a.viewCount || 0);
+      }
+      if (sortOption === "recently_viewed") {
+        return (
+          new Date(b.lastViewedAt || 0).getTime() -
+          new Date(a.lastViewedAt || 0).getTime()
+        );
+      }
+      return 0;
+    });
+
+    return result;
+  }, [favorites, searchQuery, sortOption]);
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-primaryText-light dark:text-primaryText-dark">
-          Favorites
-        </h1>
-        <p className="text-xs text-secondaryText-light dark:text-secondaryText-dark mt-0.5">
-          The Reels you don&apos;t want to lose.
-        </p>
-      </div>
+    <div className="w-full">
+      {/* Editorial Header */}
+      <LibraryHeader
+        title="Favorites"
+        subtitle="Handpicked gems. Forever keepers. The media you return to again and again."
+        stats={[
+          { value: favorites.length, label: "FAVORITES" },
+          { value: favCreatorsCount, label: "CREATORS" },
+        ]}
+      />
+
+      {/* Controls: Search Pill + Sort & View Mode (Always visible, No New Category button) */}
+      <FilterToolbar placeholder="Find a favorite…" />
 
       {favorites.length > 0 ? (
-        <ReelGrid reels={favorites} viewMode={viewMode} />
+        <div className="mt-2">
+          <ReelGrid
+            reels={filteredFavorites}
+            viewMode={viewMode}
+            emptyTitle="No favorites found"
+            emptySubtitle="Try adjusting your search query to find saved favorites."
+          />
+        </div>
       ) : (
-        <div className="flex flex-col items-center justify-center p-16 text-center border border-dashed border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-lg bg-surface-light/50 dark:bg-surface-dark/50 space-y-3">
-          <div className="w-14 h-14 rounded-full bg-rose-500/10 flex items-center justify-center text-rose-500">
-            <Heart className="w-7 h-7 fill-rose-500/20 text-rose-500" />
+        <div className="mt-6 sm:mt-8 flex min-h-[320px] sm:min-h-[360px] flex-col items-center justify-center rounded-[28px] border border-dashed border-black/[0.1] px-6 py-12 text-center dark:border-white/[0.1]">
+          <div className="relative mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-rose-500/10 text-rose-500 dark:bg-rose-500/20">
+            <div className="absolute inset-0 rounded-full bg-rose-500/20 blur-xl" />
+            <Heart className="relative h-8 w-8 fill-rose-500/20 text-rose-500" strokeWidth={2} />
           </div>
-          <h3 className="text-base font-bold text-primaryText-light dark:text-primaryText-dark">
+          <h3 className="text-lg font-bold text-zinc-950 dark:text-white">
             No favorites yet
           </h3>
-          <p className="text-xs text-secondaryText-light dark:text-secondaryText-dark max-w-sm">
-            Tap the heart icon on any Reel card to keep it saved here.
+          <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400 max-w-sm">
+            Tap the heart icon on any Reel card to keep it permanently saved in your favorites.
           </p>
           <Link
             href="/reels"
-            className="px-4 py-2 bg-brand-500 hover:bg-brand-600 text-white rounded-rd-md text-xs font-semibold shadow-rd-subtle transition-all"
+            className="mt-6 inline-flex h-11 items-center justify-center rounded-full bg-zinc-950 px-6 text-xs font-semibold text-white shadow-sm transition hover:bg-zinc-800 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200"
           >
             Browse Reels
           </Link>
