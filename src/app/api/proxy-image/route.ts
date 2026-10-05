@@ -53,10 +53,6 @@ function serveCleanEditorialCardSvg(creator?: string | null, shortcode?: string 
 
     <!-- Handle text -->
     <text x="200" y="325" fill="#f8fafc" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="15" font-weight="600" text-anchor="middle">${displayName}</text>
-
-    <!-- Bottom Play indicator -->
-    <rect x="165" y="500" width="70" height="26" rx="13" fill="#ffffff" fill-opacity="0.08" />
-    <polygon points="196,507 208,513 196,519" fill="#ffffff" fill-opacity="0.85" />
   </svg>`;
 
   return new NextResponse(svg, {

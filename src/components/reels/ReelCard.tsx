@@ -642,13 +642,6 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
         {/* ─── Hover overlay gradient (bottom) ─── */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/0 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200 ease-out pointer-events-none" />
 
-        {/* ─── Default state: subtle play indicator (bottom-left) ─── */}
-        {!isCarouselPost && mediaType === "reel" && (
-          <div className="absolute bottom-2 left-2 z-10 opacity-60 group-hover:opacity-0 transition-opacity duration-150 pointer-events-none">
-            <Play className="w-3.5 h-3.5 fill-white text-white drop-shadow-sm" />
-          </div>
-        )}
-
         {/* ─── Default state: carousel indicator (top-left) ─── */}
         {isCarouselPost && (
           <div className="absolute top-2 left-2 z-10 pointer-events-none">
@@ -667,21 +660,6 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
             </span>
           </div>
         )}
-
-        {/* ─── Hover state: center disk ─── */}
-        <div className="absolute inset-0 hidden sm:flex items-center justify-center z-10 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-          <div className="w-11 h-11 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center transform scale-90 group-hover:scale-100 transition-transform duration-200">
-            {mediaType === "audio" ? (
-              <Music2 className="w-5 h-5 text-white" />
-            ) : isCarouselPost ? (
-              <Images className="w-5 h-5 text-white" />
-            ) : mediaType === "post" ? (
-              <ImageIcon className="w-5 h-5 text-white" />
-            ) : (
-              <Play className="w-5 h-5 fill-white text-white ml-0.5" />
-            )}
-          </div>
-        </div>
 
         {/* ─── TOP-RIGHT CONTROL: Three-dot overflow menu (30-32px) ─── */}
         <div className="absolute top-2 right-2 z-20 pointer-events-auto">
