@@ -84,6 +84,15 @@ function NavDashboardIcon({ active, className }: IconProps) {
   );
 }
 
+function NavSearchIcon({ active, className }: IconProps) {
+  return (
+    <svg {...iconAttributes(active, className)}>
+      <circle cx="11" cy="11" r="7" />
+      <path d="m20 20-4.5-4.5" />
+    </svg>
+  );
+}
+
 function NavReelsIcon({ active, className }: IconProps) {
   return (
     <svg {...iconAttributes(active, className)}>
@@ -487,6 +496,12 @@ function SidebarContent() {
               setActiveMediaType('all');
               setSearchQuery('');
             }}
+          />
+          <NavItem
+            href="/search"
+            label="Search"
+            icon={NavSearchIcon}
+            active={isRoute('/search')}
           />
           <NavItem
             href="/reels?type=reel"

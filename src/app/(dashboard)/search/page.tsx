@@ -91,17 +91,40 @@ function SearchContent() {
     if (searchQuery.trim()) {
       const rawQ = searchQuery.toLowerCase().trim();
       const q = rawQ.replace(/^[@#]/, "");
-      
-      const matchCaption = r.caption.toLowerCase().includes(rawQ) || r.caption.toLowerCase().includes(q);
-      const matchCreator = r.creatorUsername.toLowerCase().includes(q) || r.creatorFullName?.toLowerCase().includes(q);
-      const matchCategory = (r.categories || [r.category || ""]).some((c) => c.toLowerCase().includes(q));
-      const matchHashtags = (r.hashtags || r.tags || []).some((h) => h.toLowerCase().includes(q) || h.toLowerCase().includes(rawQ));
-      const matchAiTopics = (r.aiTopics || []).some((t) => t.toLowerCase().includes(q));
-      const matchAiSummary = (r.aiSummary || "").toLowerCase().includes(q) || (r.aiSummary || "").toLowerCase().includes(rawQ);
-      const matchKeywords = r.aiKeywords?.some((k) => k.toLowerCase().includes(q));
-      const matchNotes = r.notes?.toLowerCase().includes(q);
+      const tokens = q.split(/\s+/).filter(Boolean);
 
-      if (!matchCaption && !matchCreator && !matchCategory && !matchHashtags && !matchAiTopics && !matchAiSummary && !matchNotes && !matchKeywords) {
+      const caption = (r.caption || "").toLowerCase();
+      const creator = (r.creatorUsername || "").toLowerCase() + " " + (r.creatorFullName || "").toLowerCase();
+      const cats = (r.categories || [r.category || ""]).map((c) => String(c || "").toLowerCase());
+      const hashtags = (r.hashtags || r.tags || []).map((h) => String(h || "").toLowerCase());
+      const aiTopics = (r.aiTopics || []).map((t) => String(t || "").toLowerCase());
+      const aiSummary = (r.aiSummary || "").toLowerCase();
+      const keywords = (r.aiKeywords || []).map((k) => String(k || "").toLowerCase());
+      const notes = (r.notes || "").toLowerCase();
+
+      // Direct exact match
+      const matchCaption = caption.includes(rawQ) || caption.includes(q);
+      const matchCreator = creator.includes(q);
+      const matchCategory = cats.some((c) => c.includes(q));
+      const matchHashtags = hashtags.some((h) => h.includes(q) || h.includes(rawQ));
+      const matchAiTopics = aiTopics.some((t) => t.includes(q));
+      const matchAiSummary = aiSummary.includes(q) || aiSummary.includes(rawQ);
+      const matchKeywords = keywords.some((k) => k.includes(q));
+      const matchNotes = notes.includes(q);
+
+      // Multi-word token match (e.g. "girl dancing" matches if both terms appear in fields)
+      const matchTokens = tokens.length > 1 && tokens.every((tok) =>
+        caption.includes(tok) ||
+        creator.includes(tok) ||
+        cats.some((c) => c.includes(tok)) ||
+        hashtags.some((h) => h.includes(tok)) ||
+        aiTopics.some((t) => t.includes(tok)) ||
+        aiSummary.includes(tok) ||
+        keywords.some((k) => k.includes(tok)) ||
+        notes.includes(tok)
+      );
+
+      if (!matchCaption && !matchCreator && !matchCategory && !matchHashtags && !matchAiTopics && !matchAiSummary && !matchNotes && !matchKeywords && !matchTokens) {
         return false;
       }
     }

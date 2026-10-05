@@ -21,7 +21,6 @@ import {
   OrbitalReelMemoryHub,
   StackedHighlightsCard,
 } from '@/components/dashboard/DashboardShowcaseCards';
-import { ReelMemoryModal } from '@/components/dashboard/ReelMemoryModal';
 
 /* ─── Helpers ─── */
 function getMediaUrl(reel: any): string {
@@ -64,13 +63,12 @@ export default function DashboardPage() {
   const { user } = useAuth();
   const {
     reels,
-    saveReel,
     smartCategories,
     setActiveCategory,
   } = useReels();
 
   const [activePlayerReel, setActivePlayerReel] = useState<Reel | null>(null);
-  const [isMemoryOpen, setIsMemoryOpen] = useState(false);
+  const [searchInput, setSearchInput] = useState('');
 
   const greeting = useMemo(() => {
     const hour = new Date().getHours();
@@ -84,18 +82,17 @@ export default function DashboardPage() {
     return 'Piyush';
   }, [user]);
 
-  // Global ⌘K / Ctrl+K listener
+  // Global ⌘K / Ctrl+K listener navigates directly to /search
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
-        setIsMemoryOpen((prev) => !prev);
+        router.push('/search');
       }
-      if (e.key === 'Escape') setIsMemoryOpen(false);
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [router]);
 
   const creators = useMemo(() => {
     const set = new Set<string>();
@@ -127,19 +124,34 @@ export default function DashboardPage() {
           </h1>
         </div>
 
-        {/* Right: Search trigger */}
-        <button
-          type="button"
-          onClick={() => setIsMemoryOpen(true)}
-          className="group flex h-11 w-full items-center gap-3 rounded-full border border-[#E4E5DF] bg-white px-4 text-sm text-[#656760] shadow-[0_2px_5px_rgba(24,26,20,0.04)] transition-[border-color,box-shadow] duration-[160ms] hover:border-[#CFD1C8] hover:shadow-[0_3px_10px_rgba(24,26,20,0.06)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6D4AFF] focus-visible:ring-offset-2 motion-reduce:transition-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:border-zinc-600 lg:w-[400px]"
-          aria-label="Open Reel Memory search"
+        {/* Right: Search form redirecting to /search */}
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (searchInput.trim()) {
+              router.push(`/search?q=${encodeURIComponent(searchInput.trim())}`);
+            } else {
+              router.push('/search');
+            }
+          }}
+          className="group relative flex h-11 w-full items-center gap-3 rounded-full border border-[#E4E5DF] bg-white px-4 text-sm text-[#656760] shadow-[0_2px_5px_rgba(24,26,20,0.04)] transition-[border-color,box-shadow] duration-[160ms] hover:border-[#CFD1C8] hover:shadow-[0_3px_10px_rgba(24,26,20,0.06)] focus-within:border-[#6D4AFF] focus-within:ring-2 focus-within:ring-[#6D4AFF]/20 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:border-zinc-600 lg:w-[420px]"
         >
           <Search className="size-[18px] shrink-0 text-[#74776F] dark:text-zinc-500" strokeWidth={1.75} />
-          <span className="flex-1 text-left">Search your Reel Memory…</span>
-          <span className="ml-auto hidden h-6 items-center gap-1 rounded-md border border-[#E4E5DF] bg-[#F7F7F5] px-1.5 font-mono text-[11px] text-[#656760] sm:inline-flex dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-400">
+          <input
+            type="text"
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            placeholder="Search your Reel Memory (topic, creator, caption)…"
+            className="w-full bg-transparent text-sm text-[#20211F] outline-none placeholder:text-[#74776F] dark:text-white dark:placeholder:text-zinc-500"
+          />
+          <button
+            type="submit"
+            className="ml-auto hidden h-6 shrink-0 items-center gap-1 rounded-md border border-[#E4E5DF] bg-[#F7F7F5] px-1.5 font-mono text-[11px] text-[#656760] transition-colors hover:bg-[#EDE9FE] hover:text-[#6D4AFF] sm:inline-flex dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-400"
+            title="Press Enter or ⌘K to search"
+          >
             <Command className="size-3" />K
-          </span>
-        </button>
+          </button>
+        </form>
       </header>
 
       {/* ─── 2. Visual Showcase Cards ─── */}
@@ -147,7 +159,7 @@ export default function DashboardPage() {
         className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]"
         aria-label="Dashboard showcase"
       >
-        <OrbitalReelMemoryHub onLaunchMemory={() => setIsMemoryOpen(true)} />
+        <OrbitalReelMemoryHub onLaunchMemory={() => router.push('/search')} />
         <StackedHighlightsCard
           categories={smartCategories}
           onCategoryClick={(categoryTitle) => {
@@ -371,17 +383,6 @@ export default function DashboardPage() {
           </div>
         </section>
       )}
-
-      {/* ─── Reel Memory Modal (⌘K) ─── */}
-      <ReelMemoryModal
-        isOpen={isMemoryOpen}
-        onClose={() => setIsMemoryOpen(false)}
-        reels={reels}
-        onSelectReel={(reel) => setActivePlayerReel(reel)}
-        onSaveUrl={async (url) => {
-          await saveReel(url);
-        }}
-      />
 
       {/* Reel Player Modal */}
       {activePlayerReel && (
