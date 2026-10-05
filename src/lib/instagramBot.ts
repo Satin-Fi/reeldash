@@ -1065,62 +1065,80 @@ async function handleReady(
     attachments
   );
 
-  // ── Audio share fallback: detect audio shares with no extractable URL ──
+  // ── Universal Attachment Ingestion: Never ignore a shared item! ──
   let detectedAudioTitle: string | undefined = undefined;
   let detectedAudioArtist: string | undefined = undefined;
 
   if (Array.isArray(attachments) && attachments.length > 0) {
     for (const att of attachments) {
       if (!att) continue;
-      const title = String(att?.payload?.title || att?.title || "");
-      const titleLower = title.toLowerCase();
+      const p = att?.payload || {};
+      const rawTitle = String(p.title || p.caption || p.name || p.text || p.subtitle || att?.title || att?.text || "").trim();
+      const titleLower = rawTitle.toLowerCase();
       const attType = String(att?.type || "").toLowerCase();
 
-      if (
+      // Check if it's audio
+      const isAudioShare =
         titleLower.includes("audio") ||
         titleLower.includes("sound") ||
         titleLower.includes("song") ||
         titleLower.includes("music") ||
-        attType === "audio" ||
-        attType === "audio_share"
-      ) {
-        if (title) {
-          const lines = title.split("\n");
-          if (lines[0]) detectedAudioTitle = lines[0].trim();
-          const creatorMatch =
-            title.match(/\n@?([A-Za-z0-9_.]+)\s*[·•]/) ||
-            title.match(/[\n•·]\s*@?([A-Za-z0-9_.]+)/) ||
-            title.match(/(?:by|from)\s+@?([A-Za-z0-9_.]+)/i);
-          if (creatorMatch) {
-            detectedAudioArtist = creatorMatch[1].trim();
-          }
-        }
+        titleLower.includes("track") ||
+        rawTitle.includes("•") ||
+        rawTitle.includes("·") ||
+        attType.includes("audio") ||
+        attType.includes("sound") ||
+        attType.includes("music") ||
+        attType === "audio_share";
 
-        if (!mediaUrl) {
-          // Try to find any usable numeric ID
-          const anyId =
-            att?.payload?.reel_video_id ||
-            att?.payload?.audio_id ||
-            att?.payload?.id ||
-            att?.payload?.media_id;
+      if (rawTitle) {
+        const lines = rawTitle.split("\n");
+        if (lines[0]) detectedAudioTitle = lines[0].replace(/[•·].*$/, "").trim();
+        const creatorMatch =
+          rawTitle.match(/\n@?([A-Za-z0-9_.]+)\s*[·•]/) ||
+          rawTitle.match(/[\n•·]\s*@?([A-Za-z0-9_.]+)/) ||
+          rawTitle.match(/@?([A-Za-z0-9_.]+)\s*[·•]/) ||
+          rawTitle.match(/(?:by|from)\s+@?([A-Za-z0-9_.]+)/i);
+        if (creatorMatch) {
+          detectedAudioArtist = creatorMatch[1].trim();
+        }
+      }
+
+      if (!mediaUrl) {
+        const anyId =
+          p.reel_video_id ||
+          p.audio_id ||
+          p.id ||
+          p.media_id ||
+          p.target_id ||
+          p.asset_id ||
+          att.id;
+
+        if (isAudioShare) {
           if (anyId) {
             mediaUrl = `https://www.instagram.com/reels/audio/${anyId}/`;
             console.log(`[Instagram Bot] Audio share fallback URL from ID: ${mediaUrl}`);
           } else {
-            // Check if title has an ID
-            const titleIdMatch = title.match(/(\d{10,})/);
+            const titleIdMatch = rawTitle.match(/(\d{8,})/);
             if (titleIdMatch) {
               mediaUrl = `https://www.instagram.com/reels/audio/${titleIdMatch[1]}/`;
             } else {
-              // Construct synthetic audio URL so it CAN be saved to user's library!
               const syntheticId = `dm_audio_${Date.now().toString(36)}`;
               mediaUrl = `https://www.instagram.com/reels/audio/${syntheticId}/`;
               console.log(`[Instagram Bot] Audio share created synthetic mediaUrl: ${mediaUrl}`);
             }
           }
+        } else {
+          // General attachment (post / reel)
+          if (anyId) {
+            mediaUrl = `https://www.instagram.com/reel/${anyId}/`;
+          } else {
+            const syntheticId = `dm_item_${Date.now().toString(36)}`;
+            mediaUrl = `https://www.instagram.com/reel/${syntheticId}/`;
+          }
         }
-        break;
       }
+      break;
     }
   }
 
@@ -2417,30 +2435,40 @@ function extractInstagramMediaUrl(
   }
 
   // 4. Audio share detection: Instagram audio page shares via DM often arrive
-  //    without a URL but may include an ID (reel_video_id, id, media_id) we can
+  //    without a URL but may include an ID (reel_video_id, id, media_id) or title we can
   //    use to construct an audio page URL.
   if (Array.isArray(attachments) && attachments.length > 0) {
     for (const att of attachments) {
       if (!att) continue;
-      const title = String(att?.payload?.title || att?.title || "").toLowerCase();
+      const p = att?.payload || {};
+      const rawTitle = String(p.title || p.caption || p.name || p.text || p.subtitle || att?.title || att?.text || "");
+      const titleLower = rawTitle.toLowerCase();
       const attType = String(att?.type || "").toLowerCase();
 
-      // Detect audio shares by title keywords or attachment type
+      // Detect audio shares by title keywords, bullet/middle-dot format, or attachment type
       const looksLikeAudio =
-        title.includes("audio") ||
-        title.includes("sound") ||
-        title.includes("song") ||
-        title.includes("music") ||
-        attType === "audio" ||
+        titleLower.includes("audio") ||
+        titleLower.includes("sound") ||
+        titleLower.includes("song") ||
+        titleLower.includes("music") ||
+        titleLower.includes("track") ||
+        rawTitle.includes("•") ||
+        rawTitle.includes("·") ||
+        attType.includes("audio") ||
+        attType.includes("sound") ||
+        attType.includes("music") ||
         attType === "audio_share";
 
       if (looksLikeAudio) {
-        // Try to find any usable numeric ID
+        // Try to find any usable ID
         const payloadId =
-          att?.payload?.reel_video_id ||
-          att?.payload?.audio_id ||
-          att?.payload?.id ||
-          att?.payload?.media_id;
+          p.reel_video_id ||
+          p.audio_id ||
+          p.id ||
+          p.media_id ||
+          p.target_id ||
+          p.asset_id ||
+          att.id;
 
         if (payloadId) {
           console.log(`[Instagram Bot] Audio share detected via metadata ID: ${payloadId}`);
@@ -2448,12 +2476,16 @@ function extractInstagramMediaUrl(
         }
 
         // Try to extract a numeric ID from the title text itself
-        const rawTitle = String(att?.payload?.title || att?.title || "");
-        const titleIdMatch = rawTitle.match(/(\d{10,})/);
+        const titleIdMatch = rawTitle.match(/(\d{8,})/);
         if (titleIdMatch) {
           console.log(`[Instagram Bot] Audio share detected via title ID: ${titleIdMatch[1]}`);
           return `https://www.instagram.com/reels/audio/${titleIdMatch[1]}/`;
         }
+
+        // Guaranteed fallback: Never return null for detected audio share!
+        const syntheticId = `dm_audio_${Date.now().toString(36)}`;
+        console.log(`[Instagram Bot] Audio share detected (synthetic ID: ${syntheticId})`);
+        return `https://www.instagram.com/reels/audio/${syntheticId}/`;
       }
     }
   }

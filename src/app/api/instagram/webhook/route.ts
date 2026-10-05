@@ -184,6 +184,29 @@ export async function POST(req: NextRequest) {
           if (event.message.media_share.link) extraLinks.push(event.message.media_share.link);
           if (event.message.media_share.url) extraLinks.push(event.message.media_share.url);
         }
+        // Handle direct audio/video/image/clips on message
+        if (event.message?.audio) {
+          attachments.push({ type: "audio", payload: event.message.audio });
+        }
+        if (event.message?.video) {
+          attachments.push({ type: "video", payload: event.message.video });
+        }
+        if (event.message?.image) {
+          attachments.push({ type: "image", payload: event.message.image });
+        }
+        if (event.message?.clips) {
+          attachments.push({ type: "ig_reel", payload: event.message.clips });
+        }
+        // Handle direct attachments or shares on event itself (top-level)
+        if (event.attachments && Array.isArray(event.attachments)) {
+          attachments.push(...event.attachments);
+        }
+        if (event.share) {
+          attachments.push({ type: "share", payload: event.share });
+        }
+        if (event.media_share) {
+          attachments.push({ type: "media_share", payload: event.media_share });
+        }
 
         // Log full attachment structure for debugging audio/unsupported shares
         if (attachments.length > 0) {
@@ -235,13 +258,14 @@ export async function POST(req: NextRequest) {
         );
         results.push(processed);
 
-        // Record all message IDs as processed
+        // Record all message IDs as processed with raw_payload
         if (supabase && data.messageIds.length > 0) {
           try {
             const rows = data.messageIds.map((mid: string) => ({
               event_id: mid,
               sender_ig_id: senderIgId,
               result_status: processed.status,
+              raw_payload: entry,
             }));
             await supabase
               .from("processed_webhook_events")
