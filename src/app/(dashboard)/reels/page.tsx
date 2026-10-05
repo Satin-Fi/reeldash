@@ -57,24 +57,24 @@ function ReelsContent() {
         const catLower = catName.trim().toLowerCase();
         const allAssigned = reel.categories && reel.categories.length > 0 ? reel.categories : [reel.category || ""];
         return (
-          allAssigned.some((c) => c.toLowerCase() === catLower) ||
-          (Array.isArray(reel.tags) && reel.tags.some((t) => t.toLowerCase() === catLower)) ||
-          (Array.isArray(reel.hashtags) && reel.hashtags.some((h) => h.toLowerCase() === catLower)) ||
-          (Array.isArray(reel.aiKeywords) && reel.aiKeywords.some((k) => k.toLowerCase() === catLower)) ||
-          (Array.isArray(reel.subcategories) && reel.subcategories.some((s) => s.toLowerCase() === catLower))
+          allAssigned.some((c) => String(c || "").toLowerCase() === catLower) ||
+          (Array.isArray(reel.tags) && reel.tags.some((t) => String(t || "").toLowerCase() === catLower)) ||
+          (Array.isArray(reel.hashtags) && reel.hashtags.some((h) => String(h || "").toLowerCase() === catLower)) ||
+          (Array.isArray(reel.aiKeywords) && reel.aiKeywords.some((k) => String(k || "").toLowerCase() === catLower)) ||
+          (Array.isArray(reel.subcategories) && reel.subcategories.some((s) => String(s || "").toLowerCase() === catLower))
         );
       });
       const creators = new Set(catReels.map((r) => r.creatorUsername).filter(Boolean)).size;
       return {
         title: catName,
-        subtitle: `Curated collection of saved items filed under ${catName}.`,
+        subtitle: undefined,
         stats: [
           { value: catReels.length, label: "FILED ITEMS" },
           { value: creators, label: "CREATORS" },
         ],
         placeholder: `Find in ${catName}…`,
         emptyTitle: `No items in ${catName}`,
-        emptySubtitle: "Items tagged or categorized here will show up in this collection.",
+        emptySubtitle: "Items categorized here will appear in your library.",
       };
     }
 
@@ -86,7 +86,7 @@ function ReelsContent() {
       const creators = new Set(colReels.map((r) => r.creatorUsername).filter(Boolean)).size;
       return {
         title: colName,
-        subtitle: col?.description || "A dedicated collection of your saved inspiration.",
+        subtitle: col?.description || undefined,
         stats: [
           { value: colReels.length, label: "COLLECTION ITEMS" },
           { value: creators, label: "CREATORS" },
@@ -107,14 +107,14 @@ function ReelsContent() {
       const creators = new Set(reelItems.map((r) => r.creatorUsername).filter(Boolean)).size;
       return {
         title: "Reels",
-        subtitle: "High energy. Pure motion. A curated archive of short-form inspiration and craft.",
+        subtitle: undefined,
         stats: [
           { value: reelItems.length, label: "SAVED REELS" },
           { value: creators, label: "CREATORS" },
         ],
         placeholder: "Find a reel…",
         emptyTitle: "No reels found",
-        emptySubtitle: "Send any reel to your ReelDash bot on Instagram to save it here.",
+        emptySubtitle: "Saved Instagram reels will appear here.",
       };
     }
 
@@ -123,14 +123,14 @@ function ReelsContent() {
       const creators = new Set(postItems.map((r) => r.creatorUsername).filter(Boolean)).size;
       return {
         title: "Posts & Photos",
-        subtitle: "Still frames. Deep focus. Every visual reference, carousel, and photo in your vault.",
+        subtitle: undefined,
         stats: [
           { value: postItems.length, label: "POSTS & PHOTOS" },
           { value: creators, label: "CREATORS" },
         ],
         placeholder: "Find a post or photo…",
         emptyTitle: "No posts or photos found",
-        emptySubtitle: "Photo carousels and posts saved from Instagram will appear here.",
+        emptySubtitle: "Photo carousels and posts will appear here.",
       };
     }
 
@@ -141,14 +141,14 @@ function ReelsContent() {
       ).size;
       return {
         title: "Songs & Audio",
-        subtitle: "Sonic gems. Soundtrack archive. Discover and replay every track that set the mood.",
+        subtitle: undefined,
         stats: [
           { value: audioItems.length, label: "AUDIO TRACKS" },
           { value: artists, label: "ARTISTS" },
         ],
         placeholder: "Find a track or artist…",
         emptyTitle: "No audio tracks found",
-        emptySubtitle: "Saved audio tracks from reels and videos will appear in this studio.",
+        emptySubtitle: "Saved audio tracks will appear here.",
       };
     }
 
@@ -157,14 +157,14 @@ function ReelsContent() {
     const totalCreators = new Set(reels.map((r) => r.creatorUsername).filter(Boolean)).size;
     return {
       title: "All Library",
-      subtitle: "Less scrolling. More finding. A considered home for everything that catches your eye.",
+      subtitle: undefined,
       stats: [
         { value: totalItems, label: "SAVED ITEMS" },
         { value: totalCreators, label: "CREATORS" },
       ],
       placeholder: "Find in library…",
       emptyTitle: "Your library is empty",
-      emptySubtitle: "Start saving Reels, carousels, and audio tracks to build your personal vault.",
+      emptySubtitle: "Save reels to your vault to start building your library.",
     };
   }, [categoryParam, activeCategory, collectionParam, activeCollection, typeParam, activeMediaType, reels, collections]);
 
@@ -174,12 +174,12 @@ function ReelsContent() {
     if (activeCategory) {
       const catLower = activeCategory.trim().toLowerCase();
       const allAssigned = reel.categories && reel.categories.length > 0 ? reel.categories : [reel.category || ""];
-      const matchCat = allAssigned.some((c) => c.toLowerCase() === catLower);
+      const matchCat = allAssigned.some((c) => String(c || "").toLowerCase() === catLower);
       const matchTags =
-        (Array.isArray(reel.tags) && reel.tags.some((t) => t.toLowerCase() === catLower)) ||
-        (Array.isArray(reel.hashtags) && reel.hashtags.some((h) => h.toLowerCase() === catLower));
-      const matchKeywords = Array.isArray(reel.aiKeywords) && reel.aiKeywords.some((k) => k.toLowerCase() === catLower);
-      const matchSub = Array.isArray(reel.subcategories) && reel.subcategories.some((s) => s.toLowerCase() === catLower);
+        (Array.isArray(reel.tags) && reel.tags.some((t) => String(t || "").toLowerCase() === catLower)) ||
+        (Array.isArray(reel.hashtags) && reel.hashtags.some((h) => String(h || "").toLowerCase() === catLower));
+      const matchKeywords = Array.isArray(reel.aiKeywords) && reel.aiKeywords.some((k) => String(k || "").toLowerCase() === catLower);
+      const matchSub = Array.isArray(reel.subcategories) && reel.subcategories.some((s) => String(s || "").toLowerCase() === catLower);
       if (!matchCat && !matchTags && !matchKeywords && !matchSub) {
         return false;
       }
@@ -221,7 +221,7 @@ function ReelsContent() {
       return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
     }
     if (sortOption === "creator") {
-      return a.creatorUsername.localeCompare(b.creatorUsername);
+      return (a.creatorUsername || "").localeCompare(b.creatorUsername || "");
     }
     if (sortOption === "most_viewed") {
       return (b.viewCount || 0) - (a.viewCount || 0);

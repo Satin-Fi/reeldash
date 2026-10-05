@@ -497,12 +497,11 @@ function CollectionCard({
             </span>
           </div>
 
-          <p className="mt-2 line-clamp-2 min-h-10 text-[13px] leading-5 text-zinc-500 dark:text-zinc-400">
-            {collection.description ||
-              (collection.kind === 'smart'
-                ? 'Related discoveries, brought together in one place.'
-                : 'A little corner of the internet, curated by you.')}
-          </p>
+          {collection.description ? (
+            <p className="mt-2 line-clamp-2 text-[13px] leading-5 text-zinc-500 dark:text-zinc-400">
+              {collection.description}
+            </p>
+          ) : null}
 
           <div className="mt-5 flex h-8 items-center gap-2 pr-20 text-[11px] font-semibold text-zinc-500 transition-colors group-hover:text-zinc-950 group-focus-visible:text-zinc-950 dark:text-zinc-400 dark:group-hover:text-white dark:group-focus-visible:text-white">
             <span>Explore Collection</span>

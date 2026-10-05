@@ -29,31 +29,32 @@ export function LibraryHeader({
 }: LibraryHeaderProps) {
   return (
     <header
-      className={`flex flex-col sm:flex-row sm:items-end justify-between gap-4 sm:gap-8 pt-1 sm:pt-4 ${className}`}
+      className={`flex flex-col sm:flex-row sm:items-end justify-between gap-4 sm:gap-6 pt-1 sm:pt-2 pb-2 ${className}`}
     >
-      <div className="max-w-2xl min-w-0">
+      <div className="max-w-xl min-w-0">
         <h1
-          className={`${bricolage.className} text-[clamp(2.75rem,5.5vw,4.5rem)] font-bold leading-[0.98] tracking-[-0.065em] text-zinc-950 dark:text-white break-words`}
+          className={`${bricolage.className} text-2xl sm:text-3xl lg:text-[34px] font-bold leading-tight tracking-[-0.035em] text-zinc-950 dark:text-white break-words`}
         >
           {title}
-          <span className="text-[#CBB5FD]">.</span>
         </h1>
 
-        <p className="mt-2.5 sm:mt-4 max-w-md text-xs sm:text-sm leading-5 sm:leading-6 text-zinc-500 sm:text-[15px] dark:text-zinc-400">
-          {subtitle}
-        </p>
+        {subtitle && (
+          <p className="mt-1 max-w-md text-xs sm:text-sm leading-relaxed text-zinc-500 dark:text-zinc-400">
+            {subtitle}
+          </p>
+        )}
       </div>
 
       {stats && stats.length > 0 && (
-        <div className="flex shrink-0 items-center gap-5 sm:gap-7 pb-1 self-start sm:self-auto">
+        <div className="flex shrink-0 items-center gap-4 sm:gap-6 self-start sm:self-auto">
           {stats.map((stat, idx) => (
             <React.Fragment key={stat.label}>
               {idx > 0 && (
-                <div className="h-8 sm:h-10 w-px bg-black/[0.08] dark:bg-white/[0.08]" />
+                <div className="h-7 sm:h-8 w-px bg-black/[0.08] dark:bg-white/[0.08]" />
               )}
               <div>
                 <p
-                  className={`${bricolage.className} text-2xl sm:text-3xl font-medium tracking-tight tabular-nums text-zinc-950 dark:text-white`}
+                  className={`${bricolage.className} text-xl sm:text-2xl font-bold tracking-tight tabular-nums text-zinc-950 dark:text-white`}
                 >
                   {typeof stat.value === "number"
                     ? stat.value < 100
@@ -61,7 +62,7 @@ export function LibraryHeader({
                       : stat.value.toLocaleString()
                     : stat.value}
                 </p>
-                <p className="mt-0.5 sm:mt-1 text-[9px] sm:text-[10px] uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">
+                <p className="text-[10px] font-medium uppercase tracking-[0.1em] text-zinc-400 dark:text-zinc-500">
                   {stat.label}
                 </p>
               </div>
