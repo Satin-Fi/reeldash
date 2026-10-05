@@ -565,6 +565,13 @@ export default function DashboardPage() {
                               <Play className="size-6 opacity-40" />
                             </div>
                           )}
+                          {/* Play button symbol: ONLY appears on hover */}
+                          <div className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-200 group-hover:opacity-100 pointer-events-none">
+                            <span className="flex size-9 items-center justify-center rounded-full bg-black/60 backdrop-blur-md border border-white/20 text-white shadow-md transform scale-90 group-hover:scale-100 transition-transform duration-200">
+                              <Play className="ml-0.5 size-4 fill-white text-white" />
+                            </span>
+                          </div>
+
                           <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/40 to-transparent p-2 pt-4 text-white">
                             <p className="truncate text-[11px] font-semibold">
                               @{creator}

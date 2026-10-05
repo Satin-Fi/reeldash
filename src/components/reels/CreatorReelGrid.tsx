@@ -10,6 +10,8 @@ import {
   Bookmark,
   Check,
   Images,
+  Play,
+  Image as ImageIcon,
 } from "lucide-react";
 import { ReelPlayerModal } from "./ReelPlayerModal";
 
@@ -171,6 +173,19 @@ function CreatorReelTile({ item, creatorUsername }: { item: CreatorReelItem; cre
             )}
             <span>{alreadySaved ? "Saved" : "Save"}</span>
           </button>
+        </div>
+
+        {/* Center Hover Action Disk (Play symbol appears ONLY on hover) */}
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-0 group-hover:opacity-100 transition-all duration-200 z-10">
+          <div className="w-12 h-12 rounded-full bg-black/60 backdrop-blur-md border border-white/20 text-white flex items-center justify-center shadow-xl transform scale-90 group-hover:scale-100 transition-transform duration-200">
+            {item.isCarousel ? (
+              <Images className="w-5 h-5 text-white" />
+            ) : !isVideo ? (
+              <ImageIcon className="w-5 h-5 text-white" />
+            ) : (
+              <Play className="w-5 h-5 fill-white text-white ml-0.5" />
+            )}
+          </div>
         </div>
 
         {/* Bottom Metadata */}
