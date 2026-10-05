@@ -29,6 +29,10 @@ import { useAuth } from '@/context/AuthContext';
 import { useReels } from '@/context/ReelContext';
 import { Reel } from '@/types/reel';
 import { ReelPlayerModal } from '@/components/reels/ReelPlayerModal';
+import {
+  OrbitalReelMemoryHub,
+  StackedHighlightsCard,
+} from '@/components/dashboard/DashboardShowcaseCards';
 
 /* ─── Helpers ─── */
 function getMediaUrl(reel: any): string {
@@ -85,9 +89,6 @@ function normalizeInstagramUrl(value: string): string | null {
     return null;
   }
 }
-
-/* ─── Memoji Avatars for Stacked Cards ─── */
-const MEMOJIS = ['👩🏼', '🦊', '🐰', '🧔🏾', '👧🏽', '🐼', '🧑🏻', '🐱'];
 
 export default function DashboardPage() {
   const { user } = useAuth();
@@ -443,155 +444,20 @@ export default function DashboardPage() {
       {/* ─── 5. Visual Showcase: Image 2 Orbital Sync + Image 3 Stacked Highlights ─── */}
       <section className="mb-12 grid grid-cols-1 gap-6 lg:grid-cols-12" aria-label="ReelDash Highlights">
         {/* Orbital Hub Card (Image 2 style) - 7 cols */}
-        <div className="relative overflow-hidden rounded-3xl border border-purple-200/60 bg-gradient-to-br from-[#E0F2FE]/50 via-[#EDE9FE]/50 to-[#FCE7F3]/50 p-6 sm:p-8 dark:border-purple-800/30 dark:from-[#0F172A]/80 dark:via-[#1E1B4B]/80 dark:to-[#3B0764]/80 lg:col-span-7">
-          <div className="relative z-10 mb-4 flex items-center justify-between">
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-purple-300/60 bg-white/70 px-3 py-1 text-[11px] font-semibold text-purple-700 backdrop-blur-md dark:border-purple-700/40 dark:bg-purple-950/60 dark:text-purple-300">
-              <Sparkles className="size-3.5 text-purple-500" /> Reel Memory Hub
-            </span>
-            <span className="text-xs font-mono text-zinc-500 dark:text-zinc-400">
-              Active Sync
-            </span>
-          </div>
-
-          <h3 className="relative z-10 text-xl font-bold tracking-tight text-zinc-900 dark:text-white sm:text-2xl">
-            Intelligent Reel Memory
-          </h3>
-          <p className="relative z-10 mt-1 max-w-md text-xs leading-relaxed text-zinc-600 dark:text-zinc-300">
-            Every reel you save is auto-indexed with transcripts, creator tagging, and sound recognition for effortless instant recall.
-          </p>
-
-          {/* ─── Orbital Graphics (Matching Image 2 Reference) ─── */}
-          <div className="relative mt-8 flex h-[260px] w-full items-center justify-center">
-            {/* Soft concentric orbital rings */}
-            <div className="absolute size-[240px] rounded-full border border-purple-300/40 dark:border-purple-500/20" />
-            <div className="absolute size-[170px] rounded-full border border-dashed border-sky-300/50 dark:border-sky-500/20" />
-
-            {/* Central glowing hub icon */}
-            <div className="relative z-20 flex size-16 items-center justify-center rounded-2xl bg-gradient-to-tr from-purple-600 to-indigo-500 text-white shadow-[0_10px_25px_-5px_rgba(124,58,237,0.5)]">
-              <Sparkles className="size-8" />
-            </div>
-
-            {/* Orbiting pill 1: Top-Left (Discord/Instagram sync) */}
-            <motion.div
-              animate={{ y: [0, -6, 0] }}
-              transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
-              className="absolute left-2 top-4 z-20 flex items-center gap-2 rounded-full border border-purple-200 bg-purple-100/90 py-1.5 pl-2 pr-3.5 shadow-sm dark:border-purple-800 dark:bg-purple-900/80"
-            >
-              <span className="flex size-5 items-center justify-center rounded-full bg-purple-600 text-white text-[10px]">
-                📸
-              </span>
-              <span className="text-xs font-semibold text-purple-900 dark:text-purple-100">
-                Instagram Synced
-              </span>
-            </motion.div>
-
-            {/* Orbiting avatar 1: Top-Right (Memoji Fox) */}
-            <motion.div
-              animate={{ y: [0, 6, 0] }}
-              transition={{ duration: 3.5, repeat: Infinity, ease: 'easeInOut', delay: 0.5 }}
-              className="absolute right-4 top-2 z-20 flex size-10 items-center justify-center rounded-full bg-amber-100 text-2xl shadow-md border border-amber-200 dark:border-amber-700/50 dark:bg-amber-950/80"
-            >
-              🦊
-            </motion.div>
-
-            {/* Orbiting pill 2: Right (Slack/Auto-tags) */}
-            <motion.div
-              animate={{ x: [0, 4, 0] }}
-              transition={{ duration: 4.5, repeat: Infinity, ease: 'easeInOut', delay: 1 }}
-              className="absolute right-2 top-24 z-20 flex items-center gap-2 rounded-full border border-amber-200 bg-[#FEF3C7]/90 py-1.5 pl-2 pr-3.5 shadow-sm dark:border-amber-800 dark:bg-amber-950/80"
-            >
-              <span className="text-xs">🏷️</span>
-              <span className="text-xs font-semibold text-amber-900 dark:text-amber-100">
-                Auto-Categories
-              </span>
-            </motion.div>
-
-            {/* Orbiting avatar 2: Bottom-Left (Memoji Bunny) */}
-            <motion.div
-              animate={{ y: [0, -5, 0] }}
-              transition={{ duration: 4.2, repeat: Infinity, ease: 'easeInOut', delay: 0.8 }}
-              className="absolute bottom-4 left-6 z-20 flex size-10 items-center justify-center rounded-full bg-pink-100 text-2xl shadow-md border border-pink-200 dark:border-pink-700/50 dark:bg-pink-950/80"
-            >
-              🐰
-            </motion.div>
-
-            {/* Orbiting pill 3: Bottom-Right (Audio Extracted) */}
-            <motion.div
-              animate={{ y: [0, 5, 0] }}
-              transition={{ duration: 3.8, repeat: Infinity, ease: 'easeInOut', delay: 1.2 }}
-              className="absolute bottom-3 right-8 z-20 flex items-center gap-2 rounded-full border border-rose-200 bg-[#FFE4E6]/90 py-1.5 pl-2 pr-3.5 shadow-sm dark:border-rose-800 dark:bg-rose-950/80"
-            >
-              <Music2 className="size-3.5 text-rose-600 dark:text-rose-300" />
-              <span className="text-xs font-semibold text-rose-900 dark:text-rose-100">
-                Audio Extracted
-              </span>
-            </motion.div>
-
-            {/* Ambient Sparkles */}
-            <span className="absolute left-1/4 top-12 text-sm text-yellow-400">✦</span>
-            <span className="absolute right-1/4 bottom-8 text-sm text-purple-400">✦</span>
-            <span className="absolute right-12 top-16 text-sm text-sky-400">✦</span>
-          </div>
+        <div className="lg:col-span-7">
+          <OrbitalReelMemoryHub onLaunchMemory={() => setIsMemoryOpen(true)} />
         </div>
 
         {/* Stacked Highlights Card (Image 3 style) - 5 cols */}
-        <div className="relative flex flex-col justify-between overflow-hidden rounded-3xl border border-zinc-200/80 bg-white p-6 dark:border-zinc-800 dark:bg-[#121316] lg:col-span-5">
-          <div>
-            <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400">
-                Continue Exploring
-              </h3>
-              <Link
-                href="/categories"
-                className="text-xs font-semibold text-purple-600 hover:text-purple-700 dark:text-purple-400"
-              >
-                All collections →
-              </Link>
-            </div>
-
-            {/* Stacked Floating Pills (Image 3 style) */}
-            <div className="space-y-3">
-              {exploreCategories.slice(0, 4).map((cat, idx) => (
-                <Link
-                  key={cat.id || cat.name}
-                  href={`/reels?category=${encodeURIComponent(cat.name)}`}
-                  onClick={() => setActiveCategory(cat.name)}
-                  className="group flex items-center justify-between rounded-full border border-black/[0.06] bg-[#FAF9F7] px-3.5 py-2.5 shadow-sm transition-all duration-200 hover:border-purple-300 hover:bg-white hover:shadow-md dark:border-white/[0.06] dark:bg-white/[0.03] dark:hover:border-purple-600 dark:hover:bg-white/[0.06]"
-                >
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <span className="flex size-7 items-center justify-center rounded-full bg-purple-100 text-purple-600 dark:bg-purple-900/50 dark:text-purple-300">
-                      <TrendingUp className="size-3.5" />
-                    </span>
-                    <span className="truncate text-xs font-semibold text-zinc-800 group-hover:text-zinc-950 dark:text-zinc-200 dark:group-hover:text-white">
-                      {cat.name}
-                    </span>
-                    <span className="text-[10px] text-zinc-400 font-mono">
-                      {cat.count} saved
-                    </span>
-                  </div>
-
-                  {/* Overlapping Memoji Avatars cluster */}
-                  <div className="flex -space-x-1.5 shrink-0 pl-2">
-                    <span className="flex size-6 items-center justify-center rounded-full bg-purple-200 text-xs ring-2 ring-white dark:ring-zinc-900">
-                      {MEMOJIS[idx % MEMOJIS.length]}
-                    </span>
-                    <span className="flex size-6 items-center justify-center rounded-full bg-sky-200 text-xs ring-2 ring-white dark:ring-zinc-900">
-                      {MEMOJIS[(idx + 1) % MEMOJIS.length]}
-                    </span>
-                    <span className="flex size-6 items-center justify-center rounded-full bg-pink-200 text-xs ring-2 ring-white dark:ring-zinc-900">
-                      {MEMOJIS[(idx + 2) % MEMOJIS.length]}
-                    </span>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </div>
-
-          <div className="mt-6 rounded-2xl bg-purple-50/70 p-3.5 text-center text-[11px] font-medium text-purple-700 dark:bg-purple-950/30 dark:text-purple-300">
-            ✦ Tap any category to explore its saved reels
-          </div>
+        <div className="lg:col-span-5">
+          <StackedHighlightsCard
+            onCategoryClick={(categoryTitle) => {
+              setActiveCategory(categoryTitle);
+            }}
+          />
         </div>
       </section>
+
 
       <div className="mb-12 h-px bg-zinc-200/70 dark:bg-zinc-800" />
 
