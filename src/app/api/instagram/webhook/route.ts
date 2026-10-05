@@ -178,6 +178,30 @@ export async function POST(req: NextRequest) {
             extraLinks.push(event.message.story_share.url);
           }
         }
+        // Handle media_share (some audio/post shares arrive via this field)
+        if (event.message?.media_share) {
+          attachments.push({ type: "media_share", payload: event.message.media_share });
+          if (event.message.media_share.link) extraLinks.push(event.message.media_share.link);
+          if (event.message.media_share.url) extraLinks.push(event.message.media_share.url);
+        }
+
+        // Log full attachment structure for debugging audio/unsupported shares
+        if (attachments.length > 0) {
+          console.log(
+            `[Instagram Webhook] Attachment details for ${senderIgId}:`,
+            JSON.stringify(
+              attachments.map((a: any) => ({
+                type: a?.type,
+                payloadKeys: a?.payload ? Object.keys(a.payload) : [],
+                url: a?.payload?.url || a?.url || null,
+                title: a?.payload?.title || a?.title || null,
+                reel_video_id: a?.payload?.reel_video_id || null,
+                id: a?.payload?.id || null,
+                media_id: a?.payload?.media_id || null,
+              }))
+            )
+          );
+        }
 
         console.log(
           `[Instagram Webhook] Event from ${senderIgId}: text="${text}", attachments=${attachments.length}, extraLinks=${extraLinks.length}`

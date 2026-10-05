@@ -281,7 +281,8 @@ export function extractCreatorFromPost(
       fullText.match(/^([A-Za-z0-9_.]+)\s+on\s+Instagram(?:\s*[:：]|\s*["“']|\s*$)/i) ||
       fullText.match(/^([A-Za-z0-9_.]+)\s*[:：]\s*["“']/i) ||
       fullText.match(/\(@([A-Za-z0-9_.]+)\)/i) ||
-      fullText.match(/(?:Photo|Video|Reel)\s+by\s+@?([A-Za-z0-9_.]+)/i) ||
+      fullText.match(/(?:Photo|Video|Reel|Audio|Sound|Track)\s+by\s+@?([A-Za-z0-9_.]+)/i) ||
+      fullText.match(/(?:Original\s+audio|audio|sound|track)\s*(?:\n|\s*·\s*|\s*•\s*)\s*@?([A-Za-z0-9_.]+)/i) ||
       fullText.match(/\s*\|\s*([A-Za-z0-9_.]+)$/);
 
     if (metaMatch && metaMatch[1]) {

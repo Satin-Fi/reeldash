@@ -1060,10 +1060,69 @@ async function handleReady(
 ): Promise<ProcessedDMResult> {
   // Parse category commands
   const parsedCmd = parseCategoryCommand(messageText || "");
-  const mediaUrl = extractInstagramMediaUrl(
+  let mediaUrl = extractInstagramMediaUrl(
     parsedCmd.cleanUrl || parsedCmd.cleanText || messageText,
     attachments
   );
+
+  // ── Audio share fallback: detect audio shares with no extractable URL ──
+  let detectedAudioTitle: string | undefined = undefined;
+  let detectedAudioArtist: string | undefined = undefined;
+
+  if (Array.isArray(attachments) && attachments.length > 0) {
+    for (const att of attachments) {
+      if (!att) continue;
+      const title = String(att?.payload?.title || att?.title || "");
+      const titleLower = title.toLowerCase();
+      const attType = String(att?.type || "").toLowerCase();
+
+      if (
+        titleLower.includes("audio") ||
+        titleLower.includes("sound") ||
+        titleLower.includes("song") ||
+        titleLower.includes("music") ||
+        attType === "audio" ||
+        attType === "audio_share"
+      ) {
+        if (title) {
+          const lines = title.split("\n");
+          if (lines[0]) detectedAudioTitle = lines[0].trim();
+          const creatorMatch =
+            title.match(/\n@?([A-Za-z0-9_.]+)\s*[·•]/) ||
+            title.match(/[\n•·]\s*@?([A-Za-z0-9_.]+)/) ||
+            title.match(/(?:by|from)\s+@?([A-Za-z0-9_.]+)/i);
+          if (creatorMatch) {
+            detectedAudioArtist = creatorMatch[1].trim();
+          }
+        }
+
+        if (!mediaUrl) {
+          // Try to find any usable numeric ID
+          const anyId =
+            att?.payload?.reel_video_id ||
+            att?.payload?.audio_id ||
+            att?.payload?.id ||
+            att?.payload?.media_id;
+          if (anyId) {
+            mediaUrl = `https://www.instagram.com/reels/audio/${anyId}/`;
+            console.log(`[Instagram Bot] Audio share fallback URL from ID: ${mediaUrl}`);
+          } else {
+            // Check if title has an ID
+            const titleIdMatch = title.match(/(\d{10,})/);
+            if (titleIdMatch) {
+              mediaUrl = `https://www.instagram.com/reels/audio/${titleIdMatch[1]}/`;
+            } else {
+              // Construct synthetic audio URL so it CAN be saved to user's library!
+              const syntheticId = `dm_audio_${Date.now().toString(36)}`;
+              mediaUrl = `https://www.instagram.com/reels/audio/${syntheticId}/`;
+              console.log(`[Instagram Bot] Audio share created synthetic mediaUrl: ${mediaUrl}`);
+            }
+          }
+        }
+        break;
+      }
+    }
+  }
 
   // ── Reel received ──
   if (mediaUrl) {
@@ -1151,6 +1210,16 @@ async function handleReady(
         ? `/api/proxy-image?url=${encodeURIComponent(mediaUrl)}&shortcode=${shortcode}`
         : `/api/proxy-image?shortcode=${shortcode}`;
 
+      // Extract direct thumbnail from attachments if available
+      const directThumbAtt = attachments?.find(
+        (a) => (a?.payload?.url && typeof a.payload.url === "string" && a.payload.url.startsWith("http")) ||
+               (a?.url && typeof a.url === "string" && a.url.startsWith("http"))
+      );
+      const directThumb = directThumbAtt?.payload?.url || directThumbAtt?.url;
+      const finalThumb = directThumb
+        ? `/api/proxy-image?url=${encodeURIComponent(directThumb)}&shortcode=${shortcode}`
+        : thumb;
+
       const extracted = extractCreatorFromPost(
         fallbackCaption,
         mediaUrl,
@@ -1158,23 +1227,30 @@ async function handleReady(
         username
       );
 
+      const finalAudioArtist = detectedAudioArtist || (extracted.handle && extracted.handle !== "instagram" ? extracted.handle : "Instagram Audio");
+      const finalCreatorHandle = isAudio ? finalAudioArtist : extracted.handle;
+      const finalCreatorName = isAudio ? (detectedAudioArtist ? `@${detectedAudioArtist}` : "Instagram Audio") : extracted.name;
+
       reelData = {
         shortcode,
         url: mediaUrl,
-        thumbnailUrl: thumb,
-        video_url: mediaUrl,
+        thumbnailUrl: finalThumb,
+        video_url: directThumb || mediaUrl,
         caption: fallbackCaption,
-        creatorUsername: extracted.handle,
-        creator_name: extracted.name,
-        creatorAvatar: `/api/proxy-image?username=${encodeURIComponent(extracted.handle)}`,
+        creatorUsername: finalCreatorHandle,
+        creator_name: finalCreatorName,
+        creatorAvatar: `/api/proxy-image?username=${encodeURIComponent(finalCreatorHandle || "instagram")}`,
         mediaType: isAudio ? "audio" : isPost ? "post" : "reel",
         duration: isAudio ? "0:30" : isPost ? "Post" : "0:15",
-        category: allCategories[0] || (isAudio ? "Music" : "General"),
+        category: allCategories[0] || (isAudio ? "Music & Audio" : "General"),
         hashtags: [
           "instagram-dm",
           isAudio ? "audio" : isPost ? "post" : "reel",
           "auto-save",
         ],
+        audioTitle: detectedAudioTitle || (isAudio ? "Original audio" : undefined),
+        audioArtist: finalAudioArtist,
+        audioUrl: directThumb || mediaUrl,
       };
     }
 
@@ -1282,6 +1358,9 @@ async function handleReady(
       note: note || reelData.note || undefined,
       is_carousel: reelData.isCarousel || reelData.is_carousel || (reelData.carouselImages && reelData.carouselImages.length > 1) || (reelData.duration && reelData.duration.includes("Carousel")) || false,
       carousel_images: reelData.carouselImages || reelData.carousel_images || null,
+      audio_title: reelData.audioTitle || reelData.audio_title || (isAudio ? (detectedAudioTitle || "Original audio") : null),
+      audio_artist: reelData.audioArtist || reelData.audio_artist || (isAudio ? (detectedAudioArtist || creatorHandle) : null),
+      audio_url: reelData.audioUrl || reelData.audio_url || (isAudio ? (reelData.mediaUrl || reelData.video_url || mediaUrl) : null),
     };
 
     // Reel-level deduplication: shortcode, asset_id, or identical caption within 60s
@@ -1944,6 +2023,9 @@ async function saveReelForUser(
           note: reel.note || null,
           is_carousel: reel.is_carousel || false,
           carousel_images: reel.carousel_images || null,
+          audio_title: reel.audio_title || (reel.media_type === "audio" ? "Original audio" : null),
+          audio_artist: reel.audio_artist || (reel.media_type === "audio" ? reel.creator_handle : null),
+          audio_url: reel.audio_url || (reel.media_type === "audio" ? reel.video_url : null),
           source: "dm",
         },
         { onConflict: "user_id,shortcode" }
@@ -2321,10 +2403,56 @@ function extractInstagramMediaUrl(
         att.url,
         att.payload?.share?.url,
         att.payload?.share?.link,
+        att.payload?.instagram_url,
+        att.payload?.media_url,
+        att.payload?.content_url,
+        att.payload?.target_url,
       ];
       for (const candidate of directCandidates) {
         if (typeof candidate === "string" && candidate.startsWith("http")) {
           return candidate;
+        }
+      }
+    }
+  }
+
+  // 4. Audio share detection: Instagram audio page shares via DM often arrive
+  //    without a URL but may include an ID (reel_video_id, id, media_id) we can
+  //    use to construct an audio page URL.
+  if (Array.isArray(attachments) && attachments.length > 0) {
+    for (const att of attachments) {
+      if (!att) continue;
+      const title = String(att?.payload?.title || att?.title || "").toLowerCase();
+      const attType = String(att?.type || "").toLowerCase();
+
+      // Detect audio shares by title keywords or attachment type
+      const looksLikeAudio =
+        title.includes("audio") ||
+        title.includes("sound") ||
+        title.includes("song") ||
+        title.includes("music") ||
+        attType === "audio" ||
+        attType === "audio_share";
+
+      if (looksLikeAudio) {
+        // Try to find any usable numeric ID
+        const payloadId =
+          att?.payload?.reel_video_id ||
+          att?.payload?.audio_id ||
+          att?.payload?.id ||
+          att?.payload?.media_id;
+
+        if (payloadId) {
+          console.log(`[Instagram Bot] Audio share detected via metadata ID: ${payloadId}`);
+          return `https://www.instagram.com/reels/audio/${payloadId}/`;
+        }
+
+        // Try to extract a numeric ID from the title text itself
+        const rawTitle = String(att?.payload?.title || att?.title || "");
+        const titleIdMatch = rawTitle.match(/(\d{10,})/);
+        if (titleIdMatch) {
+          console.log(`[Instagram Bot] Audio share detected via title ID: ${titleIdMatch[1]}`);
+          return `https://www.instagram.com/reels/audio/${titleIdMatch[1]}/`;
         }
       }
     }
