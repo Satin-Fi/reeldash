@@ -17,10 +17,8 @@ import { useAuth } from '@/context/AuthContext';
 import { useReels } from '@/context/ReelContext';
 import { Reel } from '@/types/reel';
 import { ReelPlayerModal } from '@/components/reels/ReelPlayerModal';
-import {
-  OrbitalReelMemoryHub,
-  StackedHighlightsCard,
-} from '@/components/dashboard/DashboardShowcaseCards';
+import { OrbitalReelMemoryHub } from '@/components/dashboard/DashboardShowcaseCards';
+import { DashboardCategoryDecks } from '@/components/dashboard/DashboardCategoryDecks';
 
 /* ─── Helpers ─── */
 function getMediaUrl(reel: any): string {
@@ -154,22 +152,22 @@ export default function DashboardPage() {
         </form>
       </header>
 
-      {/* ─── 2. Visual Showcase Cards ─── */}
-      <section
-        className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]"
-        aria-label="Dashboard showcase"
-      >
+      {/* ─── 2. Reel Memory Hub Showcase ─── */}
+      <section aria-label="Reel Memory Showcase">
         <OrbitalReelMemoryHub onLaunchMemory={() => router.push('/search')} />
-        <StackedHighlightsCard
-          categories={smartCategories}
-          onCategoryClick={(categoryTitle) => {
-            setActiveCategory(categoryTitle);
-            router.push(`/reels?category=${encodeURIComponent(categoryTitle)}`);
-          }}
-        />
       </section>
 
-      {/* ─── 3. Recent Saves ─── */}
+      {/* ─── 3. Categories (3D Preview Deck Cards) ─── */}
+      <DashboardCategoryDecks
+        categories={smartCategories}
+        reels={reels}
+        onCategoryClick={(categoryTitle) => {
+          setActiveCategory(categoryTitle);
+          router.push(`/reels?category=${encodeURIComponent(categoryTitle)}`);
+        }}
+      />
+
+      {/* ─── 4. Recent Saves ─── */}
       <section aria-labelledby="recent-saves-title">
         <div className="mb-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -247,7 +245,7 @@ export default function DashboardPage() {
         )}
       </section>
 
-      {/* ─── 4. Library Vault Stats ─── */}
+      {/* ─── 5. Library Vault Stats ─── */}
       <section aria-labelledby="library-stats-title">
         <div className="mb-4 flex items-center justify-between">
           <h2
