@@ -160,6 +160,7 @@ export async function GET(req: NextRequest) {
         categories: categoryList.length > 0 ? categoryList : [row.category || "General"],
         categoryIds: categoryIdList,
         hashtags: hashtagList,
+        aiSummary: row.ai_summary || "",
         aiTopics: Array.isArray(row.ai_topics) ? row.ai_topics : [],
         // Clean out raw join artifacts
         reel_categories: undefined,

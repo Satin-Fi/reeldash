@@ -432,6 +432,7 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
                   categoryIds: Array.isArray(dbR.categoryIds) ? dbR.categoryIds : [],
                   hashtags: Array.isArray(dbR.hashtags) ? dbR.hashtags : Array.isArray(dbR.tags) ? dbR.tags : [],
                   tags: Array.isArray(dbR.tags) ? dbR.tags : [],
+                  aiSummary: dbR.ai_summary || dbR.aiSummary || "",
                   aiTopics: Array.isArray(dbR.aiTopics) ? dbR.aiTopics : Array.isArray(dbR.ai_topics) ? dbR.ai_topics : [],
                   notes: dbR.note || "",
                   isFavorite: !!dbR.is_favorite,

@@ -107,7 +107,7 @@ function ReelsContent() {
       const creators = new Set(reelItems.map((r) => r.creatorUsername).filter(Boolean)).size;
       return {
         title: "Reels",
-        subtitle: "High energy. Pure motion. A curated archive of short-form inspiration and craft.",
+        subtitle: undefined,
         stats: [
           { value: reelItems.length, label: "SAVED REELS" },
           { value: creators, label: "CREATORS" },
@@ -123,7 +123,7 @@ function ReelsContent() {
       const creators = new Set(postItems.map((r) => r.creatorUsername).filter(Boolean)).size;
       return {
         title: "Posts & Photos",
-        subtitle: "Still frames. Deep focus. Every visual reference, carousel, and photo in your vault.",
+        subtitle: undefined,
         stats: [
           { value: postItems.length, label: "POSTS & PHOTOS" },
           { value: creators, label: "CREATORS" },
@@ -141,7 +141,7 @@ function ReelsContent() {
       ).size;
       return {
         title: "Songs & Audio",
-        subtitle: "Sonic gems. Soundtrack archive. Discover and replay every track that set the mood.",
+        subtitle: undefined,
         stats: [
           { value: audioItems.length, label: "AUDIO TRACKS" },
           { value: artists, label: "ARTISTS" },
@@ -157,7 +157,7 @@ function ReelsContent() {
     const totalCreators = new Set(reels.map((r) => r.creatorUsername).filter(Boolean)).size;
     return {
       title: "All Library",
-      subtitle: "Less scrolling. More finding. A considered home for everything that catches your eye.",
+      subtitle: undefined,
       stats: [
         { value: totalItems, label: "SAVED ITEMS" },
         { value: totalCreators, label: "CREATORS" },
@@ -195,11 +195,13 @@ function ReelsContent() {
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       const matchCaption = reel.caption?.toLowerCase().includes(q);
+      const matchSummary = reel.aiSummary?.toLowerCase().includes(q);
+      const matchTopics = Array.isArray(reel.aiTopics) && reel.aiTopics.some((t) => t.toLowerCase().includes(q));
       const matchCreator = reel.creatorUsername?.toLowerCase().includes(q);
       const matchCategory = reel.category?.toLowerCase().includes(q);
       const matchAudio = reel.audioTitle?.toLowerCase().includes(q) || reel.audioArtist?.toLowerCase().includes(q);
       const matchKeywords = reel.aiKeywords?.some((k) => k.toLowerCase().includes(q));
-      if (!matchCaption && !matchCreator && !matchCategory && !matchAudio && !matchKeywords) {
+      if (!matchCaption && !matchSummary && !matchTopics && !matchCreator && !matchCategory && !matchAudio && !matchKeywords) {
         return false;
       }
     }

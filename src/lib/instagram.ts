@@ -36,7 +36,16 @@ export function extractInstagramUsername(input: string): string {
 /**
  * Free online scraper engine using SnapSave obfuscated pipeline (Zero API key needed)
  */
-export async function resolveViaSnapSave(urlOrShortcode: string): Promise<string | null> {
+export interface SnapSaveMediaResult {
+  videoUrl: string | null;
+  cleanThumbnailUrl: string | null;
+}
+
+/**
+ * Resolves both the MP4 direct stream URL and the clean watermark-free cover thumbnail
+ * using the SnapSave pipeline.
+ */
+export async function resolveCleanMediaViaSnapSave(urlOrShortcode: string): Promise<SnapSaveMediaResult> {
   const targetUrl = urlOrShortcode.startsWith("http")
     ? urlOrShortcode
     : `https://www.instagram.com/reel/${urlOrShortcode}/`;
@@ -53,12 +62,12 @@ export async function resolveViaSnapSave(urlOrShortcode: string): Promise<string
       cache: "no-store",
     });
 
-    if (!res.ok) return null;
+    if (!res.ok) return { videoUrl: null, cleanThumbnailUrl: null };
     const raw = await res.text();
 
     // Decode JS packing
     const match = raw.match(/eval\(function\(h,u,n,t,e,r\)\{[\s\S]*?\}\("([\s\S]*?)",\s*(\d+),\s*"([\s\S]*?)",\s*(\d+),\s*(\d+),\s*(\d+)\)\)/);
-    if (!match) return null;
+    if (!match) return { videoUrl: null, cleanThumbnailUrl: null };
 
     const [_, h, u, n, t, e] = match;
     const _0xc50e = ["", "split", "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ+/", "slice", "indexOf", "", "", ".", "pow", "reduce", "reverse", "0"];
@@ -101,17 +110,26 @@ export async function resolveViaSnapSave(urlOrShortcode: string): Promise<string
                       html.match(/href="(https:\/\/d\.rapidcdn\.app\/[^"]+)"/) ||
                       html.match(/https:\/\/[^"'\s\\]+cdninstagram\.com[^"'\s\\]+\.mp4[^"'\s\\]*/i);
 
+    let videoUrl: string | null = null;
     if (hrefMatch && hrefMatch[1]) {
-      return hrefMatch[1].replace(/\\/g, "");
+      videoUrl = hrefMatch[1].replace(/\\/g, "");
+    } else if (hrefMatch && hrefMatch[0]) {
+      videoUrl = hrefMatch[0].replace(/\\/g, "");
     }
-    if (hrefMatch && hrefMatch[0]) {
-      return hrefMatch[0].replace(/\\/g, "");
-    }
-  } catch {
-    // Fail silently to next scraper
-  }
 
-  return null;
+    // Extract clean thumbnail link (free from Meta's cmp1 play watermark)
+    const thumbMatch = html.match(/src=\\?"(https:\/\/[^"\\]+rapidcdn[^"\\]+|https:\/\/[^"\\]+cdninstagram[^"\\]+)/i);
+    const cleanThumbnailUrl = thumbMatch ? thumbMatch[1].replace(/\\/g, "") : null;
+
+    return { videoUrl, cleanThumbnailUrl };
+  } catch {
+    return { videoUrl: null, cleanThumbnailUrl: null };
+  }
+}
+
+export async function resolveViaSnapSave(urlOrShortcode: string): Promise<string | null> {
+  const { videoUrl } = await resolveCleanMediaViaSnapSave(urlOrShortcode);
+  return videoUrl;
 }
 
 /**

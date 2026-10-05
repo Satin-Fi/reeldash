@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   Sparkles,
   Search,
@@ -12,10 +12,6 @@ import {
   Bookmark,
   Users,
   Folder,
-  X,
-  Plus,
-  Loader2,
-  Check,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useReels } from '@/context/ReelContext';
@@ -25,6 +21,7 @@ import {
   OrbitalReelMemoryHub,
   StackedHighlightsCard,
 } from '@/components/dashboard/DashboardShowcaseCards';
+import { ReelMemoryModal } from '@/components/dashboard/ReelMemoryModal';
 
 /* ─── Helpers ─── */
 function getMediaUrl(reel: any): string {
@@ -83,6 +80,7 @@ function normalizeInstagramUrl(value: string): string | null {
 }
 
 export default function DashboardPage() {
+  const router = useRouter();
   const { user } = useAuth();
   const {
     reels,
@@ -94,13 +92,6 @@ export default function DashboardPage() {
   // State
   const [activePlayerReel, setActivePlayerReel] = useState<Reel | null>(null);
   const [isMemoryOpen, setIsMemoryOpen] = useState(false);
-  const [memoryQuery, setMemoryQuery] = useState('');
-  const [saveUrl, setSaveUrl] = useState('');
-  const [isSavingUrl, setIsSavingUrl] = useState(false);
-  const [saveFeedback, setSaveFeedback] = useState<{
-    kind: 'success' | 'error';
-    message: string;
-  } | null>(null);
 
   // Dynamic greeting
   const greeting = useMemo(() => {
@@ -149,73 +140,13 @@ export default function DashboardPage() {
       .slice(0, 8);
   }, [reels]);
 
-  // Reel Memory Search
-  const memoryResults = useMemo(() => {
-    if (!memoryQuery.trim()) {
-      return reels.slice(0, 8);
-    }
-    const q = memoryQuery.toLowerCase().trim();
-    return reels.filter((reel) => {
-      const matchCreator = getCreator(reel).toLowerCase().includes(q);
-      const matchCaption = (reel.caption || '').toLowerCase().includes(q);
-      const matchCategory = (reel.category || '').toLowerCase().includes(q);
-      const matchTags = Array.isArray(reel.tags) && reel.tags.some((t) => t.toLowerCase().includes(q));
-      const matchKeywords = Array.isArray(reel.aiKeywords) && reel.aiKeywords.some((k) => k.toLowerCase().includes(q));
-      const matchAudio = (reel.audioTitle || '').toLowerCase().includes(q) || (reel.audioArtist || '').toLowerCase().includes(q);
-      const matchNotes = (reel.notes || '').toLowerCase().includes(q);
-      return (
-        matchCreator ||
-        matchCaption ||
-        matchCategory ||
-        matchTags ||
-        matchKeywords ||
-        matchAudio ||
-        matchNotes
-      );
-    });
-  }, [reels, memoryQuery]);
-
-  // Handle Quick Save in Reel Memory
-  const handleMemorySave = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const url = normalizeInstagramUrl(saveUrl);
-    if (!url) {
-      setSaveFeedback({
-        kind: 'error',
-        message: 'Please paste a valid Instagram link.',
-      });
-      return;
-    }
-    setIsSavingUrl(true);
-    setSaveFeedback(null);
-    try {
-      await saveReel(url);
-      setSaveUrl('');
-      setSaveFeedback({
-        kind: 'success',
-        message: 'Saved to your vault.',
-      });
-    } catch {
-      setSaveFeedback({
-        kind: 'error',
-        message: 'Failed to save link.',
-      });
-    } finally {
-      setIsSavingUrl(false);
-    }
-  };
-
   return (
     <div className="w-full pb-16 pt-2">
       {/* ─── 1. Minimal Header ─── */}
-      <header className="mb-6 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+      <header className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-white sm:text-3xl">
           {greeting}, {userName}
         </h1>
-        <span className="inline-flex items-center gap-1.5 font-mono text-xs text-zinc-400 dark:text-zinc-500">
-          <span className="size-2 rounded-full bg-emerald-500" />
-          Active Sync
-        </span>
       </header>
 
       {/* ─── 2. Reel Memory Command Bar ─── */}
@@ -252,8 +183,10 @@ export default function DashboardPage() {
         </div>
         <div className="lg:col-span-5">
           <StackedHighlightsCard
+            categories={smartCategories}
             onCategoryClick={(categoryTitle) => {
               setActiveCategory(categoryTitle);
+              router.push(`/reels?category=${encodeURIComponent(categoryTitle)}`);
             }}
           />
         </div>
@@ -326,64 +259,72 @@ export default function DashboardPage() {
         )}
       </section>
 
-      {/* ─── 5. Library Metrics (Pure counts, zero subtexts) ─── */}
+      {/* ─── 5. Library Vault Metrics ─── */}
       <section className="mb-10" aria-labelledby="library-stats-title">
-        <h2
-          id="library-stats-title"
-          className="mb-3.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400"
-        >
-          Library
-        </h2>
+        <div className="mb-3.5 flex items-center justify-between">
+          <h2
+            id="library-stats-title"
+            className="text-sm font-semibold tracking-tight text-zinc-900 dark:text-white"
+          >
+            Library Vault
+          </h2>
+          <Link
+            href="/reels"
+            className="text-xs font-medium text-purple-600 hover:text-purple-700 dark:text-purple-400"
+          >
+            Open Library
+          </Link>
+        </div>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <Link
             href="/reels?type=all"
-            className="group relative overflow-hidden rounded-2xl border border-purple-200/70 bg-[#F5F3FF] p-5 transition-all duration-300 hover:border-purple-300 hover:shadow-md dark:border-purple-900/30 dark:bg-[#581C87]/15 dark:hover:border-purple-700/50"
+            className="group relative overflow-hidden rounded-2xl border border-purple-200/60 bg-gradient-to-br from-[#FAF5FF] to-white p-5 shadow-sm transition-all duration-300 hover:border-purple-300 hover:shadow-md dark:border-purple-900/30 dark:from-[#1E1129]/40 dark:to-[#121319]"
           >
             <div className="flex items-center justify-between">
-              <span className="text-3xl font-extrabold tracking-tight text-purple-950 dark:text-purple-100">
+              <span className="text-3xl font-bold tracking-tight text-zinc-950 dark:text-white">
                 {reels.length}
               </span>
-              <span className="flex size-9 items-center justify-center rounded-xl bg-purple-200/60 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300">
+              <span className="flex size-9 items-center justify-center rounded-xl bg-purple-100 text-purple-700 shadow-sm dark:bg-purple-950/70 dark:text-purple-300">
                 <Bookmark className="size-4" />
               </span>
             </div>
-            <p className="mt-2 text-xs font-semibold text-purple-700 dark:text-purple-300">
-              Saved Reels
+            <p className="mt-2 text-xs font-semibold text-zinc-600 dark:text-zinc-400">
+              Saved Reels & Posts
             </p>
           </Link>
 
           <Link
             href="/reels"
-            className="group relative overflow-hidden rounded-2xl border border-sky-200/70 bg-[#F0F9FF] p-5 transition-all duration-300 hover:border-sky-300 hover:shadow-md dark:border-sky-900/30 dark:bg-[#0369A1]/15 dark:hover:border-sky-700/50"
+            className="group relative overflow-hidden rounded-2xl border border-sky-200/60 bg-gradient-to-br from-[#F0F9FF] to-white p-5 shadow-sm transition-all duration-300 hover:border-sky-300 hover:shadow-md dark:border-sky-900/30 dark:from-[#082F49]/30 dark:to-[#121319]"
           >
             <div className="flex items-center justify-between">
-              <span className="text-3xl font-extrabold tracking-tight text-sky-950 dark:text-sky-100">
+              <span className="text-3xl font-bold tracking-tight text-zinc-950 dark:text-white">
                 {creators.length}
               </span>
-              <span className="flex size-9 items-center justify-center rounded-xl bg-sky-200/60 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300">
+              <span className="flex size-9 items-center justify-center rounded-xl bg-sky-100 text-sky-700 shadow-sm dark:bg-sky-950/70 dark:text-sky-300">
                 <Users className="size-4" />
               </span>
             </div>
-            <p className="mt-2 text-xs font-semibold text-sky-700 dark:text-sky-300">
-              Creators
+            <p className="mt-2 text-xs font-semibold text-zinc-600 dark:text-zinc-400">
+              Creators Tracked
             </p>
           </Link>
 
           <Link
             href="/categories"
-            className="group relative overflow-hidden rounded-2xl border border-emerald-200/70 bg-[#ECFDF5] p-5 transition-all duration-300 hover:border-emerald-300 hover:shadow-md dark:border-emerald-900/30 dark:bg-[#065F46]/15 dark:hover:border-emerald-700/50"
+            className="group relative overflow-hidden rounded-2xl border border-emerald-200/60 bg-gradient-to-br from-[#ECFDF5] to-white p-5 shadow-sm transition-all duration-300 hover:border-emerald-300 hover:shadow-md dark:border-emerald-900/30 dark:from-[#064E3B]/30 dark:to-[#121319]"
           >
             <div className="flex items-center justify-between">
-              <span className="text-3xl font-extrabold tracking-tight text-emerald-950 dark:text-emerald-100">
-                {smartCategories.length || 24}
+              <span className="text-3xl font-bold tracking-tight text-zinc-950 dark:text-white">
+                {smartCategories.length || 18}
               </span>
-              <span className="flex size-9 items-center justify-center rounded-xl bg-emerald-200/60 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
+              <span className="flex size-9 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700 shadow-sm dark:bg-emerald-950/70 dark:text-emerald-300">
                 <Folder className="size-4" />
               </span>
             </div>
-            <p className="mt-2 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
-              Categories
+            <p className="mt-2 text-xs font-semibold text-zinc-600 dark:text-zinc-400">
+              Active Categories
             </p>
           </Link>
         </div>
@@ -394,7 +335,7 @@ export default function DashboardPage() {
         <section aria-labelledby="recent-activity-title">
           <h2
             id="recent-activity-title"
-            className="mb-3.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400"
+            className="mb-3.5 text-sm font-semibold tracking-tight text-zinc-900 dark:text-white"
           >
             Recent Activity
           </h2>
@@ -433,164 +374,15 @@ export default function DashboardPage() {
       )}
 
       {/* ─── 7. Working Reel Memory Modal (⌘K) ─── */}
-      <AnimatePresence>
-        {isMemoryOpen && (
-          <div className="fixed inset-0 z-50 flex items-start justify-center p-4 sm:p-6 pt-16 sm:pt-20">
-            {/* Backdrop */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setIsMemoryOpen(false)}
-              className="fixed inset-0 bg-black/60 backdrop-blur-sm"
-            />
-
-            {/* Modal Dialog */}
-            <motion.div
-              initial={{ opacity: 0, scale: 0.96, y: -10 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.96, y: -10 }}
-              transition={{ duration: 0.2 }}
-              className="relative w-full max-w-2xl overflow-hidden rounded-3xl border border-purple-200/80 bg-white shadow-2xl dark:border-purple-800/40 dark:bg-[#121316]"
-            >
-              {/* Top Search Input */}
-              <div className="relative border-b border-zinc-200/80 px-5 py-4 dark:border-zinc-800">
-                <div className="flex items-center gap-3">
-                  <span className="flex size-8 items-center justify-center rounded-xl bg-purple-100 text-purple-600 dark:bg-purple-900/40 dark:text-purple-300">
-                    <Sparkles className="size-4" />
-                  </span>
-                  <input
-                    type="text"
-                    value={memoryQuery}
-                    onChange={(e) => setMemoryQuery(e.target.value)}
-                    placeholder="Search reels by creator, topic, audio, or caption…"
-                    autoFocus
-                    className="w-full bg-transparent text-sm sm:text-base outline-none placeholder:text-zinc-400 dark:placeholder:text-zinc-500 dark:text-white"
-                  />
-                  {memoryQuery && (
-                    <button
-                      type="button"
-                      onClick={() => setMemoryQuery('')}
-                      className="rounded-full p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800"
-                    >
-                      <X className="size-4" />
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => setIsMemoryOpen(false)}
-                    className="rounded-full p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800"
-                  >
-                    <X className="size-5" />
-                  </button>
-                </div>
-              </div>
-
-              {/* Direct Save Bar */}
-              <form
-                onSubmit={handleMemorySave}
-                className="flex items-center gap-2 border-b border-zinc-100 bg-zinc-50/70 px-5 py-2.5 dark:border-zinc-800/60 dark:bg-zinc-900/40"
-              >
-                <input
-                  type="text"
-                  value={saveUrl}
-                  onChange={(e) => setSaveUrl(e.target.value)}
-                  placeholder="Paste Instagram reel URL to save…"
-                  className="flex-1 bg-transparent text-xs outline-none placeholder:text-zinc-400 dark:text-white"
-                />
-                <button
-                  type="submit"
-                  disabled={isSavingUrl || !saveUrl.trim()}
-                  className="inline-flex items-center gap-1 rounded-full bg-purple-600 px-3 py-1 text-[11px] font-medium text-white shadow-sm transition-all hover:bg-purple-700 disabled:opacity-50"
-                >
-                  {isSavingUrl ? (
-                    <Loader2 className="size-3 animate-spin" />
-                  ) : (
-                    <Plus className="size-3" />
-                  )}
-                  <span>Save</span>
-                </button>
-              </form>
-
-              {saveFeedback && (
-                <div
-                  className={`px-5 py-2 text-xs font-medium ${
-                    saveFeedback.kind === 'success'
-                      ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300'
-                      : 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300'
-                  }`}
-                >
-                  {saveFeedback.message}
-                </div>
-              )}
-
-              {/* Quick Query Chips */}
-              <div className="flex items-center gap-2 overflow-x-auto px-5 py-2.5 border-b border-zinc-100 dark:border-zinc-800/80 no-scrollbar">
-                {['Travel', 'Design', 'Recipes', 'Tech', 'Audio'].map((chip) => (
-                  <button
-                    key={chip}
-                    type="button"
-                    onClick={() => setMemoryQuery(chip)}
-                    className="shrink-0 rounded-full border border-purple-200/60 bg-purple-50/50 px-2.5 py-0.5 text-[11px] font-medium text-purple-700 transition-colors hover:bg-purple-100 dark:border-purple-800/40 dark:bg-purple-950/40 dark:text-purple-300 dark:hover:bg-purple-900/50"
-                  >
-                    {chip}
-                  </button>
-                ))}
-              </div>
-
-              {/* Results Grid */}
-              <div className="max-h-[380px] overflow-y-auto p-5">
-                {memoryResults.length > 0 ? (
-                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                    {memoryResults.map((reel) => {
-                      const thumb = getMediaUrl(reel);
-                      const creator = getCreator(reel);
-                      return (
-                        <div
-                          key={reel.id}
-                          onClick={() => {
-                            setActivePlayerReel(reel);
-                            setIsMemoryOpen(false);
-                          }}
-                          className="group relative aspect-[9/16] cursor-pointer overflow-hidden rounded-xl bg-zinc-900 shadow-sm transition-all hover:-translate-y-1 hover:shadow-md"
-                        >
-                          {thumb ? (
-                            <img
-                              src={thumb}
-                              alt={reel.caption || `@${creator}`}
-                              className="size-full object-cover transition-transform group-hover:scale-105"
-                            />
-                          ) : (
-                            <div className="flex size-full items-center justify-center bg-zinc-800 text-zinc-500">
-                              <Play className="size-6 opacity-40" />
-                            </div>
-                          )}
-                          {/* Play button symbol: ONLY appears on hover */}
-                          <div className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-200 group-hover:opacity-100 pointer-events-none">
-                            <span className="flex size-9 items-center justify-center rounded-full bg-black/60 backdrop-blur-md border border-white/20 text-white shadow-md transform scale-90 group-hover:scale-100 transition-transform duration-200">
-                              <Play className="ml-0.5 size-4 fill-white text-white" />
-                            </span>
-                          </div>
-
-                          <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/40 to-transparent p-2 pt-4 text-white">
-                            <p className="truncate text-[11px] font-semibold">
-                              @{creator}
-                            </p>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="p-8 text-center text-xs text-zinc-400">
-                    No matching reels found.
-                  </div>
-                )}
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+      <ReelMemoryModal
+        isOpen={isMemoryOpen}
+        onClose={() => setIsMemoryOpen(false)}
+        reels={reels}
+        onSelectReel={(reel) => setActivePlayerReel(reel)}
+        onSaveUrl={async (url) => {
+          await saveReel(url);
+        }}
+      />
 
       {/* Reel Player Modal */}
       {activePlayerReel && (

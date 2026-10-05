@@ -252,48 +252,63 @@ export function OrbitalReelMemoryHub({
 /* 2. STACKED HIGHLIGHTS CARD (Pure visual craft — Reference Image 3)         */
 /* ========================================================================== */
 
+export interface HighlightCategory {
+  name: string;
+  count: number;
+  icon?: string;
+  slug?: string;
+}
+
 interface StackedHighlightsCardProps {
   className?: string;
+  categories?: HighlightCategory[];
   onCategoryClick?: (categoryName: string) => void;
 }
 
-const HIGHLIGHT_ROWS = [
-  {
-    id: "hooks",
-    title: "Viral Hooks",
-    count: 48,
-    tone: "violet" as const,
-    avatars: ["girl", "bunny", "fox", "boy"] as const,
-  },
-  {
-    id: "grading",
-    title: "Color Grading",
-    count: 29,
-    tone: "slate" as const,
-    avatars: ["boy", "girl", "bunny"] as const,
-  },
-  {
-    id: "motion",
-    title: "Motion & 3D",
-    count: 19,
-    tone: "violet" as const,
-    avatars: ["girl", "fox"] as const,
-  },
-  {
-    id: "audio",
-    title: "Sound Design",
-    count: 12,
-    tone: "slate" as const,
-    avatars: ["bunny"] as const,
-  },
-];
-
 export function StackedHighlightsCard({
   className = "",
+  categories,
   onCategoryClick,
 }: StackedHighlightsCardProps) {
   const reducedMotion = Boolean(useReducedMotion());
   const headingId = useId();
+
+  // Dynamically compute display rows from real categories
+  const displayRows = React.useMemo(() => {
+    if (!categories || categories.length === 0) {
+      return [
+        { id: "tech", title: "Tech & Dev", count: 0, tone: "violet" as const, avatars: ["girl", "bunny", "fox", "boy"] as const },
+        { id: "travel", title: "Travel & Places", count: 0, tone: "slate" as const, avatars: ["boy", "girl", "bunny"] as const },
+        { id: "design", title: "Design & Art", count: 0, tone: "violet" as const, avatars: ["girl", "fox"] as const },
+        { id: "comedy", title: "Entertainment & Comedy", count: 0, tone: "slate" as const, avatars: ["bunny"] as const },
+      ];
+    }
+
+    // Filter valid categories (ignore hashtag tags)
+    const valid = categories
+      .filter((c) => c.name && !c.name.startsWith("#"))
+      .sort((a, b) => b.count - a.count);
+
+    // Prioritize non-General if we have enough distinctive categories, else include all
+    const nonGeneral = valid.filter((c) => c.name.toLowerCase() !== "general");
+    const chosen = nonGeneral.length >= 4 ? nonGeneral.slice(0, 4) : valid.slice(0, 4);
+
+    const tones = ["violet", "slate", "violet", "slate"] as const;
+    const avatarSets = [
+      ["girl", "bunny", "fox", "boy"] as const,
+      ["boy", "girl", "bunny"] as const,
+      ["girl", "fox"] as const,
+      ["bunny"] as const,
+    ];
+
+    return chosen.map((cat, idx) => ({
+      id: cat.slug || cat.name.toLowerCase().replace(/[^a-z0-9]/g, "-"),
+      title: cat.name,
+      count: cat.count,
+      tone: tones[idx % tones.length],
+      avatars: avatarSets[idx % avatarSets.length],
+    }));
+  }, [categories]);
 
   return (
     <div
@@ -333,7 +348,7 @@ export function StackedHighlightsCard({
 
       {/* 4 Stacked White Pill Capsules (Direct Image 3 Replication) */}
       <div className="relative z-10 flex flex-col gap-2.5">
-        {HIGHLIGHT_ROWS.map((row) => (
+        {displayRows.map((row) => (
           <motion.div
             key={row.id}
             initial={false}

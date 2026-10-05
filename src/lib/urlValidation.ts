@@ -13,6 +13,7 @@ const ALLOWED_MEDIA_DOMAINS = [
   "rapidcdn.app",
   "ui-avatars.com",
   "wsrv.nl",
+  "supabase.co",
 ];
 
 /**

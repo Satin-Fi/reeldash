@@ -97,10 +97,11 @@ function SearchContent() {
       const matchCategory = (r.categories || [r.category || ""]).some((c) => c.toLowerCase().includes(q));
       const matchHashtags = (r.hashtags || r.tags || []).some((h) => h.toLowerCase().includes(q) || h.toLowerCase().includes(rawQ));
       const matchAiTopics = (r.aiTopics || []).some((t) => t.toLowerCase().includes(q));
+      const matchAiSummary = (r.aiSummary || "").toLowerCase().includes(q) || (r.aiSummary || "").toLowerCase().includes(rawQ);
       const matchKeywords = r.aiKeywords?.some((k) => k.toLowerCase().includes(q));
       const matchNotes = r.notes?.toLowerCase().includes(q);
 
-      if (!matchCaption && !matchCreator && !matchCategory && !matchHashtags && !matchAiTopics && !matchNotes && !matchKeywords) {
+      if (!matchCaption && !matchCreator && !matchCategory && !matchHashtags && !matchAiTopics && !matchAiSummary && !matchNotes && !matchKeywords) {
         return false;
       }
     }

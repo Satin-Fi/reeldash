@@ -101,7 +101,7 @@ async function serveImageBinary(imageUrl: string, shortcode?: string | null): Pr
       const directRes = await fetch(imageUrl, {
         headers: {
           "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-          "Referer": "https://www.instagram.com/",
+          "Referer": imageUrl.includes("rapidcdn.app") ? "https://snapsave.app/" : "https://www.instagram.com/",
         },
         signal: AbortSignal.timeout(3500),
       });
@@ -270,7 +270,9 @@ export async function GET(req: NextRequest) {
   }
 
   // 2. DIRECT IMAGE PROXY BY URL
-  if (directUrl) {
+  // If directUrl contains Meta's cmp1 watermark parameter and we have shortcode, bypass it to fetch the clean frame
+  const hasMetaPlayWatermark = directUrl && (directUrl.includes("cmp1") || directUrl.includes("video_default_cover_frame"));
+  if (directUrl && (!hasMetaPlayWatermark || !shortcode)) {
     const directRes = await serveImageBinary(directUrl, shortcode);
     if (directRes) {
       return directRes;
@@ -305,6 +307,17 @@ export async function GET(req: NextRequest) {
   // 3. REEL / POST COVER SELF-HEALING RECOVERY BY SHORTCODE
   if (shortcode) {
     try {
+      // Priority 1: Clean, watermark-free thumbnail via SnapSave
+      const { resolveCleanMediaViaSnapSave } = await import("@/lib/instagram");
+      const { cleanThumbnailUrl } = await resolveCleanMediaViaSnapSave(shortcode);
+      if (cleanThumbnailUrl) {
+        const cleanRes = await serveImageBinary(cleanThumbnailUrl, shortcode);
+        if (cleanRes) {
+          return cleanRes;
+        }
+      }
+
+      // Priority 2: Fallback to OpenGraph cover
       const freshCoverUrl = await extractCoverByShortcode(shortcode);
       if (freshCoverUrl) {
         const coverRes = await serveImageBinary(freshCoverUrl, shortcode);
