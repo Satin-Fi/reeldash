@@ -1,17 +1,36 @@
 "use client";
 
-import React, {
-  useCallback,
+import {
   useEffect,
   useId,
   useMemo,
   useRef,
   useState,
+  type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
-import { Reel } from "@/types/reel";
+import {
+  Bookmark,
+  Check,
+  Copy,
+  Download,
+  ExternalLink,
+  Folder,
+  Heart,
+  Loader2,
+  MessageCircle,
+  MoreHorizontal,
+  Music2,
+  Send,
+  Sparkles,
+  Tag,
+  Trash2,
+  X,
+} from "lucide-react";
+
+import { ReelPlayer } from "@/components/reels/ReelPlayer";
 import { useReels } from "@/context/ReelContext";
-import * as PlayerModule from "./ReelPlayer";
+import type { Reel } from "@/types/reel";
 
 export interface ReelPlayerModalProps {
   reel: Reel | null;
@@ -19,148 +38,116 @@ export interface ReelPlayerModalProps {
   onClose: () => void;
 }
 
-type PlayerProps = {
-  reel: Reel;
-  autoPlay: boolean;
-  className: string;
-};
-
-const playerExports = PlayerModule as unknown as {
-  default?: React.ComponentType<PlayerProps>;
-  ReelPlayer?: React.ComponentType<PlayerProps>;
-};
-
-const ReelPlayer = playerExports.ReelPlayer ?? playerExports.default;
-
-type IconName =
-  | "close"
-  | "up"
-  | "down"
-  | "more"
-  | "heart"
-  | "comment"
-  | "link"
-  | "external"
-  | "download"
-  | "trash"
-  | "music"
-  | "plus"
-  | "check"
-  | "note"
-  | "folder"
-  | "sparkles"
-  | "refresh";
-
-type Drawer = "notes" | "category" | "details" | null;
+type Tab = "notes" | "analysis" | "organize";
 type UnknownRecord = Record<string, unknown>;
 
-const ICON_PATHS: Record<IconName, React.ReactNode> = {
-  close: <path d="m6 6 12 12M18 6 6 18" />,
-  up: <path d="m6 14 6-6 6 6" />,
-  down: <path d="m6 10 6 6 6-6" />,
-  more: (
-    <>
-      <circle cx="5" cy="12" r="1" />
-      <circle cx="12" cy="12" r="1" />
-      <circle cx="19" cy="12" r="1" />
-    </>
-  ),
-  heart: (
-    <path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8Z" />
-  ),
-  comment: <path d="M21 11.5a8.4 8.4 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.4 8.4 0 0 1-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.4 8.4 0 0 1 3.8-.9h.5a8.5 8.5 0 0 1 8 8v.5Z" />,
-  link: (
-    <>
-      <path d="m10 13 4-4M8 16l-1 1a4.2 4.2 0 0 1-6-6l4-4a4.2 4.2 0 0 1 6 0m2 10a4.2 4.2 0 0 0 6 0l4-4a4.2 4.2 0 0 0-6-6l-1 1" transform="translate(1 0) scale(.92)" />
-    </>
-  ),
-  external: (
-    <>
-      <path d="M14 3h7v7m0-7L10 14" />
-      <path d="M10 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-5" />
-    </>
-  ),
-  download: (
-    <>
-      <path d="M12 3v12m-5-5 5 5 5-5M4 16v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4" />
-    </>
-  ),
-  trash: (
-    <>
-      <path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7m4-7v7" />
-    </>
-  ),
-  music: (
-    <>
-      <path d="M9 18V5l12-2v13M9 9l12-2" />
-      <ellipse cx="6" cy="18" rx="3" ry="3" />
-      <ellipse cx="18" cy="16" rx="3" ry="3" />
-    </>
-  ),
-  plus: <path d="M12 5v14M5 12h14" />,
-  check: <path d="m5 12 4 4L19 6" />,
-  note: (
-    <>
-      <path d="M14 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-9M14 3v7h7L14 3ZM7 14h10M7 17h6" />
-    </>
-  ),
-  folder: <path d="M3 7V5a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z" />,
-  sparkles: (
-    <>
-      <path d="m12 3 2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5L12 3Z" />
-      <path d="m20 2 .7 1.3L22 4l-1.3.7L20 6l-.7-1.3L18 4l1.3-.7L20 2Z" />
-    </>
-  ),
-  refresh: (
-    <>
-      <path d="M20 7v5h-5M4 17v-5h5" />
-      <path d="M6.1 7a7 7 0 0 1 11.5-2L20 8M4 16l2.4 3A7 7 0 0 0 17.9 17" />
-    </>
-  ),
-};
-
-function Icon({
-  name,
-  className = "h-4 w-4",
-  filled = false,
-}: {
-  name: IconName;
-  className?: string;
-  filled?: boolean;
-}) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill={filled ? "currentColor" : "none"}
-      stroke="currentColor"
-      strokeWidth="1.65"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-      aria-hidden="true"
-    >
-      {ICON_PATHS[name]}
-    </svg>
-  );
+interface Workspace {
+  collection: string;
+  audioSaved: boolean;
+  customCollections: string[];
 }
 
+interface Analysis {
+  hook: string;
+  takeaways: string[];
+  tags: string[];
+}
+
+const DEFAULT_COLLECTIONS = ["Saved reels", "Inspiration", "Hooks", "To recreate"];
+const EMPTY_WORKSPACE: Workspace = {
+  collection: "",
+  audioSaved: false,
+  customCollections: [],
+};
+
+const ICON_BUTTON =
+  "inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-zinc-300 transition hover:bg-white/[0.07] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 disabled:cursor-not-allowed disabled:opacity-40";
+
+const FIELD =
+  "w-full rounded-xl border border-white/10 bg-white/[0.04] px-3.5 py-3 text-sm text-zinc-100 outline-none transition placeholder:text-zinc-600 focus:border-white/30 focus:ring-2 focus:ring-white/10";
+
 function record(value: unknown): UnknownRecord {
-  return value !== null && typeof value === "object" && !Array.isArray(value)
+  return value && typeof value === "object" && !Array.isArray(value)
     ? (value as UnknownRecord)
     : {};
 }
 
-function text(...values: unknown[]): string {
+function text(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function firstText(...values: unknown[]): string {
   for (const value of values) {
-    if (typeof value === "string" && value.trim()) return value.trim();
+    const result = text(value);
+    if (result) return result;
   }
   return "";
 }
 
+function booleanValue(...values: unknown[]): boolean {
+  const value = values.find((item) => typeof item === "boolean");
+  return value === true;
+}
+
+function strings(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value.flatMap((item) => {
+      const entry = record(item);
+      const result = firstText(
+        item,
+        entry.name,
+        entry.label,
+        entry.title,
+        entry.text,
+        entry.description,
+      );
+      return result ? [result] : [];
+    });
+  }
+
+  if (typeof value === "string") {
+    const input = value.trim();
+    if (!input) return [];
+
+    if (input.startsWith("[")) {
+      try {
+        const parsed: unknown = JSON.parse(input);
+        if (Array.isArray(parsed)) return strings(parsed);
+      } catch {
+        // A non-JSON string remains usable as plain text.
+      }
+    }
+
+    return input
+      .split(/\n|,(?=\s*#?[\w])/)
+      .map((item) => item.replace(/^\s*(?:[-*•]|\d+[.)])\s*/, "").trim())
+      .filter(Boolean);
+  }
+
+  return [];
+}
+
+function unique(values: string[]): string[] {
+  return Array.from(new Set(values.filter(Boolean)));
+}
+
+function cleanCaption(value: unknown): string {
+  return text(value)
+    .replace(/\bview\s+all\s+[\d,.]+\s*[km]?\s+comments?\b/gi, "")
+    .replace(/\bview\s+more\s+comments?\b/gi, "")
+    .replace(/\[[^\]\n]*,[^\]\n]*\]/g, "")
+    .replace(/\[\s*(?:\.{3}|…)\s*\]/g, "")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 function safeUrl(value: unknown): string {
-  if (typeof value !== "string" || !value.trim()) return "";
+  const input = text(value);
+  if (!input) return "";
+
   try {
-    const url = new URL(value);
+    const url = new URL(input);
     return url.protocol === "https:" || url.protocol === "http:"
       ? url.href
       : "";
@@ -169,203 +156,160 @@ function safeUrl(value: unknown): string {
   }
 }
 
-function count(value: unknown): number | null {
-  if (typeof value !== "number" && typeof value !== "string") return null;
-  if (typeof value === "string" && !value.trim()) return null;
-  const parsed = Number(value);
-  return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
+function count(value: unknown): number {
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0;
+  }
+
+  const match = text(value)
+    .replace(/,/g, "")
+    .match(/^([\d.]+)\s*([km])?$/i);
+
+  if (!match) return 0;
+  const multiplier =
+    match[2]?.toLowerCase() === "m"
+      ? 1_000_000
+      : match[2]?.toLowerCase() === "k"
+        ? 1_000
+        : 1;
+  const result = Number(match[1]) * multiplier;
+  return Number.isFinite(result) ? Math.max(0, Math.floor(result)) : 0;
 }
 
-function reelKey(value: Reel): string {
-  const data = record(value);
-  return String(data.id ?? data.instagramUrl ?? data.videoUrl ?? "");
-}
-
-function readableDate(value: unknown): { label: string; iso: string } | null {
-  if (value == null || value === "") return null;
-
-  let input: string | number | Date;
-  if (value instanceof Date) {
-    input = value;
-  } else if (typeof value === "number") {
-    input = value < 100_000_000_000 ? value * 1000 : value;
-  } else if (typeof value === "string") {
-    input = /^\d{10,13}$/.test(value)
-      ? Number(value) * (value.length === 10 ? 1000 : 1)
-      : value;
-  } else {
+function parseDate(value: unknown): Date | null {
+  if (!(typeof value === "string" || typeof value === "number" || value instanceof Date)) {
     return null;
   }
 
-  const date = new Date(input);
-  if (Number.isNaN(date.getTime())) return null;
-
-  return {
-    label: new Intl.DateTimeFormat("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    }).format(date),
-    iso: date.toISOString(),
-  };
+  const input =
+    typeof value === "number" && value > 0 && value < 100_000_000_000
+      ? value * 1000
+      : value;
+  const date = input instanceof Date ? new Date(input.getTime()) : new Date(input);
+  return Number.isNaN(date.getTime()) ? null : date;
 }
 
-function summaryPoints(value: unknown): string[] {
+function parseAnalysis(value: unknown): Analysis {
   let source: unknown = value;
-  if (value && typeof value === "object" && !Array.isArray(value)) {
-    const data = record(value);
-    source = data.takeaways ?? data.keyTakeaways ?? data.bullets ?? data.summary;
+
+  if (typeof source === "string") {
+    const candidate = source.trim().replace(/^```(?:json)?\s*|\s*```$/g, "");
+    try {
+      source = JSON.parse(candidate) as unknown;
+    } catch {
+      return { hook: "", takeaways: strings(source), tags: [] };
+    }
   }
 
-  const entries = Array.isArray(source)
-    ? source.map((item) =>
-        typeof item === "string"
-          ? item
-          : text(record(item).text, record(item).content, record(item).title),
-      )
-    : typeof source === "string"
-      ? source.split(/\n+/)
-      : [];
+  if (Array.isArray(source)) {
+    return { hook: "", takeaways: strings(source), tags: [] };
+  }
 
-  return entries
-    .map((entry) =>
-      entry
-        .replace(/^\s*(?:[-*•]\s+|\d+[.)]\s+)/, "")
-        .replace(/^\s*#{1,6}\s+/, "")
-        .replace(/\*\*/g, "")
-        .trim(),
-    )
-    .filter(Boolean);
-}
-
-function describeReel(value: Reel | null) {
-  const data = record(value);
-  const creator = record(data.creator);
-  const stats = record(data.stats);
-  const username = text(
-    data.creatorUsername,
-    data.username,
-    creator.username,
-  ).replace(/^@/, "");
+  const data = record(source);
+  const hook = record(data.hookBreakdown ?? data.hook);
+  const strategy = record(data.strategy);
 
   return {
-    username,
-    avatar: safeUrl(
-      data.creatorAvatarUrl ??
-        data.creatorAvatar ??
-        creator.avatarUrl ??
-        data.profilePicUrl,
+    hook: firstText(
+      data.hookBreakdown,
+      data.hook,
+      data.openingHook,
+      hook.description,
+      hook.analysis,
+      hook.text,
     ),
-    verified: Boolean(
-      data.creatorVerified ??
-        data.isVerified ??
-        creator.isVerified ??
-        creator.verified,
+    takeaways: strings(
+      data.takeaways ??
+        data.keyTakeaways ??
+        data.key_takeaways ??
+        strategy.takeaways ??
+        data.strategy ??
+        data.summary,
     ),
-    caption: text(data.caption, data.description),
-    instagramUrl: safeUrl(data.instagramUrl),
-    videoUrl: safeUrl(data.downloadUrl ?? data.videoUrl ?? data.mediaUrl),
-    favorite: Boolean(data.isFavorite ?? data.favorite),
-    likes: count(data.likesCount ?? data.likeCount ?? data.likes ?? stats.likes),
-    comments: count(
-      data.commentsCount ?? data.commentCount ?? data.comments ?? stats.comments,
-    ),
-    category: text(data.category),
-    note: typeof data.note === "string"
-      ? data.note
-      : typeof data.notes === "string"
-        ? data.notes
-        : "",
-    summary: summaryPoints(data.aiSummary ?? data.summary),
-    date: readableDate(
-      data.publishedAt ?? data.postedAt ?? data.timestamp ?? data.createdAt,
-    ),
-    audioTitle: text(data.audioTitle),
-    audioArtist: text(data.audioArtist, data.audioAuthor),
+    tags: unique([
+      ...strings(data.tags),
+      ...strings(data.topics),
+      ...strings(data.semanticTags),
+    ]),
   };
 }
 
-function formatCount(value: number): string {
-  return new Intl.NumberFormat("en", {
-    notation: "compact",
-    maximumFractionDigits: 1,
-  }).format(value);
+function workspaceKey(id: string): string {
+  return `reeldash:reel-workspace:v1:${encodeURIComponent(id)}`;
+}
+
+function readWorkspace(id: string): Workspace {
+  try {
+    const raw = localStorage.getItem(workspaceKey(id));
+    const stored = record(raw ? JSON.parse(raw) : {});
+    return {
+      collection: text(stored.collection),
+      audioSaved: stored.audioSaved === true,
+      customCollections: strings(stored.customCollections),
+    };
+  } catch {
+    return { ...EMPTY_WORKSPACE };
+  }
 }
 
 function Caption({ value }: { value: string }) {
-  const tokens = value.split(
-    new RegExp(
-      "(https?:\\/\\/[^\\s<>]+|#[\\p{L}\\p{N}_]+|@[\\p{L}\\p{N}_.]+)",
-      "gu",
-    ),
-  );
+  const tokens = value.split(/([#@][\p{L}\p{N}_][\p{L}\p{N}_.]*)/gu);
 
   return (
-    <p className="select-text whitespace-pre-wrap break-words break-all text-sm leading-relaxed text-zinc-200 [overflow-wrap:anywhere]">
+    <span className="whitespace-pre-wrap [overflow-wrap:anywhere]">
       {tokens.map((token, index) => {
-        let href = "";
-        let suffix = "";
-        let label = token;
-
-        if (/^https?:\/\//i.test(token)) {
-          suffix = token.match(/[.,!?;:)\]}]+$/)?.[0] ?? "";
-          label = suffix ? token.slice(0, -suffix.length) : token;
-          href = safeUrl(label);
-        } else if (token.startsWith("#")) {
-          const tag = token.slice(1);
-          const junk =
-            tag.length > 25 ||
-            /(.)\1{4,}/iu.test(tag) ||
-            /(.{2,4})\1{3,}/iu.test(tag);
-
-          if (!junk) {
-            href = `https://www.instagram.com/explore/tags/${encodeURIComponent(tag)}/`;
-          }
-        } else if (token.startsWith("@")) {
-          const username = token.slice(1);
-          if (/^[a-zA-Z0-9_.]{1,30}$/.test(username)) {
-            href = `/creator/${encodeURIComponent(username)}`;
-          }
+        if (!/^[@#][\p{L}\p{N}_]/u.test(token)) {
+          return <span key={index}>{token}</span>;
         }
 
-        if (!href) return <React.Fragment key={index}>{token}</React.Fragment>;
+        const previous = tokens[index - 1] ?? "";
+        if (/[\p{L}\p{N}_.]$/u.test(previous)) {
+          return <span key={index}>{token}</span>;
+        }
 
-        const external = href.startsWith("http");
+        const label = token.replace(/\.+$/, "");
+        const suffix = token.slice(label.length);
+        const name = label.slice(1);
+        const href =
+          label[0] === "#"
+            ? `https://www.instagram.com/explore/tags/${encodeURIComponent(name)}/`
+            : `https://www.instagram.com/${encodeURIComponent(name)}/`;
+
         return (
-          <React.Fragment key={index}>
+          <span key={index}>
             <a
               href={href}
-              target={external ? "_blank" : undefined}
-              rel={external ? "noopener noreferrer" : undefined}
-              className="rounded-sm text-sky-400 transition-colors hover:text-sky-300 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-400"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sky-300 decoration-sky-300/40 underline-offset-4 hover:underline focus-visible:rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
             >
               {label}
             </a>
             {suffix}
-          </React.Fragment>
+          </span>
         );
       })}
-    </p>
+    </span>
   );
 }
 
-function Avatar({ username, src }: { username: string; src: string }) {
-  const [failed, setFailed] = useState(false);
-
-  useEffect(() => setFailed(false), [src]);
-
+function Avatar({ src, username }: { src: string; username: string }) {
   return (
-    <span className="relative flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-zinc-800 text-sm font-medium text-zinc-300 ring-1 ring-white/10">
-      {src && !failed ? (
+    <span className="relative flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-zinc-800 text-xs font-semibold uppercase text-zinc-300 ring-1 ring-white/10">
+      <span aria-hidden="true">{username.slice(0, 2) || "R"}</span>
+      {src && (
         <img
+          key={src}
           src={src}
           alt=""
-          className="h-full w-full object-cover"
-          onError={() => setFailed(true)}
+          width={36}
+          height={36}
           referrerPolicy="no-referrer"
+          className="absolute inset-0 h-full w-full object-cover"
+          onError={(event) => {
+            event.currentTarget.style.display = "none";
+          }}
         />
-      ) : (
-        (username[0] || "R").toUpperCase()
       )}
     </span>
   );
@@ -373,160 +317,21 @@ function Avatar({ username, src }: { username: string; src: string }) {
 
 function VerifiedBadge() {
   return (
-    <span className="shrink-0 text-sky-400" title="Verified creator">
-      <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden="true">
-        <path
-          fill="currentColor"
-          d="m12 1 3 2.1 3.6.3 1.1 3.4L22 9.6l-1 3.5.4 3.6-3 2-1.8 3.1-3.6-.2-3.4 1.1-2.8-2.2-3.4-1.1-.4-3.6L1 12l2.1-3 .3-3.6 3.4-1.1L9.6 2 12 1Z"
-        />
-        <path
-          d="m7.5 12 3 3 6-6"
-          fill="none"
-          stroke="#090A0E"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </svg>
-      <span className="sr-only">Verified</span>
+    <span
+      role="img"
+      aria-label="Verified creator"
+      className="inline-flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full bg-sky-500"
+    >
+      <Check size={10} strokeWidth={3} className="text-white" />
     </span>
   );
 }
 
-function NoteEditor({
-  value,
-  onSave,
-}: {
-  value: string;
-  onSave: (value: string) => Promise<boolean>;
-}) {
-  const [draft, setDraft] = useState(value);
-  const [status, setStatus] = useState<"saved" | "editing" | "saving" | "error">(
-    "saved",
-  );
-  const textareaId = useId();
-  const draftRef = useRef(value);
-  const savedRef = useRef(value);
-  const saveRef = useRef(onSave);
-  const aliveRef = useRef(false);
-  const queueRef = useRef<Promise<void>>(Promise.resolve());
-
-  useEffect(() => {
-    saveRef.current = onSave;
-  }, [onSave]);
-
-  const persist = useCallback(() => {
-    const snapshot = draftRef.current;
-    queueRef.current = queueRef.current.then(async () => {
-      if (snapshot === savedRef.current) return;
-      if (aliveRef.current) setStatus("saving");
-
-      let success = false;
-      try {
-        success = await saveRef.current(snapshot);
-      } catch {
-        success = false;
-      }
-
-      if (success) savedRef.current = snapshot;
-      if (aliveRef.current) {
-        setStatus(
-          !success
-            ? "error"
-            : draftRef.current === snapshot
-              ? "saved"
-              : "editing",
-        );
-      }
-    });
-  }, []);
-
-  useEffect(() => {
-    aliveRef.current = true;
-    return () => {
-      aliveRef.current = false;
-      persist();
-    };
-  }, [persist]);
-
-  useEffect(() => {
-    if (draftRef.current === savedRef.current) {
-      draftRef.current = value;
-      savedRef.current = value;
-      setDraft(value);
-    }
-  }, [value]);
-
-  useEffect(() => {
-    if (draft === savedRef.current) return;
-    const timer = window.setTimeout(persist, 800);
-    return () => window.clearTimeout(timer);
-  }, [draft, persist]);
-
-  return (
-    <section className="min-w-0">
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <label
-          htmlFor={textareaId}
-          className="flex items-center gap-2 text-xs font-medium text-zinc-400"
-        >
-          <Icon name="note" className="h-3.5 w-3.5" />
-          Personal notes
-        </label>
-        <span className="text-[11px] text-zinc-500" aria-live="polite">
-          {status === "saved"
-            ? "Saved"
-            : status === "saving"
-              ? "Saving…"
-              : status === "error"
-                ? "Not saved"
-                : "Unsaved changes"}
-        </span>
-      </div>
-      <textarea
-        id={textareaId}
-        value={draft}
-        onChange={(event) => {
-          draftRef.current = event.target.value;
-          setDraft(event.target.value);
-          setStatus("editing");
-        }}
-        onBlur={persist}
-        onKeyDown={(event) => {
-          if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
-            event.preventDefault();
-            persist();
-          }
-        }}
-        placeholder="A hook worth keeping. A script to try. Your next remix."
-        rows={4}
-        maxLength={20000}
-        spellCheck
-        className="rd-notepad block min-h-28 w-full resize-y rounded-xl border border-transparent bg-white/[0.025] px-3.5 py-3 text-sm leading-7 text-zinc-200 outline-none transition-colors placeholder:text-zinc-600 hover:bg-white/[0.035] focus:border-white/10 focus:bg-white/[0.04]"
-      />
-      {status === "error" && (
-        <button
-          type="button"
-          onClick={persist}
-          className="mt-2 text-xs text-sky-400 hover:text-sky-300"
-        >
-          Retry saving
-        </button>
-      )}
-    </section>
-  );
-}
-
-const iconButton =
-  "rd-focus inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-zinc-400 transition-colors hover:bg-white/[0.07] hover:text-white disabled:cursor-not-allowed disabled:opacity-30";
-const AUDIO_STORAGE_KEY = "reeldash:saved-audio";
-
-export default function ReelPlayerModal({
+export function ReelPlayerModal({
   reel,
   isOpen,
   onClose,
 }: ReelPlayerModalProps) {
-  // Hooks are deliberately unconditional, including while the portal is closed.
   const {
     reels,
     toggleFavorite,
@@ -539,1329 +344,1332 @@ export default function ReelPlayerModal({
   } = useReels();
 
   const [mounted, setMounted] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
-  const [selectedKey, setSelectedKey] = useState<string | null>(null);
-  const [removedKeys, setRemovedKeys] = useState<string[]>([]);
+  const [tab, setTab] = useState<Tab>("notes");
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [categoryOpen, setCategoryOpen] = useState(false);
-  const [drawer, setDrawer] = useState<Drawer>(null);
-  const [busy, setBusy] = useState<Record<string, boolean>>({});
-  const [savedAudio, setSavedAudio] = useState<string[]>([]);
-  const [dragOffset, setDragOffset] = useState(0);
+  const [draft, setDraft] = useState("");
+  const [notes, setNotes] = useState("");
+  const [liked, setLiked] = useState(false);
+  const [likes, setLikes] = useState(0);
+  const [category, setCategory] = useState("");
+  const [workspace, setWorkspace] = useState<Workspace>({ ...EMPTY_WORKSPACE });
+  const [newCollection, setNewCollection] = useState("");
+  const [generatedAnalysis, setGeneratedAnalysis] = useState<unknown>(null);
+  const [posting, setPosting] = useState(false);
+  const [liking, setLiking] = useState(false);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [categorizing, setCategorizing] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [downloading, setDownloading] = useState(false);
   const [announcement, setAnnouncement] = useState("");
 
-  const rootRef = useRef<HTMLDivElement>(null);
-  const closeRef = useRef<HTMLButtonElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const drawerRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
-  const categoryRef = useRef<HTMLDivElement>(null);
-  const categoryButtonRef = useRef<HTMLButtonElement>(null);
-  const drawerRef = useRef<HTMLDivElement>(null);
-  const drawerTriggerRef = useRef<HTMLElement | null>(null);
-  const busyRef = useRef(new Set<string>());
-  const aliveRef = useRef(false);
-  const toastRef = useRef(showToast);
-  const gestureRef = useRef<{
-    pointerId: number;
-    x: number;
-    y: number;
-    vertical: boolean;
-  } | null>(null);
-  const titleId = useId();
-  const drawerTitleId = useId();
-  const menuId = useId();
-  const categoryId = useId();
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const drawerCloseRef = useRef<HTMLButtonElement>(null);
+  const desktopComposerRef = useRef<HTMLTextAreaElement>(null);
+  const mobileComposerRef = useRef<HTMLTextAreaElement>(null);
+  const notesRef = useRef("");
+  const workspaceRef = useRef<Workspace>({ ...EMPTY_WORKSPACE });
+  const sessionRef = useRef(0);
+  const operationLocksRef = useRef(new Set<string>());
+  const downloadAbortRef = useRef<AbortController | null>(null);
+  const onCloseRef = useRef(onClose);
 
-  const propKey = reel ? reelKey(reel) : "";
+  const componentId = useId();
 
-  const availableReels = useMemo(() => {
-    const source: Reel[] = Array.isArray(reels) ? [...reels] : [];
-    if (reel && !source.some((item) => reelKey(item) === propKey)) {
-      source.unshift(reel);
-    }
-    const seen = new Set<string>();
-    return source.filter((item) => {
-      if (!item) return false;
-      const key = reelKey(item);
-      if (!key || seen.has(key) || removedKeys.includes(key)) return false;
-      seen.add(key);
-      return true;
-    });
-  }, [reels, reel, propKey, removedKeys]);
+  const activeReel = useMemo(
+    () => (reel ? reels.find((item) => item.id === reel.id) ?? reel : null),
+    [reel, reels],
+  );
 
-  const activeIndex = useMemo(() => {
-    const requested = selectedKey ?? propKey;
-    const index = availableReels.findIndex((item) => reelKey(item) === requested);
-    return index >= 0 ? index : availableReels.length ? 0 : -1;
-  }, [availableReels, selectedKey, propKey]);
+  const data = useMemo(() => record(activeReel), [activeReel]);
+  const creator = useMemo(
+    () => record(data.creator ?? data.author ?? data.owner),
+    [data],
+  );
+  const reelId = activeReel ? String(activeReel.id) : "";
 
-  const activeReel = activeIndex >= 0 ? availableReels[activeIndex] : null;
-  const activeKey = activeReel ? reelKey(activeReel) : "";
-  const view = useMemo(() => describeReel(activeReel), [activeReel]);
+  const serverNotes = firstText(data.notes, data.note, data.personalNotes);
+  const serverLiked = booleanValue(data.isLiked, data.isFavorite, data.favorite);
+  const serverCategory = firstText(
+    data.category,
+    record(data.category).name,
+    data.categoryName,
+  );
 
   const availableCategories = useMemo(() => {
     const source: unknown = smartCategories;
-    const entries = Array.isArray(source)
-      ? source
-      : Object.entries(record(source)).map(([key, value]) =>
-          typeof value === "string" ? value : { ...record(value), id: key },
-        );
+    const values = Array.isArray(source)
+      ? strings(source)
+      : source && typeof source === "object"
+        ? Object.entries(record(source)).map(([key, value]) =>
+            firstText(record(value).name, record(value).label, key),
+          )
+        : strings(source);
 
-    const result = entries
-      .map((entry) =>
-        typeof entry === "string"
-          ? entry.trim()
-          : text(
-              record(entry).name,
-              record(entry).label,
-              record(entry).title,
-              record(entry).id,
-            ),
-      )
-      .filter(Boolean);
+    return unique([...values, serverCategory]).sort((a, b) =>
+      a.localeCompare(b),
+    );
+  }, [smartCategories, serverCategory]);
 
-    if (view.category) result.unshift(view.category);
-    return [...new Set(result)];
-  }, [smartCategories, view.category]);
-
-  const audioKey = `${view.audioTitle}\u001f${view.audioArtist}`;
-  const isAudioSaved = savedAudio.includes(audioKey);
-  const hasPrevious = activeIndex > 0;
-  const hasNext = activeIndex >= 0 && activeIndex < availableReels.length - 1;
-  const summaryBusy = Boolean(busy[`${activeKey}:summary`]);
-  const downloadBusy = Boolean(busy[`${activeKey}:download`]);
-  const categoryBusy = Boolean(busy[`${activeKey}:category`]);
-
-  const notify = useCallback((message: string) => {
-    if (aliveRef.current) setAnnouncement(message);
-    try {
-      toastRef.current(message);
-    } catch {
-      // The local live region remains available if the app toast is unavailable.
-    }
-  }, []);
-
-  const runAction = useCallback(
-    async (
-      key: string,
-      task: () => unknown | Promise<unknown>,
-      failureMessage: string,
-      successMessage?: string,
-    ): Promise<boolean> => {
-      if (busyRef.current.has(key)) return false;
-      busyRef.current.add(key);
-      if (aliveRef.current) setBusy((previous) => ({ ...previous, [key]: true }));
-
-      try {
-        await task();
-        if (successMessage) notify(successMessage);
-        return true;
-      } catch {
-        notify(failureMessage);
-        return false;
-      } finally {
-        busyRef.current.delete(key);
-        if (aliveRef.current) {
-          setBusy((previous) => {
-            const next = { ...previous };
-            delete next[key];
-            return next;
-          });
-        }
-      }
-    },
-    [notify],
+  const analysis = useMemo(
+    () =>
+      parseAnalysis(
+        generatedAnalysis ??
+          data.aiAnalysis ??
+          data.aiSummary ??
+          data.ai_summary ??
+          data.summary,
+      ),
+    [generatedAnalysis, data],
   );
 
-  const navigate = useCallback(
-    (direction: -1 | 1) => {
-      const next = availableReels[activeIndex + direction];
-      if (!next) return;
-      setSelectedKey(reelKey(next));
-      setMenuOpen(false);
-      setCategoryOpen(false);
-      setDrawer(null);
-      setDragOffset(0);
-    },
-    [availableReels, activeIndex],
+  const semanticTags = useMemo(
+    () =>
+      unique([
+        ...analysis.tags,
+        ...strings(data.semanticTags),
+        ...strings(data.tags),
+        ...strings(data.topics),
+      ])
+        .map((value) => value.replace(/^#/, ""))
+        .filter(Boolean)
+        .slice(0, 24),
+    [analysis.tags, data],
   );
-
-  const closeDrawer = useCallback(() => {
-    setDrawer(null);
-    window.requestAnimationFrame(() => drawerTriggerRef.current?.focus());
-  }, []);
-
-  const openDrawer = useCallback((next: Drawer) => {
-    drawerTriggerRef.current = document.activeElement as HTMLElement | null;
-    setMenuOpen(false);
-    setDrawer(next);
-  }, []);
-
-  const copyLink = useCallback(async () => {
-    setMenuOpen(false);
-    if (!view.instagramUrl) return;
-
-    await runAction(
-      `${activeKey}:copy`,
-      async () => {
-        if (navigator.clipboard?.writeText) {
-          await navigator.clipboard.writeText(view.instagramUrl);
-          return;
-        }
-
-        const previousFocus = document.activeElement as HTMLElement | null;
-        const input = document.createElement("textarea");
-        input.value = view.instagramUrl;
-        input.style.cssText = "position:fixed;left:-9999px;top:0;opacity:0";
-        (rootRef.current ?? document.body).appendChild(input);
-        input.select();
-        let copied = false;
-        try {
-          copied = document.execCommand("copy");
-        } finally {
-          input.remove();
-          previousFocus?.focus();
-        }
-        if (!copied) throw new Error("Clipboard unavailable");
-      },
-      "Couldn’t copy the link. Please try again.",
-      "Link copied.",
-    );
-  }, [activeKey, view.instagramUrl, runAction]);
-
-  const download = useCallback(async () => {
-    setMenuOpen(false);
-    if (!view.videoUrl) {
-      notify("A downloadable video file isn’t available for this reel.");
-      return;
-    }
-
-    await runAction(
-      `${activeKey}:download`,
-      async () => {
-        const controller = new AbortController();
-        const timer = window.setTimeout(() => controller.abort(), 60000);
-        let objectUrl = "";
-
-        try {
-          const response = await fetch(view.videoUrl, {
-            signal: controller.signal,
-            credentials: "omit",
-          });
-          if (!response.ok) throw new Error("Download failed");
-          const contentType = response.headers.get("content-type") ?? "";
-          if (
-            contentType &&
-            !/^(video\/|application\/octet-stream)/i.test(contentType)
-          ) {
-            throw new Error("The response is not a video");
-          }
-
-          const blob = await response.blob();
-          if (!blob.size) throw new Error("Empty video");
-
-          objectUrl = URL.createObjectURL(blob);
-          const anchor = document.createElement("a");
-          anchor.href = objectUrl;
-          const filename = `${view.username || "reeldash"}-${activeKey}`
-            .replace(/[^a-zA-Z0-9_-]/g, "-")
-            .slice(0, 100);
-          anchor.download = `${filename}.mp4`;
-          document.body.appendChild(anchor);
-          anchor.click();
-          anchor.remove();
-        } finally {
-          window.clearTimeout(timer);
-          if (objectUrl) {
-            const urlToRevoke = objectUrl;
-            window.setTimeout(() => URL.revokeObjectURL(urlToRevoke), 30000);
-          }
-        }
-      },
-      "Download unavailable. Try opening the reel on Instagram.",
-      "Download started.",
-    );
-  }, [activeKey, view.videoUrl, view.username, runAction, notify]);
-
-  const favorite = useCallback(async () => {
-    if (!activeReel) return;
-    await runAction(
-      `${activeKey}:favorite`,
-      () => toggleFavorite(activeReel.id),
-      "Couldn’t update your favorite. Please try again.",
-    );
-  }, [activeReel, activeKey, toggleFavorite, runAction]);
-
-  const generateSummary = useCallback(async () => {
-    if (!activeReel) return;
-    await runAction(
-      `${activeKey}:summary`,
-      () => generateAiSummary(activeReel.id),
-      "Couldn’t extract takeaways. Please try again.",
-    );
-  }, [activeReel, activeKey, generateAiSummary, runAction]);
-
-  const chooseCategory = useCallback(
-    async (category: string) => {
-      if (!activeReel || categoryBusy) return;
-      const success = await runAction(
-        `${activeKey}:category`,
-        () => updateCategory(activeReel.id, category),
-        "Couldn’t update the category. Please try again.",
-      );
-      if (success) {
-        setCategoryOpen(false);
-        if (isMobile) closeDrawer();
-        else categoryButtonRef.current?.focus();
-      }
-    },
-    [
-      activeReel,
-      activeKey,
-      categoryBusy,
-      updateCategory,
-      runAction,
-      isMobile,
-      closeDrawer,
-    ],
-  );
-
-  const saveNote = useCallback(
-    async (note: string): Promise<boolean> => {
-      if (!activeReel) return false;
-      try {
-        await updateNote(activeReel.id, note);
-        return true;
-      } catch {
-        notify("Your note wasn’t saved. Please try again.");
-        return false;
-      }
-    },
-    [activeReel, updateNote, notify],
-  );
-
-  const removeReel = useCallback(async () => {
-    setMenuOpen(false);
-    if (!activeReel) return;
-    if (!window.confirm("Delete this reel from your library? This can’t be undone.")) {
-      menuButtonRef.current?.focus();
-      return;
-    }
-
-    const neighbor =
-      availableReels[activeIndex + 1] ?? availableReels[activeIndex - 1];
-    const success = await runAction(
-      `${activeKey}:delete`,
-      () => deleteReel(activeReel.id),
-      "Couldn’t delete this reel. Please try again.",
-      "Reel removed from your library.",
-    );
-
-    if (success) {
-      setRemovedKeys((previous) => [...previous, activeKey]);
-      if (neighbor) setSelectedKey(reelKey(neighbor));
-      else onClose();
-    }
-  }, [
-    activeReel,
-    availableReels,
-    activeIndex,
-    activeKey,
-    deleteReel,
-    runAction,
-    onClose,
-  ]);
-
-  const saveAudio = useCallback(() => {
-    if (!view.audioTitle || isAudioSaved) return;
-
-    try {
-      let existing: unknown = [];
-      try {
-        existing = JSON.parse(localStorage.getItem(AUDIO_STORAGE_KEY) ?? "[]");
-      } catch {
-        existing = [];
-      }
-
-      const items = Array.isArray(existing) ? existing : [];
-      const next = [
-        ...items.filter((item) => record(item).key !== audioKey),
-        {
-          key: audioKey,
-          title: view.audioTitle,
-          artist: view.audioArtist,
-          instagramUrl: view.instagramUrl,
-          savedAt: new Date().toISOString(),
-        },
-      ];
-      localStorage.setItem(AUDIO_STORAGE_KEY, JSON.stringify(next));
-      setSavedAudio(next.map((item) => text(record(item).key)).filter(Boolean));
-      notify("Audio reference saved on this device.");
-    } catch {
-      notify("Couldn’t save audio. Device storage may be unavailable.");
-    }
-  }, [view.audioTitle, view.audioArtist, view.instagramUrl, audioKey, isAudioSaved, notify]);
 
   useEffect(() => {
-    aliveRef.current = true;
     setMounted(true);
-    const media = window.matchMedia("(max-width: 767px)");
-    const update = () => setIsMobile(media.matches);
-    update();
-    media.addEventListener("change", update);
-
-    try {
-      const stored: unknown = JSON.parse(
-        localStorage.getItem(AUDIO_STORAGE_KEY) ?? "[]",
-      );
-      if (Array.isArray(stored)) {
-        setSavedAudio(stored.map((item) => text(record(item).key)).filter(Boolean));
-      }
-    } catch {
-      // Saving audio remains optional when browser storage is restricted.
-    }
-
     return () => {
-      aliveRef.current = false;
-      media.removeEventListener("change", update);
+      sessionRef.current += 1;
+      downloadAbortRef.current?.abort();
     };
   }, []);
 
   useEffect(() => {
-    toastRef.current = showToast;
-  }, [showToast]);
+    onCloseRef.current = onClose;
+  }, [onClose]);
 
   useEffect(() => {
-    if (!isOpen) return;
-    setSelectedKey(propKey || null);
-    setRemovedKeys([]);
+    sessionRef.current += 1;
+    operationLocksRef.current.clear();
+    downloadAbortRef.current?.abort();
+
+    setTab("notes");
+    setDrawerOpen(false);
     setMenuOpen(false);
-    setCategoryOpen(false);
-    setDrawer(null);
-    setDragOffset(0);
-  }, [isOpen, propKey]);
+    setDraft("");
+    setNewCollection("");
+    setGeneratedAnalysis(null);
+    setPosting(false);
+    setLiking(false);
+    setAnalyzing(false);
+    setCategorizing(false);
+    setDeleting(false);
+    setDownloading(false);
+    setAnnouncement("");
+
+    const stored = reelId ? readWorkspace(reelId) : { ...EMPTY_WORKSPACE };
+    workspaceRef.current = stored;
+    setWorkspace(stored);
+  }, [reelId, isOpen]);
 
   useEffect(() => {
-    setDrawer(null);
-    setMenuOpen(false);
-    setCategoryOpen(false);
-    setDragOffset(0);
-  }, [isMobile]);
+    notesRef.current = serverNotes;
+    setNotes(serverNotes);
+  }, [reelId, serverNotes, isOpen]);
 
   useEffect(() => {
-    if (!isOpen || !mounted || !activeReel) return;
-    setAnnouncement(
-      `Reel ${activeIndex + 1} of ${availableReels.length}${view.username ? ` by @${view.username}` : ""}`,
+    setLiked(serverLiked);
+  }, [reelId, serverLiked, isOpen]);
+
+  useEffect(() => {
+    setLikes(
+      count(
+        data.likesCount ??
+          data.likeCount ??
+          data.likes ??
+          record(data.stats).likes ??
+          record(data.metrics).likes,
+      ),
     );
-  }, [isOpen, mounted, activeKey, activeIndex, availableReels.length, view.username, activeReel]);
+  }, [
+    reelId,
+    isOpen,
+    data.likesCount,
+    data.likeCount,
+    data.likes,
+    data.stats,
+    data.metrics,
+  ]);
 
   useEffect(() => {
-    if (!isOpen || !mounted) return;
+    setCategory(serverCategory);
+  }, [reelId, serverCategory, isOpen]);
 
-    const previousFocus = document.activeElement as HTMLElement | null;
+  useEffect(() => {
+    if (!mounted || !isOpen || !reelId) return;
+
+    const previousFocus =
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
     const previousOverflow = document.body.style.overflow;
     const previousPadding = document.body.style.paddingRight;
-    const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+    const scrollbarWidth =
+      window.innerWidth - document.documentElement.clientWidth;
 
-    document.body.style.overflow = "hidden";
     if (scrollbarWidth > 0) {
-      const padding = parseFloat(getComputedStyle(document.body).paddingRight) || 0;
-      document.body.style.paddingRight = `${padding + scrollbarWidth}px`;
+      const currentPadding =
+        Number.parseFloat(getComputedStyle(document.body).paddingRight) || 0;
+      document.body.style.paddingRight = `${currentPadding + scrollbarWidth}px`;
     }
 
-    const background = Array.from(document.body.children).filter(
-      (element) =>
-        element instanceof HTMLElement &&
-        element !== rootRef.current &&
-        !element.contains(rootRef.current),
-    ) as HTMLElement[];
-    const inertStates = background.map((element) => ({
-      element,
-      value: element.getAttribute("inert"),
-    }));
-    background.forEach((element) => element.setAttribute("inert", ""));
-
-    const frame = requestAnimationFrame(() => {
-      (closeRef.current ?? rootRef.current)?.focus();
-    });
+    document.body.style.overflow = "hidden";
+    const frame = requestAnimationFrame(() => closeButtonRef.current?.focus());
 
     return () => {
       cancelAnimationFrame(frame);
       document.body.style.overflow = previousOverflow;
       document.body.style.paddingRight = previousPadding;
-      inertStates.forEach(({ element, value }) => {
-        if (value === null) element.removeAttribute("inert");
-        else element.setAttribute("inert", value);
-      });
       if (previousFocus?.isConnected) previousFocus.focus();
     };
-  }, [isOpen, mounted]);
+  }, [mounted, isOpen, reelId]);
 
   useEffect(() => {
-    if (!isOpen || !mounted) return;
+    if (!mounted || !isOpen || !reelId) return;
 
-    const handleKeyDown = (event: KeyboardEvent) => {
+    const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         event.preventDefault();
         event.stopPropagation();
+
         if (menuOpen) {
           setMenuOpen(false);
           menuButtonRef.current?.focus();
-        } else if (categoryOpen) {
-          setCategoryOpen(false);
-          categoryButtonRef.current?.focus();
-        } else if (drawer) {
-          closeDrawer();
+        } else if (drawerOpen) {
+          setDrawerOpen(false);
         } else {
-          onClose();
+          onCloseRef.current();
         }
         return;
       }
 
-      if (event.key === "Tab") {
-        const scope = drawer ? drawerRef.current : rootRef.current;
-        const focusable = Array.from(
-          scope?.querySelectorAll<HTMLElement>(
-            'a[href], button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])',
-          ) ?? [],
-        ).filter(
-          (element) =>
-            element.getClientRects().length > 0 &&
-            !element.closest("[inert]"),
-        );
+      if (event.key !== "Tab") return;
 
-        if (!focusable.length) {
-          event.preventDefault();
-          scope?.focus();
-          return;
-        }
+      const mobileDrawer =
+        drawerOpen && !window.matchMedia("(min-width: 768px)").matches;
+      const root = mobileDrawer ? drawerRef.current : dialogRef.current;
+      if (!root) return;
 
-        const first = focusable[0];
-        const last = focusable[focusable.length - 1];
-        const current = document.activeElement;
-        if (event.shiftKey && (current === first || !scope?.contains(current))) {
-          event.preventDefault();
-          last.focus();
-        } else if (
-          !event.shiftKey &&
-          (current === last || !scope?.contains(current))
-        ) {
-          event.preventDefault();
-          first.focus();
-        }
-        return;
-      }
+      const focusable = Array.from(
+        root.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ),
+      ).filter(
+        (element) =>
+          element.getClientRects().length > 0 &&
+          !element.closest('[aria-hidden="true"], [inert]'),
+      );
 
-      if (menuOpen || categoryOpen || drawer || event.altKey || event.ctrlKey || event.metaKey) {
-        return;
-      }
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
 
-      const target = event.target as HTMLElement | null;
-      if (
-        target?.closest(
-          'input, textarea, select, [contenteditable="true"], [role="slider"], [role="combobox"], video',
-        )
+      if (!first || !last) {
+        event.preventDefault();
+        root.focus();
+      } else if (
+        event.shiftKey &&
+        (document.activeElement === first ||
+          !root.contains(document.activeElement))
       ) {
-        return;
-      }
-
-      if (event.key === "ArrowDown" || event.key === "ArrowRight") {
         event.preventDefault();
-        navigate(1);
-      } else if (event.key === "ArrowUp" || event.key === "ArrowLeft") {
+        last.focus();
+      } else if (
+        !event.shiftKey &&
+        (document.activeElement === last ||
+          !root.contains(document.activeElement))
+      ) {
         event.preventDefault();
-        navigate(-1);
+        first.focus();
       }
     };
 
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [
-    isOpen,
-    mounted,
-    menuOpen,
-    categoryOpen,
-    drawer,
-    closeDrawer,
-    navigate,
-    onClose,
-  ]);
+    document.addEventListener("keydown", onKeyDown, true);
+    return () => document.removeEventListener("keydown", onKeyDown, true);
+  }, [mounted, isOpen, reelId, drawerOpen, menuOpen]);
 
   useEffect(() => {
-    if (!menuOpen && !categoryOpen) return;
+    if (!menuOpen) return;
 
-    const dismiss = (event: PointerEvent) => {
-      const target = event.target as Node;
+    const handlePointerDown = (event: PointerEvent) => {
       if (
-        menuOpen &&
-        !menuRef.current?.contains(target) &&
-        !menuButtonRef.current?.contains(target)
+        event.target instanceof Node &&
+        !menuRef.current?.contains(event.target)
       ) {
         setMenuOpen(false);
       }
-      if (
-        categoryOpen &&
-        !categoryRef.current?.contains(target) &&
-        !categoryButtonRef.current?.contains(target)
-      ) {
-        setCategoryOpen(false);
-      }
     };
 
-    document.addEventListener("pointerdown", dismiss);
-    const frame = requestAnimationFrame(() => {
-      const scope = menuOpen ? menuRef.current : categoryRef.current;
-      scope?.querySelector<HTMLElement>("button:not([disabled]), a[href]")?.focus();
-    });
-
-    return () => {
-      document.removeEventListener("pointerdown", dismiss);
-      cancelAnimationFrame(frame);
-    };
-  }, [menuOpen, categoryOpen]);
+    document.addEventListener("pointerdown", handlePointerDown);
+    return () => document.removeEventListener("pointerdown", handlePointerDown);
+  }, [menuOpen]);
 
   useEffect(() => {
-    if (!drawer) return;
-    const frame = requestAnimationFrame(() => drawerRef.current?.focus());
-    return () => cancelAnimationFrame(frame);
-  }, [drawer]);
+    if (!drawerOpen) return;
 
-  if (!isOpen || !activeReel || !mounted) return null;
+    const previous =
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
+    const frame = requestAnimationFrame(() => drawerCloseRef.current?.focus());
 
-  const creatorHref = view.username
-    ? `/creator/${encodeURIComponent(view.username)}`
-    : undefined;
+    return () => {
+      cancelAnimationFrame(frame);
+      if (previous?.isConnected) previous.focus();
+    };
+  }, [drawerOpen]);
 
-  const creator = (
-    <div className="flex min-w-0 items-center gap-3">
-      <Avatar username={view.username} src={view.avatar} />
-      <div className="min-w-0">
-        <div className="flex min-w-0 items-center gap-1.5">
-          {creatorHref ? (
-            <a
-              href={creatorHref}
-              className="rd-focus truncate rounded text-sm font-semibold text-zinc-100 hover:text-white"
-              title={`@${view.username}`}
-            >
-              @{view.username}
-            </a>
-          ) : (
-            <span className="text-sm font-semibold text-zinc-100">Unknown creator</span>
-          )}
-          {view.verified && <VerifiedBadge />}
-        </div>
-        {view.instagramUrl && (
-          <a
-            href={view.instagramUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="rd-focus rounded text-xs text-sky-400 transition-colors hover:text-sky-300"
-            aria-label={`Follow ${view.username || "creator"} on Instagram`}
-          >
-            Follow
-          </a>
-        )}
-      </div>
-    </div>
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const query = window.matchMedia("(min-width: 768px)");
+    const handleChange = () => {
+      if (query.matches) setDrawerOpen(false);
+    };
+
+    query.addEventListener("change", handleChange);
+    return () => query.removeEventListener("change", handleChange);
+  }, [isOpen]);
+
+  if (!mounted || !isOpen || !activeReel) return null;
+
+  const username =
+    firstText(
+      data.creatorUsername,
+      data.username,
+      data.ownerUsername,
+      creator.username,
+      creator.userName,
+    ).replace(/^@+/, "") || "creator";
+
+  const creatorHref = `/creator/${encodeURIComponent(username)}`;
+  const avatarUrl = safeUrl(
+    firstText(
+      data.creatorAvatar,
+      data.creatorAvatarUrl,
+      data.profilePicUrl,
+      data.profilePictureUrl,
+      creator.avatarUrl,
+      creator.avatar,
+      creator.profilePicUrl,
+      creator.profilePictureUrl,
+    ),
   );
 
-  const menu = (
-    <div className="relative shrink-0">
-      <button
-        ref={menuButtonRef}
-        type="button"
-        className={iconButton}
-        aria-label="Reel options"
-        aria-haspopup="menu"
-        aria-expanded={menuOpen}
-        aria-controls={menuOpen ? menuId : undefined}
-        onClick={() => {
-          setCategoryOpen(false);
-          setMenuOpen((previous) => !previous);
+  const verified = booleanValue(
+    data.isVerified,
+    data.creatorVerified,
+    creator.isVerified,
+    creator.verified,
+  );
+
+  const instagramUrl = safeUrl(
+    firstText(data.instagramUrl, data.instagram_url, data.sourceUrl, data.url),
+  );
+
+  const videoUrl = safeUrl(
+    firstText(
+      data.downloadUrl,
+      data.videoUrl,
+      data.video_url,
+      data.mediaUrl,
+      record(data.video).url,
+    ),
+  );
+
+  const caption = cleanCaption(
+    firstText(data.caption, data.description, record(data.caption).text),
+  );
+
+  const audio = record(data.audio);
+  const audioTitle = firstText(data.audioTitle, audio.title, audio.name);
+  const audioArtist = firstText(
+    data.audioArtist,
+    data.audioAuthor,
+    audio.artist,
+    audio.author,
+  );
+
+  const postedAt = parseDate(
+    data.postedAt ??
+      data.publishedAt ??
+      data.takenAt ??
+      data.timestamp ??
+      data.createdAt,
+  );
+
+  const shortDate = postedAt
+    ? new Intl.DateTimeFormat("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      }).format(postedAt)
+    : "";
+
+  const longDate = postedAt
+    ? new Intl.DateTimeFormat("en-US", {
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+      }).format(postedAt)
+    : "";
+
+  const collectionOptions = unique([
+    ...DEFAULT_COLLECTIONS,
+    ...workspace.customCollections,
+    workspace.collection,
+  ]);
+
+  const hasAnalysis = Boolean(analysis.hook || analysis.takeaways.length);
+  const busySession = sessionRef.current;
+
+  function notify(message: string) {
+    setAnnouncement(message);
+    showToast(message);
+  }
+
+  function isCurrent(session: number) {
+    return sessionRef.current === session;
+  }
+
+  function beginOperation(name: string) {
+    if (operationLocksRef.current.has(name)) return false;
+    operationLocksRef.current.add(name);
+    return true;
+  }
+
+  function finishOperation(name: string, session: number) {
+    if (isCurrent(session)) operationLocksRef.current.delete(name);
+  }
+
+  function persistWorkspace(patch: Partial<Workspace>): boolean {
+    const next = { ...workspaceRef.current, ...patch };
+
+    try {
+      localStorage.setItem(workspaceKey(reelId), JSON.stringify(next));
+      workspaceRef.current = next;
+      setWorkspace(next);
+      return true;
+    } catch {
+      notify("Could not save on this device. Check your browser storage settings.");
+      return false;
+    }
+  }
+
+  function toggleCollection() {
+    const next = workspaceRef.current.collection ? "" : "Saved reels";
+    if (persistWorkspace({ collection: next })) {
+      notify(next ? "Added to Saved reels on this device." : "Removed from collection.");
+    }
+  }
+
+  function openWorkspace(nextTab: Tab, focusComposer = false) {
+    setTab(nextTab);
+    setMenuOpen(false);
+
+    const mobile = !window.matchMedia("(min-width: 768px)").matches;
+    if (mobile) setDrawerOpen(true);
+
+    if (focusComposer && !mobile) {
+      requestAnimationFrame(() => desktopComposerRef.current?.focus());
+    }
+  }
+
+  async function copyLink() {
+    setMenuOpen(false);
+    const url = instagramUrl;
+
+    if (!url) {
+      notify("This reel does not have a shareable Instagram link.");
+      return;
+    }
+
+    try {
+      if (!navigator.clipboard?.writeText) throw new Error("Clipboard unavailable");
+      await navigator.clipboard.writeText(url);
+      if (isCurrent(busySession)) notify("Link copied.");
+    } catch {
+      if (isCurrent(busySession)) {
+        notify("Could not copy the link. Open in Instagram to share this reel.");
+      }
+    }
+  }
+
+  async function handleLike() {
+    if (!activeReel || !beginOperation("like")) return;
+
+    const session = sessionRef.current;
+    const previous = liked;
+    const previousCount = likes;
+    setLiking(true);
+    setLiked(!previous);
+    setLikes(Math.max(0, previousCount + (previous ? -1 : 1)));
+
+    try {
+      await toggleFavorite(activeReel.id);
+    } catch {
+      if (isCurrent(session)) {
+        setLiked(previous);
+        setLikes(previousCount);
+        notify("Could not update your like. Please try again.");
+      }
+    } finally {
+      if (isCurrent(session)) setLiking(false);
+      finishOperation("like", session);
+    }
+  }
+
+  async function postNote() {
+    const addition = draft.trim();
+    if (!activeReel || !addition || !beginOperation("note")) return;
+
+    const session = sessionRef.current;
+    const previous = notesRef.current;
+    const next = previous ? `${previous}\n\n${addition}` : addition;
+
+    setPosting(true);
+    setNotes(next);
+    notesRef.current = next;
+    setDraft("");
+
+    try {
+      await updateNote(activeReel.id, next);
+      if (isCurrent(session)) notify("Note saved.");
+    } catch {
+      if (isCurrent(session)) {
+        notesRef.current = previous;
+        setNotes(previous);
+        setDraft(addition);
+        notify("Could not save your note. Your draft has been restored.");
+      }
+    } finally {
+      if (isCurrent(session)) setPosting(false);
+      finishOperation("note", session);
+    }
+  }
+
+  async function analyzeReel() {
+    if (!activeReel || !beginOperation("analysis")) return;
+
+    const session = sessionRef.current;
+    setAnalyzing(true);
+
+    try {
+      const result: unknown = await generateAiSummary(activeReel.id);
+
+      if (isCurrent(session)) {
+        const response = record(result);
+        const candidate =
+          response.aiAnalysis ??
+          response.aiSummary ??
+          response.analysis ??
+          result;
+        const parsed = parseAnalysis(candidate);
+
+        if (parsed.hook || parsed.takeaways.length || parsed.tags.length) {
+          setGeneratedAnalysis(candidate);
+        }
+        setAnnouncement("Analysis request completed.");
+      }
+    } catch {
+      if (isCurrent(session)) {
+        notify("Analysis could not be completed. Please try again.");
+      }
+    } finally {
+      if (isCurrent(session)) setAnalyzing(false);
+      finishOperation("analysis", session);
+    }
+  }
+
+  async function changeCategory(next: string) {
+    if (!activeReel || next === category || !beginOperation("category")) return;
+
+    const session = sessionRef.current;
+    const previous = category;
+    setCategory(next);
+    setCategorizing(true);
+
+    try {
+      await updateCategory(activeReel.id, next);
+      if (isCurrent(session)) notify("Category updated.");
+    } catch {
+      if (isCurrent(session)) {
+        setCategory(previous);
+        notify("Could not update the category. Please try again.");
+      }
+    } finally {
+      if (isCurrent(session)) setCategorizing(false);
+      finishOperation("category", session);
+    }
+  }
+
+  async function downloadVideo() {
+    if (!videoUrl || !beginOperation("download")) return;
+
+    const session = sessionRef.current;
+    const controller = new AbortController();
+    downloadAbortRef.current = controller;
+    setMenuOpen(false);
+    setDownloading(true);
+
+    let objectUrl = "";
+
+    try {
+      const response = await fetch(videoUrl, { signal: controller.signal });
+      if (!response.ok) throw new Error("Download failed");
+
+      const blob = await response.blob();
+      if (!blob.size) throw new Error("Empty video");
+      if (
+        blob.type &&
+        !blob.type.startsWith("video/") &&
+        blob.type !== "application/octet-stream"
+      ) {
+        throw new Error("Invalid video response");
+      }
+
+      if (!isCurrent(session)) return;
+
+      objectUrl = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = objectUrl;
+      anchor.download = `${username.replace(/[^\w.-]/g, "_")}-${reelId.replace(/[^\w.-]/g, "_")}.mp4`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      notify("Download started.");
+    } catch {
+      if (!controller.signal.aborted && isCurrent(session)) {
+        notify("Download unavailable. You can still open this reel in Instagram.");
+      }
+    } finally {
+      if (objectUrl) {
+        const urlToRevoke = objectUrl;
+        window.setTimeout(() => URL.revokeObjectURL(urlToRevoke), 30_000);
+      }
+      if (isCurrent(session)) {
+        setDownloading(false);
+        downloadAbortRef.current = null;
+      }
+      finishOperation("download", session);
+    }
+  }
+
+  async function removeReel() {
+    if (!activeReel) return;
+    setMenuOpen(false);
+
+    if (
+      !window.confirm(
+        "Delete this reel from ReelDash? This does not delete the original Instagram post.",
+      ) ||
+      !beginOperation("delete")
+    ) {
+      return;
+    }
+
+    const session = sessionRef.current;
+    setDeleting(true);
+
+    try {
+      await deleteReel(activeReel.id);
+      if (isCurrent(session)) {
+        try {
+          localStorage.removeItem(workspaceKey(reelId));
+        } catch {
+          // Deleting the reel does not depend on local storage availability.
+        }
+        notify("Reel deleted.");
+        onCloseRef.current();
+      }
+    } catch {
+      if (isCurrent(session)) notify("Could not delete this reel. Please try again.");
+    } finally {
+      if (isCurrent(session)) setDeleting(false);
+      finishOperation("delete", session);
+    }
+  }
+
+  function renderCreatorName(className = "") {
+    return (
+      <span className={`inline-flex min-w-0 items-center gap-1.5 ${className}`}>
+        <a
+          href={creatorHref}
+          className="truncate font-semibold text-zinc-100 hover:text-white focus-visible:rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+        >
+          @{username}
+        </a>
+        {verified && <VerifiedBadge />}
+      </span>
+    );
+  }
+
+  function renderTabs(scope: string) {
+    const tabs: { id: Tab; label: string }[] = [
+      { id: "notes", label: "Notes & Discussion" },
+      { id: "analysis", label: "AI Analysis" },
+      { id: "organize", label: "Organize" },
+    ];
+
+    return (
+      <div
+        role="tablist"
+        aria-label="Creator workspace"
+        className="flex gap-4 border-b border-white/[0.08]"
+        onKeyDown={(event) => {
+          const index = tabs.findIndex((item) => item.id === tab);
+          let next = index;
+
+          if (event.key === "ArrowRight") next = (index + 1) % tabs.length;
+          else if (event.key === "ArrowLeft") {
+            next = (index - 1 + tabs.length) % tabs.length;
+          } else if (event.key === "Home") next = 0;
+          else if (event.key === "End") next = tabs.length - 1;
+          else return;
+
+          event.preventDefault();
+          setTab(tabs[next].id);
+          document
+            .getElementById(`${componentId}-${scope}-tab-${tabs[next].id}`)
+            ?.focus();
         }}
       >
-        <Icon name="more" className="h-5 w-5" />
-      </button>
-      {menuOpen && (
-        <div
-          ref={menuRef}
-          id={menuId}
-          role="menu"
-          aria-label="Reel options"
-          className="rd-popover absolute right-0 top-11 z-50 w-56 rounded-2xl border border-white/[0.07] bg-[#191C25] p-1.5 shadow-2xl"
-          onKeyDown={(event) => {
-            if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) return;
-            event.preventDefault();
-            event.stopPropagation();
-            const items = Array.from(
-              event.currentTarget.querySelectorAll<HTMLElement>(
-                '[role="menuitem"]:not([disabled])',
-              ),
-            );
-            if (!items.length) return;
-            const index = items.indexOf(document.activeElement as HTMLElement);
-            const next =
-              event.key === "Home"
-                ? 0
-                : event.key === "End"
-                  ? items.length - 1
-                  : (index + (event.key === "ArrowDown" ? 1 : -1) + items.length) %
-                    items.length;
-            items[next]?.focus();
-          }}
-        >
+        {tabs.map((item) => (
           <button
-            role="menuitem"
+            key={item.id}
+            id={`${componentId}-${scope}-tab-${item.id}`}
             type="button"
-            className="rd-menu-item"
-            onClick={copyLink}
-            disabled={!view.instagramUrl}
+            role="tab"
+            aria-selected={tab === item.id}
+            aria-controls={`${componentId}-${scope}-panel`}
+            tabIndex={tab === item.id ? 0 : -1}
+            onClick={() => setTab(item.id)}
+            className={`relative whitespace-nowrap py-3.5 text-xs font-medium transition focus-visible:rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 ${
+              tab === item.id
+                ? "text-white after:absolute after:inset-x-0 after:bottom-[-1px] after:h-0.5 after:rounded-full after:bg-white"
+                : "text-zinc-500 hover:text-zinc-300"
+            }`}
           >
-            <Icon name="link" /> Copy link
+            {item.label}
           </button>
-          <button
-            role="menuitem"
-            type="button"
-            className="rd-menu-item"
-            onClick={download}
-            disabled={!view.videoUrl || downloadBusy}
-          >
-            <Icon name="download" />
-            {downloadBusy ? "Downloading…" : "Download MP4"}
-          </button>
-          {view.instagramUrl && (
-            <a
-              role="menuitem"
-              className="rd-menu-item"
-              href={view.instagramUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={() => setMenuOpen(false)}
-            >
-              <Icon name="external" /> Open on Instagram
-            </a>
-          )}
-          <div className="my-1 h-px bg-white/[0.07]" />
-          <button
-            role="menuitem"
-            type="button"
-            className="rd-menu-item !text-rose-400 hover:!bg-rose-400/10"
-            onClick={removeReel}
-            disabled={busy[`${activeKey}:delete`]}
-          >
-            <Icon name="trash" /> Delete reel
-          </button>
+        ))}
+      </div>
+    );
+  }
+
+  function renderPanel(scope: string) {
+    let content: ReactNode;
+
+    if (tab === "notes") {
+      content = notes.trim() ? (
+        <article className="rounded-2xl border border-white/[0.07] bg-white/[0.025] p-4">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <span className="text-xs font-semibold text-zinc-200">Your notes</span>
+            <span className="text-[10px] text-zinc-500">Private · Only you</span>
+          </div>
+          <p className="whitespace-pre-wrap text-sm leading-7 text-zinc-300 [overflow-wrap:anywhere]">
+            {notes}
+          </p>
+        </article>
+      ) : (
+        <div className="py-8 text-center">
+          <MessageCircle
+            size={24}
+            strokeWidth={1.4}
+            className="mx-auto mb-3 text-zinc-600"
+            aria-hidden="true"
+          />
+          <h3 className="text-sm font-medium text-zinc-200">No notes yet.</h3>
+          <p className="mx-auto mt-1.5 max-w-64 text-sm leading-6 text-zinc-500">
+            Add your thoughts or hooks below.
+          </p>
+          <p className="mt-4 text-[11px] text-zinc-600">
+            Your private workspace, not Instagram comments.
+          </p>
         </div>
-      )}
-    </div>
-  );
-
-  const categoryOptions = (
-    <div className="custom-scrollbar max-h-72 overflow-y-auto p-1.5" aria-busy={categoryBusy}>
-      {!availableCategories.length && (
-        <p className="px-3 py-4 text-sm leading-relaxed text-zinc-500">
-          No categories yet. Create one in your library to organize this reel.
-        </p>
-      )}
-      {availableCategories.map((category) => (
-        <button
-          key={category}
-          type="button"
-          disabled={categoryBusy}
-          aria-pressed={view.category === category}
-          className="rd-menu-item justify-between"
-          onClick={() => void chooseCategory(category)}
-        >
-          <span className="min-w-0 break-words text-left [overflow-wrap:anywhere]">
-            {category}
-          </span>
-          {view.category === category && (
-            <Icon name="check" className="h-4 w-4 shrink-0 text-sky-400" />
-          )}
-        </button>
-      ))}
-      {view.category && (
-        <>
-          <div className="my-1 h-px bg-white/[0.07]" />
-          <button
-            type="button"
-            disabled={categoryBusy}
-            className="rd-menu-item !text-zinc-500"
-            onClick={() => void chooseCategory("")}
-          >
-            Remove category
-          </button>
-        </>
-      )}
-    </div>
-  );
-
-  const audioBar = view.audioTitle ? (
-    <div className="flex min-w-0 items-center gap-3 rounded-xl bg-white/[0.035] px-3.5 py-3">
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/[0.05] text-zinc-400">
-        <Icon name="music" />
-      </div>
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-xs font-medium text-zinc-200" title={view.audioTitle}>
-          {view.audioTitle}
-        </p>
-        <p className="mt-0.5 truncate text-[11px] text-zinc-500">
-          {view.audioArtist || "Original audio"}
-        </p>
-      </div>
-      <button
-        type="button"
-        onClick={saveAudio}
-        disabled={isAudioSaved}
-        title="Save this audio reference on this device"
-        className="rd-focus inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-2 text-[11px] font-medium text-zinc-300 transition-colors hover:bg-white/[0.05] hover:text-white disabled:text-zinc-500"
-      >
-        <Icon name={isAudioSaved ? "check" : "plus"} className="h-3 w-3" />
-        {isAudioSaved ? "Saved" : "Save audio"}
-      </button>
-    </div>
-  ) : null;
-
-  const takeaways = (
-    <section aria-label="Key takeaways" aria-busy={summaryBusy}>
-      {view.summary.length ? (
-        <>
-          <div className="mb-4 flex items-center justify-between gap-3">
-            <h3 className="flex items-center gap-2 text-xs font-medium text-zinc-400">
-              <Icon name="sparkles" className="h-3.5 w-3.5" />
-              Key takeaways
-            </h3>
+      );
+    } else if (tab === "analysis") {
+      content = (
+        <div className="space-y-6" aria-busy={analyzing}>
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h3 className="flex items-center gap-2 text-sm font-semibold text-zinc-100">
+                <Sparkles size={15} className="text-zinc-400" aria-hidden="true" />
+                Creative breakdown
+              </h3>
+              <p className="mt-1.5 text-xs leading-5 text-zinc-500">
+                Understand the hook. Find your next angle.
+              </p>
+            </div>
             <button
               type="button"
-              onClick={generateSummary}
-              disabled={summaryBusy}
-              className="rd-focus inline-flex items-center gap-1.5 rounded-md text-[11px] text-zinc-500 transition-colors hover:text-zinc-200 disabled:opacity-50"
+              disabled={analyzing}
+              onClick={() => void analyzeReel()}
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-white/15 px-3 py-2 text-xs font-medium text-zinc-100 transition hover:bg-white/[0.07] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 disabled:opacity-50"
             >
-              <Icon
-                name="refresh"
-                className={`h-3 w-3 ${summaryBusy ? "rd-spin" : ""}`}
-              />
-              {summaryBusy ? "Extracting…" : "Regenerate"}
+              {analyzing ? (
+                <Loader2 size={13} className="animate-spin" aria-hidden="true" />
+              ) : (
+                <Sparkles size={13} aria-hidden="true" />
+              )}
+              {analyzing ? "Analyzing…" : hasAnalysis ? "Regenerate" : "Analyze Reel"}
             </button>
           </div>
-          <ul className="space-y-3">
-            {view.summary.map((point, index) => (
-              <li key={`${index}-${point}`} className="flex min-w-0 gap-3">
-                <span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-sky-400/70" />
-                <span className="min-w-0 select-text break-words text-sm leading-relaxed text-zinc-300 [overflow-wrap:anywhere]">
-                  {point}
+
+          <section>
+            <h4 className="mb-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-zinc-500">
+              Hook breakdown · First 3 seconds
+            </h4>
+            <p className="whitespace-pre-wrap text-sm leading-6 text-zinc-300 [overflow-wrap:anywhere]">
+              {analysis.hook ||
+                (hasAnalysis
+                  ? "A separate opening-hook breakdown is not available for this reel."
+                  : "Analyze this reel to discover what captures attention at the start.")}
+            </p>
+          </section>
+
+          <section>
+            <h4 className="mb-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-zinc-500">
+              Strategy & takeaways
+            </h4>
+            {analysis.takeaways.length ? (
+              <ul className="space-y-3">
+                {analysis.takeaways.map((takeaway, index) => (
+                  <li
+                    key={`${index}-${takeaway.slice(0, 30)}`}
+                    className="flex gap-3 text-sm leading-6 text-zinc-300"
+                  >
+                    <span
+                      aria-hidden="true"
+                      className="mt-2.5 h-1 w-1 shrink-0 rounded-full bg-zinc-500"
+                    />
+                    <span className="min-w-0 whitespace-pre-wrap [overflow-wrap:anywhere]">
+                      {takeaway}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm leading-6 text-zinc-500">
+                Key ideas and reusable creative patterns will appear here.
+              </p>
+            )}
+          </section>
+
+          <section>
+            <h4 className="mb-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-zinc-500">
+              Topics & semantic tags
+            </h4>
+            {semanticTags.length ? (
+              <div className="flex flex-wrap gap-2">
+                {semanticTags.map((topic) => (
+                  <span
+                    key={topic}
+                    className="max-w-full rounded-full border border-white/[0.08] px-2.5 py-1 text-xs text-zinc-400 [overflow-wrap:anywhere]"
+                  >
+                    #{topic}
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs leading-5 text-zinc-500">
+                No topics identified yet.
+              </p>
+            )}
+          </section>
+
+          {hasAnalysis && (
+            <p className="border-t border-white/[0.06] pt-3 text-[10px] leading-5 text-zinc-600">
+              AI-generated insights can be imperfect. Check them against the reel.
+            </p>
+          )}
+        </div>
+      );
+    } else {
+      content = (
+        <div className="space-y-6">
+          <div>
+            <label
+              htmlFor={`${componentId}-${scope}-category`}
+              className="mb-2.5 flex items-center gap-2 text-xs font-medium text-zinc-300"
+            >
+              <Tag size={14} className="text-zinc-500" aria-hidden="true" />
+              Category
+              {categorizing && (
+                <Loader2 size={12} className="animate-spin" aria-hidden="true" />
+              )}
+            </label>
+            <select
+              id={`${componentId}-${scope}-category`}
+              value={category}
+              disabled={categorizing}
+              onChange={(event) => void changeCategory(event.target.value)}
+              className={`${FIELD} rounded-full disabled:opacity-50`}
+            >
+              <option value="" className="bg-zinc-900">
+                Uncategorized
+              </option>
+              {availableCategories.map((item) => (
+                <option key={item} value={item} className="bg-zinc-900">
+                  {item}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label
+              htmlFor={`${componentId}-${scope}-collection`}
+              className="mb-2.5 flex items-center gap-2 text-xs font-medium text-zinc-300"
+            >
+              <Folder size={14} className="text-zinc-500" aria-hidden="true" />
+              Add to collection
+            </label>
+            <select
+              id={`${componentId}-${scope}-collection`}
+              value={workspace.collection}
+              onChange={(event) => {
+                const collection = event.target.value;
+                if (persistWorkspace({ collection })) {
+                  notify(
+                    collection
+                      ? `Added to ${collection} on this device.`
+                      : "Removed from collection.",
+                  );
+                }
+              }}
+              className={FIELD}
+            >
+              <option value="" className="bg-zinc-900">
+                Choose a collection
+              </option>
+              {collectionOptions.map((item) => (
+                <option key={item} value={item} className="bg-zinc-900">
+                  {item}
+                </option>
+              ))}
+            </select>
+
+            <form
+              className="mt-3 flex items-center gap-2"
+              onSubmit={(event) => {
+                event.preventDefault();
+                const name = newCollection.trim();
+                if (!name) return;
+
+                if (
+                  persistWorkspace({
+                    collection: name,
+                    customCollections: unique([
+                      ...workspaceRef.current.customCollections,
+                      name,
+                    ]),
+                  })
+                ) {
+                  setNewCollection("");
+                  notify(`Created ${name} and added this reel.`);
+                }
+              }}
+            >
+              <input
+                aria-label="New collection name"
+                value={newCollection}
+                onChange={(event) => setNewCollection(event.target.value)}
+                maxLength={60}
+                placeholder="New collection…"
+                className={`${FIELD} min-w-0 py-2.5 text-xs`}
+              />
+              <button
+                type="submit"
+                disabled={!newCollection.trim()}
+                className="shrink-0 rounded-lg px-3 py-2.5 text-xs font-semibold text-zinc-200 transition hover:bg-white/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 disabled:opacity-30"
+              >
+                Create
+              </button>
+            </form>
+            <p className="mt-3 text-[11px] leading-5 text-zinc-500">
+              Collections and saved audio are stored on this device.
+            </p>
+          </div>
+
+          {workspace.collection && (
+            <div className="flex items-start gap-2.5 rounded-xl bg-white/[0.03] p-3.5">
+              <Check size={15} className="mt-0.5 shrink-0 text-zinc-400" />
+              <p className="text-xs leading-5 text-zinc-400 [overflow-wrap:anywhere]">
+                Saved in{" "}
+                <span className="font-medium text-zinc-200">
+                  {workspace.collection}
                 </span>
-              </li>
-            ))}
-          </ul>
-        </>
-      ) : (
+              </p>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    return (
+      <div
+        id={`${componentId}-${scope}-panel`}
+        role="tabpanel"
+        aria-labelledby={`${componentId}-${scope}-tab-${tab}`}
+        tabIndex={0}
+        className="py-5 outline-none focus-visible:rounded-xl focus-visible:ring-1 focus-visible:ring-white/30"
+      >
+        {content}
+      </div>
+    );
+  }
+
+  function renderComposer(mobile: boolean) {
+    return (
+      <form
+        className="flex items-end gap-3"
+        onSubmit={(event) => {
+          event.preventDefault();
+          void postNote();
+        }}
+      >
+        <label
+          htmlFor={`${componentId}-${mobile ? "mobile" : "desktop"}-note`}
+          className="sr-only"
+        >
+          Add a private note or thought
+        </label>
+        <textarea
+          ref={mobile ? mobileComposerRef : desktopComposerRef}
+          id={`${componentId}-${mobile ? "mobile" : "desktop"}-note`}
+          rows={1}
+          maxLength={10_000}
+          value={draft}
+          disabled={posting}
+          onChange={(event) => {
+            setDraft(event.target.value);
+            event.currentTarget.style.height = "auto";
+            event.currentTarget.style.height = `${Math.min(event.currentTarget.scrollHeight, 112)}px`;
+          }}
+          onKeyDown={(event) => {
+            if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+              event.preventDefault();
+              void postNote();
+            }
+          }}
+          placeholder="Add a note or thought…"
+          className="min-h-10 max-h-28 w-full resize-none rounded-xl border border-white/10 bg-white/[0.04] px-3.5 py-2.5 text-xs text-zinc-100 placeholder:text-zinc-600 focus:border-white/30 focus:outline-none focus:ring-2 focus:ring-white/10 disabled:opacity-40"
+        />
         <button
-          type="button"
-          onClick={generateSummary}
-          disabled={summaryBusy}
-          className="rd-focus group inline-flex min-h-10 items-center gap-2.5 rounded-full bg-sky-400/[0.07] px-4 py-2.5 text-xs font-medium text-sky-200 transition-colors hover:bg-sky-400/[0.12] disabled:cursor-wait disabled:opacity-60"
+          type="submit"
+          disabled={!draft.trim() || posting}
+          className="inline-flex h-10 shrink-0 items-center justify-center rounded-xl bg-white px-4 text-xs font-semibold text-black transition hover:bg-zinc-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 disabled:cursor-not-allowed disabled:opacity-30"
         >
-          <Icon
-            name={summaryBusy ? "refresh" : "sparkles"}
-            className={`h-4 w-4 text-sky-400 ${summaryBusy ? "rd-spin" : ""}`}
-          />
-          {summaryBusy ? "Extracting key takeaways…" : "Extract Key Takeaways"}
+          {posting ? <Loader2 size={14} className="animate-spin" /> : "Post"}
         </button>
-      )}
-    </section>
-  );
-
-  const captionContent = (
-    <section className="min-w-0" aria-label="Caption">
-      {view.caption ? (
-        <Caption value={view.caption} />
-      ) : (
-        <p className="text-sm text-zinc-500">No caption for this reel.</p>
-      )}
-      {view.date && (
-        <time
-          dateTime={view.date.iso}
-          className="mt-4 block text-[11px] text-zinc-500"
-        >
-          {view.date.label}
-        </time>
-      )}
-    </section>
-  );
-
-  const downloadButton = (
-    <button
-      type="button"
-      onClick={download}
-      disabled={downloadBusy || !view.videoUrl}
-      title={!view.videoUrl ? "Video file unavailable" : "Download video"}
-      className="rd-focus inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-full bg-sky-400 px-4 py-2.5 text-xs font-semibold text-[#07121C] shadow-[0_3px_16px_rgba(56,189,248,0.1)] transition-colors hover:bg-sky-300 disabled:cursor-not-allowed disabled:opacity-40"
-    >
-      <Icon name={downloadBusy ? "refresh" : "download"} className={`h-4 w-4 ${downloadBusy ? "rd-spin" : ""}`} />
-      {downloadBusy ? "Downloading…" : "Download MP4"}
-    </button>
-  );
+      </form>
+    );
+  }
 
   return createPortal(
     <div
-      ref={rootRef}
+      ref={dialogRef}
       role="dialog"
       aria-modal="true"
-      aria-labelledby={titleId}
-      className="fixed inset-0 z-[100] flex items-center justify-center select-none"
+      aria-label={`Reel by ${username}`}
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/85 p-0 backdrop-blur-md select-none md:p-6"
     >
-      <style>{`
-        .rd-focus:focus-visible { outline: 2px solid #38bdf8; outline-offset: 1px; }
-        .rd-menu-item { display: flex; width: 100%; align-items: center; gap: 0.625rem; border-radius: 0.625rem; padding: 0.5rem 0.75rem; font-size: 0.8125rem; font-weight: 500; color: #d4d4d8; transition: all 150ms; text-align: left; }
-        .rd-menu-item:hover { background-color: rgba(255, 255, 255, 0.06); color: #ffffff; }
-        .rd-menu-item:disabled { opacity: 0.35; cursor: not-allowed; }
-        .rd-spin { animation: rd-spin 1s linear infinite; }
-        @keyframes rd-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-      `}</style>
-
       {/* Screen reader live announcements */}
       <div className="sr-only" aria-live="polite">
         {announcement}
       </div>
 
-      {/* Backdrop */}
+      {/* Desktop Backdrop Close */}
       <div
-        className="fixed inset-0 bg-black/85 backdrop-blur-md transition-opacity"
-        onClick={onClose}
+        className="fixed inset-0 bg-transparent"
+        onClick={() => onCloseRef.current()}
         aria-hidden="true"
       />
 
-      {isMobile ? (
-        /* ─── MOBILE VIEW: 100dvh Edge-to-Edge Native Reel Experience ─── */
-        <div className="fixed inset-0 z-10 h-[100dvh] w-full bg-black flex flex-col justify-between overflow-hidden select-none">
-          {/* Full bleed Video Player */}
-          <div className="absolute inset-0 w-full h-full bg-black flex items-center justify-center overflow-hidden">
-            {ReelPlayer && (
-              <ReelPlayer
-                key={activeKey}
-                reel={activeReel}
-                autoPlay={true}
-                className="w-full h-full object-cover rounded-none border-0"
-              />
-            )}
-          </div>
+      {/* Main Container */}
+      <div className="relative z-10 flex h-full w-full flex-col overflow-hidden bg-black text-white md:h-[88vh] md:max-h-[720px] md:max-w-[960px] md:flex-row md:rounded-2xl md:border md:border-white/[0.08] md:bg-[#0B0C10] md:shadow-[0_24px_70px_rgba(0,0,0,0.85)]">
+        {/* LEFT COLUMN: 9:16 Vertical Video Player */}
+        <div className="relative flex h-[50vh] w-full shrink-0 items-center justify-center overflow-hidden bg-black md:h-full md:w-[380px] lg:w-[410px] md:border-r md:border-white/[0.08]">
+          <ReelPlayer
+            key={reelId}
+            reel={activeReel}
+            autoPlay={true}
+            className="h-full w-full rounded-none border-0 bg-black shadow-none"
+          />
+        </div>
 
-          {/* Top Vignette Gradient */}
-          <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-black/80 via-black/30 to-transparent pointer-events-none z-10" />
-          {/* Bottom Vignette Gradient */}
-          <div className="absolute inset-x-0 bottom-0 h-48 bg-gradient-to-t from-black/90 via-black/40 to-transparent pointer-events-none z-10" />
-
-          {/* Top Header Bar */}
-          <div className="relative z-20 pt-[max(0.75rem,env(safe-area-inset-top,0.75rem))] px-4 flex items-center justify-between text-white">
-            <button
-              type="button"
-              onClick={onClose}
-              className="w-9 h-9 rounded-full bg-black/40 backdrop-blur-md border border-white/10 flex items-center justify-center text-white active:scale-95 cursor-pointer shadow-md"
-              title="Close"
-            >
-              <Icon name="close" className="h-5 w-5" />
-            </button>
-
-            <div className="flex items-center space-x-2 px-3 py-1 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-xs font-semibold">
-              <span className="font-bricolage text-sky-400">ReelDash</span>
-              {availableReels.length > 0 && activeIndex !== -1 && (
-                <span className="text-zinc-400 font-normal">
-                  {activeIndex + 1} / {availableReels.length}
-                </span>
-              )}
+        {/* RIGHT COLUMN: Clean, High-Craft Social & Creator Workspace */}
+        <div className="flex flex-1 flex-col overflow-hidden bg-[#0B0C10] text-zinc-100 min-w-0">
+          {/* 1. Header (Clean: Creator left, Menu + Close right. NO up/down chevrons!) */}
+          <div className="flex shrink-0 items-center justify-between border-b border-white/[0.08] bg-[#0C0D13]/95 px-5 py-3.5 backdrop-blur-md">
+            <div className="flex min-w-0 items-center gap-3">
+              <Avatar username={username} src={avatarUrl} />
+              <div className="flex min-w-0 flex-col">
+                <div className="flex items-center gap-2">
+                  {renderCreatorName()}
+                  {instagramUrl && (
+                    <>
+                      <span className="text-zinc-600">•</span>
+                      <a
+                        href={instagramUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs font-semibold text-sky-400 hover:text-sky-300"
+                      >
+                        Follow
+                      </a>
+                    </>
+                  )}
+                </div>
+                {shortDate && (
+                  <span className="text-[11px] text-zinc-500">{shortDate}</span>
+                )}
+              </div>
             </div>
 
-            <div className="relative">
+            {/* Header Controls: Options Menu + Close (✕) */}
+            <div className="flex items-center gap-1">
+              <div className="relative" ref={menuRef}>
+                <button
+                  ref={menuButtonRef}
+                  type="button"
+                  onClick={() => setMenuOpen((prev) => !prev)}
+                  className={ICON_BUTTON}
+                  title="Options"
+                  aria-label="More options"
+                >
+                  <MoreHorizontal size={18} />
+                </button>
+
+                {menuOpen && (
+                  <div
+                    role="menu"
+                    className="absolute right-0 top-11 z-50 w-52 rounded-2xl border border-white/[0.1] bg-[#181A22] p-1.5 shadow-2xl backdrop-blur-xl"
+                  >
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => void copyLink()}
+                      className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-medium text-zinc-200 hover:bg-white/[0.08] hover:text-white cursor-pointer"
+                    >
+                      <Copy size={14} className="text-zinc-400" />
+                      Copy Link
+                    </button>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => void downloadVideo()}
+                      disabled={downloading || !videoUrl}
+                      className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-medium text-zinc-200 hover:bg-white/[0.08] hover:text-white disabled:opacity-40 cursor-pointer"
+                    >
+                      <Download size={14} className="text-zinc-400" />
+                      {downloading ? "Downloading…" : "Download MP4"}
+                    </button>
+                    {instagramUrl && (
+                      <a
+                        role="menuitem"
+                        href={instagramUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={() => setMenuOpen(false)}
+                        className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-medium text-zinc-200 hover:bg-white/[0.08] hover:text-white"
+                      >
+                        <ExternalLink size={14} className="text-zinc-400" />
+                        Open on Instagram
+                      </a>
+                    )}
+                    <div className="my-1 h-px bg-white/[0.08]" />
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => void removeReel()}
+                      disabled={deleting}
+                      className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-medium text-rose-400 hover:bg-rose-500/15 cursor-pointer"
+                    >
+                      <Trash2 size={14} />
+                      {deleting ? "Deleting…" : "Delete Reel"}
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <button
+                ref={closeButtonRef}
+                type="button"
+                onClick={() => onCloseRef.current()}
+                className={ICON_BUTTON}
+                title="Close (Esc)"
+                aria-label="Close modal"
+              >
+                <X size={18} />
+              </button>
+            </div>
+          </div>
+
+          {/* 2. Scrollable Body */}
+          <div className="custom-scrollbar flex-1 overflow-y-auto px-5 py-4 space-y-4 select-text">
+            {/* Clean Creator Caption (Scraper junk stripped!) */}
+            <div className="flex gap-3">
+              <Avatar username={username} src={avatarUrl} />
+              <div className="flex-1 min-w-0">
+                <div className="text-xs leading-relaxed">
+                  {renderCreatorName("mr-2")}
+                  <Caption value={caption} />
+                </div>
+                {shortDate && (
+                  <span className="mt-2 block text-[11px] text-zinc-500">
+                    {shortDate}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Audio Track Pill */}
+            {audioTitle && (
+              <div className="flex items-center justify-between rounded-xl border border-white/[0.07] bg-white/[0.025] px-3.5 py-2.5">
+                <div className="flex items-center gap-2.5 min-w-0 mr-2">
+                  <Music2 size={14} className="shrink-0 text-emerald-400" />
+                  <span className="truncate text-xs text-zinc-300">
+                    {audioTitle} {audioArtist ? `• ${audioArtist}` : ""}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    persistWorkspace({ audioSaved: !workspace.audioSaved });
+                    notify(workspace.audioSaved ? "Audio reference removed." : "Audio reference saved.");
+                  }}
+                  className="shrink-0 rounded-lg px-2.5 py-1 text-[11px] font-medium text-zinc-400 hover:bg-white/[0.06] hover:text-white cursor-pointer"
+                >
+                  {workspace.audioSaved ? "Saved" : "Save audio"}
+                </button>
+              </div>
+            )}
+
+            {/* Interactive Tabs: Notes & Discussion | AI Analysis | Organize */}
+            <div className="pt-2">
+              {renderTabs("desktop")}
+              {renderPanel("desktop")}
+            </div>
+          </div>
+
+          {/* 3. Bottom Engagement & Composer Dock (Authentic Instagram standard) */}
+          <div className="shrink-0 border-t border-white/[0.08] bg-[#0C0D13] p-4 space-y-3">
+            {/* Action Icons Row: Heart, Comment, Share, Bookmark */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => void handleLike()}
+                  disabled={liking}
+                  className="text-zinc-300 hover:text-white transition cursor-pointer"
+                  title={liked ? "Unlike" : "Like"}
+                  aria-label={liked ? "Unlike reel" : "Like reel"}
+                >
+                  <Heart
+                    size={22}
+                    className={liked ? "fill-rose-500 text-rose-500 transition-transform scale-110" : "transition-transform"}
+                  />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTab("notes");
+                    desktopComposerRef.current?.focus();
+                  }}
+                  className="text-zinc-300 hover:text-white transition cursor-pointer"
+                  title="Comment / Notes"
+                  aria-label="Add comment or note"
+                >
+                  <MessageCircle size={22} />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => void copyLink()}
+                  className="text-zinc-300 hover:text-white transition cursor-pointer"
+                  title="Share link"
+                  aria-label="Share reel link"
+                >
+                  <Send size={20} />
+                </button>
+              </div>
+
               <button
                 type="button"
-                onClick={() => setMenuOpen((prev) => !prev)}
-                className="w-9 h-9 rounded-full bg-black/40 backdrop-blur-md border border-white/10 flex items-center justify-center text-white active:scale-95 cursor-pointer shadow-md"
+                onClick={toggleCollection}
+                className="text-zinc-300 hover:text-white transition cursor-pointer"
+                title={workspace.collection ? "Saved" : "Save to collection"}
+                aria-label="Bookmark reel"
               >
-                <Icon name="more" className="h-5 w-5" />
-              </button>
-              {menuOpen && (
-                <div
-                  ref={menuRef}
-                  id={menuId}
-                  role="menu"
-                  className="rd-popover absolute right-0 top-11 z-50 w-52 rounded-2xl border border-white/[0.1] bg-[#191C25] p-1.5 shadow-2xl"
-                >
-                  <button
-                    type="button"
-                    className="rd-menu-item"
-                    onClick={copyLink}
-                    disabled={!view.instagramUrl}
-                  >
-                    <Icon name="link" /> Copy link
-                  </button>
-                  <button
-                    type="button"
-                    className="rd-menu-item"
-                    onClick={download}
-                    disabled={!view.videoUrl || downloadBusy}
-                  >
-                    <Icon name="download" />
-                    {downloadBusy ? "Downloading…" : "Download MP4"}
-                  </button>
-                  {view.instagramUrl && (
-                    <a
-                      className="rd-menu-item"
-                      href={view.instagramUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={() => setMenuOpen(false)}
-                    >
-                      <Icon name="external" /> Open on Instagram
-                    </a>
-                  )}
-                  <div className="my-1 h-px bg-white/[0.07]" />
-                  <button
-                    type="button"
-                    className="rd-menu-item !text-rose-400 hover:!bg-rose-400/10"
-                    onClick={removeReel}
-                  >
-                    <Icon name="trash" /> Delete reel
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Right Floating Action Rail */}
-          <div className="absolute right-3 bottom-24 z-20 flex flex-col items-center space-y-4 text-white">
-            {/* Favorite / Like */}
-            <button
-              type="button"
-              onClick={favorite}
-              className="flex flex-col items-center space-y-1 cursor-pointer active:scale-125 transition-transform"
-            >
-              <div
-                className={`w-11 h-11 rounded-full flex items-center justify-center backdrop-blur-md border ${
-                  view.favorite
-                    ? "bg-rose-500/30 border-rose-500/50 text-rose-500"
-                    : "bg-black/40 border-white/15 text-white"
-                }`}
-              >
-                <Icon
-                  name="heart"
-                  className={`h-6 w-6 ${view.favorite ? "fill-rose-500 text-rose-500" : ""}`}
-                  filled={view.favorite}
+                <Bookmark
+                  size={22}
+                  className={workspace.collection ? "fill-white text-white" : ""}
                 />
-              </div>
-              <span className="text-[10px] font-semibold text-zinc-200 drop-shadow">
-                {view.likes !== null ? formatCount(view.likes) : "Like"}
-              </span>
-            </button>
-
-            {/* Details & Insights Drawer Trigger */}
-            <button
-              type="button"
-              onClick={() => openDrawer("details")}
-              className="flex flex-col items-center space-y-1 cursor-pointer active:scale-110 transition-transform"
-            >
-              <div className="w-11 h-11 rounded-full bg-black/40 backdrop-blur-md border border-white/15 flex items-center justify-center text-white">
-                <Icon name="sparkles" className="h-5 w-5" />
-              </div>
-              <span className="text-[10px] font-semibold text-zinc-200 drop-shadow">
-                Details
-              </span>
-            </button>
-
-            {/* Notes Drawer Trigger */}
-            <button
-              type="button"
-              onClick={() => openDrawer("notes")}
-              className="flex flex-col items-center space-y-1 cursor-pointer active:scale-110 transition-transform"
-            >
-              <div className="w-11 h-11 rounded-full bg-black/40 backdrop-blur-md border border-white/15 flex items-center justify-center text-white">
-                <Icon name="note" className="h-5 w-5" />
-              </div>
-              <span className="text-[10px] font-semibold text-zinc-200 drop-shadow">
-                Notes
-              </span>
-            </button>
-
-            {/* Category Trigger */}
-            <button
-              type="button"
-              onClick={() => openDrawer("category")}
-              className="flex flex-col items-center space-y-1 cursor-pointer active:scale-110 transition-transform"
-            >
-              <div className="w-11 h-11 rounded-full bg-black/40 backdrop-blur-md border border-white/15 flex items-center justify-center text-white">
-                <Icon name="folder" className="h-5 w-5" />
-              </div>
-              <span className="text-[10px] font-semibold text-zinc-200 drop-shadow">
-                Category
-              </span>
-            </button>
-
-            {/* Next / Prev navigation buttons */}
-            {(hasPrevious || hasNext) && (
-              <div className="pt-1 flex flex-col space-y-1.5">
-                {hasPrevious && (
-                  <button
-                    type="button"
-                    onClick={() => navigate(-1)}
-                    className="w-9 h-9 rounded-full bg-black/50 backdrop-blur-md border border-white/15 flex items-center justify-center text-white active:scale-95 transition-transform cursor-pointer"
-                    title="Previous Reel"
-                  >
-                    <Icon name="up" className="h-5 w-5" />
-                  </button>
-                )}
-                {hasNext && (
-                  <button
-                    type="button"
-                    onClick={() => navigate(1)}
-                    className="w-9 h-9 rounded-full bg-black/50 backdrop-blur-md border border-white/15 flex items-center justify-center text-white active:scale-95 transition-transform cursor-pointer"
-                    title="Next Reel"
-                  >
-                    <Icon name="down" className="h-5 w-5" />
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Bottom Overlay: Creator info & caption */}
-          <div className="relative z-20 p-4 pb-[max(1rem,env(safe-area-inset-bottom,1rem))] pr-16 space-y-2 text-white">
-            <div className="flex items-center space-x-2">
-              <Avatar username={view.username} src={view.avatar} />
-              <div className="flex items-center gap-1">
-                <span className="text-xs font-bold text-white truncate">
-                  @{view.username}
-                </span>
-                {view.verified && <VerifiedBadge />}
-              </div>
+              </button>
             </div>
 
-            {view.caption && (
-              <p
-                onClick={() => openDrawer("details")}
-                className="text-xs text-zinc-200 line-clamp-2 leading-relaxed cursor-pointer"
-              >
-                {view.caption}
-              </p>
-            )}
+            {/* Likes count */}
+            <div className="text-xs font-semibold text-zinc-100">
+              {likes > 0 ? `${new Intl.NumberFormat("en").format(likes)} likes` : "Be the first to like this"}
+            </div>
 
-            {view.audioTitle && (
-              <div className="inline-flex items-center space-x-2 px-2.5 py-1 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-[11px] text-zinc-300">
-                <Icon name="music" className="h-3 w-3 text-emerald-400 shrink-0" />
-                <span className="truncate max-w-[200px]">{view.audioTitle}</span>
+            {/* Date */}
+            {longDate && (
+              <div className="text-[10px] uppercase tracking-wider text-zinc-500">
+                {longDate}
               </div>
             )}
+
+            {/* Inline Composer */}
+            <div className="pt-1">
+              {renderComposer(false)}
+            </div>
           </div>
-
-          {/* Slide-Up Bottom Drawer for Mobile */}
-          {drawer && (
-            <>
-              <div
-                className="absolute inset-0 bg-black/60 backdrop-blur-xs z-40"
-                onClick={closeDrawer}
-              />
-              <div
-                ref={drawerRef}
-                tabIndex={-1}
-                className="absolute inset-x-0 bottom-0 max-h-[75vh] bg-zinc-950/95 backdrop-blur-2xl border-t border-zinc-800 rounded-t-3xl p-5 z-50 overflow-y-auto space-y-4"
-              >
-                <div className="w-10 h-1 rounded-full bg-zinc-700 mx-auto" />
-                <div className="flex items-center justify-between border-b border-zinc-800/80 pb-3">
-                  <span id={drawerTitleId} className="text-sm font-bold text-white capitalize">
-                    {drawer === "notes" ? "Personal Notes" : drawer === "category" ? "Assign Category" : "Reel Details & Insights"}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={closeDrawer}
-                    className="p-1 rounded-full text-zinc-400 hover:text-white"
-                  >
-                    <Icon name="close" className="h-4 w-4" />
-                  </button>
-                </div>
-
-                {drawer === "notes" && (
-                  <NoteEditor value={view.note} onSave={saveNote} />
-                )}
-
-                {drawer === "category" && categoryOptions}
-
-                {drawer === "details" && (
-                  <div className="space-y-4">
-                    {captionContent}
-                    {audioBar}
-                    {takeaways}
-                  </div>
-                )}
-              </div>
-            </>
-          )}
         </div>
-      ) : (
-        /* ─── DESKTOP VIEW: Split Dual-Pane Masterpiece ─── */
+      </div>
+
+      {/* Mobile Drawer */}
+      {drawerOpen && (
         <div
-          className="relative z-10 flex h-[88vh] max-h-[720px] w-full max-w-[960px] flex-col overflow-hidden rounded-2xl border border-white/[0.08] bg-[#0A0B0E] text-white shadow-[0_24px_70px_rgba(0,0,0,0.85)] md:flex-row"
+          ref={drawerRef}
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-x-0 bottom-0 z-50 max-h-[85vh] overflow-y-auto rounded-t-3xl border-t border-white/10 bg-[#12141C] p-5 shadow-2xl md:hidden"
         >
-          {/* LEFT COLUMN: 9:16 Video Player */}
-          <div className="relative flex h-[46vh] w-full shrink-0 items-center justify-center overflow-hidden border-b border-white/[0.08] bg-black md:h-full md:w-[380px] lg:w-[410px] md:border-b-0 md:border-r">
-            {ReelPlayer && (
-              <ReelPlayer
-                key={activeKey}
-                reel={activeReel}
-                autoPlay={true}
-                className="h-full w-full rounded-none border-0 bg-black shadow-none"
-              />
-            )}
+          <div className="mb-4 flex items-center justify-between border-b border-white/[0.08] pb-3">
+            <span className="text-sm font-semibold text-white">
+              {tab === "notes" ? "Notes & Discussion" : tab === "analysis" ? "AI Analysis" : "Organize"}
+            </span>
+            <button
+              ref={drawerCloseRef}
+              type="button"
+              onClick={() => setDrawerOpen(false)}
+              className="p-1 text-zinc-400 hover:text-white cursor-pointer"
+            >
+              <X size={18} />
+            </button>
           </div>
-
-          {/* RIGHT COLUMN: Sensible, High-Craft ReelDash Inspector */}
-          <div className="relative flex flex-1 flex-col overflow-hidden bg-[#0B0C10] text-zinc-100 min-w-0">
-            {/* 1. Header */}
-            <div className="flex shrink-0 items-center justify-between border-b border-white/[0.08] bg-[#0C0D13]/95 px-5 py-3.5 backdrop-blur-md">
-              {creator}
-
-              <div className="flex items-center gap-1">
-                {(hasPrevious || hasNext) && (
-                  <div className="mr-1 flex items-center rounded-lg border border-white/[0.08] bg-white/[0.04] p-0.5">
-                    <button
-                      type="button"
-                      onClick={() => navigate(-1)}
-                      disabled={!hasPrevious}
-                      className="cursor-pointer rounded p-1 text-zinc-400 transition-colors hover:text-white disabled:pointer-events-none disabled:opacity-30"
-                      title="Previous Reel (Up Arrow)"
-                    >
-                      <Icon name="up" className="h-3.5 w-3.5" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => navigate(1)}
-                      disabled={!hasNext}
-                      className="cursor-pointer rounded p-1 text-zinc-400 transition-colors hover:text-white disabled:pointer-events-none disabled:opacity-30"
-                      title="Next Reel (Down Arrow)"
-                    >
-                      <Icon name="down" className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                )}
-
-                {menu}
-
-                <button
-                  ref={closeRef}
-                  type="button"
-                  onClick={onClose}
-                  className={iconButton}
-                  title="Close (Esc)"
-                >
-                  <Icon name="close" className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
-
-            {/* 2. Scrollable Body */}
-            <div className="custom-scrollbar flex-1 space-y-5 overflow-y-auto p-5 select-text">
-              {captionContent}
-
-              {audioBar}
-
-              {/* Organization: Category + Key Takeaways */}
-              <div className="space-y-4 rounded-xl border border-white/[0.07] bg-white/[0.02] p-4">
-                {/* Category Selector */}
-                <div className="flex items-center justify-between gap-3">
-                  <span className="flex items-center gap-2 text-xs font-medium text-zinc-400">
-                    <Icon name="folder" className="h-3.5 w-3.5" />
-                    Category
-                  </span>
-                  <div className="relative">
-                    <button
-                      ref={categoryButtonRef}
-                      type="button"
-                      onClick={() => {
-                        setMenuOpen(false);
-                        setCategoryOpen((prev) => !prev);
-                      }}
-                      className="rd-focus inline-flex items-center gap-1.5 rounded-full border border-white/[0.1] bg-white/[0.05] px-3 py-1 text-xs font-medium text-zinc-200 transition-colors hover:bg-white/[0.09]"
-                    >
-                      <span>{view.category || "Select category"}</span>
-                      <Icon name="down" className="h-3 w-3 text-zinc-400" />
-                    </button>
-                    {categoryOpen && (
-                      <div
-                        ref={categoryRef}
-                        id={categoryId}
-                        className="rd-popover absolute right-0 top-9 z-50 w-56 rounded-2xl border border-white/[0.07] bg-[#191C25] shadow-2xl"
-                      >
-                        {categoryOptions}
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="h-px bg-white/[0.06]" />
-
-                {/* Key Takeaways */}
-                {takeaways}
-              </div>
-
-              {/* Personal Notes */}
-              <NoteEditor value={view.note} onSave={saveNote} />
-            </div>
-
-            {/* 3. Bottom Engagement & Action Bar */}
-            <div className="flex shrink-0 items-center justify-between border-t border-white/[0.08] bg-[#0C0D13] p-3 px-5">
-              <div className="flex items-center gap-3">
-                {/* Favorite button */}
-                <button
-                  type="button"
-                  onClick={favorite}
-                  className={`rd-focus inline-flex items-center gap-1.5 rounded-full px-3 py-2 text-xs font-medium transition-colors ${
-                    view.favorite
-                      ? "bg-rose-500/15 text-rose-400 hover:bg-rose-500/25"
-                      : "text-zinc-400 hover:bg-white/[0.06] hover:text-white"
-                  }`}
-                  title={view.favorite ? "Favorited" : "Add to favorites"}
-                >
-                  <Icon
-                    name="heart"
-                    className={`h-4 w-4 ${view.favorite ? "fill-current text-rose-500" : ""}`}
-                    filled={view.favorite}
-                  />
-                  <span>{view.likes !== null ? formatCount(view.likes) : "Like"}</span>
-                </button>
-
-                {/* Comments count */}
-                {view.comments !== null && (
-                  <span className="flex items-center gap-1.5 text-xs text-zinc-400">
-                    <Icon name="comment" className="h-4 w-4 text-zinc-500" />
-                    <span>{formatCount(view.comments)}</span>
-                  </span>
-                )}
-
-                {/* Copy link */}
-                <button
-                  type="button"
-                  onClick={copyLink}
-                  className={iconButton}
-                  title="Copy Link"
-                  disabled={!view.instagramUrl}
-                >
-                  <Icon name="link" className="h-4 w-4" />
-                </button>
-
-                {/* External link */}
-                {view.instagramUrl && (
-                  <a
-                    href={view.instagramUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={iconButton}
-                    title="Open on Instagram"
-                  >
-                    <Icon name="external" className="h-4 w-4" />
-                  </a>
-                )}
-              </div>
-
-              {downloadButton}
-            </div>
+          {renderTabs("mobile")}
+          {renderPanel("mobile")}
+          <div className="pt-4 border-t border-white/[0.08]">
+            {renderComposer(true)}
           </div>
         </div>
       )}
@@ -1870,4 +1678,4 @@ export default function ReelPlayerModal({
   );
 }
 
-export { ReelPlayerModal };
+export default ReelPlayerModal;

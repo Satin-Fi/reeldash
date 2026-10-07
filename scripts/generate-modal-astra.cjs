@@ -15,7 +15,7 @@ async function callAstraStream(prompt, label) {
     },
     body: JSON.stringify({
       model: "gpt-6-astra",
-      max_tokens: 14000,
+      max_tokens: 12000,
       stream: true,
       messages: [{ role: "user", content: prompt }],
     }),
@@ -63,64 +63,86 @@ async function callAstraStream(prompt, label) {
 }
 
 function extractTsx(content) {
-  const match = content.match(/```(?:tsx|typescript|jsx|js)?\s*\n([\s\S]*?)(?:```|$)/);
-  if (match && match[1].trim()) return match[1].trim();
-  const cleaned = content.replace(/<design_plan>[\s\S]*?<\/design_plan>/gi, "").trim();
-  return cleaned;
+  const firstFence = content.indexOf("```");
+  if (firstFence === -1) {
+    return content.replace(/<design_plan>[\s\S]*?<\/design_plan>/gi, "").trim();
+  }
+  const nextNewline = content.indexOf("\n", firstFence);
+  const lastFence = content.lastIndexOf("```");
+  if (lastFence > nextNewline) {
+    return content.slice(nextNewline + 1, lastFence).trim();
+  }
+  return content.slice(nextNewline + 1).trim();
 }
 
 async function main() {
-  const MODAL_PROMPT = `You are an elite, Awwwards-winning principal UI/UX designer and software architect for ReelDash.
-Your task is to completely rewrite the REEL PLAYER MODAL (src/components/reels/ReelPlayerModal.tsx) into a high-craft, sensible, agency-grade masterpiece.
+  const SMART_MODAL_PROMPT = `You are an elite, Awwwards-winning principal UI/UX designer and software architect for ReelDash.
+Redesign the REEL PLAYER MODAL (src/components/reels/ReelPlayerModal.tsx) to be an ultra-clean, sensible, Instagram-grade masterpiece.
 
 ---
-### CRITICAL USER FEEDBACK & PROBLEMS TO FIX:
-1. "if this UI made by chatgpt astra then its wrost, its very bad, you are not chatgpt astra properly just wasting its tokens"
-   "change this UI, should look good, sensible things should be there"
-   - The user shared a screenshot exposing terrible design flaws that you MUST eliminate:
-     a) BROKEN CAPTION & OVERFLOW: Long hashtags like "#fypppppppppppppppppppppppppppppppppppppppppppppppppppppppp" were rendering in giant neon font with zero word-break, breaking out of the container.
-        Fix: Use text-sm text-zinc-200 leading-relaxed break-words [overflow-wrap:anywhere] break-all select-text. Clean subtle link color for hashtags and mentions (text-sky-400 hover:text-sky-300).
-     b) USELESS "TOPICS & KEYWORDS" SHELF: Do NOT render a redundant "TOPICS & KEYWORDS" shelf that repeats the exact hashtags already visible in the caption! Filter out junk/spam tags longer than 25 chars or repetitive letters.
-     c) CHEESY FAKE AI LABELS: DO NOT stamp tacky monospaced labels like "ASTRA AI INSIGHTS" across big empty boxed cards!
-        Design a sleek, integrated AI summary section that is compact and quiet when empty (a single elegant button: "✨ Generate Key Takeaways"), and expands into crisp, beautiful bullet points when available.
-     d) DUPLICATE CONTROLS EVERYWHERE: In the old UI, there was a Category picker at the top AND another Category picker at the bottom. There was a Like count at the top and a Like button at the bottom.
-        ELIMINATE ALL DUPLICATION! Every control must have ONE clear, sensible home.
-     e) BOXES INSIDE BOXES: The old sidebar was cluttered with harsh borders and nested boxes ("WORKSPACE NOTES", "ASTRA AI INSIGHTS").
-        Replace with a cohesive, fluid Linear/Raycast/Apple Notes style layout with restrained border contrast (border-white/[0.07]), layered rich dark surfaces (#090A0E -> #11131A), and breathing room.
+### USER FEEDBACK & RED CIRCLE CRITIQUE (EXACT PROBLEMS TO SOLVE):
+The user sent a screenshot with 4 items circled in red, stating:
+"all useless component, you arev not using chatgpt astra smartly, redesign ui and remove useless component, put something actually usefull"
+
+Look at the 4 items circled in red by the user:
+1. CIRCLE 1 (Top right header): The Up/Down chevrons ("^ v").
+   -> REMOVE COMPLETELY. It clutters the header. A clean header only needs the creator info on the left, and the "•••" options menu + Close "✕" on the right.
+2. CIRCLE 2 (Center body): An awkward empty box with "Extract Key Takeaways" button.
+   -> REMOVE THIS USELESS BOX. Instead of an empty card with an orphaned button, make the sidebar ACTUALLY USEFUL: an authentic Instagram post discussion & notes thread, smart AI breakdown tab, and clean organization.
+3. CIRCLE 3 (Bottom left): Clunky text "Like", broken link icons, and external link icon.
+   -> REMOVE COMPLETELY. Replace with the authentic Instagram-standard action icons: Heart (Like with filled state), MessageCircle (Comment/Note), Send (Share / Copy link), and Bookmark (Save/Collection).
+4. CIRCLE 4 (Bottom right): A giant bright cyan "Download MP4" button dominating the bottom corner.
+   -> REMOVE THE GIANT CYAN BUTTON. Download MP4 is a utility action that belongs neatly in the "•••" options menu, or as a subtle icon, NOT a garish cyan brick.
+5. CAPTION SCRAPER JUNK: In the screenshot, the caption ended with "View all 500 comments".
+   -> Clean all scraper artifacts from captions: strip "View all \\d+ comments", "View more comments", and bracketed scraper tags "[..., ...]".
 
 ---
-### ARCHITECTURAL RULES (RULES.md):
-1. DUAL-PANE DESKTOP MODAL (>= md screens):
+### WHAT IS "ACTUALLY USEFUL" — THE REDESIGNED ARCHITECTURE:
+
+A. DUAL-PANE DESKTOP MODAL (>= md screens):
    - Left side: 9:16 Vertical Video Player using <ReelPlayer reel={activeReel} autoPlay={true} className="w-full h-full rounded-none border-0 shadow-none bg-black" />.
-   - Right side: ReelDash Social & Management Inspector.
-     - Header:
-       * Creator Avatar (36px, ring-1 ring-white/10).
-       * @creatorUsername (with blue verified badge if verified, links to /creator/[username]).
-       * "Follow" link (opens activeReel.instagramUrl in new tab).
-       * Up/Down or Prev/Next navigation if multiple reels exist (with keyboard arrow support).
-       * Clean "•••" menu: Copy link, Download MP4, Open on Instagram, Delete Reel.
-       * Close button (✕).
-     - Scrollable Body (custom-scrollbar, select-text, spacious):
-       * Full caption (beautifully formatted with clickable #tags, @mentions, URLs, safe word breaking).
-       * Timestamp (e.g. "Oct 7, 2026").
-       * Soundtrack / Audio Bar (if activeReel.audioTitle exists): Music icon, title, artist, "+ Save Audio" button.
-       * Organization Section:
-         - Category selector (clean dropdown popover with availableCategories).
-         - AI Summary / Key Takeaways: If present, shows refined bullet points / takeaways with a quiet "Regenerate" button. If not generated, a clean, sleek action button "✨ Extract Key Takeaways".
-         - Personal Notes: Clean Notion-like inline notepad for jotting hooks, scripts, or remix ideas.
-     - Bottom Dock / Action Bar:
-       * Favorite toggle (Heart with active filled rose-500 state and likes count).
-       * Comments count (if available).
-       * Quick Copy Link button.
-       * Open on Instagram button.
-       * Primary CTA: "Download MP4" button (sleek brand pill button).
+   - Right side: Instagram-Standard Social & Creator Workspace Inspector:
+     1. Header:
+        - Creator Avatar (36px, ring-1 ring-white/10).
+        - @creatorUsername (with blue verified badge if verified, links to /creator/[username]).
+        - "• Follow" link (opens activeReel.instagramUrl in new tab).
+        - Right: "•••" options dropdown (Download MP4, Copy Link, Open in Instagram, Delete Reel) + Close button (✕).
+     2. Middle Scrollable Body (clean, spacious, authentic):
+        - Creator Post Block:
+          * Avatar + @username + Cleaned Caption (all scraper junk stripped, #tags and @mentions as clickable links with safe word-wrap).
+          * Soundtrack audio pill (if activeReel.audioTitle exists): Music note + Title • Artist + "Save audio" button.
+          * Post date (e.g. "Oct 6, 2026").
+        - Interactive Content Tabs (ACTUALLY USEFUL!):
+          * Tab 1: "Notes & Discussion" (Default):
+            - Shows user's personal notes and insights formatted like an elegant note card.
+            - If no notes yet, shows a clean empty state: "No notes yet. Add your thoughts or hooks below."
+          * Tab 2: "AI Analysis":
+            - Hook Breakdown: What grabs attention in the first 3 seconds.
+            - Strategy & Takeaways: Bullet points synthesizing key ideas.
+            - Semantic tags & topics.
+            - A clean "Analyze Reel" or "Regenerate" action.
+          * Tab 3: "Organize":
+            - Category selector (clean pill dropdown with available categories).
+            - Add to Collection selector.
+     3. Bottom Engagement & Composer Dock (Authentic Instagram Standard):
+        - Action Icons Row:
+          * Heart (Like toggle with filled rose-500 state).
+          * MessageCircle (switches to Notes/Discussion tab).
+          * Send (Paper plane / Copy link with toast feedback).
+          * Bookmark (Save to collection toggle).
+        - Likes count: e.g. "12,450 likes" or "1 like".
+        - Timestamp: e.g. "OCTOBER 6, 2026".
+        - Inline Composer:
+          * "Add a note or thought..." text input + "Post" button that instantly saves to reel notes!
 
-2. MOBILE EXPERIENCE (< md screens):
-   - 100dvh full-screen native Reels experience with swipe/drag navigation, right-side action rail (Heart, Notes drawer, Category, Instagram link, Next/Prev), bottom creator info, and slide-up drawers for notes/category.
+B. MOBILE EXPERIENCE (< md screens):
+   - Fullscreen 100dvh Reels player with right floating action rail (Heart, Notes drawer, Category, Share, IG), bottom creator info, and slide-up drawers for notes/category.
 
-3. ZERO CRASHES & REACT RULES OF HOOKS:
-   - ALL React hooks (useState, useRef, useMemo, useEffect) MUST be placed unconditionally at the very top of ReelPlayerModal, BEFORE any "if (!isOpen || !activeReel || !mounted) return null;".
-   - Defensively parse captions, tags, and dates with fallback values so undefined/null fields never throw exceptions.
+C. TECHNICAL CONSTRAINTS:
+   - Use icons from 'lucide-react': Heart, MessageCircle, Send, Bookmark, MoreHorizontal, X, Music2, Sparkles, Folder, Download, Check, Trash2, ExternalLink, Copy, Tag, etc.
+   - ALL React hooks (useState, useRef, useMemo, useEffect) MUST be placed unconditionally at the very top of ReelPlayerModal, before any early return!
+   - Export named export { ReelPlayerModal } AND default export default ReelPlayerModal.
+   - Defensively parse captions, tags, and dates with fallback values.
 
 ---
 ### TYPES & CONTEXT:
@@ -137,7 +159,8 @@ export interface ReelPlayerModalProps {
 
 Output ONLY the complete, production-ready, compilable TypeScript React code inside a single \`\`\`tsx ... \`\`\` code fence. No markdown text outside the code fence.`;
 
-  const raw = await callAstraStream(MODAL_PROMPT, "ReelPlayerModal Component");
+  const raw = await callAstraStream(SMART_MODAL_PROMPT, "Smart ReelPlayerModal");
+  fs.writeFileSync(path.resolve(__dirname, "raw-modal-output.txt"), raw, "utf8");
   const code = extractTsx(raw);
   const dest = path.resolve(__dirname, "../src/components/reels/ReelPlayerModal.tsx");
   fs.writeFileSync(dest, code, "utf8");
