@@ -17,7 +17,6 @@ import { useAuth } from '@/context/AuthContext';
 import { useReels } from '@/context/ReelContext';
 import { Reel } from '@/types/reel';
 import { ReelPlayerModal } from '@/components/reels/ReelPlayerModal';
-import { OrbitalReelMemoryHub } from '@/components/dashboard/DashboardShowcaseCards';
 import { DashboardCategoryDecks } from '@/components/dashboard/DashboardCategoryDecks';
 
 /* ─── Helpers ─── */
@@ -152,12 +151,7 @@ export default function DashboardPage() {
         </form>
       </header>
 
-      {/* ─── 2. Reel Memory Hub Showcase ─── */}
-      <section aria-label="Reel Memory Showcase">
-        <OrbitalReelMemoryHub onLaunchMemory={() => router.push('/search')} />
-      </section>
-
-      {/* ─── 3. Categories (3D Preview Deck Cards) ─── */}
+      {/* ─── 2. Categories (3D Preview Deck Cards) ─── */}
       <DashboardCategoryDecks
         categories={smartCategories}
         reels={reels}
@@ -167,7 +161,7 @@ export default function DashboardPage() {
         }}
       />
 
-      {/* ─── 4. Recent Saves ─── */}
+      {/* ─── 3. Recent Saves ─── */}
       <section aria-labelledby="recent-saves-title">
         <div className="mb-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -245,7 +239,7 @@ export default function DashboardPage() {
         )}
       </section>
 
-      {/* ─── 5. Library Vault Stats ─── */}
+      {/* ─── 4. Library Vault Stats ─── */}
       <section aria-labelledby="library-stats-title">
         <div className="mb-4 flex items-center justify-between">
           <h2
