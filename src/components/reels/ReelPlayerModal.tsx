@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { Reel } from "@/types/reel";
 import { useReels } from "@/context/ReelContext";
@@ -22,9 +22,120 @@ import {
   ChevronUp,
   ChevronDown as ChevronDownIcon,
   Sparkles,
+  Download,
+  Check,
+  Edit3,
+  Loader2,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
+
+function VerifiedBadge({ className = "size-3.5" }: { className?: string }) {
+  return (
+    <svg
+      className={`${className} text-[#0095F6] inline-block shrink-0`}
+      viewBox="0 0 40 40"
+      fill="currentColor"
+      aria-label="Verified"
+    >
+      <path d="M19.998 3.094 14.638 0l-5.36 3.094-5.36-3.094L0 3.094V8.45l3.094 5.36L0 19.17l3.094 5.36-3.094 5.36 3.094 5.36 5.36-3.094 5.36 3.094 5.36-3.094 5.36 3.094 3.094-5.36-3.094-5.36 3.094-5.36-3.094-5.36V3.094L31.816 0l-5.36 3.094-5.36-3.094z" />
+      <path d="m16.5 24.5-5-5 2-2 3 3 8-8 2 2-10 10z" fill="#FFFFFF" />
+    </svg>
+  );
+}
+
+function parseCaptionData(
+  rawCaption?: string,
+  existingTags: string[] = [],
+  existingTopics: string[] = []
+): { cleanCaption: string; tags: string[] } {
+  if (!rawCaption) {
+    return {
+      cleanCaption: "",
+      tags: Array.from(new Set([...existingTags, ...existingTopics])).filter(Boolean),
+    };
+  }
+
+  let text = rawCaption;
+  const extractedTags: string[] = [];
+
+  // Match bracketed comma-separated tokens: e.g. [Action Jackson, Ajay Devgn, ...]
+  const bracketRegex = /\[([^\]]+)\]/g;
+  let match;
+  while ((match = bracketRegex.exec(text)) !== null) {
+    const rawTokens = match[1].split(",");
+    for (const token of rawTokens) {
+      const clean = token.trim();
+      if (clean && clean.length > 1 && clean.length < 50) {
+        extractedTags.push(clean);
+      }
+    }
+  }
+  text = text.replace(/\[([^\]]+)\]/g, "");
+
+  // Strip scraper artifacts
+  text = text
+    .replace(/View all \d+ comments/gi, "")
+    .replace(/View more comments/gi, "")
+    .trim();
+
+  const allTags = Array.from(
+    new Set([...extractedTags, ...existingTags, ...existingTopics])
+  ).filter(Boolean);
+
+  return {
+    cleanCaption: text,
+    tags: allTags,
+  };
+}
+
+function renderFormattedCaption(text: string, onClose?: () => void) {
+  if (!text) return <span className="text-zinc-500 italic">No caption provided.</span>;
+
+  const parts = text.split(/(https?:\/\/[^\s]+|#[a-zA-Z0-9_\u0900-\u097F]+|@[a-zA-Z0-9_.]+)/g);
+
+  return parts.map((part, i) => {
+    if (part.startsWith("#")) {
+      return (
+        <Link
+          key={i}
+          href={`/search?q=${encodeURIComponent(part)}`}
+          onClick={onClose}
+          className="text-violet-400 font-medium hover:text-violet-300 hover:underline transition-colors"
+        >
+          {part}
+        </Link>
+      );
+    }
+    if (part.startsWith("@")) {
+      const handle = part.slice(1);
+      return (
+        <Link
+          key={i}
+          href={`/creator/${encodeURIComponent(handle)}`}
+          onClick={onClose}
+          className="text-violet-300 font-semibold hover:text-white hover:underline transition-colors"
+        >
+          {part}
+        </Link>
+      );
+    }
+    if (part.startsWith("http")) {
+      return (
+        <a
+          key={i}
+          href={part}
+          target="_blank"
+          rel="noreferrer"
+          className="text-sky-400 underline hover:text-sky-300"
+        >
+          {part}
+        </a>
+      );
+    }
+    return <span key={i}>{part}</span>;
+  });
+}
 
 interface ReelPlayerModalProps {
   reel: Reel | null;
@@ -200,6 +311,52 @@ export function ReelPlayerModal({ reel, isOpen, onClose }: ReelPlayerModalProps)
     updateNote(activeReel.id, noteContent);
     setIsEditingNote(false);
     showToast("Personal note saved");
+  };
+
+  const [isAiLoading, setIsAiLoading] = useState(false);
+
+  const isVerifiedCreator = Boolean(
+    (activeReel as any).isVerified ||
+    (activeReel as any).creatorVerified ||
+    ["primevideoin", "netflix_in", "instagram", "apple", "google", "spotify"].includes(
+      creatorHandle.toLowerCase()
+    ) ||
+    creatorHandle.toLowerCase().endsWith("in") ||
+    creatorHandle.toLowerCase().includes("official")
+  );
+
+  const { cleanCaption, tags: parsedTags } = useMemo(() => {
+    return parseCaptionData(
+      activeReel.caption,
+      activeReel.tags || [],
+      activeReel.aiTopics || []
+    );
+  }, [activeReel.caption, activeReel.tags, activeReel.aiTopics]);
+
+  const handleDownloadVideo = () => {
+    try {
+      showToast("Preparing MP4 download...");
+      const shortcode = activeReel.shortcode || activeReel.id;
+      const directUrl = activeReel.videoUrl || activeReel.mediaUrl || "";
+      const downloadApi = `/api/download?shortcode=${encodeURIComponent(shortcode)}&directUrl=${encodeURIComponent(directUrl)}`;
+      const link = document.createElement("a");
+      link.href = downloadApi;
+      link.download = `${creatorHandle}_${shortcode}.mp4`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setIsMenuOpen(false);
+    } catch {
+      showToast("Failed to initiate download");
+    }
+  };
+
+  const handleExtractAiTakeaways = () => {
+    setIsAiLoading(true);
+    generateAiSummary(activeReel.id);
+    setTimeout(() => {
+      setIsAiLoading(false);
+    }, 850);
   };
 
   // Helper to format text with hashtags and mentions in subtle brand color
@@ -505,13 +662,25 @@ export function ReelPlayerModal({ reel, isOpen, onClose }: ReelPlayerModalProps)
                   </button>
                 </div>
 
-                <div className="space-y-1">
+                <div className="space-y-1.5">
                   <span className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">
                     Full Caption
                   </span>
-                  <p className="text-xs text-zinc-200 leading-relaxed whitespace-pre-line">
-                    {formatCaption(activeReel.caption || "No caption.")}
-                  </p>
+                  <div className="text-xs text-zinc-200 leading-relaxed whitespace-pre-line">
+                    {renderFormattedCaption(cleanCaption || "No caption.", onClose)}
+                  </div>
+                  {parsedTags.length > 0 && (
+                    <div className="flex flex-wrap items-center gap-1.5 pt-1.5">
+                      {parsedTags.map((tag: string, i: number) => (
+                        <span
+                          key={i}
+                          className="text-[11px] px-2 py-0.5 rounded-md bg-white/[0.06] border border-white/[0.08] text-zinc-300"
+                        >
+                          #{tag}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 {activeReel.aiSummary && activeReel.aiSummary !== activeReel.caption && (
@@ -634,176 +803,289 @@ export function ReelPlayerModal({ reel, isOpen, onClose }: ReelPlayerModalProps)
       ) : (
         /* ─── 2. DESKTOP EXPERIENCE: Dual-Pane Modal (>= md screens) ─── */
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-5 md:p-6 bg-black/85 backdrop-blur-md">
-        {/* Backdrop Close */}
-        <div className="absolute inset-0" onClick={onClose} />
+          {/* Backdrop Close */}
+          <div className="absolute inset-0" onClick={onClose} />
 
-        {/* Modal Window: Split Video Player & Personal Library Inspector */}
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95, y: 10 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.95, y: 10 }}
-          transition={{ duration: 0.2 }}
-          className="relative w-full max-w-[840px] h-[86vh] max-h-[660px] bg-zinc-950 text-white rounded-2xl overflow-hidden shadow-2xl border border-zinc-800 flex flex-col md:flex-row z-10"
-        >
-          {/* LEFT COLUMN: Clean 9:16 Vertical Video Player (Optimal compact sizing) */}
-          <div className="w-full md:w-[360px] h-[48vh] md:h-full bg-black flex items-center justify-center relative overflow-hidden border-b md:border-b-0 md:border-r border-zinc-800 shrink-0">
-            <ReelPlayer
-              key={activeReel.id}
-              reel={activeReel}
-              autoPlay={true}
-              className="w-full h-full rounded-none border-0 shadow-none bg-black"
-            />
-          </div>
+          {/* Modal Window: Split Video Player & Personal Library Inspector */}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.96, y: 8 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.96, y: 8 }}
+            transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+            className="relative w-full max-w-[960px] h-[88vh] max-h-[700px] bg-[#0A0B0E] text-white rounded-2xl overflow-hidden shadow-[0_24px_70px_rgba(0,0,0,0.85)] border border-white/[0.08] flex flex-col md:flex-row z-10"
+          >
+            {/* LEFT COLUMN: Clean 9:16 Vertical Video Player */}
+            <div className="w-full md:w-[380px] lg:w-[410px] h-[46vh] md:h-full bg-black flex items-center justify-center relative overflow-hidden border-b md:border-b-0 md:border-r border-white/[0.08] shrink-0">
+              <ReelPlayer
+                key={activeReel.id}
+                reel={activeReel}
+                autoPlay={true}
+                className="w-full h-full rounded-none border-0 shadow-none bg-black"
+              />
+            </div>
 
-          {/* RIGHT COLUMN: Pure Dark Inspector & Library Details */}
-          <div className="flex-1 md:h-full flex flex-col bg-zinc-950 text-zinc-100 min-w-0 overflow-y-auto">
-            {/* 1. TOP CREATOR HEADER */}
-            <div className="p-3.5 px-4 flex items-center justify-between border-b border-zinc-800/80 shrink-0 bg-zinc-950">
-              <div className="flex items-center space-x-3 min-w-0">
-                {/* Clean Real Creator Avatar (No fake story ring) */}
-                <div className="w-9 h-9 rounded-full overflow-hidden bg-zinc-900 border border-zinc-700/80 shrink-0 flex items-center justify-center">
-                  <img
-                    src={`/api/proxy-image?username=${encodeURIComponent(creatorHandle)}`}
-                    alt={creatorHandle}
-                    referrerPolicy="no-referrer"
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      (e.target as HTMLElement).style.display = "none";
-                      const fallback = (e.target as HTMLElement).nextElementSibling as HTMLElement;
-                      if (fallback) fallback.style.display = "flex";
-                    }}
-                  />
-                  <div className="hidden w-full h-full bg-zinc-800 items-center justify-center text-zinc-400 font-bold text-xs">
-                    {creatorHandle[0]?.toUpperCase()}
-                  </div>
-                </div>
+            {/* RIGHT COLUMN: Pure Dark Astra Inspector */}
+            <div className="flex-1 md:h-full flex flex-col bg-[#0B0C10] text-zinc-100 min-w-0 overflow-hidden relative">
+              {/* Subtle Ambient Radial Glow */}
+              <div className="pointer-events-none absolute -top-24 right-0 w-80 h-80 bg-violet-600/[0.08] rounded-full blur-3xl" />
 
-                <div className="flex flex-col min-w-0">
-                  <div className="flex items-center space-x-1.5 min-w-0">
-                    <Link
-                      href={`/creator/${creatorHandle}`}
-                      onClick={onClose}
-                      className="text-xs font-bold hover:text-brand-400 truncate text-white transition-colors"
-                    >
-                      @{creatorHandle}
-                    </Link>
-                  </div>
-                  <span className="text-[10px] text-zinc-500 font-mono">
-                    {activeReel.mediaType ? activeReel.mediaType.toUpperCase() : "REEL"}
-                  </span>
-                </div>
-              </div>
-
-              {/* Top Right Options Menu & Close Button */}
-              <div className="flex items-center space-x-1">
-                <div className="relative">
-                  <button
-                    onClick={() => setIsMenuOpen(!isMenuOpen)}
-                    className="p-1.5 text-zinc-400 hover:text-white rounded-full hover:bg-zinc-800 transition-colors cursor-pointer"
-                    title="More options"
+              {/* 1. TOP CREATOR HEADER */}
+              <div className="p-3.5 px-5 flex items-center justify-between border-b border-white/[0.08] shrink-0 bg-[#0C0D13]/95 backdrop-blur-md z-20">
+                <div className="flex items-center space-x-3 min-w-0">
+                  <Link
+                    href={`/creator/${creatorHandle}`}
+                    onClick={onClose}
+                    className="group/avatar relative w-9 h-9 rounded-full ring-1 ring-white/10 overflow-hidden bg-zinc-900 shrink-0 flex items-center justify-center transition-transform hover:scale-105"
                   >
-                    <MoreHorizontal className="w-4 h-4" />
-                  </button>
+                    <img
+                      src={`/api/proxy-image?username=${encodeURIComponent(creatorHandle)}`}
+                      alt={creatorHandle}
+                      referrerPolicy="no-referrer"
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        (e.target as HTMLElement).style.display = "none";
+                        const fallback = (e.target as HTMLElement).nextElementSibling as HTMLElement;
+                        if (fallback) fallback.style.display = "flex";
+                      }}
+                    />
+                    <div className="hidden w-full h-full bg-zinc-800 items-center justify-center text-zinc-300 font-bold text-xs">
+                      {creatorHandle[0]?.toUpperCase()}
+                    </div>
+                  </Link>
 
-                  {/* Dropdown Menu */}
-                  {isMenuOpen && (
-                    <div className="absolute right-0 top-full mt-1 w-48 bg-zinc-900 border border-zinc-800 rounded-lg shadow-xl py-1 z-30 text-xs">
-                      <button
-                        onClick={handleCopyLink}
-                        className="w-full px-3 py-2 text-left text-zinc-200 hover:bg-zinc-800 flex items-center space-x-2 cursor-pointer"
+                  <div className="flex flex-col min-w-0">
+                    <div className="flex items-center space-x-1.5 min-w-0">
+                      <Link
+                        href={`/creator/${creatorHandle}`}
+                        onClick={onClose}
+                        className="text-[13px] font-semibold text-white hover:text-violet-300 truncate transition-colors flex items-center gap-1.5"
                       >
-                        <Copy className="w-3.5 h-3.5" />
-                        <span>Copy Link</span>
-                      </button>
-                      <button
-                        onClick={() => {
-                          setIsCategoryPickerOpen(true);
-                          setIsMenuOpen(false);
-                        }}
-                        className="w-full px-3 py-2 text-left text-zinc-200 hover:bg-zinc-800 flex items-center space-x-2 cursor-pointer"
-                      >
-                        <Tag className="w-3.5 h-3.5 text-brand-400" />
-                        <span>Assign Category</span>
-                      </button>
+                        <span>@{creatorHandle}</span>
+                        {isVerifiedCreator && <VerifiedBadge />}
+                      </Link>
+                    </div>
+                    <div className="flex items-center space-x-2 text-[10px] text-zinc-400 font-mono">
+                      <span className="uppercase tracking-wider px-1.5 py-0.2 rounded bg-white/[0.05] border border-white/[0.06] text-zinc-300">
+                        {activeReel.mediaType ? activeReel.mediaType.toUpperCase() : "REEL"}
+                      </span>
+                      <span>•</span>
                       <a
                         href={activeReel.instagramUrl}
                         target="_blank"
                         rel="noreferrer"
-                        className="w-full px-3 py-2 text-left text-zinc-200 hover:bg-zinc-800 flex items-center space-x-2"
+                        className="hover:text-white transition-colors flex items-center gap-0.5"
                       >
-                        <ExternalLink className="w-3.5 h-3.5" />
-                        <span>Open on Instagram</span>
+                        <span>Follow</span>
+                        <ExternalLink className="size-2.5" />
                       </a>
-                      <div className="my-1 border-t border-zinc-800" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Top Right Header Controls */}
+                <div className="flex items-center space-x-1">
+                  {(hasPrev || hasNext) && (
+                    <div className="flex items-center bg-white/[0.04] border border-white/[0.08] rounded-lg p-0.5 mr-1">
                       <button
-                        onClick={() => {
-                          deleteReel(activeReel.id);
-                          onClose();
-                        }}
-                        className="w-full px-3 py-2 text-left text-red-400 hover:bg-red-500/10 flex items-center space-x-2"
+                        onClick={handlePrevReel}
+                        disabled={!hasPrev}
+                        className="p-1 rounded text-zinc-400 hover:text-white disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer"
+                        title="Previous Reel (Up Arrow)"
                       >
-                        <Trash2 className="w-3.5 h-3.5" />
-                        <span>Delete Item</span>
+                        <ChevronUp className="size-3.5" />
                       </button>
+                      <button
+                        onClick={handleNextReel}
+                        disabled={!hasNext}
+                        className="p-1 rounded text-zinc-400 hover:text-white disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer"
+                        title="Next Reel (Down Arrow)"
+                      >
+                        <ChevronDownIcon className="size-3.5" />
+                      </button>
+                    </div>
+                  )}
+
+                  <div className="relative">
+                    <button
+                      onClick={() => setIsMenuOpen(!isMenuOpen)}
+                      className="p-1.5 text-zinc-400 hover:text-white hover:bg-white/[0.06] rounded-lg transition-colors cursor-pointer"
+                      title="More options"
+                    >
+                      <MoreHorizontal className="size-4" />
+                    </button>
+
+                    {isMenuOpen && (
+                      <div className="absolute right-0 top-full mt-1.5 w-48 bg-[#14151C] border border-white/[0.1] rounded-xl shadow-2xl py-1 z-50 text-xs backdrop-blur-xl">
+                        <button
+                          onClick={handleCopyLink}
+                          className="w-full px-3 py-2 text-left text-zinc-200 hover:bg-white/[0.06] flex items-center space-x-2.5 transition-colors cursor-pointer"
+                        >
+                          <Copy className="size-3.5 text-zinc-400" />
+                          <span>Copy Link</span>
+                        </button>
+                        <button
+                          onClick={handleDownloadVideo}
+                          className="w-full px-3 py-2 text-left text-zinc-200 hover:bg-white/[0.06] flex items-center space-x-2.5 transition-colors cursor-pointer"
+                        >
+                          <Download className="size-3.5 text-violet-400" />
+                          <span>Download MP4</span>
+                        </button>
+                        <a
+                          href={activeReel.instagramUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="w-full px-3 py-2 text-left text-zinc-200 hover:bg-white/[0.06] flex items-center space-x-2.5 transition-colors"
+                        >
+                          <ExternalLink className="size-3.5 text-zinc-400" />
+                          <span>Open on Instagram</span>
+                        </a>
+                        <div className="my-1 border-t border-white/[0.08]" />
+                        <button
+                          onClick={() => {
+                            deleteReel(activeReel.id);
+                            onClose();
+                          }}
+                          className="w-full px-3 py-2 text-left text-rose-400 hover:bg-rose-500/10 flex items-center space-x-2.5 transition-colors cursor-pointer"
+                        >
+                          <Trash2 className="size-3.5" />
+                          <span>Delete Reel</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  <button
+                    onClick={onClose}
+                    className="p-1.5 text-zinc-400 hover:text-white hover:bg-white/[0.06] rounded-lg transition-colors ml-1 cursor-pointer"
+                    title="Close (Esc)"
+                  >
+                    <X className="size-4" />
+                  </button>
+                </div>
+              </div>
+
+              {/* 2. METRICS & CATEGORY STRIP */}
+              <div className="px-5 py-2.5 bg-white/[0.02] border-b border-white/[0.06] flex items-center justify-between text-xs shrink-0 relative z-10">
+                <div className="flex items-center space-x-4 text-zinc-400">
+                  <span className="flex items-center space-x-1.5 text-zinc-300 font-medium">
+                    <Heart className={`size-3.5 ${activeReel.isFavorite ? "fill-rose-500 text-rose-500" : "text-zinc-500"}`} />
+                    <span className="font-mono text-[11px]">{activeReel.likes || "Like"}</span>
+                  </span>
+                  {activeReel.commentsCount && (
+                    <span className="flex items-center space-x-1.5 text-zinc-400">
+                      <MessageSquare className="size-3.5 text-zinc-500" />
+                      <span className="font-mono text-[11px]">{activeReel.commentsCount} comments</span>
+                    </span>
+                  )}
+                  <span className="flex items-center space-x-1.5 text-zinc-400 text-[11px]">
+                    <Calendar className="size-3 text-zinc-500" />
+                    <span>{formattedDate}</span>
+                  </span>
+                </div>
+
+                {/* Category Pill with inline popover toggle */}
+                <div className="relative">
+                  <button
+                    onClick={() => setIsCategoryPickerOpen(!isCategoryPickerOpen)}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-violet-500/10 border border-violet-500/25 text-violet-300 text-[11px] font-medium hover:bg-violet-500/20 transition-all cursor-pointer"
+                    title="Change Category"
+                  >
+                    <Tag className="size-3 text-violet-400" />
+                    <span className="max-w-[120px] truncate">{activeReel.category || "General"}</span>
+                    <ChevronDownIcon className="size-3 text-violet-400/80" />
+                  </button>
+
+                  {/* Category popover */}
+                  {isCategoryPickerOpen && (
+                    <div className="absolute right-0 top-full mt-2 w-56 bg-[#14151C] border border-white/[0.1] rounded-xl shadow-2xl p-2 z-40 text-xs backdrop-blur-xl">
+                      <div className="px-2 py-1 text-[10px] uppercase font-mono tracking-wider text-zinc-400 border-b border-white/[0.06] mb-1.5 flex justify-between items-center">
+                        <span>Select Category</span>
+                        <button
+                          onClick={() => setIsCategoryPickerOpen(false)}
+                          className="text-zinc-400 hover:text-white"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                      <div className="max-h-44 overflow-y-auto space-y-1 custom-scrollbar">
+                        {availableCategories.map((cat) => (
+                          <button
+                            key={cat}
+                            onClick={() => {
+                              updateCategory(activeReel.id, cat);
+                              setActiveReel((prev) => ({
+                                ...prev,
+                                category: cat,
+                                categories: [cat],
+                              }));
+                              setIsCategoryPickerOpen(false);
+                              showToast(`Category set to "${cat}"`);
+                            }}
+                            className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs flex items-center justify-between transition-colors cursor-pointer ${
+                              activeReel.category?.toLowerCase() === cat.toLowerCase()
+                                ? "bg-violet-600/25 text-violet-200 font-semibold"
+                                : "text-zinc-300 hover:bg-white/[0.06]"
+                            }`}
+                          >
+                            <div className="flex items-center gap-2 truncate">
+                              <Tag className="size-3 text-violet-400 shrink-0" />
+                              <span className="truncate">{cat}</span>
+                            </div>
+                            {activeReel.category?.toLowerCase() === cat.toLowerCase() && (
+                              <Check className="size-3.5 text-violet-400 shrink-0" />
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* 3. MIDDLE SCROLLABLE BODY */}
+              <div className="flex-1 overflow-y-auto p-5 space-y-4 text-xs font-normal leading-relaxed custom-scrollbar bg-[#090A0F]">
+                {/* Clean Caption */}
+                <div className="space-y-2.5">
+                  <div className="text-[13px] text-zinc-200 leading-relaxed font-normal whitespace-pre-line">
+                    {renderFormattedCaption(cleanCaption || "No caption provided.", onClose)}
+                  </div>
+
+                  {/* Extracted Topic Tags Shelf */}
+                  {parsedTags.length > 0 && (
+                    <div className="pt-2">
+                      <div className="flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-wider text-zinc-400 mb-2">
+                        <Sparkles className="size-3 text-violet-400" />
+                        <span>Topics & Keywords</span>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {parsedTags.map((tag: string, i: number) => (
+                          <Link
+                            key={i}
+                            href={`/search?q=${encodeURIComponent(tag)}`}
+                            onClick={onClose}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] hover:border-violet-500/30 text-xs text-zinc-300 hover:text-violet-200 transition-all font-sans"
+                          >
+                            <span>{tag}</span>
+                          </Link>
+                        ))}
+                      </div>
                     </div>
                   )}
                 </div>
 
-                <button
-                  onClick={onClose}
-                  className="hidden md:flex p-1.5 text-zinc-400 hover:text-white rounded-full hover:bg-zinc-800 transition-colors cursor-pointer"
-                  title="Close"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-
-            {/* 2. MIDDLE SCROLLABLE FEED: Clean Caption, Real Audio, Tags, Notes */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4 text-xs font-normal leading-relaxed custom-scrollbar bg-zinc-950">
-              {/* Caption Content */}
-              <div className="space-y-2">
-                <p className="text-xs text-zinc-200 whitespace-pre-line leading-relaxed">
-                  {formatCaption(activeReel.caption || activeReel.aiSummary || "No caption provided.")}
-                </p>
-
-                {activeReel.aiSummary && activeReel.aiSummary !== activeReel.caption && (
-                  <div className="p-2.5 rounded-lg bg-purple-500/10 border border-purple-500/20 text-purple-300 space-y-1">
-                    <span className="text-[10px] font-semibold uppercase tracking-wider flex items-center gap-1 text-purple-400">
-                      <span>✨</span> AI Content Summary
-                    </span>
-                    <p className="text-xs leading-relaxed text-zinc-300">{activeReel.aiSummary}</p>
-                  </div>
-                )}
-
-                {/* Audio Track Information */}
-                {activeReel.mediaType === "audio" ? (
-                  <div className="flex items-center justify-between p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
-                    <div className="flex items-center space-x-2 min-w-0">
-                      <Music2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                      <div className="min-w-0">
-                        <p className="font-semibold text-xs text-white truncate">
-                          {activeReel.audioTitle || "Original audio"}
-                        </p>
-                        <p className="text-[10px] text-emerald-400/80 truncate">
-                          {activeReel.audioArtist || `@${activeReel.creatorUsername} • Original Audio`}
-                        </p>
+                {/* Soundtrack Audio Card */}
+                {activeReel.audioTitle && (
+                  <div className="flex items-center justify-between p-3 rounded-xl bg-white/[0.03] border border-white/[0.08] text-zinc-200">
+                    <div className="flex items-center space-x-2.5 min-w-0 mr-2">
+                      <div className="size-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 shrink-0">
+                        <Music2 className="size-4" />
                       </div>
-                    </div>
-                    <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 shrink-0">
-                      Audio Track
-                    </span>
-                  </div>
-                ) : activeReel.audioTitle ? (
-                  <div className="flex items-center justify-between p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
-                    <div className="flex items-center space-x-2 min-w-0 mr-2">
-                      <Music2 className="w-4 h-4 text-emerald-400 shrink-0" />
                       <div className="min-w-0">
                         <p className="font-semibold text-xs text-white truncate">
                           {activeReel.audioTitle}
                         </p>
-                        <p className="text-[10px] text-emerald-400/80 truncate">
-                          {activeReel.audioArtist || `@${activeReel.creatorUsername} • Audio Track`}
+                        <p className="text-[10px] text-zinc-400 truncate">
+                          {activeReel.audioArtist || `@${creatorHandle} • Soundtrack`}
                         </p>
                       </div>
                     </div>
@@ -813,251 +1095,176 @@ export function ReelPlayerModal({ reel, isOpen, onClose }: ReelPlayerModalProps)
                           mediaType: "audio",
                           shortcode: `audio_${activeReel.shortcode || activeReel.id}`,
                           audioTitle: activeReel.audioTitle || "Original audio",
-                          audioArtist: activeReel.audioArtist || `@${activeReel.creatorUsername}`,
-                          creator: activeReel.creatorUsername,
-                          caption: `Soundtrack from @${activeReel.creatorUsername}: ${activeReel.audioTitle || "Original audio"}`,
+                          audioArtist: activeReel.audioArtist || `@${creatorHandle}`,
+                          creator: creatorHandle,
+                          caption: `Soundtrack: ${activeReel.audioTitle || "Original audio"}`,
                           category: "Music & Audio",
                           thumbnailUrl: activeReel.thumbnailUrl,
                           mediaUrl: activeReel.videoUrl || activeReel.mediaUrl,
                         });
                         showToast("Audio track saved to Songs & Audio!");
                       }}
-                      className="shrink-0 flex items-center space-x-1 px-2.5 py-1 rounded bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-semibold transition-all cursor-pointer shadow-sm active:scale-95"
-                      title="Save this audio track to Songs & Audio"
+                      className="shrink-0 flex items-center space-x-1 px-2.5 py-1 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-300 text-[11px] font-medium transition-all cursor-pointer"
                     >
-                      <Plus className="w-3 h-3" />
+                      <Plus className="size-3" />
                       <span>Save Audio</span>
                     </button>
                   </div>
-                ) : null}
-
-                {/* 1. Assigned Categories */}
-                <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                  <span className="text-[11px] font-semibold text-zinc-400 mr-0.5">Categories:</span>
-                  {(activeReel.categories && activeReel.categories.length > 0 ? activeReel.categories : [activeReel.category || "General"]).map((catName, idx) => (
-                    <Link
-                      key={idx}
-                      href={`/reels?category=${encodeURIComponent(catName)}`}
-                      onClick={onClose}
-                      className="inline-flex items-center space-x-1.5 text-[11px] px-2.5 py-0.5 rounded-full bg-brand-500/10 border border-brand-500/25 text-brand-400 font-medium hover:bg-brand-500/20 transition-colors"
-                    >
-                      <Tag className="w-3 h-3 text-brand-400" strokeWidth={2} />
-                      <span>{catName}</span>
-                    </Link>
-                  ))}
-                </div>
-
-                {/* 2. AI Topics */}
-                {activeReel.aiTopics && activeReel.aiTopics.length > 0 && (
-                  <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                    <span className="text-[11px] font-semibold text-zinc-400 mr-0.5">AI Topics:</span>
-                    {activeReel.aiTopics.map((topic, i) => (
-                      <span
-                        key={i}
-                        className="text-[11px] px-2 py-0.5 rounded-md bg-purple-500/10 border border-purple-500/20 text-purple-300 font-medium"
-                      >
-                        {topic}
-                      </span>
-                    ))}
-                  </div>
                 )}
 
-                {/* 3. Instagram Hashtags */}
-                {activeReel.hashtags && activeReel.hashtags.length > 0 && (
-                  <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                    <span className="text-[11px] font-semibold text-zinc-400 mr-0.5">Hashtags:</span>
-                    {activeReel.hashtags.map((tag, i) => {
-                      const cleanTag = tag.startsWith("#") ? tag.slice(1) : tag;
-                      return (
-                        <Link
-                          key={i}
-                          href={`/search?q=${encodeURIComponent(`#${cleanTag}`)}`}
-                          onClick={onClose}
-                          className="text-[11px] px-2 py-0.5 rounded-full bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700 font-mono transition-colors"
-                        >
-                          #{cleanTag}
-                        </Link>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-
-              {/* Real Instagram Engagement & Save Metadata */}
-              <div className="pt-3 border-t border-zinc-800/60 space-y-2 text-xs text-zinc-400">
-                <div className="flex flex-wrap items-center gap-4 text-zinc-400">
-                  {activeReel.likes && (
-                    <span className="flex items-center space-x-1 font-semibold text-zinc-300">
-                      <ThumbsUp className="w-3.5 h-3.5 text-zinc-500" />
-                      <span>{activeReel.likes}</span>
-                    </span>
-                  )}
-                  {activeReel.commentsCount && (
-                    <span className="flex items-center space-x-1 text-zinc-300">
-                      <MessageSquare className="w-3.5 h-3.5 text-zinc-500" />
-                      <span>{activeReel.commentsCount} comments</span>
-                    </span>
-                  )}
-                  <span className="flex items-center space-x-1 text-zinc-500 text-[11px]">
-                    <Calendar className="w-3 h-3 text-zinc-500" />
-                    <span>Saved {formattedDate}</span>
-                  </span>
-                </div>
-              </div>
-
-              {/* AI Key Insights */}
-              {activeReel.aiSummary && !activeReel.aiSummary.includes("discussing General") && !activeReel.aiSummary.startsWith("Summary:") ? (
-                <div className="p-3 bg-zinc-900/90 border border-zinc-800 rounded-lg space-y-2">
+                {/* Astra AI Insights & Takeaways Card */}
+                <div className="rounded-xl bg-gradient-to-br from-violet-950/20 via-[#10121A] to-black/30 border border-violet-500/20 p-3.5 space-y-2.5">
                   <div className="flex items-center justify-between">
-                    <span className="text-zinc-300 font-semibold text-[11px] uppercase tracking-wider">
-                      Key Takeaways
+                    <span className="text-[11px] font-semibold tracking-wide text-violet-300 flex items-center gap-1.5 uppercase font-mono">
+                      <Sparkles className="size-3.5 text-violet-400" />
+                      <span>Astra AI Insights</span>
+                    </span>
+                    {activeReel.aiSummary && !isAiLoading && (
+                      <button
+                        onClick={handleExtractAiTakeaways}
+                        className="text-[10px] text-violet-400 hover:text-violet-200 transition-colors flex items-center gap-1 cursor-pointer"
+                      >
+                        <span>Regenerate</span>
+                      </button>
+                    )}
+                  </div>
+
+                  {isAiLoading ? (
+                    <div className="py-4 flex items-center justify-center space-x-2 text-violet-300 text-xs">
+                      <Loader2 className="size-4 animate-spin text-violet-400" />
+                      <span>Synthesizing key hooks & takeaways...</span>
+                    </div>
+                  ) : activeReel.aiSummary && !activeReel.aiSummary.includes("discussing General") ? (
+                    <p className="text-xs text-zinc-300 leading-relaxed whitespace-pre-line font-sans">
+                      {activeReel.aiSummary}
+                    </p>
+                  ) : (
+                    <button
+                      onClick={handleExtractAiTakeaways}
+                      className="w-full py-2.5 px-3 rounded-lg bg-violet-600/15 hover:bg-violet-600/25 border border-violet-500/30 text-violet-200 text-xs font-medium flex items-center justify-center gap-2 transition-all cursor-pointer"
+                    >
+                      <Sparkles className="size-3.5 text-violet-400" />
+                      <span>Extract Key Takeaways & Hooks</span>
+                    </button>
+                  )}
+                </div>
+
+                {/* Workspace Notes Card */}
+                <div className="rounded-xl bg-white/[0.03] border border-white/[0.08] p-3.5 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-semibold text-zinc-400 uppercase font-mono tracking-wider">
+                      Workspace Notes
                     </span>
                     <button
-                      onClick={() => generateAiSummary(activeReel.id)}
-                      className="text-[10px] text-zinc-400 hover:text-white cursor-pointer"
+                      onClick={() => setIsEditingNote(!isEditingNote)}
+                      className="text-[11px] text-violet-400 hover:text-violet-300 transition-colors flex items-center gap-1 cursor-pointer"
                     >
-                      Regenerate
+                      <Edit3 className="size-3" />
+                      <span>{isEditingNote ? "Cancel" : "Edit"}</span>
                     </button>
                   </div>
-                  <p className="text-xs text-zinc-300 whitespace-pre-line leading-relaxed">
-                    {activeReel.aiSummary}
-                  </p>
-                </div>
-              ) : (
-                <button
-                  onClick={() => generateAiSummary(activeReel.id)}
-                  className="w-full p-2.5 rounded-lg border border-dashed border-zinc-800 hover:border-zinc-700 bg-zinc-900/30 hover:bg-zinc-900 text-xs font-medium text-zinc-400 hover:text-white flex items-center justify-center transition-all cursor-pointer"
-                >
-                  <span>Extract Key Takeaways</span>
-                </button>
-              )}
 
-              {/* Personal Notes */}
-              <div className="p-3 bg-zinc-900/50 border border-zinc-800/80 rounded-lg space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">
-                    My Notes
-                  </span>
+                  {isEditingNote ? (
+                    <div className="space-y-2">
+                      <textarea
+                        value={noteContent}
+                        onChange={(e) => setNoteContent(e.target.value)}
+                        placeholder="Jot down creative hooks, lighting notes, or remix ideas..."
+                        rows={3}
+                        autoFocus
+                        className="w-full p-2.5 bg-black/40 border border-violet-500/40 rounded-lg text-xs text-white focus:outline-none focus:ring-1 focus:ring-violet-500 resize-none leading-relaxed"
+                      />
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => setIsEditingNote(false)}
+                          className="px-3 py-1 rounded-md text-xs text-zinc-400 hover:text-white transition-colors cursor-pointer"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          onClick={handleSaveNote}
+                          className="px-3.5 py-1 rounded-md bg-violet-600 hover:bg-violet-500 text-white text-xs font-medium transition-colors cursor-pointer"
+                        >
+                          Save Note
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-zinc-300 leading-relaxed">
+                      {activeReel.notes ? (
+                        activeReel.notes
+                      ) : (
+                        <span
+                          onClick={() => setIsEditingNote(true)}
+                          className="italic text-zinc-500 hover:text-zinc-400 cursor-pointer block"
+                        >
+                          Click to record hooks, ideas, or references for this reel…
+                        </span>
+                      )}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* 4. BOTTOM ACTION DOCK */}
+              <div className="p-3 px-5 border-t border-white/[0.08] bg-[#0C0D13] shrink-0 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
                   <button
-                    onClick={() => setIsEditingNote(!isEditingNote)}
-                    className="text-[10px] text-brand-400 hover:underline cursor-pointer"
+                    onClick={handleToggleFavorite}
+                    className={`p-2.5 rounded-xl border transition-all cursor-pointer flex items-center justify-center ${
+                      activeReel.isFavorite
+                        ? "border-rose-500/40 bg-rose-500/15 text-rose-400 shadow-[0_0_12px_rgba(244,63,94,0.2)]"
+                        : "border-white/[0.08] bg-white/[0.04] text-zinc-400 hover:text-white hover:bg-white/[0.08]"
+                    }`}
+                    title={activeReel.isFavorite ? "Favorited" : "Add to favorites"}
                   >
-                    {isEditingNote ? "Cancel" : "Edit"}
+                    <Heart
+                      className={`size-4 ${activeReel.isFavorite ? "fill-rose-500 text-rose-500" : ""}`}
+                    />
+                  </button>
+
+                  <button
+                    onClick={() => setIsCategoryPickerOpen(!isCategoryPickerOpen)}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-xs font-medium text-zinc-300 transition-colors cursor-pointer"
+                    title="Change Category"
+                  >
+                    <Tag className="size-3.5 text-violet-400" />
+                    <span className="max-w-[120px] truncate">{activeReel.category || "General"}</span>
                   </button>
                 </div>
 
-                {isEditingNote ? (
-                  <div className="space-y-2">
-                    <textarea
-                      value={noteContent}
-                      onChange={(e) => setNoteContent(e.target.value)}
-                      placeholder="Add personal notes or takeaways..."
-                      rows={2}
-                      className="w-full p-2 bg-zinc-800 border border-zinc-700 rounded text-xs text-white focus:outline-none focus:border-brand-500 resize-none"
-                    />
-                    <button
-                      onClick={handleSaveNote}
-                      className="px-3 py-1 bg-brand-500 text-white rounded text-[11px] font-medium hover:bg-brand-600 cursor-pointer"
-                    >
-                      Save Note
-                    </button>
-                  </div>
-                ) : (
-                  <p className="text-xs text-zinc-300">
-                    {activeReel.notes || (
-                      <span className="italic text-zinc-500">
-                        No notes yet. Click edit to add your thoughts.
-                      </span>
-                    )}
-                  </p>
-                )}
-              </div>
-            </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleDownloadVideo}
+                    className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-violet-600/20 hover:bg-violet-600/30 border border-violet-500/30 text-xs font-medium text-violet-200 transition-colors cursor-pointer"
+                    title="Download high-resolution MP4"
+                  >
+                    <Download className="size-3.5 text-violet-400" />
+                    <span>Download MP4</span>
+                  </button>
 
-            {/* 3. BOTTOM CLEAN LIBRARY ACTION BAR */}
-            <div className="p-3.5 px-4 border-t border-zinc-800/80 bg-zinc-950 shrink-0 space-y-2">
-              <div className="flex items-center gap-2">
-                {/* Favorite Toggle Button */}
-                <button
-                  onClick={handleToggleFavorite}
-                  className={`p-2.5 rounded-md border transition-all cursor-pointer flex items-center justify-center ${
-                    activeReel.isFavorite
-                      ? "border-rose-500/40 bg-rose-500/10 text-rose-400"
-                      : "border-zinc-800 bg-zinc-900 text-zinc-400 hover:text-white"
-                  }`}
-                  title={activeReel.isFavorite ? "Remove from favorites" : "Add to favorites"}
-                >
-                  <Heart
-                    className={`w-4 h-4 ${activeReel.isFavorite ? "fill-rose-500 text-rose-500" : ""}`}
-                  />
-                </button>
+                  <button
+                    onClick={handleCopyLink}
+                    className="p-2 rounded-xl border border-white/[0.08] bg-white/[0.04] text-zinc-400 hover:text-white hover:bg-white/[0.08] transition-colors cursor-pointer"
+                    title="Copy Reel Link"
+                  >
+                    <Copy className="size-4" />
+                  </button>
 
-                {/* Primary Assign Category Action */}
-                <button
-                  onClick={() => setIsCategoryPickerOpen(!isCategoryPickerOpen)}
-                  className="flex-1 py-2 px-3 bg-brand-500 hover:bg-brand-600 active:scale-98 text-white rounded-md text-xs font-semibold flex items-center justify-center space-x-1.5 transition-all shadow-sm cursor-pointer"
-                >
-                  <Tag className="w-3.5 h-3.5" />
-                  <span>Assign Category</span>
-                </button>
-
-                {/* Copy Link Button */}
-                <button
-                  onClick={handleCopyLink}
-                  className="p-2.5 rounded-md border border-zinc-800 bg-zinc-900 text-zinc-400 hover:text-white transition-all cursor-pointer"
-                  title="Copy Instagram URL"
-                >
-                  <Copy className="w-4 h-4" />
-                </button>
-              </div>
-
-              {/* Category Picker Dropdown Modal Overlay */}
-              {isCategoryPickerOpen && (
-                <div className="p-3 bg-zinc-900 border border-zinc-800 rounded-lg space-y-2 animate-in fade-in">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="font-semibold text-white">Assign Category:</span>
-                    <button
-                      onClick={() => setIsCategoryPickerOpen(false)}
-                      className="text-zinc-400 hover:text-white text-[11px] cursor-pointer"
-                    >
-                      Done
-                    </button>
-                  </div>
-                  <div className="max-h-32 overflow-y-auto space-y-1 custom-scrollbar">
-                    {availableCategories.map((cat) => (
-                      <button
-                        key={cat}
-                        onClick={() => {
-                          updateCategory(activeReel.id, cat);
-                          setActiveReel((prev) => ({
-                            ...prev,
-                            category: cat,
-                            categories: [cat],
-                          }));
-                          setIsCategoryPickerOpen(false);
-                        }}
-                        className={`w-full text-left px-2.5 py-1.5 rounded text-xs flex items-center justify-between cursor-pointer transition-colors ${
-                          activeReel.category?.toLowerCase() === cat.toLowerCase()
-                            ? "bg-brand-500/20 text-brand-300 font-semibold"
-                            : "text-zinc-300 hover:bg-zinc-800"
-                        }`}
-                      >
-                        <div className="flex items-center space-x-2">
-                          <Tag className="w-3 h-3 text-brand-400" />
-                          <span className="truncate">{cat}</span>
-                        </div>
-                        {activeReel.category?.toLowerCase() === cat.toLowerCase() && (
-                          <span className="text-[10px] text-brand-400 font-medium">Current</span>
-                        )}
-                      </button>
-                    ))}
-                  </div>
+                  <a
+                    href={activeReel.instagramUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="p-2 rounded-xl border border-white/[0.08] bg-white/[0.04] text-zinc-400 hover:text-white hover:bg-white/[0.08] transition-colors"
+                    title="Open on Instagram"
+                  >
+                    <ExternalLink className="size-4" />
+                  </a>
                 </div>
-              )}
+              </div>
             </div>
-          </div>
-        </motion.div>
-      </div>
+          </motion.div>
+        </div>
       )}
     </AnimatePresence>,
     document.body

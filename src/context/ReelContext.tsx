@@ -1344,6 +1344,8 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
     showToast("Extracting key takeaways...");
     setTimeout(() => {
       const cleanCaption = (target.caption || "")
+        .replace(/\[([^\]]+)\]/g, "")
+        .replace(/View all \d+ comments/gi, "")
         .replace(/#[a-zA-Z0-9_]+/g, "")
         .replace(/@[a-zA-Z0-9_.]+/g, "")
         .trim();
