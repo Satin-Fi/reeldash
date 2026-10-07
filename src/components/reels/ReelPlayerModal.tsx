@@ -46,13 +46,16 @@ function VerifiedBadge({ className = "size-3.5" }: { className?: string }) {
 
 function parseCaptionData(
   rawCaption?: string,
-  existingTags: string[] = [],
-  existingTopics: string[] = []
+  existingTags: any[] = [],
+  existingTopics: any[] = []
 ): { cleanCaption: string; tags: string[] } {
-  if (!rawCaption) {
+  const safeTags = Array.isArray(existingTags) ? existingTags.filter((t) => typeof t === "string" && t.trim()) : [];
+  const safeTopics = Array.isArray(existingTopics) ? existingTopics.filter((t) => typeof t === "string" && t.trim()) : [];
+
+  if (!rawCaption || typeof rawCaption !== "string") {
     return {
       cleanCaption: "",
-      tags: Array.from(new Set([...existingTags, ...existingTopics])).filter(Boolean),
+      tags: Array.from(new Set([...safeTags, ...safeTopics])),
     };
   }
 
@@ -80,8 +83,8 @@ function parseCaptionData(
     .trim();
 
   const allTags = Array.from(
-    new Set([...extractedTags, ...existingTags, ...existingTopics])
-  ).filter(Boolean);
+    new Set([...extractedTags, ...safeTags, ...safeTopics])
+  );
 
   return {
     cleanCaption: text,
@@ -89,13 +92,14 @@ function parseCaptionData(
   };
 }
 
-function renderFormattedCaption(text: string, onClose?: () => void) {
-  if (!text) return <span className="text-zinc-500 italic">No caption provided.</span>;
+function renderFormattedCaption(text?: string, onClose?: () => void) {
+  if (!text || typeof text !== "string") return <span className="text-zinc-500 italic">No caption provided.</span>;
 
   const parts = text.split(/(https?:\/\/[^\s]+|#[a-zA-Z0-9_\u0900-\u097F]+|@[a-zA-Z0-9_.]+)/g);
 
   return parts.map((part, i) => {
-    if (part.startsWith("#")) {
+    if (!part) return null;
+    if (typeof part === "string" && part.startsWith("#")) {
       return (
         <Link
           key={i}
@@ -107,7 +111,7 @@ function renderFormattedCaption(text: string, onClose?: () => void) {
         </Link>
       );
     }
-    if (part.startsWith("@")) {
+    if (typeof part === "string" && part.startsWith("@")) {
       const handle = part.slice(1);
       return (
         <Link
@@ -120,7 +124,7 @@ function renderFormattedCaption(text: string, onClose?: () => void) {
         </Link>
       );
     }
-    if (part.startsWith("http")) {
+    if (typeof part === "string" && part.startsWith("http")) {
       return (
         <a
           key={i}
@@ -292,32 +296,13 @@ export function ReelPlayerModal({ reel, isOpen, onClose }: ReelPlayerModalProps)
     }
   };
 
-  if (!isOpen || !activeReel || !mounted) return null;
-
-  const creatorHandle = activeReel.creatorUsername || "creator";
-  const formattedDate = new Date(activeReel.createdAt).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-
-  const handleCopyLink = () => {
-    navigator.clipboard.writeText(activeReel.instagramUrl);
-    showToast("Reel link copied to clipboard");
-    setIsMenuOpen(false);
-  };
-
-  const handleSaveNote = () => {
-    updateNote(activeReel.id, noteContent);
-    setIsEditingNote(false);
-    showToast("Personal note saved");
-  };
-
   const [isAiLoading, setIsAiLoading] = useState(false);
 
+  const creatorHandle = activeReel?.creatorUsername || "creator";
+
   const isVerifiedCreator = Boolean(
-    (activeReel as any).isVerified ||
-    (activeReel as any).creatorVerified ||
+    (activeReel as any)?.isVerified ||
+    (activeReel as any)?.creatorVerified ||
     ["primevideoin", "netflix_in", "instagram", "apple", "google", "spotify"].includes(
       creatorHandle.toLowerCase()
     ) ||
@@ -325,15 +310,44 @@ export function ReelPlayerModal({ reel, isOpen, onClose }: ReelPlayerModalProps)
     creatorHandle.toLowerCase().includes("official")
   );
 
+  const formattedDate = useMemo(() => {
+    if (!activeReel?.createdAt) return "Recently";
+    try {
+      const d = new Date(activeReel.createdAt);
+      if (isNaN(d.getTime())) return "Recently";
+      return d.toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      });
+    } catch {
+      return "Recently";
+    }
+  }, [activeReel?.createdAt]);
+
   const { cleanCaption, tags: parsedTags } = useMemo(() => {
-    return parseCaptionData(
-      activeReel.caption,
-      activeReel.tags || [],
-      activeReel.aiTopics || []
-    );
-  }, [activeReel.caption, activeReel.tags, activeReel.aiTopics]);
+    if (!activeReel) return { cleanCaption: "", tags: [] };
+    const safeTags = Array.isArray(activeReel.tags) ? activeReel.tags : [];
+    const safeTopics = Array.isArray(activeReel.aiTopics) ? activeReel.aiTopics : [];
+    return parseCaptionData(activeReel.caption, safeTags, safeTopics);
+  }, [activeReel?.caption, activeReel?.tags, activeReel?.aiTopics]);
+
+  const handleCopyLink = () => {
+    if (!activeReel) return;
+    navigator.clipboard.writeText(activeReel.instagramUrl);
+    showToast("Reel link copied to clipboard");
+    setIsMenuOpen(false);
+  };
+
+  const handleSaveNote = () => {
+    if (!activeReel) return;
+    updateNote(activeReel.id, noteContent);
+    setIsEditingNote(false);
+    showToast("Personal note saved");
+  };
 
   const handleDownloadVideo = () => {
+    if (!activeReel) return;
     try {
       showToast("Preparing MP4 download...");
       const shortcode = activeReel.shortcode || activeReel.id;
@@ -352,6 +366,7 @@ export function ReelPlayerModal({ reel, isOpen, onClose }: ReelPlayerModalProps)
   };
 
   const handleExtractAiTakeaways = () => {
+    if (!activeReel) return;
     setIsAiLoading(true);
     generateAiSummary(activeReel.id);
     setTimeout(() => {
@@ -364,7 +379,7 @@ export function ReelPlayerModal({ reel, isOpen, onClose }: ReelPlayerModalProps)
     if (!text) return "";
     const parts = text.split(/(#[a-zA-Z0-9_]+|@[a-zA-Z0-9_.]+)/g);
     return parts.map((part, i) => {
-      if (part.startsWith("#") || part.startsWith("@")) {
+      if (part && (part.startsWith("#") || part.startsWith("@"))) {
         return (
           <span key={i} className="text-brand-400 font-medium">
             {part}
@@ -374,6 +389,8 @@ export function ReelPlayerModal({ reel, isOpen, onClose }: ReelPlayerModalProps)
       return part;
     });
   };
+
+  if (!isOpen || !activeReel || !mounted) return null;
 
   return createPortal(
     <AnimatePresence>
