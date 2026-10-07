@@ -45,3 +45,4 @@ debug_*.js
 inspect_*.js
 verify_*.js
 check_*.js
+scripts/raw-modal-output.txt
