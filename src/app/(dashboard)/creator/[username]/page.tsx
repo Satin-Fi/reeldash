@@ -258,20 +258,20 @@ function CreatorProfileContent() {
               {/* Stats */}
               <div className="flex items-center space-x-3 text-xs pt-0.5">
                 {account?.followers && (
-                  <span className="font-semibold text-primaryText-light dark:text-primaryText-dark">
+                  <span className="font-medium font-bricolage tabular-nums text-primaryText-light dark:text-primaryText-dark">
                     {account.followers}{" "}
-                    <span className="font-normal text-secondaryText-light dark:text-secondaryText-dark">followers</span>
+                    <span className="font-normal font-sans text-secondaryText-light dark:text-secondaryText-dark">followers</span>
                   </span>
                 )}
                 {account?.postsCount && (
-                  <span className="font-semibold text-primaryText-light dark:text-primaryText-dark">
+                  <span className="font-medium font-bricolage tabular-nums text-primaryText-light dark:text-primaryText-dark">
                     {account.postsCount}{" "}
-                    <span className="font-normal text-secondaryText-light dark:text-secondaryText-dark">posts</span>
+                    <span className="font-normal font-sans text-secondaryText-light dark:text-secondaryText-dark">posts</span>
                   </span>
                 )}
-                <span className="font-semibold text-brand-600 dark:text-brand-400">
+                <span className="font-medium font-bricolage tabular-nums text-brand-600 dark:text-brand-400">
                   {creatorReels.length + creatorPosts.length + creatorAudio.length}{" "}
-                  <span className="font-normal text-secondaryText-light dark:text-secondaryText-dark">saved in library</span>
+                  <span className="font-normal font-sans text-secondaryText-light dark:text-secondaryText-dark">saved in library</span>
                 </span>
               </div>
             </div>
@@ -378,7 +378,7 @@ function CreatorProfileContent() {
               <div className="flex items-center space-x-2">
                 <CheckCircle2 className="w-4 h-4 text-emerald-500" />
                 <h3 className="text-xs font-bold uppercase tracking-wider text-primaryText-light dark:text-primaryText-dark">
-                  Saved in Your Library ({creatorReels.length})
+                  Saved in Your Library <span className="font-medium font-bricolage tabular-nums">({creatorReels.length})</span>
                 </h3>
               </div>
               <ReelGrid reels={creatorReels} viewMode={viewMode} />

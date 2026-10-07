@@ -176,7 +176,7 @@ export function DashboardCategoryDecks({
                 >
                   {cat.name}
                 </h3>
-                <span className="shrink-0 text-xs font-medium tabular-nums text-zinc-500 dark:text-zinc-400">
+                <span className="shrink-0 text-xs font-medium font-bricolage tabular-nums text-zinc-500 dark:text-zinc-400">
                   {cat.count} {cat.count === 1 ? 'reel' : 'reels'}
                 </span>
               </div>

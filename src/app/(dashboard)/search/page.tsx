@@ -282,13 +282,13 @@ function SearchContent() {
 
                 <div className="flex items-center space-x-3 text-xs text-mutedText-light dark:text-mutedText-dark pt-0.5">
                   {searchedAccount.followers && (
-                    <span className="font-semibold text-primaryText-light dark:text-primaryText-dark">
-                      {searchedAccount.followers} <span className="font-normal text-mutedText-light">followers</span>
+                    <span className="font-medium font-bricolage tabular-nums text-primaryText-light dark:text-primaryText-dark">
+                      {searchedAccount.followers} <span className="font-normal font-sans text-mutedText-light">followers</span>
                     </span>
                   )}
                   {searchedAccount.postsCount && (
-                    <span className="font-semibold text-primaryText-light dark:text-primaryText-dark">
-                      {searchedAccount.postsCount} <span className="font-normal text-mutedText-light">posts</span>
+                    <span className="font-medium font-bricolage tabular-nums text-primaryText-light dark:text-primaryText-dark">
+                      {searchedAccount.postsCount} <span className="font-normal font-sans text-mutedText-light">posts</span>
                     </span>
                   )}
                 </div>
@@ -348,7 +348,8 @@ function SearchContent() {
                     : "bg-surfaceSecondary-light dark:bg-surfaceSecondary-dark text-secondaryText-light hover:text-primaryText-light"
                 }`}
               >
-                {c.name} ({c.count})
+                {c.name}{" "}
+                <span className="font-bricolage font-medium tabular-nums">({c.count})</span>
               </button>
             ))}
           </div>
@@ -360,7 +361,7 @@ function SearchContent() {
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-bold text-primaryText-light dark:text-primaryText-dark">
-              Library Items ({libraryResults.length})
+              Library Items <span className="font-bricolage font-medium tabular-nums text-xs">({libraryResults.length})</span>
             </h2>
           </div>
 

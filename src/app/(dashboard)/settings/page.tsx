@@ -1149,8 +1149,8 @@ export default function SettingsPage() {
                           <div className="flex items-center justify-between">
                             <div>
                               <p className="text-xs uppercase tracking-wider text-zinc-400">Library Summary</p>
-                              <p className="mt-1 text-2xl font-medium tracking-tight">
-                                {reelList.length} <span className="text-sm font-normal text-zinc-500">reels saved</span>
+                              <p className="mt-1 text-2xl font-medium font-bricolage tabular-nums tracking-tight">
+                                {reelList.length} <span className="text-sm font-normal font-sans text-zinc-500">reels saved</span>
                               </p>
                             </div>
                             <span className="rounded-full bg-black/5 px-3 py-1 text-xs font-mono text-zinc-600 dark:bg-white/5 dark:text-zinc-400">

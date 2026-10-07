@@ -236,3 +236,11 @@
 .reel-card:active {
   transform: scale(0.98);
 }
+
+/* ─── Numbers & Numerical Counters (Exact Categories Page Font: Bricolage Grotesque) ─── */
+.tabular-nums,
+.font-numbers,
+.font-bricolage {
+  font-family: var(--font-bricolage), 'Bricolage Grotesque', system-ui, sans-serif !important;
+  font-feature-settings: "tnum" 1, "ss01" 1;
+}

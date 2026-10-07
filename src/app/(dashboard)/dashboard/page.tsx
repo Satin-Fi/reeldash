@@ -172,7 +172,7 @@ export default function DashboardPage() {
               Recent saves
             </h2>
             {recentSaves.length > 0 && (
-              <span className="rounded-full bg-[#F2F2EF] px-2 py-0.5 text-[11px] font-medium tabular-nums text-[#74776F] dark:bg-zinc-800 dark:text-zinc-400">
+              <span className="rounded-full bg-[#F2F2EF] px-2 py-0.5 text-[11px] font-medium font-bricolage tabular-nums text-[#74776F] dark:bg-zinc-800 dark:text-zinc-400">
                 {recentSaves.length}
               </span>
             )}
@@ -263,7 +263,7 @@ export default function DashboardPage() {
             className="group flex items-center justify-between rounded-2xl border border-[#E4E5DF] bg-white p-5 shadow-[0_1px_2px_rgba(24,26,20,0.03),0_6px_20px_-16px_rgba(24,26,20,0.18)] transition-[border-color,shadow] duration-[160ms] hover:border-[#CFD1C8] hover:shadow-[0_4px_16px_-8px_rgba(24,26,20,0.16)] motion-reduce:transition-none dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-zinc-700"
           >
             <div>
-              <span className="text-[32px] font-semibold leading-none tracking-tight text-[#20211F] tabular-nums dark:text-white">
+              <span className="text-[32px] font-medium leading-none tracking-tight text-[#20211F] font-bricolage tabular-nums dark:text-white">
                 {reels.length}
               </span>
               <p className="mt-1.5 text-xs font-medium text-[#74776F]">
@@ -281,7 +281,7 @@ export default function DashboardPage() {
             className="group flex items-center justify-between rounded-2xl border border-[#E4E5DF] bg-white p-5 shadow-[0_1px_2px_rgba(24,26,20,0.03),0_6px_20px_-16px_rgba(24,26,20,0.18)] transition-[border-color,shadow] duration-[160ms] hover:border-[#CFD1C8] hover:shadow-[0_4px_16px_-8px_rgba(24,26,20,0.16)] motion-reduce:transition-none dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-zinc-700"
           >
             <div>
-              <span className="text-[32px] font-semibold leading-none tracking-tight text-[#20211F] tabular-nums dark:text-white">
+              <span className="text-[32px] font-medium leading-none tracking-tight text-[#20211F] font-bricolage tabular-nums dark:text-white">
                 {creators.length}
               </span>
               <p className="mt-1.5 text-xs font-medium text-[#74776F]">
@@ -299,7 +299,7 @@ export default function DashboardPage() {
             className="group flex items-center justify-between rounded-2xl border border-[#E4E5DF] bg-white p-5 shadow-[0_1px_2px_rgba(24,26,20,0.03),0_6px_20px_-16px_rgba(24,26,20,0.18)] transition-[border-color,shadow] duration-[160ms] hover:border-[#CFD1C8] hover:shadow-[0_4px_16px_-8px_rgba(24,26,20,0.16)] motion-reduce:transition-none dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-zinc-700"
           >
             <div>
-              <span className="text-[32px] font-semibold leading-none tracking-tight text-[#20211F] tabular-nums dark:text-white">
+              <span className="text-[32px] font-medium leading-none tracking-tight text-[#20211F] font-bricolage tabular-nums dark:text-white">
                 {smartCategories.length || 0}
               </span>
               <p className="mt-1.5 text-xs font-medium text-[#74776F]">

@@ -491,7 +491,7 @@ function CollectionCard({
               {collection.name}
             </h2>
 
-            <span className="shrink-0 text-[11px] tabular-nums text-zinc-500 dark:text-zinc-400">
+            <span className="shrink-0 text-[11px] font-medium font-bricolage tabular-nums text-zinc-500 dark:text-zinc-400">
               {collection.count.toLocaleString()}{' '}
               {collection.count === 1 ? 'reel' : 'reels'}
             </span>

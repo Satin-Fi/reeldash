@@ -54,7 +54,7 @@ export function AnimatedTabs<T extends string>({
               <span>{tab.label}</span>
               {typeof tab.count === "number" && (
                 <span
-                  className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                  className={`px-1.5 py-0.2 rounded-full text-[10px] font-medium font-bricolage tabular-nums ${
                     isActive
                       ? "bg-brand-500/10 text-brand-500"
                       : "bg-zinc-200/60 dark:bg-white/[0.06] text-zinc-500 dark:text-zinc-400"

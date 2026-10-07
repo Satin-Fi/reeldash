@@ -61,7 +61,7 @@ export default function CollectionDetailPage() {
               <h1 className="text-xl font-bold tracking-tight text-primaryText-light dark:text-primaryText-dark">
                 {collection.name}
               </h1>
-              <p className="text-xs text-secondaryText-light dark:text-secondaryText-dark font-mono mt-0.5">
+              <p className="text-xs text-secondaryText-light dark:text-secondaryText-dark font-medium font-bricolage tabular-nums mt-0.5">
                 {collectionReels.length} saved Reels
               </p>
             </div>

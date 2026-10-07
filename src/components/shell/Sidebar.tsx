@@ -373,7 +373,7 @@ function NavItem({
       {count !== undefined && count > 0 && (
         <span
           className={[
-            'font-mono px-1.5 py-0.5 rounded-full shrink-0 transition-colors',
+            'font-bricolage font-medium tabular-nums tracking-tight px-1.5 py-0.5 rounded-full shrink-0 transition-colors',
             hasRing ? 'text-[10px]' : 'text-[11px]',
             active
               ? 'text-zinc-700 dark:text-zinc-300'

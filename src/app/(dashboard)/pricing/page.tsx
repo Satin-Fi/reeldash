@@ -163,7 +163,7 @@ export default function PricingPage() {
 
                 <div className="mt-5 pb-5 border-b border-borderSubtle-light dark:border-borderSubtle-dark">
                   <div className="flex items-baseline gap-1">
-                    <span className="text-3xl font-extrabold text-primaryText-light dark:text-primaryText-dark font-mono">
+                    <span className="text-3xl font-bold text-primaryText-light dark:text-primaryText-dark font-bricolage tabular-nums tracking-tight">
                       {billingCycle === "monthly" ? plan.priceMonthly : plan.priceYearly}
                     </span>
                     <span className="text-xs text-secondaryText-light dark:text-secondaryText-dark">

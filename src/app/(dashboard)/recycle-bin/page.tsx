@@ -572,7 +572,7 @@ export default function RecycleBinPage() {
               </h1>
 
               {count > 0 && (
-                <span className="inline-flex min-h-7 min-w-7 items-center justify-center rounded-full border border-black/[0.07] bg-white px-2.5 text-xs font-medium tabular-nums text-zinc-500 dark:border-white/[0.08] dark:bg-[#121316] dark:text-zinc-400">
+                <span className="inline-flex min-h-7 min-w-7 items-center justify-center rounded-full border border-black/[0.07] bg-white px-2.5 text-xs font-medium font-bricolage tabular-nums text-zinc-500 dark:border-white/[0.08] dark:bg-[#121316] dark:text-zinc-400">
                   {count}
                   <span className="sr-only"> deleted items</span>
                 </span>

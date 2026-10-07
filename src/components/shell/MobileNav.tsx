@@ -209,7 +209,7 @@ export function MobileNav() {
                     <Layers className="w-4 h-4 text-zinc-500" />
                     <span>All Library</span>
                   </div>
-                  <span className="text-xs text-zinc-400 font-mono">{allCount}</span>
+                  <span className="text-xs text-zinc-400 font-bricolage font-medium tabular-nums">{allCount}</span>
                 </Link>
 
                 <Link
@@ -231,7 +231,7 @@ export function MobileNav() {
                     <Film className="w-4 h-4 text-zinc-500" />
                     <span>Reels</span>
                   </div>
-                  <span className="text-xs text-zinc-400 font-mono">{reelsCount}</span>
+                  <span className="text-xs text-zinc-400 font-bricolage font-medium tabular-nums">{reelsCount}</span>
                 </Link>
 
                 <Link
@@ -253,7 +253,7 @@ export function MobileNav() {
                     <ImageIcon className="w-4 h-4 text-zinc-500" />
                     <span>Posts & Photos</span>
                   </div>
-                  <span className="text-xs text-zinc-400 font-mono">{postsCount}</span>
+                  <span className="text-xs text-zinc-400 font-bricolage font-medium tabular-nums">{postsCount}</span>
                 </Link>
 
                 <Link
@@ -275,7 +275,7 @@ export function MobileNav() {
                     <Music2 className="w-4 h-4 text-zinc-500" />
                     <span>Songs & Audio</span>
                   </div>
-                  <span className="text-xs text-zinc-400 font-mono">{audioCount}</span>
+                  <span className="text-xs text-zinc-400 font-bricolage font-medium tabular-nums">{audioCount}</span>
                 </Link>
 
                 <Link
@@ -296,7 +296,7 @@ export function MobileNav() {
                     <Heart className="w-4 h-4 text-rose-500" />
                     <span>Favorites</span>
                   </div>
-                  <span className="text-xs text-zinc-400 font-mono">{favsCount}</span>
+                  <span className="text-xs text-zinc-400 font-bricolage font-medium tabular-nums">{favsCount}</span>
                 </Link>
 
                 <div className="my-2 h-px bg-black/[0.06] dark:bg-white/[0.06]" />
@@ -335,7 +335,7 @@ export function MobileNav() {
                     <span>Recycle Bin</span>
                   </div>
                   {recycleCount > 0 && (
-                    <span className="text-xs text-zinc-400 font-mono">{recycleCount}</span>
+                    <span className="text-xs text-zinc-400 font-bricolage font-medium tabular-nums">{recycleCount}</span>
                   )}
                 </Link>
 

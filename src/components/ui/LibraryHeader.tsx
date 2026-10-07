@@ -54,7 +54,7 @@ export function LibraryHeader({
               )}
               <div>
                 <p
-                  className={`${bricolage.className} text-xl sm:text-2xl font-bold tracking-tight tabular-nums text-zinc-950 dark:text-white`}
+                  className={`${bricolage.className} text-xl sm:text-2xl font-medium tracking-tight tabular-nums text-zinc-950 dark:text-white`}
                 >
                   {typeof stat.value === "number"
                     ? stat.value < 100
