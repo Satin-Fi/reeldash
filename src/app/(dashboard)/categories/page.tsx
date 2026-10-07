@@ -20,7 +20,6 @@ import {
   Loader2,
   Plus,
   Search,
-  Sparkles,
   Trash2,
   X,
 } from 'lucide-react';
@@ -430,15 +429,6 @@ function PreviewDeck({
           </div>
         );
       })}
-
-      <div className="absolute bottom-3 left-3 z-40 inline-flex items-center gap-1.5 rounded-full border border-black/[0.05] bg-white/85 px-2.5 py-1.5 text-[10px] font-medium text-zinc-700 backdrop-blur-md dark:border-white/[0.08] dark:bg-[#121316]/85 dark:text-zinc-200">
-        {collection.kind === 'smart' ? (
-          <Sparkles className="h-3 w-3 text-[#9276BD] dark:text-[#CBB5FD]" />
-        ) : (
-          <Folder className="h-3 w-3 text-[#4B9066] dark:text-[#80CFA0]" />
-        )}
-        {collection.kind === 'smart' ? 'Smart collection' : 'Your collection'}
-      </div>
     </div>
   );
 }

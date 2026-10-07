@@ -2,7 +2,7 @@
 
 import React, { useMemo } from 'react';
 import Link from 'next/link';
-import { ArrowRight, Sparkles, Folder } from 'lucide-react';
+import { ArrowRight, Folder } from 'lucide-react';
 import { Reel } from '@/types/reel';
 
 interface SmartCategory {
@@ -84,12 +84,6 @@ function CategoryPreviewDeck({
           </div>
         );
       })}
-
-      {/* Smart collection badge */}
-      <div className="absolute bottom-3 left-3 z-40 inline-flex items-center gap-1.5 rounded-full border border-black/[0.05] bg-white/90 px-2.5 py-1 text-[10px] font-medium text-zinc-700 shadow-sm backdrop-blur-md dark:border-white/[0.08] dark:bg-[#121316]/90 dark:text-zinc-200">
-        <Sparkles className="size-3 text-[#9276BD] dark:text-[#CBB5FD]" />
-        <span>Smart collection</span>
-      </div>
     </div>
   );
 }
