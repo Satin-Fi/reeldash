@@ -1464,19 +1464,6 @@ export function ReelPlayerModal({
               <div className="flex min-w-0 flex-col">
                 <div className="flex items-center gap-2">
                   {renderCreatorName()}
-                  {instagramUrl && (
-                    <>
-                      <span className="text-zinc-600">•</span>
-                      <a
-                        href={instagramUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-xs font-semibold text-sky-400 hover:text-sky-300"
-                      >
-                        Follow
-                      </a>
-                    </>
-                  )}
                 </div>
                 {shortDate && (
                   <span className="text-[11px] text-zinc-500">{shortDate}</span>
@@ -1484,27 +1471,8 @@ export function ReelPlayerModal({
               </div>
             </div>
 
-            {/* Header Controls: Like + Options Menu + Close (✕) */}
-            <div className="flex items-center gap-1.5">
-              <button
-                type="button"
-                onClick={() => void handleLike()}
-                disabled={liking}
-                className="inline-flex h-9 items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium text-zinc-300 transition hover:bg-white/[0.08] hover:text-white cursor-pointer"
-                title={liked ? "Unlike" : "Like"}
-                aria-label={liked ? "Unlike reel" : "Like reel"}
-              >
-                <Heart
-                  size={16}
-                  className={liked ? "fill-rose-500 text-rose-500 transition-transform scale-105" : "text-zinc-400"}
-                />
-                {likes > 0 && (
-                  <span className="text-[11px] font-semibold text-zinc-300">
-                    {new Intl.NumberFormat("en", { notation: "compact" }).format(likes)}
-                  </span>
-                )}
-              </button>
-
+            {/* Header Controls: Options Menu + Close (✕) */}
+            <div className="flex items-center gap-1">
               <div className="relative" ref={menuRef}>
                 <button
                   ref={menuButtonRef}
@@ -1530,6 +1498,16 @@ export function ReelPlayerModal({
                     >
                       <Copy size={14} className="text-zinc-400" />
                       Copy Link
+                    </button>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => void handleLike()}
+                      disabled={liking}
+                      className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-medium text-zinc-200 hover:bg-white/[0.08] hover:text-white cursor-pointer"
+                    >
+                      <Heart size={14} className={liked ? "fill-rose-500 text-rose-500" : "text-zinc-400"} />
+                      {liked ? "Remove from Favorites" : "Add to Favorites"}
                     </button>
                     <button
                       type="button"
