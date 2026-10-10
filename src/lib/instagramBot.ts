@@ -1213,8 +1213,7 @@ async function handleReady(
     }
   }
 
-  // ── 2. Check for Pending Audio Share Session ──
-  // If the user previously shared an audio card and now typed the song name:
+  // ── 2. Audio Card Shared via DM: Simply save to library immediately! ──
   const hasUnsupportedShare =
     Array.isArray(attachments) &&
     attachments.some(
@@ -1222,114 +1221,60 @@ async function handleReady(
         a?.type === "unsupported_share" || a?.payload?.is_unsupported === true
     );
 
-  if (supabase && trimmedText && !isUrl && !hasUnsupportedShare) {
-    const fifteenMinsAgo = new Date(Date.now() - 15 * 60 * 1000).toISOString();
-    const { data: pendingAudio } = await supabase
-      .from("pending_reels")
-      .select("id")
-      .eq("instagram_sender_id", senderIgId)
-      .eq("reel_shortcode", "audio_pending")
-      .eq("status", "pending")
-      .gt("received_at", fifteenMinsAgo)
-      .order("received_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    if (pendingAudio) {
-      console.log(
-        `[Instagram Bot] Claiming pending audio share for ${senderIgId} with title: "${trimmedText}"`
-      );
-      await supabase
-        .from("pending_reels")
-        .update({
-          status: "claimed",
-          claimed_by_user_id: reeldashUserId,
-          claimed_at: new Date().toISOString(),
-        })
-        .eq("id", pendingAudio.id);
-
-      const savedAudio = await saveAudioTrackDirectly(
-        reeldashUserId,
-        instagramAccountId,
-        username,
-        trimmedText
-      );
-
-      const confirmMsg = `✨ Audio Saved to ReelDash!\n\n🎵 ${savedAudio.trackTitle} • ${savedAudio.artistName}\n💿 Studio Preview ready in your Audio library! 🎯`;
-      const buttons: BotButton[] = [
-        { type: "web_url", title: "🎧 Open ReelDash", url: `${APP_URL}/dashboard` },
-      ];
-      await sendDMReply(senderIgId, confirmMsg, buttons);
-
-      return {
-        status: "reel_saved",
-        replyMessage: confirmMsg,
-        buttons,
-        senderIgId,
-        username,
-        isFollowing: true,
-        savedReel: savedAudio.savedItem,
-      };
-    }
-  }
-
-  // ── 3. Audio Card Shared Directly via DM (Meta sends is_unsupported: true) ──
   if (hasUnsupportedShare) {
-    if (trimmedText && !isUrl) {
-      // User shared audio card AND wrote message text in the share sheet! Save immediately!
-      console.log(
-        `[Instagram Bot] Audio card shared with caption from ${senderIgId}: "${trimmedText}"`
-      );
-      const savedAudio = await saveAudioTrackDirectly(
-        reeldashUserId,
-        instagramAccountId,
-        username,
-        trimmedText
-      );
-
-      const confirmMsg = `✨ Audio Saved to ReelDash!\n\n🎵 ${savedAudio.trackTitle} • ${savedAudio.artistName}\n💿 Studio Preview ready in your Audio library! 🎯`;
-      const buttons: BotButton[] = [
-        { type: "web_url", title: "🎧 Open ReelDash", url: `${APP_URL}/dashboard` },
-      ];
-      await sendDMReply(senderIgId, confirmMsg, buttons);
-
-      return {
-        status: "reel_saved",
-        replyMessage: confirmMsg,
-        buttons,
-        senderIgId,
-        username,
-        isFollowing: true,
-        savedReel: savedAudio.savedItem,
-      };
-    }
-
-    // Audio card shared without text: record pending session and prompt for title
-    if (supabase) {
-      await supabase.from("pending_reels").insert({
-        instagram_sender_id: senderIgId,
-        instagram_username: username,
-        reel_url: "pending_audio",
-        reel_shortcode: "audio_pending",
-        reel_data: { type: "audio_share", awaiting_title: true },
-        status: "pending",
-        received_at: new Date().toISOString(),
-        expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
-      });
-    }
-
     console.log(
-      `[Instagram Bot] Audio share received from ${senderIgId} — prompting for song name`
+      `[Instagram Bot] Audio card shared from ${senderIgId} — simply saving to library`
     );
-    const promptMsg = `🎵 Audio card received!\n\nTo save it to your library without links, simply reply with the song or artist name (e.g. "S.T.A.Y." or "Tum se hi")! 🎧\n\n(Or send the audio page link if you prefer)`;
-    await sendDMReply(senderIgId, promptMsg);
+
+    // If user recently saved a reel (within last 15m), reuse its audio metadata if available
+    let detectedTitle = trimmedText || "Instagram Audio Track";
+    let detectedArtist: string | undefined = undefined;
+
+    if (supabase && (!trimmedText || trimmedText.length < 2)) {
+      const fifteenMinsAgo = new Date(Date.now() - 15 * 60 * 1000).toISOString();
+      const { data: recentReel } = await supabase
+        .from("reels")
+        .select("audio_title, audio_artist, caption, creator_handle")
+        .eq("user_id", reeldashUserId)
+        .gt("created_at", fifteenMinsAgo)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (recentReel && (recentReel.audio_title || recentReel.creator_handle)) {
+        detectedTitle =
+          recentReel.audio_title || recentReel.caption || "Instagram Audio Track";
+        detectedArtist = recentReel.audio_artist || recentReel.creator_handle;
+      }
+    }
+
+    const savedAudio = await saveAudioTrackDirectly(
+      reeldashUserId,
+      instagramAccountId,
+      username,
+      detectedTitle,
+      detectedArtist
+    );
+
+    const successReply = `✅ Saved to your ReelDash Library.\n\n🎵 ${savedAudio.trackTitle} • ${savedAudio.artistName}\n📁 Category: Music & Audio`;
+    const buttons: BotButton[] = [
+      {
+        type: "web_url",
+        title: "Open in ReelDash",
+        url: `${APP_URL}/dashboard`,
+      },
+    ];
+
+    await sendDMReply(senderIgId, successReply, buttons);
 
     return {
-      status: "message_received",
-      replyMessage: "Audio card received — prompted for song title",
+      status: "reel_saved",
+      replyMessage: successReply,
+      buttons,
       senderIgId,
       username,
       isFollowing: true,
+      savedReel: savedAudio.savedItem,
     };
   }
 
