@@ -146,6 +146,14 @@ export async function POST(req: NextRequest) {
           event.postback?.payload ?? event.message?.quick_reply?.payload;
         const attachments = [...(event.message?.attachments ?? [])];
 
+        // Instagram sends {is_unsupported: true} for audio card shares — no URL, no attachments.
+        // Inject a synthetic sentinel so the bot can detect and respond with guidance.
+        const isUnsupportedShare = event.message?.is_unsupported === true;
+        if (isUnsupportedShare) {
+          console.log(`[Instagram Webhook] Detected is_unsupported share from ${senderIgId} — likely audio card`);
+          attachments.push({ type: "unsupported_share", payload: { is_unsupported: true } });
+        }
+
         const extraLinks: string[] = [];
         if (event.message?.attachment) {
           attachments.push(event.message.attachment);

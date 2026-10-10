@@ -1058,6 +1058,28 @@ async function handleReady(
   messageText: string,
   attachments: any[]
 ): Promise<ProcessedDMResult> {
+  // ── Early: Detect is_unsupported share (e.g. Instagram audio card) ──
+  // Instagram sends {is_unsupported: true} for audio/reel-audio cards shared via DM.
+  // These arrive with NO url, NO title, NO attachments — just the flag.
+  // We inject a sentinel "unsupported_share" attachment in the webhook route to catch this.
+  const hasUnsupportedShare = Array.isArray(attachments) &&
+    attachments.some((a: any) => a?.type === "unsupported_share" || a?.payload?.is_unsupported === true);
+
+  if (hasUnsupportedShare && !messageText) {
+    console.log(`[Instagram Bot] Detected unsupported share (audio card) from ${senderIgId} — sending guidance`);
+    await sendDMReply(
+      senderIgId,
+      `🎵 Got your audio share!\n\nInstagram doesn't give me the audio link directly — but you can save it in 2 seconds:\n\n1️⃣ Open the audio page on Instagram\n2️⃣ Tap the ⋯ (three dots) → Copy Link\n3️⃣ Paste that link here in this chat\n\nI'll save it to your ReelDash instantly! 🎯`
+    );
+    return {
+      status: "message_received",
+      replyMessage: "Audio share detected — sent copy-link guidance",
+      senderIgId,
+      username,
+      isFollowing: true,
+    };
+  }
+
   // Parse category commands
   const parsedCmd = parseCategoryCommand(messageText || "");
   let mediaUrl = extractInstagramMediaUrl(
