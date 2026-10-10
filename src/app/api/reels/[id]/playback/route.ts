@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import youtubedl from "youtube-dl-exec";
 import { resolveViaSnapSave } from "@/lib/instagram";
+import { resolveAudioStream } from "@/lib/audioResolver";
+import { getSupabaseAdmin } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
 
@@ -237,15 +239,83 @@ export async function GET(
     );
   }
 
-  // Standalone Instagram Audio tracks without an associated reel video
-  const isStandaloneAudioPage = (instagramUrl && (instagramUrl.includes("/audio/") || instagramUrl.includes("/reels/audio/")) && !instagramUrl.includes("/reel/"));
-  if (isStandaloneAudioPage && !underlyingShortcode) {
-    return NextResponse.json({
-      status: "external_only",
-      reason: "Instagram audio tracks require Instagram session to play",
-      shortcode,
-      instagramUrl: instagramUrl || `https://www.instagram.com/reels/audio/${shortcode}/`,
+  // 1. Audio stream resolution: handle Instagram Audio pages and song requests
+  const isAudioRequest =
+    mediaType === "audio" ||
+    (instagramUrl && (instagramUrl.includes("/audio/") || instagramUrl.includes("/reels/audio/"))) ||
+    shortcode.startsWith("audio_");
+
+  if (isAudioRequest) {
+    const title = searchParams.get("title") || "";
+    const artist = searchParams.get("artist") || "";
+
+    // Check if Supabase already has a valid direct audio stream
+    const supabase = getSupabaseAdmin();
+    if (supabase && reelId) {
+      try {
+        const { data: dbReel } = await supabase
+          .from("reels")
+          .select("audio_url, audio_title, audio_artist, duration")
+          .eq("id", reelId)
+          .maybeSingle();
+
+        if (
+          dbReel?.audio_url &&
+          !dbReel.audio_url.includes("instagram.com") &&
+          !dbReel.audio_url.includes("instagr.am") &&
+          dbReel.audio_url.startsWith("http")
+        ) {
+          return NextResponse.json({
+            status: "available",
+            playbackUrl: dbReel.audio_url,
+            directCdnUrl: dbReel.audio_url,
+            duration: dbReel.duration || "0:30",
+            trackTitle: dbReel.audio_title || title || "Original Audio",
+            artistName: dbReel.audio_artist || artist || "Artist",
+            isAudio: true,
+          });
+        }
+      } catch (err) {
+        // Continue to active resolution
+      }
+    }
+
+    // Resolve audio stream via iTunes / Audius
+    const resolved = await resolveAudioStream({
+      title,
+      artist,
+      shortcode: underlyingShortcode,
+      url: instagramUrl || undefined,
     });
+
+    if (resolved && resolved.streamUrl) {
+      // Asynchronously update Supabase if reelId is a valid uuid
+      if (supabase && reelId && /^[0-9a-f-]{36}$/i.test(reelId)) {
+        Promise.resolve(
+          supabase
+            .from("reels")
+            .update({
+              audio_url: resolved.streamUrl,
+              audio_title: resolved.trackTitle,
+              audio_artist: resolved.artistName,
+              duration: resolved.duration || "0:30",
+            })
+            .eq("id", reelId)
+        ).catch(() => {});
+      }
+
+      return NextResponse.json({
+        status: "available",
+        playbackUrl: resolved.streamUrl,
+        directCdnUrl: resolved.streamUrl,
+        artworkUrl: resolved.artworkUrl,
+        duration: resolved.duration || "0:30",
+        trackTitle: resolved.trackTitle,
+        artistName: resolved.artistName,
+        source: resolved.source,
+        isAudio: true,
+      });
+    }
   }
 
   // 2. Check in-memory resolution cache

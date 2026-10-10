@@ -147,6 +147,10 @@ function safeUrl(value: unknown): string {
   const input = text(value);
   if (!input) return "";
 
+  if (input.startsWith("/")) {
+    return input;
+  }
+
   try {
     const url = new URL(input);
     return url.protocol === "https:" || url.protocol === "http:"
@@ -295,20 +299,38 @@ function Caption({ value }: { value: string }) {
 }
 
 function Avatar({ src, username }: { src: string; username: string }) {
+  const [imgError, setImgError] = useState(false);
+  const cleanUser = username?.replace(/^@+/, "").trim();
+  const fallbackSrc =
+    cleanUser && cleanUser !== "creator"
+      ? `/api/proxy-image?username=${encodeURIComponent(cleanUser)}`
+      : "";
+  const initialSrc = src || fallbackSrc;
+  const [currentSrc, setCurrentSrc] = useState(initialSrc);
+
+  useEffect(() => {
+    setCurrentSrc(src || fallbackSrc);
+    setImgError(false);
+  }, [src, fallbackSrc]);
+
   return (
-    <span className="relative flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-zinc-800 text-xs font-semibold uppercase text-zinc-300 ring-1 ring-white/10">
-      <span aria-hidden="true">{username.slice(0, 2) || "R"}</span>
-      {src && (
+    <span className="relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-zinc-800 text-xs font-semibold uppercase text-zinc-300 ring-1 ring-white/10 shadow-sm">
+      <span aria-hidden="true">{cleanUser.slice(0, 2) || "R"}</span>
+      {currentSrc && !imgError && (
         <img
-          key={src}
-          src={src}
-          alt=""
-          width={36}
-          height={36}
+          key={currentSrc}
+          src={currentSrc}
+          alt={`@${cleanUser}`}
+          width={40}
+          height={40}
           referrerPolicy="no-referrer"
           className="absolute inset-0 h-full w-full object-cover"
-          onError={(event) => {
-            event.currentTarget.style.display = "none";
+          onError={() => {
+            if (fallbackSrc && currentSrc !== fallbackSrc) {
+              setCurrentSrc(fallbackSrc);
+            } else {
+              setImgError(true);
+            }
           }}
         />
       )}
@@ -661,6 +683,9 @@ export function ReelPlayerModal({
   const avatarUrl = safeUrl(
     firstText(
       data.creatorAvatar,
+      data.creator_avatar,
+      (activeReel as any).creatorAvatar,
+      (activeReel as any).creator_avatar,
       data.creatorAvatarUrl,
       data.profilePicUrl,
       data.profilePictureUrl,
