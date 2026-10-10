@@ -1222,59 +1222,48 @@ async function handleReady(
     );
 
   if (hasUnsupportedShare) {
-    console.log(
-      `[Instagram Bot] Audio card shared from ${senderIgId} — simply saving to library`
-    );
+    if (trimmedText && !isUrl) {
+      // User typed a song name or note in the share sheet
+      const savedAudio = await saveAudioTrackDirectly(
+        reeldashUserId,
+        instagramAccountId,
+        username,
+        trimmedText
+      );
 
-    // If user recently saved a reel (within last 15m), reuse its audio metadata if available
-    let detectedTitle = trimmedText || "Instagram Audio Track";
-    let detectedArtist: string | undefined = undefined;
+      const successReply = `✅ Saved to your ReelDash Library.\n\n🎵 ${savedAudio.trackTitle} • ${savedAudio.artistName}\n📁 Category: Music & Audio`;
+      const buttons: BotButton[] = [
+        {
+          type: "web_url",
+          title: "Open in ReelDash",
+          url: `${APP_URL}/dashboard`,
+        },
+      ];
+      await sendDMReply(senderIgId, successReply, buttons);
 
-    if (supabase && (!trimmedText || trimmedText.length < 2)) {
-      const fifteenMinsAgo = new Date(Date.now() - 15 * 60 * 1000).toISOString();
-      const { data: recentReel } = await supabase
-        .from("reels")
-        .select("audio_title, audio_artist, caption, creator_handle")
-        .eq("user_id", reeldashUserId)
-        .gt("created_at", fifteenMinsAgo)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (recentReel && (recentReel.audio_title || recentReel.creator_handle)) {
-        detectedTitle =
-          recentReel.audio_title || recentReel.caption || "Instagram Audio Track";
-        detectedArtist = recentReel.audio_artist || recentReel.creator_handle;
-      }
+      return {
+        status: "reel_saved",
+        replyMessage: successReply,
+        buttons,
+        senderIgId,
+        username,
+        isFollowing: true,
+        savedReel: savedAudio.savedItem,
+      };
     }
 
-    const savedAudio = await saveAudioTrackDirectly(
-      reeldashUserId,
-      instagramAccountId,
-      username,
-      detectedTitle,
-      detectedArtist
-    );
-
-    const successReply = `✅ Saved to your ReelDash Library.\n\n🎵 ${savedAudio.trackTitle} • ${savedAudio.artistName}\n📁 Category: Music & Audio`;
-    const buttons: BotButton[] = [
-      {
-        type: "web_url",
-        title: "Open in ReelDash",
-        url: `${APP_URL}/dashboard`,
-      },
-    ];
-
-    await sendDMReply(senderIgId, successReply, buttons);
+    // Audio card shared with no text: Meta sends is_unsupported with 0 metadata.
+    // Do NOT guess from other reels (which causes wrong song to be saved).
+    console.log(`[Instagram Bot] Audio card share received with zero metadata from ${senderIgId}`);
+    const helpMsg = `🎵 Got your audio share!\n\nMeta doesn't include song details when sharing an audio card directly to bots.\n\nTo save this audio:\n1️⃣ Tap ⋯ (three dots) → Copy Link → Paste here\n2️⃣ Or share any Reel that uses this song!\n3️⃣ Or type: audio <song name> (e.g. audio S.T.A.Y.)`;
+    await sendDMReply(senderIgId, helpMsg);
 
     return {
-      status: "reel_saved",
-      replyMessage: successReply,
-      buttons,
+      status: "message_received",
+      replyMessage: "Audio share received without metadata — sent options",
       senderIgId,
       username,
       isFollowing: true,
-      savedReel: savedAudio.savedItem,
     };
   }
 
