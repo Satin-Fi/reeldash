@@ -555,7 +555,7 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
       >
         {/* Full-bleed thumbnail or crisp centered audio/avatar tile */}
         {mediaType === "audio" || (imageSrc && imageSrc.includes("username=")) || imageError ? (
-          <div className="w-full h-full flex flex-col justify-between p-3 bg-gradient-to-b from-zinc-900 via-[#10131a] to-[#08090d] relative overflow-hidden select-none">
+          <div className="w-full h-full flex flex-col items-center justify-center p-4 bg-gradient-to-b from-zinc-900 via-[#10131a] to-[#08090d] relative overflow-hidden select-none">
             {/* Ambient blurred glow */}
             {imageSrc && (
               /* eslint-disable-next-line @next/next/no-img-element */
@@ -574,7 +574,7 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
 
             {/* Top Bar: Archived tag + Category Badge (Hidden for audio content) */}
             {mediaType !== "audio" && (
-              <div className="relative z-10 w-full flex items-center justify-between gap-1">
+              <div className="absolute top-3 inset-x-3 z-10 flex items-center justify-between gap-1">
                 <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/25">
                   Archived Post
                 </span>
@@ -616,13 +616,6 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
                   {reel.audioArtist}
                 </p>
               )}
-            </div>
-
-            {/* Bottom: Preserved caption / what was happening in it */}
-            <div className="relative z-10 w-full pt-2 border-t border-white/[0.08]">
-              <p className="text-[11px] text-zinc-300 leading-snug line-clamp-2">
-                {displayCaption || reel.aiSummary || (reel.audioTitle ? `🎵 ${reel.audioTitle}` : "Saved Instagram Reel")}
-              </p>
             </div>
           </div>
         ) : (
