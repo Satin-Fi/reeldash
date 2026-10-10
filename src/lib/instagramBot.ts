@@ -906,7 +906,8 @@ export async function processInstagramMessage(
           resolved.reeldashUserId!,
           resolved.instagramAccountId!,
           messageText,
-          attachments
+          attachments,
+          postbackPayload
         );
 
       case "ERROR":
@@ -1051,30 +1052,281 @@ async function handleUnverifiedSender(
   };
 }
 
+/**
+ * Direct Audio Ingestion: Resolves and saves any song/audio track directly to ReelDash without needing an Instagram URL.
+ */
+async function saveAudioTrackDirectly(
+  reeldashUserId: string,
+  instagramAccountId: string,
+  username: string,
+  query: string,
+  fallbackArtist?: string
+): Promise<{
+  savedItem: any;
+  trackTitle: string;
+  artistName: string;
+  duration: string;
+  artworkUrl?: string;
+}> {
+  const resolved = await resolveAudioStream({
+    title: query,
+    artist: fallbackArtist,
+  });
+
+  const trackTitle = resolved?.trackTitle || query;
+  const artistName = resolved?.artistName || fallbackArtist || `@${username}`;
+  const streamUrl = resolved?.streamUrl || "";
+  const duration = resolved?.duration || "0:30";
+  const artworkUrl =
+    resolved?.artworkUrl ||
+    `/api/proxy-image?username=${encodeURIComponent(
+      (artistName || username).replace(/^@+/, "")
+    )}`;
+
+  const shortcode = `audio_${Date.now().toString(36)}`;
+  const reelPayload = {
+    shortcode,
+    url: `https://www.instagram.com/reels/audio/${shortcode}/`,
+    thumbnail_url: artworkUrl,
+    video_url: streamUrl || `https://www.instagram.com/reels/audio/${shortcode}/`,
+    caption: `${trackTitle} • ${artistName} (Saved via Instagram DM)`,
+    creator_handle:
+      (artistName || username).replace(/[^A-Za-z0-9_.]/g, "").toLowerCase() ||
+      "audio",
+    creator_name: artistName || username,
+    creator_avatar: artworkUrl,
+    media_type: "audio",
+    duration,
+    category: "Music & Audio",
+    tags: ["audio", "music", "dm_saved"],
+    note: null,
+    audio_title: trackTitle,
+    audio_artist: artistName,
+    audio_url: streamUrl || null,
+  };
+
+  const { savedItem } = await saveReelForUser(
+    reeldashUserId,
+    instagramAccountId,
+    username,
+    reelPayload,
+    ["Music & Audio"]
+  );
+
+  return {
+    savedItem,
+    trackTitle,
+    artistName,
+    duration,
+    artworkUrl,
+  };
+}
+
 async function handleReady(
   senderIgId: string,
   username: string,
   reeldashUserId: string,
   instagramAccountId: string,
   messageText: string,
-  attachments: any[]
+  attachments: any[],
+  postbackPayload?: string
 ): Promise<ProcessedDMResult> {
-  // ── Early: Detect is_unsupported share (e.g. Instagram audio card) ──
-  // Instagram sends {is_unsupported: true} for audio/reel-audio cards shared via DM.
-  // These arrive with NO url, NO title, NO attachments — just the flag.
-  // We inject a sentinel "unsupported_share" attachment in the webhook route to catch this.
-  const hasUnsupportedShare = Array.isArray(attachments) &&
-    attachments.some((a: any) => a?.type === "unsupported_share" || a?.payload?.is_unsupported === true);
+  const supabase = getSupabaseAdmin();
+  const trimmedText = (messageText || "").trim();
+  const isUrl =
+    trimmedText.includes("http://") ||
+    trimmedText.includes("https://") ||
+    trimmedText.includes("instagram.com") ||
+    trimmedText.includes("instagr.am");
 
-  if (hasUnsupportedShare && !messageText) {
-    console.log(`[Instagram Bot] Detected unsupported share (audio card) from ${senderIgId} — sending guidance`);
-    await sendDMReply(
-      senderIgId,
-      `🎵 Got your audio share!\n\nInstagram doesn't give me the audio link directly — but you can save it in 2 seconds:\n\n1️⃣ Open the audio page on Instagram\n2️⃣ Tap the ⋯ (three dots) → Copy Link\n3️⃣ Paste that link here in this chat\n\nI'll save it to your ReelDash instantly! 🎯`
+  // ── 0. Handle Postback: 1-Tap Save Audio from a previously saved Reel ──
+  if (postbackPayload && postbackPayload.startsWith("SAVE_AUDIO_REEL_")) {
+    const reelShortcode = postbackPayload.replace("SAVE_AUDIO_REEL_", "");
+    if (supabase) {
+      const { data: sourceReel } = await supabase
+        .from("reels")
+        .select("audio_title, audio_artist, caption, creator_handle")
+        .eq("user_id", reeldashUserId)
+        .eq("shortcode", reelShortcode)
+        .maybeSingle();
+
+      const songQuery = sourceReel?.audio_title || sourceReel?.caption || "Original Audio";
+      const songArtist = sourceReel?.audio_artist || sourceReel?.creator_handle;
+
+      const savedAudio = await saveAudioTrackDirectly(
+        reeldashUserId,
+        instagramAccountId,
+        username,
+        songQuery,
+        songArtist
+      );
+
+      const confirmMsg = `✨ Audio Track Saved to ReelDash!\n\n🎵 ${savedAudio.trackTitle} • ${savedAudio.artistName}\n💿 Studio Preview ready in your Audio library! 🎯`;
+      const buttons: BotButton[] = [
+        { type: "web_url", title: "🎧 Open ReelDash", url: `${APP_URL}/dashboard` },
+      ];
+      await sendDMReply(senderIgId, confirmMsg, buttons);
+
+      return {
+        status: "reel_saved",
+        replyMessage: confirmMsg,
+        buttons,
+        senderIgId,
+        username,
+        isFollowing: true,
+        savedReel: savedAudio.savedItem,
+      };
+    }
+  }
+
+  // ── 1. Direct Audio Command: e.g. "audio S.T.A.Y." or "/audio Hans Zimmer" ──
+  const audioCmdMatch =
+    trimmedText.match(/^(?:\/audio|audio|song|\/song|track|\/track|🎵)\s+(.+)/i) ||
+    trimmedText.match(/^save\s+(?:audio|song|track)\s+(.+)/i);
+
+  if (audioCmdMatch && !isUrl) {
+    const songQuery = audioCmdMatch[1].trim();
+    if (songQuery) {
+      console.log(`[Instagram Bot] Direct audio command from ${senderIgId}: "${songQuery}"`);
+      const savedAudio = await saveAudioTrackDirectly(
+        reeldashUserId,
+        instagramAccountId,
+        username,
+        songQuery
+      );
+
+      const confirmMsg = `✨ Audio Saved to ReelDash!\n\n🎵 ${savedAudio.trackTitle} • ${savedAudio.artistName}\n💿 Studio Preview ready in your Audio library! 🎯`;
+      const buttons: BotButton[] = [
+        { type: "web_url", title: "🎧 Open ReelDash", url: `${APP_URL}/dashboard` },
+      ];
+      await sendDMReply(senderIgId, confirmMsg, buttons);
+
+      return {
+        status: "reel_saved",
+        replyMessage: confirmMsg,
+        buttons,
+        senderIgId,
+        username,
+        isFollowing: true,
+        savedReel: savedAudio.savedItem,
+      };
+    }
+  }
+
+  // ── 2. Check for Pending Audio Share Session ──
+  // If the user previously shared an audio card and now typed the song name:
+  const hasUnsupportedShare =
+    Array.isArray(attachments) &&
+    attachments.some(
+      (a: any) =>
+        a?.type === "unsupported_share" || a?.payload?.is_unsupported === true
     );
+
+  if (supabase && trimmedText && !isUrl && !hasUnsupportedShare) {
+    const fifteenMinsAgo = new Date(Date.now() - 15 * 60 * 1000).toISOString();
+    const { data: pendingAudio } = await supabase
+      .from("pending_reels")
+      .select("id")
+      .eq("instagram_sender_id", senderIgId)
+      .eq("reel_shortcode", "audio_pending")
+      .eq("status", "pending")
+      .gt("received_at", fifteenMinsAgo)
+      .order("received_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (pendingAudio) {
+      console.log(
+        `[Instagram Bot] Claiming pending audio share for ${senderIgId} with title: "${trimmedText}"`
+      );
+      await supabase
+        .from("pending_reels")
+        .update({
+          status: "claimed",
+          claimed_by_user_id: reeldashUserId,
+          claimed_at: new Date().toISOString(),
+        })
+        .eq("id", pendingAudio.id);
+
+      const savedAudio = await saveAudioTrackDirectly(
+        reeldashUserId,
+        instagramAccountId,
+        username,
+        trimmedText
+      );
+
+      const confirmMsg = `✨ Audio Saved to ReelDash!\n\n🎵 ${savedAudio.trackTitle} • ${savedAudio.artistName}\n💿 Studio Preview ready in your Audio library! 🎯`;
+      const buttons: BotButton[] = [
+        { type: "web_url", title: "🎧 Open ReelDash", url: `${APP_URL}/dashboard` },
+      ];
+      await sendDMReply(senderIgId, confirmMsg, buttons);
+
+      return {
+        status: "reel_saved",
+        replyMessage: confirmMsg,
+        buttons,
+        senderIgId,
+        username,
+        isFollowing: true,
+        savedReel: savedAudio.savedItem,
+      };
+    }
+  }
+
+  // ── 3. Audio Card Shared Directly via DM (Meta sends is_unsupported: true) ──
+  if (hasUnsupportedShare) {
+    if (trimmedText && !isUrl) {
+      // User shared audio card AND wrote message text in the share sheet! Save immediately!
+      console.log(
+        `[Instagram Bot] Audio card shared with caption from ${senderIgId}: "${trimmedText}"`
+      );
+      const savedAudio = await saveAudioTrackDirectly(
+        reeldashUserId,
+        instagramAccountId,
+        username,
+        trimmedText
+      );
+
+      const confirmMsg = `✨ Audio Saved to ReelDash!\n\n🎵 ${savedAudio.trackTitle} • ${savedAudio.artistName}\n💿 Studio Preview ready in your Audio library! 🎯`;
+      const buttons: BotButton[] = [
+        { type: "web_url", title: "🎧 Open ReelDash", url: `${APP_URL}/dashboard` },
+      ];
+      await sendDMReply(senderIgId, confirmMsg, buttons);
+
+      return {
+        status: "reel_saved",
+        replyMessage: confirmMsg,
+        buttons,
+        senderIgId,
+        username,
+        isFollowing: true,
+        savedReel: savedAudio.savedItem,
+      };
+    }
+
+    // Audio card shared without text: record pending session and prompt for title
+    if (supabase) {
+      await supabase.from("pending_reels").insert({
+        instagram_sender_id: senderIgId,
+        instagram_username: username,
+        reel_url: "pending_audio",
+        reel_shortcode: "audio_pending",
+        reel_data: { type: "audio_share", awaiting_title: true },
+        status: "pending",
+        received_at: new Date().toISOString(),
+        expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
+      });
+    }
+
+    console.log(
+      `[Instagram Bot] Audio share received from ${senderIgId} — prompting for song name`
+    );
+    const promptMsg = `🎵 Audio card received!\n\nTo save it to your library without links, simply reply with the song or artist name (e.g. "S.T.A.Y." or "Tum se hi")! 🎧\n\n(Or send the audio page link if you prefer)`;
+    await sendDMReply(senderIgId, promptMsg);
+
     return {
       status: "message_received",
-      replyMessage: "Audio share detected — sent copy-link guidance",
+      replyMessage: "Audio card received — prompted for song title",
       senderIgId,
       username,
       isFollowing: true,
@@ -1531,6 +1783,14 @@ async function handleReady(
         url: `${APP_URL}/dashboard`,
       },
     ];
+
+    if (!isAudio && (formattedReel.audio_title || reelData?.audioTitle)) {
+      buttons.push({
+        type: "postback",
+        title: "🎵 Save Audio Track",
+        payload: `SAVE_AUDIO_REEL_${formattedReel.shortcode}`,
+      });
+    }
 
     await sendDMReply(senderIgId, successReply, buttons);
 
