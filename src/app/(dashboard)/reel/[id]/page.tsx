@@ -273,9 +273,6 @@ export default function ReelDetailPage() {
                       </p>
                     </div>
                   </div>
-                  <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 shrink-0">
-                    Audio Track
-                  </span>
                 </div>
               ) : reel.audioTitle ? (
                 <div className="flex items-center justify-between p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">

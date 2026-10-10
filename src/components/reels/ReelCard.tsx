@@ -572,17 +572,19 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
               />
             )}
 
-            {/* Top Bar: Archived tag + Category Badge */}
-            <div className="relative z-10 w-full flex items-center justify-between gap-1">
-              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/25">
-                {mediaType === "audio" ? "Audio Track" : "Archived Post"}
-              </span>
-              {reel.category && reel.category !== "General" && (
-                <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-brand-500/20 text-brand-300 border border-brand-500/30 truncate max-w-[105px]">
-                  {reel.category}
+            {/* Top Bar: Archived tag + Category Badge (Hidden for audio content) */}
+            {mediaType !== "audio" && (
+              <div className="relative z-10 w-full flex items-center justify-between gap-1">
+                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/25">
+                  Archived Post
                 </span>
-              )}
-            </div>
+                {reel.category && reel.category !== "General" && (
+                  <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-brand-500/20 text-brand-300 border border-brand-500/30 truncate max-w-[105px]">
+                    {reel.category}
+                  </span>
+                )}
+              </div>
+            )}
 
             {/* Center: Crisp 1:1 circular badge / audio vinyl */}
             <div className="relative z-10 flex flex-col items-center justify-center my-auto">
@@ -653,14 +655,7 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
           </div>
         )}
 
-        {/* ─── Default state: audio indicator (top-left) ─── */}
-        {mediaType === "audio" && (
-          <div className="absolute top-2 left-2 z-10 pointer-events-none">
-            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-[4px] bg-black/50 backdrop-blur-sm text-[10px] font-semibold text-white/90">
-              <Music2 className="w-3 h-3" />
-            </span>
-          </div>
-        )}
+
 
         {/* ─── Hover state: play symbol appears ONLY on hover ─── */}
         <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-200">
