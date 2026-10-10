@@ -30,6 +30,7 @@ import {
 
 import { ReelPlayer } from "@/components/reels/ReelPlayer";
 import { useReels } from "@/context/ReelContext";
+import { getOriginalUploadDate } from "@/lib/instagramDate";
 import type { Reel } from "@/types/reel";
 
 export interface ReelPlayerModalProps {
@@ -38,7 +39,7 @@ export interface ReelPlayerModalProps {
   onClose: () => void;
 }
 
-type Tab = "notes" | "analysis" | "organize";
+type Tab = "caption" | "notes" | "analysis" | "organize";
 type UnknownRecord = Record<string, unknown>;
 
 interface Workspace {
@@ -344,7 +345,7 @@ export function ReelPlayerModal({
   } = useReels();
 
   const [mounted, setMounted] = useState(false);
-  const [tab, setTab] = useState<Tab>("notes");
+  const [tab, setTab] = useState<Tab>("caption");
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [draft, setDraft] = useState("");
@@ -458,7 +459,7 @@ export function ReelPlayerModal({
     operationLocksRef.current.clear();
     downloadAbortRef.current?.abort();
 
-    setTab("notes");
+    setTab("caption");
     setDrawerOpen(false);
     setMenuOpen(false);
     setDraft("");
@@ -704,28 +705,22 @@ export function ReelPlayerModal({
     audio.author,
   );
 
-  const postedAt = parseDate(
-    data.postedAt ??
-      data.publishedAt ??
-      data.takenAt ??
-      data.timestamp ??
-      data.createdAt,
-  );
+  const originalUploadDate = getOriginalUploadDate(activeReel);
 
-  const shortDate = postedAt
+  const shortDate = originalUploadDate
     ? new Intl.DateTimeFormat("en-US", {
         month: "short",
         day: "numeric",
         year: "numeric",
-      }).format(postedAt)
+      }).format(originalUploadDate)
     : "";
 
-  const longDate = postedAt
+  const longDate = originalUploadDate
     ? new Intl.DateTimeFormat("en-US", {
         month: "long",
         day: "numeric",
         year: "numeric",
-      }).format(postedAt)
+      }).format(originalUploadDate)
     : "";
 
   const collectionOptions = unique([
@@ -1020,7 +1015,8 @@ export function ReelPlayerModal({
 
   function renderTabs(scope: string) {
     const tabs: { id: Tab; label: string }[] = [
-      { id: "notes", label: "Notes & Discussion" },
+      { id: "caption", label: "Caption" },
+      { id: "notes", label: "Notes" },
       { id: "analysis", label: "AI Analysis" },
       { id: "organize", label: "Organize" },
     ];
@@ -1058,7 +1054,7 @@ export function ReelPlayerModal({
             aria-controls={`${componentId}-${scope}-panel`}
             tabIndex={tab === item.id ? 0 : -1}
             onClick={() => setTab(item.id)}
-            className={`relative whitespace-nowrap py-3.5 text-xs font-medium transition focus-visible:rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 ${
+            className={`relative whitespace-nowrap py-3 text-xs font-medium transition focus-visible:rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 ${
               tab === item.id
                 ? "text-white after:absolute after:inset-x-0 after:bottom-[-1px] after:h-0.5 after:rounded-full after:bg-white"
                 : "text-zinc-500 hover:text-zinc-300"
@@ -1074,32 +1070,78 @@ export function ReelPlayerModal({
   function renderPanel(scope: string) {
     let content: ReactNode;
 
-    if (tab === "notes") {
-      content = notes.trim() ? (
-        <article className="rounded-2xl border border-white/[0.07] bg-white/[0.025] p-4">
-          <div className="mb-3 flex items-center justify-between gap-3">
-            <span className="text-xs font-semibold text-zinc-200">Your notes</span>
-            <span className="text-[10px] text-zinc-500">Private · Only you</span>
+    if (tab === "caption") {
+      content = (
+        <div className="space-y-4">
+          {caption ? (
+            <div className="rounded-2xl border border-white/[0.07] bg-white/[0.025] p-4 text-xs leading-relaxed text-zinc-200">
+              <Caption value={caption} />
+              {longDate && (
+                <div className="mt-3 pt-3 border-t border-white/[0.06] text-[11px] text-zinc-500">
+                  Uploaded on {longDate}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="py-8 text-center text-xs text-zinc-500">
+              No caption provided for this reel.
+            </div>
+          )}
+
+          {/* Audio Track Pill */}
+          {audioTitle && (
+            <div className="flex items-center justify-between rounded-xl border border-white/[0.07] bg-white/[0.025] px-3.5 py-2.5">
+              <div className="flex items-center gap-2.5 min-w-0 mr-2">
+                <Music2 size={14} className="shrink-0 text-emerald-400" />
+                <span className="truncate text-xs text-zinc-300">
+                  {audioTitle} {audioArtist ? `• ${audioArtist}` : ""}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  persistWorkspace({ audioSaved: !workspace.audioSaved });
+                  notify(workspace.audioSaved ? "Audio reference removed." : "Audio reference saved.");
+                }}
+                className="shrink-0 rounded-lg px-2.5 py-1 text-[11px] font-medium text-zinc-400 hover:bg-white/[0.06] hover:text-white cursor-pointer"
+              >
+                {workspace.audioSaved ? "Saved" : "Save audio"}
+              </button>
+            </div>
+          )}
+        </div>
+      );
+    } else if (tab === "notes") {
+      content = (
+        <div className="space-y-4">
+          {notes.trim() ? (
+            <article className="rounded-2xl border border-white/[0.07] bg-white/[0.025] p-4">
+              <div className="mb-2.5 flex items-center justify-between gap-3">
+                <span className="text-xs font-semibold text-zinc-200">Your notes</span>
+                <span className="text-[10px] text-zinc-500">Private · Only you</span>
+              </div>
+              <p className="whitespace-pre-wrap text-sm leading-6 text-zinc-300 [overflow-wrap:anywhere]">
+                {notes}
+              </p>
+            </article>
+          ) : (
+            <div className="rounded-2xl border border-dashed border-white/10 p-6 text-center">
+              <MessageCircle
+                size={22}
+                strokeWidth={1.4}
+                className="mx-auto mb-2 text-zinc-600"
+                aria-hidden="true"
+              />
+              <h3 className="text-xs font-medium text-zinc-300">No notes yet</h3>
+              <p className="mt-1 text-xs text-zinc-500">
+                Jot down your hook ideas, research, or thoughts about this reel below.
+              </p>
+            </div>
+          )}
+
+          <div className="pt-1">
+            {renderComposer(scope === "mobile")}
           </div>
-          <p className="whitespace-pre-wrap text-sm leading-7 text-zinc-300 [overflow-wrap:anywhere]">
-            {notes}
-          </p>
-        </article>
-      ) : (
-        <div className="py-8 text-center">
-          <MessageCircle
-            size={24}
-            strokeWidth={1.4}
-            className="mx-auto mb-3 text-zinc-600"
-            aria-hidden="true"
-          />
-          <h3 className="text-sm font-medium text-zinc-200">No notes yet.</h3>
-          <p className="mx-auto mt-1.5 max-w-64 text-sm leading-6 text-zinc-500">
-            Add your thoughts or hooks below.
-          </p>
-          <p className="mt-4 text-[11px] text-zinc-600">
-            Your private workspace, not Instagram comments.
-          </p>
         </div>
       );
     } else if (tab === "analysis") {
@@ -1442,8 +1484,27 @@ export function ReelPlayerModal({
               </div>
             </div>
 
-            {/* Header Controls: Options Menu + Close (✕) */}
-            <div className="flex items-center gap-1">
+            {/* Header Controls: Like + Options Menu + Close (✕) */}
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => void handleLike()}
+                disabled={liking}
+                className="inline-flex h-9 items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium text-zinc-300 transition hover:bg-white/[0.08] hover:text-white cursor-pointer"
+                title={liked ? "Unlike" : "Like"}
+                aria-label={liked ? "Unlike reel" : "Like reel"}
+              >
+                <Heart
+                  size={16}
+                  className={liked ? "fill-rose-500 text-rose-500 transition-transform scale-105" : "text-zinc-400"}
+                />
+                {likes > 0 && (
+                  <span className="text-[11px] font-semibold text-zinc-300">
+                    {new Intl.NumberFormat("en", { notation: "compact" }).format(likes)}
+                  </span>
+                )}
+              </button>
+
               <div className="relative" ref={menuRef}>
                 <button
                   ref={menuButtonRef}
@@ -1521,126 +1582,10 @@ export function ReelPlayerModal({
             </div>
           </div>
 
-          {/* 2. Scrollable Body */}
-          <div className="custom-scrollbar flex-1 overflow-y-auto px-5 py-4 space-y-4 select-text">
-            {/* Clean Creator Caption (Scraper junk stripped!) */}
-            <div className="flex gap-3">
-              <Avatar username={username} src={avatarUrl} />
-              <div className="flex-1 min-w-0">
-                <div className="text-xs leading-relaxed">
-                  {renderCreatorName("mr-2")}
-                  <Caption value={caption} />
-                </div>
-                {shortDate && (
-                  <span className="mt-2 block text-[11px] text-zinc-500">
-                    {shortDate}
-                  </span>
-                )}
-              </div>
-            </div>
-
-            {/* Audio Track Pill */}
-            {audioTitle && (
-              <div className="flex items-center justify-between rounded-xl border border-white/[0.07] bg-white/[0.025] px-3.5 py-2.5">
-                <div className="flex items-center gap-2.5 min-w-0 mr-2">
-                  <Music2 size={14} className="shrink-0 text-emerald-400" />
-                  <span className="truncate text-xs text-zinc-300">
-                    {audioTitle} {audioArtist ? `• ${audioArtist}` : ""}
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    persistWorkspace({ audioSaved: !workspace.audioSaved });
-                    notify(workspace.audioSaved ? "Audio reference removed." : "Audio reference saved.");
-                  }}
-                  className="shrink-0 rounded-lg px-2.5 py-1 text-[11px] font-medium text-zinc-400 hover:bg-white/[0.06] hover:text-white cursor-pointer"
-                >
-                  {workspace.audioSaved ? "Saved" : "Save audio"}
-                </button>
-              </div>
-            )}
-
-            {/* Interactive Tabs: Notes & Discussion | AI Analysis | Organize */}
-            <div className="pt-2">
-              {renderTabs("desktop")}
-              {renderPanel("desktop")}
-            </div>
-          </div>
-
-          {/* 3. Bottom Engagement & Composer Dock (Authentic Instagram standard) */}
-          <div className="shrink-0 border-t border-white/[0.08] bg-[#0C0D13] p-4 space-y-3">
-            {/* Action Icons Row: Heart, Comment, Share, Bookmark */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  onClick={() => void handleLike()}
-                  disabled={liking}
-                  className="text-zinc-300 hover:text-white transition cursor-pointer"
-                  title={liked ? "Unlike" : "Like"}
-                  aria-label={liked ? "Unlike reel" : "Like reel"}
-                >
-                  <Heart
-                    size={22}
-                    className={liked ? "fill-rose-500 text-rose-500 transition-transform scale-110" : "transition-transform"}
-                  />
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setTab("notes");
-                    desktopComposerRef.current?.focus();
-                  }}
-                  className="text-zinc-300 hover:text-white transition cursor-pointer"
-                  title="Comment / Notes"
-                  aria-label="Add comment or note"
-                >
-                  <MessageCircle size={22} />
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => void copyLink()}
-                  className="text-zinc-300 hover:text-white transition cursor-pointer"
-                  title="Share link"
-                  aria-label="Share reel link"
-                >
-                  <Send size={20} />
-                </button>
-              </div>
-
-              <button
-                type="button"
-                onClick={toggleCollection}
-                className="text-zinc-300 hover:text-white transition cursor-pointer"
-                title={workspace.collection ? "Saved" : "Save to collection"}
-                aria-label="Bookmark reel"
-              >
-                <Bookmark
-                  size={22}
-                  className={workspace.collection ? "fill-white text-white" : ""}
-                />
-              </button>
-            </div>
-
-            {/* Likes count */}
-            <div className="text-xs font-semibold text-zinc-100">
-              {likes > 0 ? `${new Intl.NumberFormat("en").format(likes)} likes` : "Be the first to like this"}
-            </div>
-
-            {/* Date */}
-            {longDate && (
-              <div className="text-[10px] uppercase tracking-wider text-zinc-500">
-                {longDate}
-              </div>
-            )}
-
-            {/* Inline Composer */}
-            <div className="pt-1">
-              {renderComposer(false)}
-            </div>
+          {/* 2. Scrollable Body: Clean Tabs (Caption, Notes, AI Analysis, Organize) */}
+          <div className="custom-scrollbar flex-1 overflow-y-auto px-5 py-3 space-y-3 select-text">
+            {renderTabs("desktop")}
+            {renderPanel("desktop")}
           </div>
         </div>
       </div>
@@ -1655,7 +1600,7 @@ export function ReelPlayerModal({
         >
           <div className="mb-4 flex items-center justify-between border-b border-white/[0.08] pb-3">
             <span className="text-sm font-semibold text-white">
-              {tab === "notes" ? "Notes & Discussion" : tab === "analysis" ? "AI Analysis" : "Organize"}
+              {tab === "caption" ? "Caption & Details" : tab === "notes" ? "Notes" : tab === "analysis" ? "AI Analysis" : "Organize"}
             </span>
             <button
               ref={drawerCloseRef}
@@ -1668,9 +1613,6 @@ export function ReelPlayerModal({
           </div>
           {renderTabs("mobile")}
           {renderPanel("mobile")}
-          <div className="pt-4 border-t border-white/[0.08]">
-            {renderComposer(true)}
-          </div>
         </div>
       )}
     </div>,

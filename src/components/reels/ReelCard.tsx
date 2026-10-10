@@ -23,6 +23,7 @@ import {
   ChevronDown as ChevronDownIcon,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { formatOriginalUploadDate } from "@/lib/instagramDate";
 
 interface ReelCardProps {
   reel: Reel;
@@ -200,9 +201,9 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
     ? reel.caption.replace(/<[^>]*>?/gm, "").slice(0, 80)
     : "";
 
-  const formattedDate = reel.createdAt
-    ? new Date(reel.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })
-    : "";
+  const formattedDate = formatOriginalUploadDate(reel, "short") || (
+    reel.createdAt ? new Date(reel.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : ""
+  );
 
   const displayCategories =
     reel.aiKeywords && reel.aiKeywords.length > 0
