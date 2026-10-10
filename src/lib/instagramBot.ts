@@ -2,6 +2,7 @@ import { getSupabaseAdmin } from "./supabase";
 import { parseCategoryCommand, formatCategoryDisplayName } from "./parseCategory";
 import { isLinkCode, normalizeLinkCode, generateLinkCode, MAX_CODE_ATTEMPTS, CODE_EXPIRY_SECONDS } from "./serverAuth";
 import { extractCreatorFromPost } from "./extractCreator";
+import { resolveAudioStream } from "./audioResolver";
 export { parseCategoryCommand, formatCategoryDisplayName };
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -1402,6 +1403,30 @@ async function handleReady(
       audio_artist: reelData.audioArtist || reelData.audio_artist || (isAudio ? (detectedAudioArtist || creatorHandle) : null),
       audio_url: reelData.audioUrl || reelData.audio_url || (isAudio ? (reelData.mediaUrl || reelData.video_url || mediaUrl) : null),
     };
+
+    if (isAudio && (!formattedReel.audio_url || formattedReel.audio_url.includes("instagram.com") || formattedReel.audio_url.includes("instagr.am"))) {
+      try {
+        const resolvedAudio = await resolveAudioStream({
+          title: formattedReel.audio_title || detectedAudioTitle,
+          artist: formattedReel.audio_artist || detectedAudioArtist || creatorHandle,
+          url: mediaUrl,
+        });
+        if (resolvedAudio?.streamUrl) {
+          formattedReel.audio_url = resolvedAudio.streamUrl;
+          if (resolvedAudio.trackTitle && formattedReel.audio_title === "Original audio") {
+            formattedReel.audio_title = resolvedAudio.trackTitle;
+          }
+          if (resolvedAudio.artistName && (!formattedReel.audio_artist || formattedReel.audio_artist === "Instagram Audio")) {
+            formattedReel.audio_artist = resolvedAudio.artistName;
+          }
+          if (resolvedAudio.duration) {
+            formattedReel.duration = resolvedAudio.duration;
+          }
+        }
+      } catch (err) {
+        console.warn("[Instagram Bot] audioResolver notice:", err);
+      }
+    }
 
     // Reel-level deduplication: shortcode, asset_id, or identical caption within 60s
     const supabase = getSupabaseAdmin();

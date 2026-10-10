@@ -173,6 +173,13 @@ function ArchivedReelSnapshot({
 /**
  * 1. DEDICATED SONG / AUDIO PLAYER WITH REAL STREAM RESOLUTION & VINYL DISC
  */
+const isPlayableAudioStream = (url?: string | null): boolean => {
+  if (!url || typeof url !== "string") return false;
+  const trimmed = url.trim().toLowerCase();
+  if (trimmed.includes("instagram.com") || trimmed.includes("instagr.am")) return false;
+  return trimmed.startsWith("http") || trimmed.startsWith("data:") || trimmed.startsWith("blob:");
+};
+
 function AudioSongPlayer({ reel, coverImageSrc }: { reel: Reel; coverImageSrc: string }) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
@@ -181,7 +188,9 @@ function AudioSongPlayer({ reel, coverImageSrc }: { reel: Reel; coverImageSrc: s
   const [durationStr, setDurationStr] = useState(
     reel.duration && reel.duration !== "0:00" && reel.duration !== "--:--" ? reel.duration : "--:--"
   );
-  const [audioSrc, setAudioSrc] = useState<string>(reel.audioUrl || reel.mediaUrl || reel.videoUrl || "");
+
+  const initialAudio = [reel.audioUrl, reel.mediaUrl, reel.videoUrl].find(isPlayableAudioStream) || "";
+  const [audioSrc, setAudioSrc] = useState<string>(initialAudio);
   const [isLoadingAudio, setIsLoadingAudio] = useState(false);
   const [hasAudioError, setHasAudioError] = useState(false);
   const [hasImageError, setHasImageError] = useState(false);
@@ -198,17 +207,26 @@ function AudioSongPlayer({ reel, coverImageSrc }: { reel: Reel; coverImageSrc: s
   useEffect(() => {
     let isMounted = true;
     async function loadAudioStream() {
-      if (audioSrc && audioSrc.startsWith("http")) return;
+      if (isPlayableAudioStream(audioSrc)) return;
       setIsLoadingAudio(true);
       try {
-        const res = await fetch(
-          `/api/reels/${reel.id}/playback?type=audio&shortcode=${shortcode}&reelUrl=${encodeURIComponent(reel.instagramUrl)}`
-        );
+        const queryParams = new URLSearchParams({
+          type: "audio",
+          shortcode,
+          reelUrl: reel.instagramUrl || "",
+          title: trackTitle,
+          artist: artistName,
+        });
+        const res = await fetch(`/api/reels/${reel.id}/playback?${queryParams.toString()}`);
         if (res.ok) {
           const data = await res.json();
           const resolvedStream = data.playbackUrl || data.directCdnUrl || data.streamUrl;
           if (resolvedStream && isMounted) {
             setAudioSrc(resolvedStream);
+            setHasAudioError(false);
+            if (data.duration && data.duration !== "--:--") {
+              setDurationStr(data.duration);
+            }
           }
         }
       } catch (err) {
@@ -221,10 +239,46 @@ function AudioSongPlayer({ reel, coverImageSrc }: { reel: Reel; coverImageSrc: s
     return () => {
       isMounted = false;
     };
-  }, [reel.id, shortcode, reel.instagramUrl, audioSrc]);
+  }, [reel.id, shortcode, reel.instagramUrl, audioSrc, trackTitle, artistName]);
 
-  const togglePlay = () => {
-    if (audioRef.current && audioSrc) {
+  const togglePlay = async () => {
+    if (!audioSrc || !isPlayableAudioStream(audioSrc)) {
+      setIsLoadingAudio(true);
+      try {
+        const queryParams = new URLSearchParams({
+          type: "audio",
+          shortcode,
+          reelUrl: reel.instagramUrl || "",
+          title: trackTitle,
+          artist: artistName,
+        });
+        const res = await fetch(`/api/reels/${reel.id}/playback?${queryParams.toString()}`);
+        if (res.ok) {
+          const data = await res.json();
+          const resolvedStream = data.playbackUrl || data.directCdnUrl || data.streamUrl;
+          if (resolvedStream) {
+            setAudioSrc(resolvedStream);
+            setHasAudioError(false);
+            setTimeout(() => {
+              if (audioRef.current) {
+                audioRef.current
+                  .play()
+                  .then(() => setIsPlaying(true))
+                  .catch(() => setHasAudioError(true));
+              }
+            }, 100);
+            return;
+          }
+        }
+      } catch (err) {
+        console.warn("Audio play resolution error:", err);
+      } finally {
+        setIsLoadingAudio(false);
+      }
+      return;
+    }
+
+    if (audioRef.current) {
       if (isPlaying) {
         audioRef.current.pause();
         setIsPlaying(false);
@@ -235,14 +289,12 @@ function AudioSongPlayer({ reel, coverImageSrc }: { reel: Reel; coverImageSrc: s
             setIsPlaying(true);
             setHasAudioError(false);
           })
-          .catch(() => {
+          .catch((err) => {
+            console.warn("Audio playback exception:", err);
             setHasAudioError(true);
             setIsPlaying(false);
           });
       }
-    } else {
-      // Toggle player visualizer state in-place without opening any external window
-      setIsPlaying(!isPlaying);
     }
   };
 
@@ -283,10 +335,11 @@ function AudioSongPlayer({ reel, coverImageSrc }: { reel: Reel; coverImageSrc: s
 
   return (
     <div className="relative w-full h-full flex flex-col items-center justify-between p-6 sm:p-8 bg-gradient-to-b from-zinc-900 via-black to-zinc-950 text-white select-none overflow-hidden">
-      {audioSrc && (
+      {audioSrc && isPlayableAudioStream(audioSrc) && (
         <audio
           ref={audioRef}
           src={audioSrc}
+          preload="auto"
           muted={isMuted}
           onTimeUpdate={handleTimeUpdate}
           onLoadedMetadata={handleLoadedMetadata}

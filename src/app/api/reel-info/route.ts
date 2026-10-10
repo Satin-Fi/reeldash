@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { resolveAudioStream } from "@/lib/audioResolver";
 
 export const dynamic = "force-dynamic";
 
@@ -492,6 +493,33 @@ async function extractMetadata(url: string, startTime: number) {
       if (!audioArtist) {
         audioArtist = creatorUsername || "Instagram Audio";
       }
+
+      // Automatically resolve real playable audio stream for audio pages
+      try {
+        const resolvedAudio = await resolveAudioStream({
+          title: audioTitle,
+          artist: audioArtist,
+          shortcode,
+          url: cleanUrl,
+        });
+        if (resolvedAudio?.streamUrl) {
+          mediaUrl = resolvedAudio.streamUrl;
+          if (!duration || duration === "0:00" || duration === "--:--") {
+            duration = resolvedAudio.duration || "0:30";
+          }
+          if (resolvedAudio.artworkUrl && (!thumbnailUrl || thumbnailUrl.includes("/api/proxy-image"))) {
+            thumbnailUrl = resolvedAudio.artworkUrl;
+          }
+          if (resolvedAudio.trackTitle && audioTitle === "Original audio") {
+            audioTitle = resolvedAudio.trackTitle;
+          }
+          if (resolvedAudio.artistName && audioArtist === "Instagram Audio") {
+            audioArtist = resolvedAudio.artistName;
+          }
+        }
+      } catch (err) {
+        console.warn("[reel-info] Audio stream resolution notice:", err);
+      }
     }
 
     let formattedThumbnailUrl = thumbnailUrl;
@@ -530,6 +558,7 @@ async function extractMetadata(url: string, startTime: number) {
       duration,
       audioTitle: audioTitle || undefined,
       audioArtist: audioArtist || undefined,
+      audioUrl: mediaUrl || undefined,
       aiSummary: undefined,
       elapsedMs: Date.now() - startTime,
     };
