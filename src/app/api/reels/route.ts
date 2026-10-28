@@ -343,7 +343,7 @@ export async function POST(req: NextRequest) {
       creator_name: finalCreatorName,
       creator_avatar: finalCreatorAvatar,
       media_type: isCarouselPost ? "post" : detectedMediaType,
-      duration: bodyDuration || enrichedData.duration || (detectedMediaType === "audio" ? "" : isCarouselPost ? `Carousel (${finalCarouselImages?.length || ""})` : "0:30"),
+      duration: bodyDuration || enrichedData.duration || (detectedMediaType === "audio" ? "" : isCarouselPost ? `Carousel (${finalCarouselImages?.length || ""})` : detectedMediaType === "post" ? "Post" : "0:30"),
       likes_count: likes_count || bodyLikes || enrichedData.likes || "",
       plays_count: plays_count || enrichedData.views || "",
       category: finalCategory,

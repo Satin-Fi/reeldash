@@ -285,19 +285,41 @@ function ReelCover({ reel }: { reel: BinItem }) {
     setFailed(false);
   }, [url]);
 
+  const isPost = reel.mediaType === "post" || (reel.instagramUrl?.includes("/p/") && !reel.mediaUrl?.includes(".mp4"));
+
   return (
-    <div className="relative aspect-[9/16] overflow-hidden rounded-2xl border border-black/[0.07] bg-zinc-100 dark:border-white/[0.08] dark:bg-[#121316]">
+    <div className={`relative ${isPost ? "aspect-square" : "aspect-[9/16]"} overflow-hidden rounded-2xl border border-black/[0.07] bg-zinc-100 dark:border-white/[0.08] dark:bg-[#121316]`}>
       {url && !failed ? (
-        // Native images support external thumbnail hosts without Next image configuration.
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={url}
-          alt={`Reel by @${creator}`}
-          loading="lazy"
-          decoding="async"
-          onError={() => setFailed(true)}
-          className="h-full w-full object-cover transition duration-700 ease-out motion-safe:group-hover:scale-[1.035]"
-        />
+        isPost ? (
+          <div className="relative w-full h-full flex items-center justify-center bg-black/40 overflow-hidden">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={url}
+              alt=""
+              aria-hidden="true"
+              className="absolute inset-0 w-full h-full object-cover blur-xl opacity-35 scale-110 pointer-events-none select-none"
+            />
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={url}
+              alt={`Post by @${creator}`}
+              loading="lazy"
+              decoding="async"
+              onError={() => setFailed(true)}
+              className="relative z-10 w-full h-full object-contain pointer-events-none transition duration-700 ease-out motion-safe:group-hover:scale-[1.035]"
+            />
+          </div>
+        ) : (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={url}
+            alt={`Reel by @${creator}`}
+            loading="lazy"
+            decoding="async"
+            onError={() => setFailed(true)}
+            className="h-full w-full object-cover transition duration-700 ease-out motion-safe:group-hover:scale-[1.035]"
+          />
+        )
       ) : (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-5 bg-[radial-gradient(ellipse_at_top_right,rgba(203,181,253,0.18),transparent_65%)] px-6">
           <svg

@@ -428,7 +428,7 @@ function CreatorProfileContent() {
                   Saved in Your Library ({creatorPosts.length})
                 </h3>
               </div>
-              <ReelGrid reels={creatorPosts} viewMode={viewMode} />
+              <ReelGrid reels={creatorPosts} viewMode={viewMode} aspectRatio="square" />
             </div>
           )}
 
@@ -437,7 +437,7 @@ function CreatorProfileContent() {
               Instagram Public Posts (@{username})
             </h3>
             {rawDiscoveredPosts.length > 0 ? (
-              <CreatorReelGrid items={rawDiscoveredPosts} creatorUsername={username} />
+              <CreatorReelGrid items={rawDiscoveredPosts} creatorUsername={username} aspectRatio="square" />
             ) : discovering ? (
               <div className="p-12 text-center bg-surface-light dark:bg-surface-dark border border-borderSubtle-light dark:border-borderSubtle-dark rounded-rd-lg">
                 <Loader2 className="w-6 h-6 animate-spin text-brand-500 mx-auto mb-2" />

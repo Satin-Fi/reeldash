@@ -232,6 +232,11 @@ function ReelsContent() {
     return 0;
   });
 
+  // Effective media type for ratio calculation
+  const effectiveType = typeParam && ["all", "reel", "post", "audio", "story"].includes(typeParam)
+    ? typeParam
+    : activeMediaType || "all";
+
   return (
     <div className="w-full">
       {/* Editorial Header */}
@@ -250,6 +255,7 @@ function ReelsContent() {
         viewMode={viewMode}
         emptyTitle={headerConfig.emptyTitle}
         emptySubtitle={headerConfig.emptySubtitle}
+        aspectRatio={effectiveType === "post" ? "square" : effectiveType === "reel" ? "reel" : "auto"}
       />
     </div>
   );

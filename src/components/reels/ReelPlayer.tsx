@@ -539,11 +539,13 @@ function MultiMediaPostViewer({ reel, coverImageSrc }: { reel: Reel; coverImageS
     }
   }, [reel.carouselImages, reel.carouselSlides]);
 
-  // Dynamic fallback: If slides <= 1 but post is a carousel, fetch full slides from creator-reels
+  // Dynamic fallback: If slides <= 1 but post is a carousel or photo post, fetch full slides
   useEffect(() => {
     const isCarousel =
       reel.isCarousel ||
-      (typeof reel.duration === "string" && reel.duration.toLowerCase().includes("carousel"));
+      (typeof reel.duration === "string" && reel.duration.toLowerCase().includes("carousel")) ||
+      reel.mediaType === "post" ||
+      reel.instagramUrl?.includes("/p/");
 
     if (slides.length <= 1 && isCarousel) {
       const sc =
@@ -551,7 +553,51 @@ function MultiMediaPostViewer({ reel, coverImageSrc }: { reel: Reel; coverImageS
         reel.instagramUrl?.match(/(?:p|reel|reels)\/([A-Za-z0-9_-]+)/)?.[1];
       const username = reel.creatorUsername?.replace(/^@/, "");
 
-      if (username) {
+      // 1. Primary high-speed resolver via /api/reel-info
+      const targetUrl =
+        reel.instagramUrl && (reel.instagramUrl.includes("instagram.com") || reel.instagramUrl.includes("instagr.am"))
+          ? reel.instagramUrl
+          : sc && !sc.startsWith("post_asset_") && !sc.startsWith("audio_")
+          ? `https://www.instagram.com/p/${sc}/`
+          : null;
+
+      if (targetUrl) {
+        fetch(`/api/reel-info?url=${encodeURIComponent(targetUrl)}`)
+          .then((res) => (res.ok ? res.json() : null))
+          .then((data) => {
+            if (data?.carouselImages && Array.isArray(data.carouselImages) && data.carouselImages.length > 1) {
+              setSlides(
+                data.carouselImages.map((imgUrl: string, idx: number) => ({
+                  id: `slide-${idx}`,
+                  type: imgUrl.includes(".mp4") ? "video" : "image",
+                  url: imgUrl,
+                }))
+              );
+              return;
+            }
+            // Fallback to creator-reels if reel-info returned a single image
+            if (username) {
+              fetch(`/api/instagram/creator-reels?username=${encodeURIComponent(username)}`)
+                .then((cRes) => (cRes.ok ? cRes.json() : null))
+                .then((cData) => {
+                  if (cData?.reels && Array.isArray(cData.reels)) {
+                    const matched = cData.reels.find((r: any) => r.shortcode === sc || r.id === sc);
+                    if (matched?.carouselImages && matched.carouselImages.length > 1) {
+                      setSlides(
+                        matched.carouselImages.map((imgUrl: string, idx: number) => ({
+                          id: `slide-${idx}`,
+                          type: imgUrl.includes(".mp4") ? "video" : "image",
+                          url: imgUrl,
+                        }))
+                      );
+                    }
+                  }
+                })
+                .catch(() => {});
+            }
+          })
+          .catch(() => {});
+      } else if (username) {
         fetch(`/api/instagram/creator-reels?username=${encodeURIComponent(username)}`)
           .then((res) => (res.ok ? res.json() : null))
           .then((data) => {
@@ -571,7 +617,7 @@ function MultiMediaPostViewer({ reel, coverImageSrc }: { reel: Reel; coverImageS
           .catch(() => {});
       }
     }
-  }, [reel.shortcode, reel.creatorUsername, reel.isCarousel, reel.duration, slides.length]);
+  }, [reel.shortcode, reel.creatorUsername, reel.isCarousel, reel.duration, reel.mediaType, reel.instagramUrl, slides.length]);
 
   // Filter modes: 'all' | 'image' | 'video'
   const [filter, setFilter] = useState<"all" | "image" | "video">("all");

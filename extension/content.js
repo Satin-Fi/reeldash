@@ -2,13 +2,14 @@
 (function () {
   console.log("[ReelDash Companion] Active on Instagram");
 
-  // Helper to extract active Reel details from the current Instagram DOM
+  // Helper to extract active Reel or Post details from the current Instagram DOM
   function extractCurrentReel() {
     const url = window.location.href;
     const match = url.match(/(?:reel|p)\/([A-Za-z0-9_-]+)/);
     if (!match) return null;
 
     const shortcode = match[1];
+    const isPost = url.includes("/p/");
 
     // Find active video tag
     const videos = Array.from(document.querySelectorAll("video"));
@@ -21,6 +22,19 @@
     }
 
     const videoUrl = activeVideo ? activeVideo.src : "";
+
+    // For photo posts, extract highest-res photo element
+    let postImageUrl = "";
+    if (isPost) {
+      const imgElem =
+        document.querySelector("article img[srcset]") ||
+        document.querySelector("article img[src*='cdninstagram']") ||
+        document.querySelector("div[role='dialog'] img[srcset]") ||
+        document.querySelector("img[srcset]");
+      if (imgElem && imgElem.src && !imgElem.src.startsWith("data:")) {
+        postImageUrl = imgElem.src;
+      }
+    }
 
     // Extract creator username
     let creatorUsername = "";
@@ -54,19 +68,22 @@
     }
 
     return {
-      id: `reel-${shortcode}`,
-      instagramUrl: `https://www.instagram.com/reel/${shortcode}/`,
+      id: `${isPost ? "post" : "reel"}-${shortcode}`,
+      instagramUrl: isPost
+        ? `https://www.instagram.com/p/${shortcode}/`
+        : `https://www.instagram.com/reel/${shortcode}/`,
       shortcode,
+      mediaType: isPost ? "post" : "reel",
       creatorUsername: creatorUsername || `creator_${shortcode.substring(0, 6)}`,
       creatorFullName: creatorUsername || "Instagram Creator",
-      caption: caption || `Saved Instagram Reel (${shortcode})`,
+      caption: caption || (isPost ? `Saved Instagram Post (${shortcode})` : `Saved Instagram Reel (${shortcode})`),
       likes: likes || "1.2k likes",
       commentsCount: "42 comments",
-      duration: "0:30",
+      duration: isPost ? "Post" : "0:30",
       mediaUrl: videoUrl,
-      thumbnailUrl: `https://reeldash-nine.vercel.app/api/proxy-image?shortcode=${shortcode}`,
+      thumbnailUrl: postImageUrl || `https://reeldash-nine.vercel.app/api/proxy-image?shortcode=${shortcode}`,
       category: "Saved",
-      tags: ["instagram", "saved"],
+      tags: ["instagram", isPost ? "post" : "reel", "saved"],
       savedAt: new Date().toISOString(),
       isFavorite: false,
     };

@@ -13,6 +13,7 @@ interface ReelGridProps {
   emptySubtitle?: string;
   /** Maximum number of reels to display */
   limit?: number;
+  aspectRatio?: "reel" | "square" | "auto";
 }
 
 const getGridColsClass = (count: number) => {
@@ -41,10 +42,19 @@ export function ReelGrid({
   emptyTitle = "No items found",
   emptySubtitle = "Save a link or adjust your filters.",
   limit,
+  aspectRatio = "auto",
 }: ReelGridProps) {
   const reelContext = useOptionalReels();
   const cols = propGridCols || reelContext?.gridCols || 4;
   const displayReels = limit ? reels.slice(0, limit) : reels;
+
+  const isAllPosts =
+    displayReels.length > 0 &&
+    displayReels.every(
+      (r) => r.mediaType === "post" || (r.instagramUrl?.includes("/p/") && !r.mediaUrl?.includes(".mp4"))
+    );
+  const computedRatio: "reel" | "square" | "auto" =
+    aspectRatio === "square" ? "square" : aspectRatio === "reel" ? "reel" : isAllPosts ? "square" : "auto";
 
   if (displayReels.length === 0) {
     return (
@@ -63,7 +73,7 @@ export function ReelGrid({
     return (
       <div className="flex flex-col space-y-2">
         {displayReels.map((reel) => (
-          <ReelCard key={reel.id} reel={reel} viewMode="compact" />
+          <ReelCard key={reel.id} reel={reel} viewMode="compact" aspectRatio={computedRatio} />
         ))}
       </div>
     );
@@ -73,7 +83,7 @@ export function ReelGrid({
     return (
       <div className="flex flex-col space-y-5 max-w-xl mx-auto py-2">
         {displayReels.map((reel) => (
-          <ReelCard key={reel.id} reel={reel} viewMode="feed" />
+          <ReelCard key={reel.id} reel={reel} viewMode="feed" aspectRatio={computedRatio} />
         ))}
       </div>
     );
@@ -82,14 +92,22 @@ export function ReelGrid({
   return (
     <div className={`grid ${getGridColsClass(cols)} gap-[1.5px] bg-borderSubtle-light dark:bg-black/80`}>
       {displayReels.map((reel) => (
-        <ReelCard key={reel.id} reel={reel} viewMode="grid" />
+        <ReelCard key={reel.id} reel={reel} viewMode="grid" aspectRatio={computedRatio} />
       ))}
     </div>
   );
 }
 
 /** Skeleton loader matching the dynamic grid columns layout */
-export function ReelGridSkeleton({ count = 12, gridCols: propGridCols }: { count?: number; gridCols?: number }) {
+export function ReelGridSkeleton({
+  count = 12,
+  gridCols: propGridCols,
+  aspectRatio = "reel",
+}: {
+  count?: number;
+  gridCols?: number;
+  aspectRatio?: "reel" | "square" | "auto";
+}) {
   const reelContext = useOptionalReels();
   const cols = propGridCols || reelContext?.gridCols || 4;
 
@@ -98,7 +116,7 @@ export function ReelGridSkeleton({ count = 12, gridCols: propGridCols }: { count
       {Array.from({ length: count }).map((_, i) => (
         <div
           key={i}
-          className="aspect-[9/16] w-full bg-zinc-800/50 animate-pulse"
+          className={`${aspectRatio === "square" ? "aspect-square" : "aspect-[9/16]"} w-full bg-zinc-800/50 animate-pulse`}
         />
       ))}
     </div>

@@ -32,7 +32,15 @@ export interface CreatorReelItem {
 }
 
 /** A single discovered reel tile with ReelDash Save + play chrome. */
-function CreatorReelTile({ item, creatorUsername }: { item: CreatorReelItem; creatorUsername?: string }) {
+function CreatorReelTile({
+  item,
+  creatorUsername,
+  aspectRatio = "auto",
+}: {
+  item: CreatorReelItem;
+  creatorUsername?: string;
+  aspectRatio?: "reel" | "square" | "auto";
+}) {
   const { saveReel, reels, showToast } = useReels();
   const [saving, setSaving] = useState(false);
   const [open, setOpen] = useState(false);
@@ -47,7 +55,10 @@ function CreatorReelTile({ item, creatorUsername }: { item: CreatorReelItem; cre
   );
 
   const isVideo = item.isVideo || item.mediaType === "reel" || item.instagramUrl.includes("/reel/");
-  const mediaType = item.mediaType || (isVideo ? "reel" : item.isCarousel ? "post" : "post");
+  const mediaType = item.mediaType || (isVideo ? "reel" : "post");
+  const isPost = mediaType === "post" || !isVideo || item.isCarousel;
+  const effectiveRatio =
+    aspectRatio === "square" ? "square" : aspectRatio === "reel" ? "reel" : isPost ? "square" : "reel";
 
   const toReel = (): Reel => ({
     id: item.id,
@@ -127,19 +138,43 @@ function CreatorReelTile({ item, creatorUsername }: { item: CreatorReelItem; cre
     <>
       <div
         onClick={() => setOpen(true)}
-        className="group relative aspect-[9/16] w-full overflow-hidden bg-black cursor-pointer select-none"
+        className={`group relative ${effectiveRatio === "square" ? "aspect-square" : "aspect-[9/16]"} w-full overflow-hidden bg-black cursor-pointer select-none`}
       >
         {/* Thumbnail Image */}
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={currentImg}
-          alt={item.caption || "Instagram Media"}
-          referrerPolicy="no-referrer"
-          onError={(e) => {
-            (e.target as HTMLImageElement).src = defaultCover;
-          }}
-          className="w-full h-full object-cover transition-transform duration-200 ease-out group-hover:scale-[1.015]"
-        />
+        {isPost || effectiveRatio === "square" ? (
+          <div className="relative w-full h-full flex items-center justify-center bg-black/50 overflow-hidden select-none">
+            {/* Ambient blurred backdrop that harmonizes with post colors so no harsh empty voids */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={currentImg}
+              alt=""
+              aria-hidden="true"
+              className="absolute inset-0 w-full h-full object-cover blur-xl opacity-35 scale-110 pointer-events-none select-none"
+            />
+            {/* Crisp uncropped foreground image preserving full post without chopping edges */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={currentImg}
+              alt={item.caption || "Instagram Media"}
+              referrerPolicy="no-referrer"
+              onError={(e) => {
+                (e.target as HTMLImageElement).src = defaultCover;
+              }}
+              className="relative z-10 w-full h-full object-contain pointer-events-none transition-transform duration-200 ease-out group-hover:scale-[1.02]"
+            />
+          </div>
+        ) : (
+          /* eslint-disable-next-line @next/next/no-img-element */
+          <img
+            src={currentImg}
+            alt={item.caption || "Instagram Media"}
+            referrerPolicy="no-referrer"
+            onError={(e) => {
+              (e.target as HTMLImageElement).src = defaultCover;
+            }}
+            className="w-full h-full object-cover transition-transform duration-200 ease-out group-hover:scale-[1.015]"
+          />
+        )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/30 opacity-70 group-hover:opacity-90 transition-opacity" />
 
         {/* Top Header Group */}
@@ -220,12 +255,24 @@ function CreatorReelTile({ item, creatorUsername }: { item: CreatorReelItem; cre
   );
 }
 
-export function CreatorReelGrid({ items, creatorUsername }: { items: CreatorReelItem[]; creatorUsername?: string }) {
+export function CreatorReelGrid({
+  items,
+  creatorUsername,
+  aspectRatio = "auto",
+}: {
+  items: CreatorReelItem[];
+  creatorUsername?: string;
+  aspectRatio?: "reel" | "square" | "auto";
+}) {
   if (!items || items.length === 0) return null;
+  const isAllPosts = items.every((it) => it.mediaType === "post" || !it.isVideo || it.isCarousel);
+  const computedRatio: "reel" | "square" | "auto" =
+    aspectRatio === "square" ? "square" : aspectRatio === "reel" ? "reel" : isAllPosts ? "square" : "auto";
+
   return (
     <div className="grid grid-cols-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-[1.5px] bg-borderSubtle-light dark:bg-black/80">
       {items.map((it) => (
-        <CreatorReelTile key={it.id} item={it} creatorUsername={creatorUsername} />
+        <CreatorReelTile key={it.id} item={it} creatorUsername={creatorUsername} aspectRatio={computedRatio} />
       ))}
     </div>
   );

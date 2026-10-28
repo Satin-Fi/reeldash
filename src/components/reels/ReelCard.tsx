@@ -28,9 +28,10 @@ import { formatOriginalUploadDate } from "@/lib/instagramDate";
 interface ReelCardProps {
   reel: Reel;
   viewMode?: ViewMode;
+  aspectRatio?: "reel" | "square" | "auto";
 }
 
-export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
+export function ReelCard({ reel, viewMode = "grid", aspectRatio = "auto" }: ReelCardProps) {
   const { toggleFavorite, deleteReel, smartCategories, updateCategory, showToast } = useReels();
   const [isPlayerOpen, setIsPlayerOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -141,7 +142,27 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
       ? parseInt(reel.duration.match(/Carousel\s*\(([0-9]+)\)/i)![1], 10)
       : null);
 
-  const mediaType = isCarouselPost ? "post" : (reel.mediaType || "reel");
+  const mediaType =
+    isCarouselPost ||
+    reel.mediaType === "post" ||
+    (reel.instagramUrl?.includes("/p/") && !reel.mediaUrl?.includes(".mp4"))
+      ? "post"
+      : reel.mediaType ||
+        (reel.instagramUrl?.includes("/audio/")
+          ? "audio"
+          : reel.instagramUrl?.includes("/stories/")
+          ? "story"
+          : "reel");
+
+  const isPost = mediaType === "post";
+  const effectiveRatio =
+    aspectRatio === "square"
+      ? "square"
+      : aspectRatio === "reel"
+      ? "reel"
+      : isPost
+      ? "square"
+      : "reel";
 
   const resolvedShortcode =
     reel.shortcode ||
@@ -551,7 +572,7 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
           e.preventDefault();
           e.stopPropagation();
         }}
-        className="group relative aspect-[9/16] w-full overflow-hidden bg-black cursor-pointer select-none active:scale-[0.98] transition-transform"
+        className={`group relative ${effectiveRatio === "square" ? "aspect-square" : "aspect-[9/16]"} w-full overflow-hidden bg-black cursor-pointer select-none active:scale-[0.98] transition-transform`}
       >
         {/* Full-bleed thumbnail or crisp centered audio/avatar tile */}
         {mediaType === "audio" || (imageSrc && imageSrc.includes("username=")) || imageError ? (
@@ -618,7 +639,35 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
               )}
             </div>
           </div>
+        ) : isPost ? (
+          <div className="relative w-full h-full flex items-center justify-center bg-black/50 overflow-hidden select-none">
+            {/* Ambient blurred backdrop that harmonizes with post colors so no harsh empty voids */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={imageSrc}
+              alt=""
+              aria-hidden="true"
+              draggable={false}
+              className="absolute inset-0 w-full h-full object-cover blur-xl opacity-35 scale-110 pointer-events-none select-none"
+            />
+            {/* Crisp uncropped foreground image preserving full post without chopping edges */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={imageSrc}
+              alt={displayCaption || "Saved post"}
+              referrerPolicy="no-referrer"
+              loading="lazy"
+              draggable={false}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+              }}
+              onError={() => setImageError(true)}
+              className="relative z-10 w-full h-full object-contain pointer-events-none transition-transform duration-200 ease-out group-hover:scale-[1.02]"
+            />
+          </div>
         ) : (
+          /* Regular reel full-bleed thumbnail */
           /* eslint-disable-next-line @next/next/no-img-element */
           <img
             src={imageSrc}
@@ -1002,7 +1051,7 @@ export function ReelCard({ reel, viewMode = "grid" }: ReelCardProps) {
           }}
           className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md pointer-events-none animate-in fade-in duration-150 select-none"
         >
-          <div className="relative w-full max-w-[320px] aspect-[9/16] bg-black rounded-2xl overflow-hidden shadow-2xl border border-white/20">
+          <div className={`relative w-full ${isPost ? "max-w-[360px] aspect-square" : "max-w-[320px] aspect-[9/16]"} bg-black rounded-2xl overflow-hidden shadow-2xl border border-white/20`}>
             <ReelPlayer reel={reel} autoPlay={true} className="w-full h-full rounded-2xl" />
             
             {/* Top Overlay Creator Badge */}

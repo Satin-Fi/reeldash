@@ -1330,6 +1330,30 @@ async function handleReady(
     const allCategories = parsedCmd.categories;
     const note = parsedCmd.note;
 
+    // Collect all media candidate URLs across attachments in the DM message
+    const allAttachmentImages: string[] = [];
+    if (Array.isArray(attachments)) {
+      for (const att of attachments) {
+        if (!att) continue;
+        const candidates = [
+          att.payload?.url,
+          att.payload?.link,
+          att.url,
+          att.payload?.share?.url,
+          att.payload?.share?.link,
+          att.payload?.media_url,
+          att.payload?.target_url,
+        ];
+        for (const c of candidates) {
+          if (typeof c === "string" && c.startsWith("http")) {
+            if (!c.includes("profile_pic") && !c.includes("t51.82787-19") && !allAttachmentImages.includes(c)) {
+              allAttachmentImages.push(c);
+            }
+          }
+        }
+      }
+    }
+
     // Fetch reel metadata if it's an Instagram web URL
     let reelData: any = null;
     if (mediaUrl.includes("instagram.com") || mediaUrl.includes("instagr.am")) {
@@ -1355,11 +1379,14 @@ async function handleReady(
         mediaUrl.includes("cdninstagram.com") ||
         mediaUrl.includes("fbcdn.net") ||
         mediaUrl.match(/\.(jpg|jpeg|png|webp|gif)($|\?)/i) !== null ||
+        allAttachmentImages.length > 1 ||
         attachments?.some((a) =>
           ["image", "share", "ig_post"].includes(a?.type)
         ) ||
         reelData?.mediaType === "post" ||
-        reelData?.media_type === "post");
+        reelData?.media_type === "post" ||
+        reelData?.isCarousel ||
+        reelData?.is_carousel);
 
     if (!reelData || !reelData.shortcode) {
       // Check if attachment or message had title / notes
@@ -1431,23 +1458,38 @@ async function handleReady(
       const finalCreatorHandle = isAudio ? "instagram_audio" : extracted.handle;
       const finalCreatorName = isAudio ? "Instagram Audio" : extracted.name;
 
+      const isCarouselMulti = allAttachmentImages.length > 1;
+      const attachmentSlideProxies = isCarouselMulti
+        ? allAttachmentImages.map((u, idx) =>
+            `/api/proxy-image?url=${encodeURIComponent(u)}&shortcode=${shortcode}_slide_${idx}`
+          )
+        : null;
+
       reelData = {
         shortcode,
         url: mediaUrl,
         thumbnailUrl: finalThumb,
-        video_url: directThumb || mediaUrl,
+        video_url: isCarouselMulti ? "" : (directThumb || mediaUrl),
         caption: fallbackCaption,
         creatorUsername: finalCreatorHandle,
         creator_name: finalCreatorName,
         creatorAvatar: `/api/proxy-image?username=${encodeURIComponent(finalCreatorHandle || "instagram")}`,
         mediaType: isAudio ? "audio" : isPost ? "post" : "reel",
-        duration: isAudio ? "0:30" : isPost ? "Post" : "0:15",
+        duration: isCarouselMulti
+          ? `Carousel (${allAttachmentImages.length})`
+          : isAudio
+          ? "0:30"
+          : isPost
+          ? "Post"
+          : "0:15",
         category: allCategories[0] || (isAudio ? "Music & Audio" : "General"),
         hashtags: [
           "instagram-dm",
           isAudio ? "audio" : isPost ? "post" : "reel",
           "auto-save",
         ],
+        isCarousel: isCarouselMulti,
+        carouselImages: attachmentSlideProxies,
         audioTitle: isAudio ? "Original audio" : undefined,
         audioArtist: isAudio ? "Instagram Audio" : undefined,
         audioUrl: isAudio ? (directThumb || mediaUrl) : undefined,
@@ -1526,11 +1568,35 @@ async function handleReady(
       }
     }
 
+    const resolvedCarouselImages: string[] =
+      (Array.isArray(reelData?.carouselImages) && reelData.carouselImages.length > 1)
+        ? reelData.carouselImages
+        : (Array.isArray(reelData?.carousel_images) && reelData.carousel_images.length > 1)
+        ? reelData.carousel_images
+        : (allAttachmentImages.length > 1)
+        ? allAttachmentImages.map((img, idx) =>
+            `/api/proxy-image?url=${encodeURIComponent(img)}&shortcode=${(reelData?.shortcode || "carousel")}_slide_${idx}`
+          )
+        : [];
+
+    const isCarouselPost: boolean =
+      resolvedCarouselImages.length > 1 ||
+      !!reelData?.isCarousel ||
+      !!reelData?.is_carousel ||
+      (typeof reelData?.duration === "string" && reelData.duration.toLowerCase().includes("carousel")) ||
+      allAttachmentImages.length > 1;
+
+    const formattedDuration = isCarouselPost && resolvedCarouselImages.length > 1
+      ? `Carousel (${resolvedCarouselImages.length})`
+      : isPost
+      ? "Post"
+      : reelData.duration || (isAudio ? "0:30" : "0:15");
+
     const formattedReel = {
       shortcode: reelData.shortcode,
       url: reelData.url || mediaUrl,
       thumbnail_url: formattedThumbnailUrl,
-      video_url: reelData.mediaUrl || reelData.video_url || mediaUrl,
+      video_url: isCarouselPost ? "" : (reelData.mediaUrl || reelData.video_url || mediaUrl),
       caption: finalCaption,
       creator_handle: creatorHandle,
       creator_name:
@@ -1543,21 +1609,19 @@ async function handleReady(
         reelData.creatorAvatar ||
         reelData.creator_avatar ||
         `/api/proxy-image?username=${encodeURIComponent(creatorHandle)}`,
-      media_type: isPost
+      media_type: isCarouselPost
+        ? "post"
+        : isPost
         ? "post"
         : isAudio
         ? "audio"
         : reelData.mediaType || reelData.media_type || "reel",
-      duration: (reelData.carouselImages && reelData.carouselImages.length > 1)
-        ? `Carousel (${reelData.carouselImages.length})`
-        : isPost
-        ? "Post"
-        : reelData.duration || (isAudio ? "0:30" : "0:15"),
+      duration: formattedDuration,
       category: effectiveCategory,
       tags,
       note: note || reelData.note || undefined,
-      is_carousel: reelData.isCarousel || reelData.is_carousel || (reelData.carouselImages && reelData.carouselImages.length > 1) || (reelData.duration && reelData.duration.includes("Carousel")) || false,
-      carousel_images: reelData.carouselImages || reelData.carousel_images || null,
+      is_carousel: isCarouselPost,
+      carousel_images: resolvedCarouselImages.length > 0 ? resolvedCarouselImages : null,
       audio_title: isAudio ? (reelData.audioTitle || reelData.audio_title || "Original audio") : null,
       audio_artist: isAudio ? (reelData.audioArtist || reelData.audio_artist || creatorHandle) : null,
       audio_url: isAudio ? (reelData.audioUrl || reelData.audio_url || reelData.mediaUrl || reelData.video_url || mediaUrl) : null,
@@ -1667,8 +1731,15 @@ async function handleReady(
         ? [...allCategories]
         : [formattedReel.category || "General"];
 
-    const mediaLabel = isPost ? "Post" : isAudio ? "Audio" : "Reel";
-    const mediaIcon = isPost ? "📸" : isAudio ? "🎵" : "🎬";
+    const isCarousel = formattedReel.is_carousel || (Array.isArray(formattedReel.carousel_images) && formattedReel.carousel_images.length > 1);
+    const mediaLabel = isCarousel
+      ? `Photo Carousel (${formattedReel.carousel_images?.length || 0} photos)`
+      : isPost
+      ? "Post"
+      : isAudio
+      ? "Audio"
+      : "Reel";
+    const mediaIcon = isCarousel ? "📸" : isPost ? "📸" : isAudio ? "🎵" : "🎬";
 
     const creatorText =
       formattedReel.creator_handle &&

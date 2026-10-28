@@ -550,6 +550,7 @@ export default function DashboardPage() {
               const creator = getCreator(reel);
               const cleanText = cleanCaption(reel.caption);
               const time = formatRelativeTime(reel.createdAt);
+              const isPost = reel.mediaType === "post" || (reel.instagramUrl?.includes("/p/") && !reel.mediaUrl?.includes(".mp4"));
 
               return (
                 <div
@@ -559,12 +560,29 @@ export default function DashboardPage() {
                 >
                   {/* Clean full-bleed Thumbnail */}
                   {thumb ? (
-                    <img
-                      src={thumb}
-                      alt={cleanText || `@${creator}`}
-                      className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                      loading="lazy"
-                    />
+                    isPost ? (
+                      <div className="relative h-full w-full flex items-center justify-center bg-black/40 overflow-hidden">
+                        <img
+                          src={thumb}
+                          alt=""
+                          aria-hidden="true"
+                          className="absolute inset-0 h-full w-full object-cover blur-xl opacity-35 scale-110 pointer-events-none select-none"
+                        />
+                        <img
+                          src={thumb}
+                          alt={cleanText || `@${creator}`}
+                          className="relative z-10 max-h-full max-w-full object-contain transition-transform duration-300 group-hover:scale-105"
+                          loading="lazy"
+                        />
+                      </div>
+                    ) : (
+                      <img
+                        src={thumb}
+                        alt={cleanText || `@${creator}`}
+                        className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                        loading="lazy"
+                      />
+                    )
                   ) : (
                     <div className="flex h-full w-full items-center justify-center bg-zinc-900 text-zinc-600">
                       <Play className="size-8" />

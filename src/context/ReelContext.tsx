@@ -277,6 +277,20 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
           if (!avatar || avatar.includes("ui-avatars.com") || (!r.creatorUsername && creator !== "creator")) {
             avatar = `/api/proxy-image?username=${encodeURIComponent(creator)}`;
           }
+          const isCarousel =
+            r.isCarousel ||
+            (typeof r.duration === "string" && r.duration.toLowerCase().includes("carousel")) ||
+            (Array.isArray(r.carouselImages) && r.carouselImages.length > 1);
+          const detectedType: MediaType =
+            isCarousel || r.mediaType === "post" || (r.instagramUrl?.includes("/p/") && !r.mediaUrl?.includes(".mp4"))
+              ? "post"
+              : r.mediaType ||
+                (r.instagramUrl?.includes("/audio/")
+                  ? "audio"
+                  : r.instagramUrl?.includes("/stories/")
+                  ? "story"
+                  : "reel");
+
           return {
             ...r,
             creatorUsername: creator,
@@ -284,6 +298,8 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
             caption: cap,
             thumbnailUrl: thumb,
             creatorAvatar: avatar,
+            mediaType: detectedType,
+            isCarousel,
           };
         });
 
@@ -436,8 +452,10 @@ export function ReelProvider({ children }: { children: React.ReactNode }) {
                   aiTopics: Array.isArray(dbR.aiTopics) ? dbR.aiTopics : Array.isArray(dbR.ai_topics) ? dbR.ai_topics : [],
                   notes: dbR.note || "",
                   isFavorite: !!dbR.is_favorite,
-                  mediaType: isCarousel ? "post" : (dbR.media_type || dbR.mediaType || "reel"),
-                  duration: dbR.duration || (isCarousel ? `Carousel (${carouselImages?.length || ""})` : "0:15"),
+                  mediaType: isCarousel
+                    ? "post"
+                    : (dbR.media_type || dbR.mediaType || (dbR.url?.includes("/p/") ? "post" : "reel")),
+                  duration: dbR.duration || (isCarousel ? `Carousel (${carouselImages?.length || ""})` : (dbR.media_type === "post" || dbR.url?.includes("/p/")) ? "Post" : "0:15"),
                   likes: dbR.likes_count || "",
                   videoUrl: isCarousel ? "" : dbR.video_url,
                   mediaUrl: isCarousel ? "" : dbR.video_url,

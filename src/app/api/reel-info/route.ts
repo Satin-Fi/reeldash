@@ -57,11 +57,36 @@ async function fetchOpenGraphMeta(shortcode: string, mediaType: string, signal: 
   const imgMatch = html.match(/<meta\s+(?:property|name)="og:image"\s+content="([^"]*)"/i);
   const videoMatch = html.match(/<meta\s+(?:property|name)="og:video"\s+content="([^"]*)"/i);
 
+  // Extract all og:image tags for carousels
+  const imgMatches = [...html.matchAll(/<meta\s+(?:property|name)="og:image"\s+content="([^"]*)"/gi)];
+  const ogImages: string[] = [];
+  for (const m of imgMatches) {
+    const decoded = decodeEntities(m[1].replace(/&amp;/g, "&"));
+    if (decoded && !ogImages.includes(decoded)) {
+      ogImages.push(decoded);
+    }
+  }
+
+  // Also check for image lists in script type="application/ld+json"
+  const ldJsonMatches = [...html.matchAll(/<script[^>]*type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/gi)];
+  for (const ldm of ldJsonMatches) {
+    try {
+      const parsed = JSON.parse(ldm[1]);
+      if (Array.isArray(parsed?.image)) {
+        for (const img of parsed.image) {
+          const u = typeof img === "string" ? img : img?.url;
+          if (u && !ogImages.includes(u)) ogImages.push(u);
+        }
+      }
+    } catch {}
+  }
+
   return {
     title: titleMatch ? decodeEntities(titleMatch[1]) : "",
     description: descMatch ? decodeEntities(descMatch[1]) : "",
     image: imgMatch ? decodeEntities(imgMatch[1].replace(/&amp;/g, "&")) : "",
     video: videoMatch ? decodeEntities(videoMatch[1].replace(/&amp;/g, "&")) : "",
+    images: ogImages,
   };
 }
 
@@ -164,6 +189,8 @@ async function extractMetadata(url: string, startTime: number) {
     let audioTitle = "";
     let audioArtist = "";
     let hashtags: string[] = [];
+    let carouselImages: string[] = [];
+    let isCarousel = false;
 
     // Extract creator from URL if formatted as instagram.com/username/reel/...
     const userMatch = cleanUrl.match(/instagram\.com\/([A-Za-z0-9_.]+)\/(?:reel|reels|p)\//);
@@ -253,6 +280,15 @@ async function extractMetadata(url: string, startTime: number) {
             if (og.video && !mediaUrl) {
               mediaUrl = og.video;
             }
+            if (og.images && og.images.length > 1) {
+              const proxyOgImages = og.images.map((img: string) =>
+                img.startsWith("/api/proxy-image") ? img : `/api/proxy-image?url=${encodeURIComponent(img)}`
+              );
+              if (carouselImages.length <= 1) {
+                carouselImages = proxyOgImages;
+                isCarousel = true;
+              }
+            }
           })
           .catch(() => {})
       );
@@ -275,7 +311,7 @@ async function extractMetadata(url: string, startTime: number) {
       );
     }
 
-    // Task D: Instagram Captioned Embed Scraper for Real Avatar, Username, Caption & High-Res Cover
+    // Task D: Instagram Captioned Embed Scraper for Real Avatar, Username, Caption, Cover & Carousel Slides
     if (shortcode && mediaType !== "audio") {
       extractionTasks.push(
         (async () => {
@@ -313,22 +349,97 @@ async function extractMetadata(url: string, startTime: number) {
 
               const matches = unescaped.match(/https:\/\/[^"'\s<>\\]+/g) || [];
               let foundCover = false;
+              const slideCandidates: string[] = [];
+              const seenSlideKeys = new Set<string>();
+
               for (const m of matches) {
                 if (!creatorAvatar && (m.includes("t51.82787-19") || m.includes("profile_pic"))) {
                   creatorAvatar = `/api/proxy-image?url=${encodeURIComponent(m)}`;
                 }
                 if (
-                  !foundCover &&
                   !m.includes("t51.82787-19") &&
                   !m.includes("profile_pic") &&
+                  !m.includes("s150x150") &&
                   (m.includes("t51.82787-15") ||
                     m.includes("CLIPS") ||
                     m.includes("CAROUSEL_ITEM") ||
                     m.includes("dst-jpg") ||
                     m.includes("dst-jpegr"))
                 ) {
-                  thumbnailUrl = `/api/proxy-image?url=${encodeURIComponent(m)}`;
-                  foundCover = true;
+                  const cleanKey = m.split("?")[0];
+                  if (!seenSlideKeys.has(cleanKey)) {
+                    seenSlideKeys.add(cleanKey);
+                    slideCandidates.push(`/api/proxy-image?url=${encodeURIComponent(m)}`);
+                  }
+                  if (!foundCover) {
+                    thumbnailUrl = `/api/proxy-image?url=${encodeURIComponent(m)}`;
+                    foundCover = true;
+                  }
+                }
+              }
+
+              const isSidecar =
+                html.includes("PolarisEmbedSidecarEntrypoint") ||
+                html.includes("CAROUSEL_ITEM") ||
+                slideCandidates.length > 1;
+
+              if (isSidecar && slideCandidates.length > 1) {
+                carouselImages = slideCandidates;
+                isCarousel = true;
+              }
+            }
+          } catch {
+            // Continue
+          }
+        })()
+      );
+    }
+
+    // Task F: InstagAPI for Media Resolution & Multi-Slide Carousel Architecture
+    if (process.env.INSTAGAPI_KEY && shortcode && !shortcode.startsWith("audio_") && !shortcode.startsWith("post_asset_")) {
+      extractionTasks.push(
+        (async () => {
+          try {
+            const cleanSc = shortcode.replace(/^sc_/, "");
+            const res = await fetch(`https://api.instagapi.com/api/v1/media/by/code?code=${encodeURIComponent(cleanSc)}`, {
+              headers: { "x-api-key": process.env.INSTAGAPI_KEY! },
+              signal: controller.signal,
+            });
+            if (res.ok) {
+              const data = await res.json();
+              if (data.user?.username && (!creatorUsername || creatorUsername.startsWith("ig_"))) {
+                creatorUsername = data.user.username;
+              }
+              if (data.user?.full_name && !creatorFullName) {
+                creatorFullName = data.user.full_name;
+              }
+              if (data.user?.profile_pic_url && !creatorAvatar) {
+                creatorAvatar = `/api/proxy-image?url=${encodeURIComponent(data.user.profile_pic_url)}`;
+              }
+              if (data.caption_text && !caption) {
+                caption = data.caption_text;
+              }
+              if (data.like_count && !likes) {
+                likes = String(data.like_count);
+              }
+              if (data.comment_count && !commentsCount) {
+                commentsCount = String(data.comment_count);
+              }
+              if (data.product_type === "carousel_container" || data.media_type === 8) {
+                isCarousel = true;
+              }
+              const items = data.resources || data.carousel_media || [];
+              if (Array.isArray(items) && items.length > 0) {
+                const imgs: string[] = [];
+                for (const item of items) {
+                  const u = item.thumbnail_url || item.video_url || item.image_versions?.[0]?.url || item.display_url;
+                  if (u) {
+                    imgs.push(`/api/proxy-image?url=${encodeURIComponent(u)}`);
+                  }
+                }
+                if (imgs.length > 1) {
+                  carouselImages = imgs;
+                  isCarousel = true;
                 }
               }
             }
@@ -540,6 +651,17 @@ async function extractMetadata(url: string, startTime: number) {
       formattedThumbnailUrl = `/api/proxy-image?shortcode=${encodeURIComponent(shortcode)}&creator=${encodeURIComponent(creatorUsername)}`;
     }
 
+    const hasCarouselSlides = carouselImages.length > 1;
+    if (isCarousel || hasCarouselSlides) {
+      isCarousel = true;
+      if (mediaType !== "audio") {
+        mediaType = "post";
+      }
+      if (hasCarouselSlides) {
+        duration = `Carousel (${carouselImages.length})`;
+      }
+    }
+
     const responsePayload = {
       shortcode,
       url: cleanUrl,
@@ -556,6 +678,8 @@ async function extractMetadata(url: string, startTime: number) {
       likes,
       commentsCount,
       duration,
+      isCarousel: Boolean(isCarousel || hasCarouselSlides),
+      carouselImages: hasCarouselSlides ? carouselImages : undefined,
       audioTitle: audioTitle || undefined,
       audioArtist: audioArtist || undefined,
       audioUrl: mediaUrl || undefined,
