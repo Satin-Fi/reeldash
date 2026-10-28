@@ -1627,7 +1627,10 @@ async function handleReady(
       audio_url: isAudio ? (reelData.audioUrl || reelData.audio_url || reelData.mediaUrl || reelData.video_url || mediaUrl) : null,
     };
 
-    if (isAudio && (!formattedReel.audio_url || formattedReel.audio_url.includes("instagram.com") || formattedReel.audio_url.includes("instagr.am"))) {
+    if (isAudio) {
+      if (formattedReel.audio_url && (formattedReel.audio_url.includes("instagram.com") || formattedReel.audio_url.includes("instagr.am"))) {
+        formattedReel.audio_url = null;
+      }
       try {
         const resolvedAudio = await resolveAudioStream({
           title: formattedReel.audio_title || undefined,
