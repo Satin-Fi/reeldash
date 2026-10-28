@@ -9,14 +9,11 @@ import {
   Play,
   ArrowRight,
   Bookmark,
-  Users,
-  Folder,
-  Clock,
   Music2,
   Plus,
   ChevronLeft,
   ChevronRight,
-  Sparkles,
+  BarChart3,
   Heart,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
@@ -24,6 +21,17 @@ import { useReels } from '@/context/ReelContext';
 import { Reel } from '@/types/reel';
 import { ReelPlayerModal } from '@/components/reels/ReelPlayerModal';
 import { DashboardCategoryDecks } from '@/components/dashboard/DashboardCategoryDecks';
+
+type ChartRange = 'weekly' | 'monthly';
+
+interface ActivityBucket {
+  label: string;
+  fullLabel: string;
+  reels: number;
+  audio: number;
+  carousels: number;
+  total: number;
+}
 
 /* ─── Caption & Media Helpers ─── */
 function cleanCaption(value: unknown): string {
@@ -68,18 +76,6 @@ function getCreator(reel: any): string {
   ).replace(/^@/, '');
 }
 
-function getCreatorAvatar(reel: any): string {
-  if (!reel) return '';
-  return (
-    reel.creatorAvatar ||
-    reel.creator_avatar ||
-    reel.creatorProfilePic ||
-    reel.avatar ||
-    (typeof reel.creator === 'object' ? reel.creator?.avatar : '') ||
-    ''
-  );
-}
-
 function formatRelativeTime(dateString?: string): string {
   if (!dateString) return 'recently';
   const diff = Date.now() - new Date(dateString).getTime();
@@ -92,6 +88,268 @@ function formatRelativeTime(dateString?: string): string {
   if (days < 30) return `${days}d ago`;
   return new Intl.DateTimeFormat('en', { month: 'short', day: 'numeric' }).format(
     new Date(dateString),
+  );
+}
+
+function buildBuckets(
+  reels: Reel[],
+  range: ChartRange,
+  now: number | null,
+): ActivityBucket[] {
+  if (!now) return [];
+
+  const dayCount = range === 'weekly' ? 7 : 30;
+  const bucketDays = range === 'weekly' ? 1 : 5;
+  const start = new Date(now);
+  start.setHours(0, 0, 0, 0);
+  start.setDate(start.getDate() - dayCount + 1);
+
+  return Array.from({ length: dayCount / bucketDays }, (_, index) => {
+    const from = new Date(start);
+    from.setDate(from.getDate() + index * bucketDays);
+
+    const to = new Date(from);
+    to.setDate(to.getDate() + bucketDays);
+
+    const endLabel = new Date(to);
+    endLabel.setDate(endLabel.getDate() - 1);
+
+    const items = reels.filter((r) => {
+      const time = r.createdAt ? new Date(r.createdAt).getTime() : null;
+      return time !== null && time >= from.getTime() && time < to.getTime() && time <= now;
+    });
+
+    const formatDate = (date: Date) =>
+      new Intl.DateTimeFormat('en', {
+        month: 'short',
+        day: 'numeric',
+      }).format(date);
+
+    return {
+      label:
+        range === 'weekly'
+          ? new Intl.DateTimeFormat('en', { weekday: 'short' }).format(from)
+          : formatDate(from),
+      fullLabel:
+        range === 'weekly'
+          ? formatDate(from)
+          : `${formatDate(from)} – ${formatDate(endLabel)}`,
+      reels: items.filter(
+        (r) => !r.isCarousel && !r.carouselImages?.length && r.mediaType !== 'post',
+      ).length,
+      carousels: items.filter(
+        (r) => Boolean(r.isCarousel || r.carouselImages?.length || r.carouselSlides?.length),
+      ).length,
+      audio: items.filter((r) => Boolean(r.audioTitle || r.mediaType === 'audio')).length,
+      total: items.length,
+    };
+  });
+}
+
+function VelocityChart({
+  buckets,
+  range,
+  onRangeChange,
+}: {
+  buckets: ActivityBucket[];
+  range: ChartRange;
+  onRangeChange: (range: ChartRange) => void;
+}) {
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+  const hasActivity = buckets.some((bucket) => bucket.total > 0);
+
+  const peakIndex = buckets.reduce(
+    (best, bucket, index) =>
+      bucket.total > buckets[best].total ? index : best,
+    0,
+  );
+  const activeIndex = hoveredIndex ?? peakIndex;
+  const activeBucket = buckets[activeIndex] ?? buckets[peakIndex];
+  const maximum = Math.max(
+    1,
+    ...buckets.flatMap((bucket) => [bucket.reels, bucket.audio, bucket.carousels]),
+  );
+
+  const slotWidth = 320 / Math.max(1, buckets.length);
+  const barWidth = buckets.length === 7 ? 8 : 10;
+
+  return (
+    <div className="flex flex-col h-full justify-between">
+      {/* Header & Range Toggle */}
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <h2 className="text-base font-bold tracking-tight text-zinc-900 dark:text-white">
+            Save Velocity
+          </h2>
+          <p className="text-xs text-zinc-500 dark:text-zinc-400">
+            {range === 'weekly' ? 'Daily saves over the past 7 days.' : 'Saves grouped across the past 30 days.'}
+          </p>
+        </div>
+
+        <div className="flex rounded-full bg-zinc-100 p-1 dark:bg-[#20232B]">
+          {(['weekly', 'monthly'] as const).map((r) => (
+            <button
+              key={r}
+              type="button"
+              onClick={() => onRangeChange(r)}
+              className={`rounded-full px-2.5 py-1 text-[10px] font-semibold capitalize transition ${
+                range === r
+                  ? 'bg-white text-zinc-900 shadow-sm dark:bg-[#16181D] dark:text-white'
+                  : 'text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white'
+              }`}
+            >
+              {r}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Series Legend */}
+      <div className="mt-4 flex flex-wrap gap-3">
+        {[
+          { label: 'Reels', color: 'bg-violet-500' },
+          { label: 'Audio', color: 'bg-blue-400' },
+          { label: 'Carousels', color: 'bg-emerald-400' },
+        ].map((series) => (
+          <span
+            key={series.label}
+            className="inline-flex items-center gap-1.5 text-[10px] font-medium text-zinc-600 dark:text-zinc-400"
+          >
+            <span className={`size-1.5 rounded-full ${series.color}`} />
+            {series.label}
+          </span>
+        ))}
+      </div>
+
+      {/* Chart Canvas */}
+      {hasActivity ? (
+        <div className="relative mt-3 pt-9">
+          {/* Active tooltip pill */}
+          {activeBucket && (
+            <div
+              className="pointer-events-none absolute top-0 -translate-x-1/2 whitespace-nowrap rounded-xl bg-zinc-900 px-2.5 py-1.5 text-[10px] font-medium text-white shadow-md dark:bg-zinc-100 dark:text-zinc-900 transition-all duration-150"
+              style={{
+                left: `${Math.min(
+                  80,
+                  Math.max(20, ((activeIndex + 0.5) / buckets.length) * 100),
+                )}%`,
+              }}
+            >
+              {activeBucket.total} {activeBucket.total === 1 ? 'save' : 'saves'}
+              {activeBucket.audio > 0 && ` · ${activeBucket.audio} audio`}
+              <span className="absolute -bottom-1 left-1/2 size-2 -translate-x-1/2 rotate-45 bg-zinc-900 dark:bg-zinc-100" />
+            </div>
+          )}
+
+          <svg
+            viewBox="0 0 360 170"
+            className="h-auto w-full overflow-visible"
+            role="group"
+            aria-label="Save activity chart"
+            onMouseLeave={() => setHoveredIndex(null)}
+          >
+            <defs>
+              <linearGradient id="reeldash-bar-peak" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#8B5CF6" />
+                <stop offset="100%" stopColor="#6D28D9" />
+              </linearGradient>
+            </defs>
+
+            {/* Grid horizontal lines */}
+            {[25, 55, 85, 115].map((y) => (
+              <line
+                key={y}
+                x1="15"
+                x2="345"
+                y1={y}
+                y2={y}
+                className="stroke-black/[0.05] dark:stroke-white/[0.06]"
+                strokeDasharray="3 4"
+              />
+            ))}
+
+            {buckets.map((bucket, index) => {
+              const center = 15 + slotWidth * (index + 0.5);
+              const series = [
+                { key: 'reels', value: bucket.reels, color: '#8B5CF6' },
+                { key: 'audio', value: bucket.audio, color: '#60A5FA' },
+                { key: 'carousels', value: bucket.carousels, color: '#34D399' },
+              ];
+
+              return (
+                <g
+                  key={bucket.fullLabel}
+                  tabIndex={0}
+                  onMouseEnter={() => setHoveredIndex(index)}
+                  onFocus={() => setHoveredIndex(index)}
+                  onBlur={() => setHoveredIndex(null)}
+                  className="cursor-pointer outline-none"
+                >
+                  <rect
+                    x={center - slotWidth / 2 + 1}
+                    y="10"
+                    width={slotWidth - 2}
+                    height="115"
+                    rx="6"
+                    className={
+                      activeIndex === index
+                        ? 'fill-violet-500/[0.08]'
+                        : 'fill-transparent'
+                    }
+                  />
+
+                  {series.map((item, seriesIdx) => {
+                    const height = (item.value / maximum) * 95;
+                    return (
+                      <rect
+                        key={item.key}
+                        x={center - (barWidth * 3 + 6) / 2 + seriesIdx * (barWidth + 3)}
+                        y={115 - height}
+                        width={barWidth}
+                        height={height}
+                        rx={Math.min(3, height / 2)}
+                        fill={
+                          item.key === 'reels' && index === peakIndex
+                            ? 'url(#reeldash-bar-peak)'
+                            : item.color
+                        }
+                        opacity={activeIndex === index ? 1 : 0.65}
+                        className="transition-opacity duration-150"
+                      />
+                    );
+                  })}
+
+                  <text
+                    x={center}
+                    y="142"
+                    textAnchor="middle"
+                    fontSize="10"
+                    fontWeight={activeIndex === index ? 600 : 400}
+                    className={
+                      activeIndex === index
+                        ? 'fill-zinc-900 dark:fill-zinc-100 font-semibold'
+                        : 'fill-zinc-400 dark:fill-zinc-500'
+                    }
+                  >
+                    {bucket.label}
+                  </text>
+                </g>
+              );
+            })}
+          </svg>
+        </div>
+      ) : (
+        <div className="flex h-44 flex-col items-center justify-center text-center">
+          <BarChart3 className="size-8 text-zinc-300 dark:text-zinc-600 mb-2" />
+          <p className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+            No save activity recorded yet
+          </p>
+          <p className="text-[11px] text-zinc-400 mt-0.5">
+            Activity bars will appear as you save reels over the week.
+          </p>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -110,7 +368,15 @@ export default function DashboardPage() {
 
   const [activePlayerReel, setActivePlayerReel] = useState<Reel | null>(null);
   const [searchInput, setSearchInput] = useState('');
+  const [velocityRange, setVelocityRange] = useState<ChartRange>('weekly');
+  const [now, setNow] = useState<number | null>(null);
   const recentScrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setNow(Date.now());
+    const interval = window.setInterval(() => setNow(Date.now()), 60_000);
+    return () => window.clearInterval(interval);
+  }, []);
 
   const greeting = useMemo(() => {
     const hour = new Date().getHours();
@@ -136,25 +402,6 @@ export default function DashboardPage() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [router]);
 
-  // Unique Creators with avatar and count
-  const creatorList = useMemo(() => {
-    const map = new Map<string, { username: string; avatar: string; count: number }>();
-    reels.forEach((r) => {
-      const username = getCreator(r);
-      if (!username || username.toLowerCase() === 'instagram') return;
-      const key = username.toLowerCase();
-      const existing = map.get(key);
-      const avatar = getCreatorAvatar(r);
-      if (existing) {
-        existing.count += 1;
-        if (!existing.avatar && avatar) existing.avatar = avatar;
-      } else {
-        map.set(key, { username, avatar, count: 1 });
-      }
-    });
-    return Array.from(map.values()).sort((a, b) => b.count - a.count);
-  }, [reels]);
-
   // Recent saves sorted by newest
   const recentSaves = useMemo(() => {
     return [...reels]
@@ -162,18 +409,22 @@ export default function DashboardPage() {
       .slice(0, 16);
   }, [reels]);
 
+  // Velocity buckets computed from actual reels
+  const velocityBuckets = useMemo(() => {
+    return buildBuckets(reels, velocityRange, now);
+  }, [reels, velocityRange, now]);
+
   // Audio reels / music collection
   const audioGems = useMemo(() => {
     return reels
       .filter((r) => r.audioTitle || r.mediaType === 'audio')
-      .slice(0, 6);
+      .slice(0, 5);
   }, [reels]);
 
   // Recent saves with personal notes or captions
   const recentNotesAndActivity = useMemo(() => {
     return [...reels]
       .sort((a, b) => {
-        // Prioritize items with notes, then newest
         const aHasNote = Boolean(a.notes);
         const bHasNote = Boolean(b.notes);
         if (aHasNote && !bHasNote) return -1;
@@ -243,23 +494,18 @@ export default function DashboardPage() {
       {/* ─── 2. Horizontal Cards for Recent Save Reels (Full-Width Card) ─── */}
       <section className={CARD_CLASS} aria-labelledby="recent-saves-title">
         <div className="mb-4 flex items-center justify-between">
-          <div>
-            <div className="flex items-center gap-2">
-              <h2
-                id="recent-saves-title"
-                className="text-base font-bold tracking-tight text-zinc-900 dark:text-white"
-              >
-                Recent Saves
-              </h2>
-              {recentSaves.length > 0 && (
-                <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] font-semibold text-zinc-600 dark:bg-white/10 dark:text-zinc-300">
-                  {recentSaves.length}
-                </span>
-              )}
-            </div>
-            <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
-              Pick up where you left off or watch again.
-            </p>
+          <div className="flex items-center gap-2">
+            <h2
+              id="recent-saves-title"
+              className="text-base font-bold tracking-tight text-zinc-900 dark:text-white"
+            >
+              Recent Saves
+            </h2>
+            {recentSaves.length > 0 && (
+              <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] font-semibold text-zinc-600 dark:bg-white/10 dark:text-zinc-300">
+                {recentSaves.length}
+              </span>
+            )}
           </div>
 
           <div className="flex items-center gap-2">
@@ -293,7 +539,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Horizontal Carousel */}
+        {/* Horizontal Carousel (Unobstructed thumbnails, zero intrusive creator badges) */}
         {recentSaves.length > 0 ? (
           <div
             ref={recentScrollRef}
@@ -302,7 +548,6 @@ export default function DashboardPage() {
             {recentSaves.map((reel) => {
               const thumb = getMediaUrl(reel);
               const creator = getCreator(reel);
-              const avatar = getCreatorAvatar(reel);
               const cleanText = cleanCaption(reel.caption);
               const time = formatRelativeTime(reel.createdAt);
 
@@ -312,7 +557,7 @@ export default function DashboardPage() {
                   onClick={() => setActivePlayerReel(reel)}
                   className="group relative aspect-[9/16] w-[155px] sm:w-[175px] shrink-0 snap-start cursor-pointer overflow-hidden rounded-[20px] border border-black/10 bg-[#EAECE5] shadow-[0_4px_16px_-4px_rgba(0,0,0,0.1)] transition-all duration-300 hover:-translate-y-1 hover:shadow-xl dark:border-white/10 dark:bg-zinc-900"
                 >
-                  {/* Thumbnail */}
+                  {/* Clean full-bleed Thumbnail */}
                   {thumb ? (
                     <img
                       src={thumb}
@@ -327,12 +572,12 @@ export default function DashboardPage() {
                   )}
 
                   {/* Gradient Overlay */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/35 to-black/10" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-black/10" />
 
                   {/* Top Badges */}
                   <div className="absolute left-2.5 right-2.5 top-2.5 flex items-center justify-between gap-1">
                     {reel.category ? (
-                      <span className="max-w-[100px] truncate rounded-full bg-black/50 px-2 py-0.5 text-[10px] font-medium text-white backdrop-blur-md">
+                      <span className="max-w-[105px] truncate rounded-full bg-black/50 px-2 py-0.5 text-[10px] font-medium text-white backdrop-blur-md">
                         {reel.category}
                       </span>
                     ) : (
@@ -353,7 +598,7 @@ export default function DashboardPage() {
                     </span>
                   </div>
 
-                  {/* Bottom Info Bar inside Card */}
+                  {/* Bottom Info Bar inside Card (Clean text only, no giant avatar badge) */}
                   <div className="absolute inset-x-2.5 bottom-2.5 space-y-1">
                     {/* Audio Pill */}
                     {reel.audioTitle && (
@@ -363,23 +608,10 @@ export default function DashboardPage() {
                       </div>
                     )}
 
-                    {/* Creator Handle & Avatar */}
-                    <div className="flex items-center gap-1.5">
-                      {avatar ? (
-                        <img
-                          src={avatar}
-                          alt=""
-                          className="size-4.5 rounded-full object-cover ring-1 ring-white/40"
-                        />
-                      ) : (
-                        <div className="flex size-4.5 items-center justify-center rounded-full bg-violet-600 text-[9px] font-bold text-white">
-                          {creator[0]?.toUpperCase() || 'C'}
-                        </div>
-                      )}
-                      <span className="truncate text-xs font-semibold text-white">
-                        @{creator}
-                      </span>
-                    </div>
+                    {/* Creator Handle (Clean text) */}
+                    <p className="truncate text-xs font-semibold text-white drop-shadow-sm">
+                      @{creator}
+                    </p>
 
                     {/* Clean caption snippet */}
                     {cleanText && (
@@ -404,80 +636,19 @@ export default function DashboardPage() {
         )}
       </section>
 
-      {/* ─── 3. Favorite Creators in Your Library (Like Google Photos People) ─── */}
-      {creatorList.length > 0 && (
-        <section className={CARD_CLASS} aria-labelledby="creators-title">
-          <div className="mb-4 flex items-center justify-between">
-            <div>
-              <div className="flex items-center gap-2">
-                <h2
-                  id="creators-title"
-                  className="text-base font-bold tracking-tight text-zinc-900 dark:text-white"
-                >
-                  Creators
-                </h2>
-                <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] font-semibold text-zinc-600 dark:bg-white/10 dark:text-zinc-300">
-                  {creatorList.length}
-                </span>
-              </div>
-              <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
-                Browse saved reels by creators you love.
-              </p>
-            </div>
-            <Link
-              href="/reels"
-              className="text-xs font-semibold text-violet-600 hover:text-violet-700 dark:text-violet-400"
-            >
-              Explore all
-            </Link>
-          </div>
-
-          <div className="flex gap-4 overflow-x-auto pb-1 pt-1 [scrollbar-width:none]">
-            {creatorList.slice(0, 12).map((creator) => (
-              <Link
-                key={creator.username}
-                href={`/creator/${encodeURIComponent(creator.username)}`}
-                className="group flex w-16 shrink-0 flex-col items-center gap-1.5 rounded-xl transition hover:-translate-y-0.5"
-              >
-                <div className="relative size-12 rounded-full p-0.5 ring-2 ring-transparent transition group-hover:ring-violet-500">
-                  {creator.avatar ? (
-                    <img
-                      src={creator.avatar}
-                      alt={creator.username}
-                      className="size-full rounded-full object-cover"
-                    />
-                  ) : (
-                    <div className="flex size-full items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-indigo-600 text-sm font-bold text-white">
-                      {creator.username.slice(0, 2).toUpperCase()}
-                    </div>
-                  )}
-                  <span className="absolute -bottom-1 -right-1 rounded-full bg-zinc-900 px-1 text-[9px] font-bold text-white shadow dark:bg-white dark:text-zinc-900">
-                    {creator.count}
-                  </span>
-                </div>
-                <span className="w-full truncate text-center text-[11px] font-medium text-zinc-700 group-hover:text-violet-600 dark:text-zinc-300 dark:group-hover:text-violet-400">
-                  @{creator.username}
-                </span>
-              </Link>
-            ))}
-          </div>
+      {/* ─── 3. Bento Row: Save Velocity + Saved Audio ─── */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+        {/* Save Velocity Chart Card (Span 7) */}
+        <section className={`${CARD_CLASS} lg:col-span-7`} aria-labelledby="save-velocity-title">
+          <VelocityChart
+            buckets={velocityBuckets}
+            range={velocityRange}
+            onRangeChange={setVelocityRange}
+          />
         </section>
-      )}
 
-      {/* ─── 4. Categories & Albums (Visual 3D Preview Decks) ─── */}
-      <DashboardCategoryDecks
-        categories={smartCategories}
-        reels={reels}
-        onCategoryClick={(categoryTitle) => {
-          setActiveCategory(categoryTitle);
-          router.push(`/reels?category=${encodeURIComponent(categoryTitle)}`);
-        }}
-      />
-
-      {/* ─── 5. Two-Column Personal Curation: Audio Gems + Recent Notes ─── */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        {/* Saved Soundtracks & Audio */}
-        <section className={CARD_CLASS} aria-labelledby="audio-gems-title">
+        {/* Saved Soundtracks & Audio (Span 5) */}
+        <section className={`${CARD_CLASS} lg:col-span-5`} aria-labelledby="audio-gems-title">
           <div className="mb-4 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="flex size-7 items-center justify-center rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400">
@@ -491,7 +662,7 @@ export default function DashboardPage() {
                   Saved Audio
                 </h2>
                 <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                  Trending soundtracks & audio tracks.
+                  Soundtracks saved from reels.
                 </p>
               </div>
             </div>
@@ -556,103 +727,112 @@ export default function DashboardPage() {
             )}
           </div>
         </section>
+      </div>
 
-        {/* Personal Notes & Reflections */}
-        <section className={CARD_CLASS} aria-labelledby="personal-notes-title">
-          <div className="mb-4 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="flex size-7 items-center justify-center rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400">
-                <Bookmark className="size-4" />
-              </span>
-              <div>
-                <h2
-                  id="personal-notes-title"
-                  className="text-base font-bold tracking-tight text-zinc-900 dark:text-white"
-                >
-                  Notes & Highlights
-                </h2>
-                <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                  Thoughts and ideas from your saved posts.
-                </p>
-              </div>
+      {/* ─── 4. Categories & Albums (Visual 3D Preview Decks) ─── */}
+      <DashboardCategoryDecks
+        categories={smartCategories}
+        reels={reels}
+        onCategoryClick={(categoryTitle) => {
+          setActiveCategory(categoryTitle);
+          router.push(`/reels?category=${encodeURIComponent(categoryTitle)}`);
+        }}
+      />
+
+      {/* ─── 5. Notes & Highlights (Personal Reflections Card) ─── */}
+      <section className={CARD_CLASS} aria-labelledby="personal-notes-title">
+        <div className="mb-4 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="flex size-7 items-center justify-center rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400">
+              <Bookmark className="size-4" />
+            </span>
+            <div>
+              <h2
+                id="personal-notes-title"
+                className="text-base font-bold tracking-tight text-zinc-900 dark:text-white"
+              >
+                Notes & Highlights
+              </h2>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                Thoughts and ideas from your saved posts.
+              </p>
             </div>
-            <Link
-              href="/reels"
-              className="text-xs font-semibold text-violet-600 hover:text-violet-700 dark:text-violet-400"
-            >
-              View library
-            </Link>
           </div>
+          <Link
+            href="/reels"
+            className="text-xs font-semibold text-violet-600 hover:text-violet-700 dark:text-violet-400"
+          >
+            View library
+          </Link>
+        </div>
 
-          <div className="space-y-2.5">
-            {recentNotesAndActivity.length > 0 ? (
-              recentNotesAndActivity.map((reel) => {
-                const thumb = getMediaUrl(reel);
-                const creator = getCreator(reel);
-                const cleanText = cleanCaption(reel.caption);
-                const time = formatRelativeTime(reel.createdAt);
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {recentNotesAndActivity.length > 0 ? (
+            recentNotesAndActivity.map((reel) => {
+              const thumb = getMediaUrl(reel);
+              const creator = getCreator(reel);
+              const cleanText = cleanCaption(reel.caption);
+              const time = formatRelativeTime(reel.createdAt);
 
-                return (
-                  <div
-                    key={reel.id}
-                    onClick={() => setActivePlayerReel(reel)}
-                    className="group flex cursor-pointer items-start justify-between gap-3 rounded-2xl border border-black/[0.04] bg-[#F8F9FA] p-3 transition hover:border-black/[0.1] hover:bg-white hover:shadow-sm dark:border-white/[0.04] dark:bg-[#1C1F26] dark:hover:border-white/[0.1] dark:hover:bg-[#20232B]"
-                  >
-                    <div className="flex items-start gap-3 min-w-0">
-                      {/* Mini thumbnail */}
-                      <div className="relative size-10 shrink-0 overflow-hidden rounded-xl border border-black/10 bg-zinc-900 shadow-sm dark:border-white/10">
-                        {thumb ? (
-                          <img
-                            src={thumb}
-                            alt=""
-                            className="size-full object-cover"
-                          />
-                        ) : (
-                          <div className="flex size-full items-center justify-center text-zinc-500">
-                            <Play className="size-4" />
-                          </div>
+              return (
+                <div
+                  key={reel.id}
+                  onClick={() => setActivePlayerReel(reel)}
+                  className="group flex cursor-pointer items-start justify-between gap-3 rounded-2xl border border-black/[0.04] bg-[#F8F9FA] p-3 transition hover:border-black/[0.1] hover:bg-white hover:shadow-sm dark:border-white/[0.04] dark:bg-[#1C1F26] dark:hover:border-white/[0.1] dark:hover:bg-[#20232B]"
+                >
+                  <div className="flex items-start gap-3 min-w-0">
+                    {/* Mini thumbnail */}
+                    <div className="relative size-11 shrink-0 overflow-hidden rounded-xl border border-black/10 bg-zinc-900 shadow-sm dark:border-white/10">
+                      {thumb ? (
+                        <img
+                          src={thumb}
+                          alt=""
+                          className="size-full object-cover"
+                        />
+                      ) : (
+                        <div className="flex size-full items-center justify-center text-zinc-500">
+                          <Play className="size-4" />
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className="truncate text-xs font-semibold text-zinc-900 group-hover:text-violet-600 dark:text-zinc-100 dark:group-hover:text-violet-400">
+                          @{creator}
+                        </span>
+                        {reel.category && (
+                          <span className="rounded-md bg-zinc-200/60 px-1.5 py-0.2 text-[9px] font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
+                            {reel.category}
+                          </span>
                         )}
                       </div>
 
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <span className="truncate text-xs font-semibold text-zinc-900 group-hover:text-violet-600 dark:text-zinc-100 dark:group-hover:text-violet-400">
-                            @{creator}
+                      <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-zinc-600 dark:text-zinc-300">
+                        {reel.notes ? (
+                          <span className="font-medium text-zinc-900 dark:text-zinc-100">
+                            “{reel.notes}”
                           </span>
-                          {reel.category && (
-                            <span className="rounded-md bg-zinc-200/60 px-1.5 py-0.2 text-[9px] font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
-                              {reel.category}
-                            </span>
-                          )}
-                        </div>
-
-                        {/* Note text if exists, or cleaned caption excerpt */}
-                        <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-zinc-600 dark:text-zinc-300">
-                          {reel.notes ? (
-                            <span className="font-medium text-zinc-900 dark:text-zinc-100">
-                              “{reel.notes}”
-                            </span>
-                          ) : (
-                            cleanText || 'Saved reel'
-                          )}
-                        </p>
-                      </div>
+                        ) : (
+                          cleanText || 'Saved reel'
+                        )}
+                      </p>
                     </div>
-
-                    <span className="shrink-0 text-[10px] text-zinc-400 font-mono">
-                      {time}
-                    </span>
                   </div>
-                );
-              })
-            ) : (
-              <div className="rounded-xl border border-dashed border-zinc-200 p-6 text-center text-xs text-zinc-500 dark:border-zinc-800">
-                Personal notes you add to reels will show up here.
-              </div>
-            )}
-          </div>
-        </section>
-      </div>
+
+                  <span className="shrink-0 text-[10px] text-zinc-400 font-mono">
+                    {time}
+                  </span>
+                </div>
+              );
+            })
+          ) : (
+            <div className="col-span-full rounded-xl border border-dashed border-zinc-200 p-6 text-center text-xs text-zinc-500 dark:border-zinc-800">
+              Personal notes you add to reels will show up here.
+            </div>
+          )}
+        </div>
+      </section>
 
       {/* Reel Player Modal */}
       {activePlayerReel && (
