@@ -46,6 +46,22 @@ export async function resolveAudioStream(params: {
   const cleanTitle = cleanAudioString(title);
   const cleanArtist = cleanAudioString(artist);
 
+  // Guard: If title is a long sentence (>8 words or >70 characters), it is a post/reel caption, NOT a song title.
+  // Never search iTunes for caption text!
+  if (cleanTitle.split(/\s+/).length > 8 || cleanTitle.length > 70) {
+    return null;
+  }
+
+  // Guard: Generic title without a specific artist should not query iTunes for arbitrary matches
+  const isGeneric =
+    !cleanTitle ||
+    cleanTitle.toLowerCase() === "original audio" ||
+    cleanTitle.toLowerCase() === "instagram audio" ||
+    cleanTitle.toLowerCase() === "audio track";
+  if (isGeneric && (!cleanArtist || cleanArtist.toLowerCase().includes("instagram") || cleanArtist.toLowerCase() === "audio")) {
+    return null;
+  }
+
   const cacheKey = `${cleanTitle}:::${cleanArtist}`.toLowerCase();
   const cached = audioCache.get(cacheKey);
   if (cached && Date.now() < cached.expiresAt) {

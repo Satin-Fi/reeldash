@@ -1150,8 +1150,28 @@ async function handleReady(
         .eq("shortcode", reelShortcode)
         .maybeSingle();
 
-      const songQuery = sourceReel?.audio_title || sourceReel?.caption || "Original Audio";
-      const songArtist = sourceReel?.audio_artist || sourceReel?.creator_handle;
+      // Only save if the source reel had a verified, real audio title.
+      // NEVER use caption text as a song query!
+      const hasKnownAudio =
+        sourceReel?.audio_title &&
+        sourceReel.audio_title !== "Original audio" &&
+        sourceReel.audio_title.trim().length > 0 &&
+        sourceReel.audio_title.split(/\s+/).length <= 8;
+
+      if (!hasKnownAudio) {
+        const guideMsg = `🎵 To save the exact audio from this Reel:\n\n1️⃣ Open this Reel in Instagram\n2️⃣ Tap the audio name at the bottom\n3️⃣ Tap ⋯ → Copy Link → Paste here\n\nOr simply type:\naudio <song name>`;
+        await sendDMReply(senderIgId, guideMsg);
+        return {
+          status: "message_received",
+          replyMessage: guideMsg,
+          senderIgId,
+          username,
+          isFollowing: true,
+        };
+      }
+
+      const songQuery = sourceReel.audio_title;
+      const songArtist = sourceReel.audio_artist || sourceReel.creator_handle;
 
       const savedAudio = await saveAudioTrackDirectly(
         reeldashUserId,
@@ -1274,80 +1294,34 @@ async function handleReady(
     attachments
   );
 
-  // ── Universal Attachment Ingestion: Never ignore a shared item! ──
-  let detectedAudioTitle: string | undefined = undefined;
-  let detectedAudioArtist: string | undefined = undefined;
-
-  if (Array.isArray(attachments) && attachments.length > 0) {
+  // ── Universal Attachment Ingestion: Fallback media URL if not yet found ──
+  if (!mediaUrl && Array.isArray(attachments) && attachments.length > 0) {
     for (const att of attachments) {
       if (!att) continue;
       const p = att?.payload || {};
-      const rawTitle = String(p.title || p.caption || p.name || p.text || p.subtitle || att?.title || att?.text || "").trim();
-      const titleLower = rawTitle.toLowerCase();
       const attType = String(att?.type || "").toLowerCase();
 
-      // Check if it's audio
-      const isAudioShare =
-        titleLower.includes("audio") ||
-        titleLower.includes("sound") ||
-        titleLower.includes("song") ||
-        titleLower.includes("music") ||
-        titleLower.includes("track") ||
-        rawTitle.includes("•") ||
-        rawTitle.includes("·") ||
-        attType.includes("audio") ||
-        attType.includes("sound") ||
-        attType.includes("music") ||
-        attType === "audio_share";
-
-      if (rawTitle) {
-        const lines = rawTitle.split("\n");
-        if (lines[0]) detectedAudioTitle = lines[0].replace(/[•·].*$/, "").trim();
-        const creatorMatch =
-          rawTitle.match(/\n@?([A-Za-z0-9_.]+)\s*[·•]/) ||
-          rawTitle.match(/[\n•·]\s*@?([A-Za-z0-9_.]+)/) ||
-          rawTitle.match(/@?([A-Za-z0-9_.]+)\s*[·•]/) ||
-          rawTitle.match(/(?:by|from)\s+@?([A-Za-z0-9_.]+)/i);
-        if (creatorMatch) {
-          detectedAudioArtist = creatorMatch[1].trim();
+      if (p.audio_id || attType === "audio" || attType === "audio_share") {
+        const audioId = p.audio_id || p.id || att.id;
+        if (audioId) {
+          mediaUrl = `https://www.instagram.com/reels/audio/${audioId}/`;
+          break;
         }
       }
 
-      if (!mediaUrl) {
-        const anyId =
-          p.reel_video_id ||
-          p.audio_id ||
-          p.id ||
-          p.media_id ||
-          p.target_id ||
-          p.asset_id ||
-          att.id;
-
-        if (isAudioShare) {
-          if (anyId) {
-            mediaUrl = `https://www.instagram.com/reels/audio/${anyId}/`;
-            console.log(`[Instagram Bot] Audio share fallback URL from ID: ${mediaUrl}`);
-          } else {
-            const titleIdMatch = rawTitle.match(/(\d{8,})/);
-            if (titleIdMatch) {
-              mediaUrl = `https://www.instagram.com/reels/audio/${titleIdMatch[1]}/`;
-            } else {
-              const syntheticId = `dm_audio_${Date.now().toString(36)}`;
-              mediaUrl = `https://www.instagram.com/reels/audio/${syntheticId}/`;
-              console.log(`[Instagram Bot] Audio share created synthetic mediaUrl: ${mediaUrl}`);
-            }
-          }
-        } else {
-          // General attachment (post / reel)
-          if (anyId) {
-            mediaUrl = `https://www.instagram.com/reel/${anyId}/`;
-          } else {
-            const syntheticId = `dm_item_${Date.now().toString(36)}`;
-            mediaUrl = `https://www.instagram.com/reel/${syntheticId}/`;
-          }
+      if (p.reel_video_id || attType === "ig_reel") {
+        const reelId = p.reel_video_id || p.id || att.id;
+        if (reelId) {
+          mediaUrl = `https://www.instagram.com/reel/${reelId}/`;
+          break;
         }
       }
-      break;
+
+      const anyId = p.id || p.media_id || p.target_id || p.asset_id || att.id;
+      if (anyId) {
+        mediaUrl = `https://www.instagram.com/reel/${anyId}/`;
+        break;
+      }
     }
   }
 
@@ -1454,9 +1428,8 @@ async function handleReady(
         username
       );
 
-      const finalAudioArtist = detectedAudioArtist || (extracted.handle && extracted.handle !== "instagram" ? extracted.handle : "Instagram Audio");
-      const finalCreatorHandle = isAudio ? finalAudioArtist : extracted.handle;
-      const finalCreatorName = isAudio ? (detectedAudioArtist ? `@${detectedAudioArtist}` : "Instagram Audio") : extracted.name;
+      const finalCreatorHandle = isAudio ? "instagram_audio" : extracted.handle;
+      const finalCreatorName = isAudio ? "Instagram Audio" : extracted.name;
 
       reelData = {
         shortcode,
@@ -1475,9 +1448,9 @@ async function handleReady(
           isAudio ? "audio" : isPost ? "post" : "reel",
           "auto-save",
         ],
-        audioTitle: detectedAudioTitle || (isAudio ? "Original audio" : undefined),
-        audioArtist: finalAudioArtist,
-        audioUrl: directThumb || mediaUrl,
+        audioTitle: isAudio ? "Original audio" : undefined,
+        audioArtist: isAudio ? "Instagram Audio" : undefined,
+        audioUrl: isAudio ? (directThumb || mediaUrl) : undefined,
       };
     }
 
@@ -1585,24 +1558,24 @@ async function handleReady(
       note: note || reelData.note || undefined,
       is_carousel: reelData.isCarousel || reelData.is_carousel || (reelData.carouselImages && reelData.carouselImages.length > 1) || (reelData.duration && reelData.duration.includes("Carousel")) || false,
       carousel_images: reelData.carouselImages || reelData.carousel_images || null,
-      audio_title: reelData.audioTitle || reelData.audio_title || (isAudio ? (detectedAudioTitle || "Original audio") : null),
-      audio_artist: reelData.audioArtist || reelData.audio_artist || (isAudio ? (detectedAudioArtist || creatorHandle) : null),
-      audio_url: reelData.audioUrl || reelData.audio_url || (isAudio ? (reelData.mediaUrl || reelData.video_url || mediaUrl) : null),
+      audio_title: isAudio ? (reelData.audioTitle || reelData.audio_title || "Original audio") : null,
+      audio_artist: isAudio ? (reelData.audioArtist || reelData.audio_artist || creatorHandle) : null,
+      audio_url: isAudio ? (reelData.audioUrl || reelData.audio_url || reelData.mediaUrl || reelData.video_url || mediaUrl) : null,
     };
 
     if (isAudio && (!formattedReel.audio_url || formattedReel.audio_url.includes("instagram.com") || formattedReel.audio_url.includes("instagr.am"))) {
       try {
         const resolvedAudio = await resolveAudioStream({
-          title: formattedReel.audio_title || detectedAudioTitle,
-          artist: formattedReel.audio_artist || detectedAudioArtist || creatorHandle,
+          title: formattedReel.audio_title || undefined,
+          artist: formattedReel.audio_artist || undefined,
           url: mediaUrl,
         });
         if (resolvedAudio?.streamUrl) {
           formattedReel.audio_url = resolvedAudio.streamUrl;
-          if (resolvedAudio.trackTitle && formattedReel.audio_title === "Original audio") {
+          if (resolvedAudio.trackTitle) {
             formattedReel.audio_title = resolvedAudio.trackTitle;
           }
-          if (resolvedAudio.artistName && (!formattedReel.audio_artist || formattedReel.audio_artist === "Instagram Audio")) {
+          if (resolvedAudio.artistName) {
             formattedReel.audio_artist = resolvedAudio.artistName;
           }
           if (resolvedAudio.duration) {
@@ -1718,7 +1691,12 @@ async function handleReady(
       },
     ];
 
-    if (!isAudio && (formattedReel.audio_title || reelData?.audioTitle)) {
+    const hasVerifiedSong =
+      formattedReel.audio_title &&
+      formattedReel.audio_title !== "Original audio" &&
+      formattedReel.audio_title.split(/\s+/).length <= 8;
+
+    if (!isAudio && hasVerifiedSong) {
       buttons.push({
         type: "postback",
         title: "🎵 Save Audio Track",
@@ -2675,58 +2653,33 @@ function extractInstagramMediaUrl(
     }
   }
 
-  // 4. Audio share detection: Instagram audio page shares via DM often arrive
-  //    without a URL but may include an ID (reel_video_id, id, media_id) or title we can
-  //    use to construct an audio page URL.
+  // 4. Attachment ID fallback: construct canonical URL from payload IDs
   if (Array.isArray(attachments) && attachments.length > 0) {
     for (const att of attachments) {
       if (!att) continue;
       const p = att?.payload || {};
-      const rawTitle = String(p.title || p.caption || p.name || p.text || p.subtitle || att?.title || att?.text || "");
-      const titleLower = rawTitle.toLowerCase();
       const attType = String(att?.type || "").toLowerCase();
 
-      // Detect audio shares by title keywords, bullet/middle-dot format, or attachment type
-      const looksLikeAudio =
-        titleLower.includes("audio") ||
-        titleLower.includes("sound") ||
-        titleLower.includes("song") ||
-        titleLower.includes("music") ||
-        titleLower.includes("track") ||
-        rawTitle.includes("•") ||
-        rawTitle.includes("·") ||
-        attType.includes("audio") ||
-        attType.includes("sound") ||
-        attType.includes("music") ||
-        attType === "audio_share";
-
-      if (looksLikeAudio) {
-        // Try to find any usable ID
-        const payloadId =
-          p.reel_video_id ||
-          p.audio_id ||
-          p.id ||
-          p.media_id ||
-          p.target_id ||
-          p.asset_id ||
-          att.id;
-
-        if (payloadId) {
-          console.log(`[Instagram Bot] Audio share detected via metadata ID: ${payloadId}`);
-          return `https://www.instagram.com/reels/audio/${payloadId}/`;
+      // Audio attachments
+      if (p.audio_id || attType === "audio" || attType === "audio_share") {
+        const audioId = p.audio_id || p.id || att.id;
+        if (audioId) {
+          return `https://www.instagram.com/reels/audio/${audioId}/`;
         }
+      }
 
-        // Try to extract a numeric ID from the title text itself
-        const titleIdMatch = rawTitle.match(/(\d{8,})/);
-        if (titleIdMatch) {
-          console.log(`[Instagram Bot] Audio share detected via title ID: ${titleIdMatch[1]}`);
-          return `https://www.instagram.com/reels/audio/${titleIdMatch[1]}/`;
+      // Reel attachments
+      if (p.reel_video_id || attType === "ig_reel") {
+        const reelId = p.reel_video_id || p.id || att.id;
+        if (reelId) {
+          return `https://www.instagram.com/reel/${reelId}/`;
         }
+      }
 
-        // Guaranteed fallback: Never return null for detected audio share!
-        const syntheticId = `dm_audio_${Date.now().toString(36)}`;
-        console.log(`[Instagram Bot] Audio share detected (synthetic ID: ${syntheticId})`);
-        return `https://www.instagram.com/reels/audio/${syntheticId}/`;
+      // General media ID fallback
+      const anyId = p.id || p.media_id || p.target_id || p.asset_id || att.id;
+      if (anyId) {
+        return `https://www.instagram.com/reel/${anyId}/`;
       }
     }
   }
