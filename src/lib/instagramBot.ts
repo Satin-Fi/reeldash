@@ -93,12 +93,7 @@ async function resolveInstagramUserState(
   senderIgId: string,
   isFollowing: boolean
 ): Promise<ResolvedState> {
-  // Gate 1: Follow check (if available)
-  if (!isFollowing) {
-    return { state: "NOT_FOLLOWING" };
-  }
-
-  // Gate 2: Check cache (short TTL to avoid stale auth decisions)
+  // Gate 1: Check cache (short TTL to avoid stale auth decisions)
   const cached = profileCache.get(senderIgId);
   if (cached && Date.now() - cached.cachedAt < CACHE_TTL_MS) {
     return {
@@ -109,7 +104,9 @@ async function resolveInstagramUserState(
     };
   }
 
-  // Gate 3: Database lookup
+  // Gate 2: Database lookup FIRST.
+  // If the user has an active, linked account in our database, they are ALREADY a verified ReelDash user!
+  // A Meta API outage, expired token, or follower-check failure must NEVER lock out an already-linked user.
   try {
     const supabase = getSupabaseAdmin();
     if (!supabase) {
@@ -124,46 +121,45 @@ async function resolveInstagramUserState(
       .limit(1)
       .maybeSingle();
 
-    if (!account) {
-      // No match at all — user needs to sign up and link
-      return { state: "NEEDS_SIGNUP" };
+    if (account) {
+      let resolvedState: InstagramUserState;
+      switch (account.status) {
+        case "active":
+          resolvedState = "READY";
+          break;
+        case "legacy_unverified":
+          resolvedState = "NEEDS_REVERIFICATION";
+          break;
+        case "inactive":
+          resolvedState = "ACCOUNT_INACTIVE";
+          break;
+        default:
+          resolvedState = "NEEDS_SIGNUP";
+          break;
+      }
+
+      profileCache.set(senderIgId, {
+        reeldashUserId: account.reeldash_user_id,
+        instagramAccountId: account.id,
+        username: account.username,
+        state: resolvedState,
+        cachedAt: Date.now(),
+      });
+
+      return {
+        state: resolvedState,
+        reeldashUserId: account.reeldash_user_id,
+        instagramAccountId: account.id,
+        username: account.username,
+      };
     }
 
-    // Determine state based on status
-    let resolvedState: InstagramUserState;
-
-    switch (account.status) {
-      case "active":
-        resolvedState = "READY";
-        break;
-      case "legacy_unverified":
-        // CRITICAL FIX: Legacy accounts must NOT save new Reels.
-        // They need DM verification first.
-        resolvedState = "NEEDS_REVERIFICATION";
-        break;
-      case "inactive":
-        resolvedState = "ACCOUNT_INACTIVE";
-        break;
-      default:
-        resolvedState = "NEEDS_SIGNUP";
-        break;
+    // Gate 3: For unknown / unlinked senders only, check if they are following
+    if (!isFollowing) {
+      return { state: "NOT_FOLLOWING" };
     }
 
-    // Cache the result
-    profileCache.set(senderIgId, {
-      reeldashUserId: account.reeldash_user_id,
-      instagramAccountId: account.id,
-      username: account.username,
-      state: resolvedState,
-      cachedAt: Date.now(),
-    });
-
-    return {
-      state: resolvedState,
-      reeldashUserId: account.reeldash_user_id,
-      instagramAccountId: account.id,
-      username: account.username,
-    };
+    return { state: "NEEDS_SIGNUP" };
   } catch (err) {
     console.error("[Instagram Bot] State resolution error:", err);
     return { state: "ERROR" };
@@ -943,9 +939,7 @@ async function handleNotFollowing(
   attachments: any[] = []
 ): Promise<ProcessedDMResult> {
   // If user sent a reel, store it as pending so they never lose it
-  const mediaUrl = messageText
-    ? extractInstagramMediaUrl(messageText, attachments)
-    : null;
+  const mediaUrl = extractInstagramMediaUrl(messageText || "", attachments);
   if (mediaUrl) {
     await storePendingReel(
       senderIgId,
@@ -2829,6 +2823,11 @@ async function sendDMReply(
       return;
     }
     const errText = await res.text().catch(() => "");
+    if ((res.status === 401 || res.status === 400) && (errText.includes("Session has expired") || errText.includes("Error validating access token"))) {
+      console.error(
+        "[Instagram Bot] CRITICAL: INSTAGRAM_PAGE_ACCESS_TOKEN has expired! DMs cannot be sent until a refreshed token is configured in Vercel."
+      );
+    }
     console.warn(`[sendDMReply] graph.instagram.com returned ${res.status}:`, errText);
   } catch (err) {
     console.warn("[sendDMReply] graph.instagram.com error:", err);
